@@ -7,6 +7,8 @@ alwaysApply: false
 # API
 
 - Nest + PostgreSQL + Prisma. Session auth + role Guards.
+- DTOs with `class-validator`. No bare `any` on controllers.
+- Prisma only inside services — not controllers.
 - Overlap checks in DB/transactions. Sources: `manual` | `website` | `booking_com` | `airbnb` | `agoda`.
 - iCal updates PMS only — does not refresh OTAs.
 - Read `apps/api/AGENTS.md`.

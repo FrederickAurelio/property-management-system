@@ -17,24 +17,36 @@ Keep every `AGENTS.md` a short source of truth — not a changelog.
 ## Layout
 
 ```text
-apps/api   → Nest API (source of truth)
-apps/pms   → Staff PMS UI (Phase 1)
-apps/web   → Public browse/book (Phase 2)
+apps/api   → Nest API (source of truth)     @cabin/api
+apps/pms   → Staff PMS UI (Phase 1)         @cabin/pms
+apps/web   → Public browse/book (Phase 2)   @cabin/web (scaffold only)
 packages/  → Shared code when two apps need it
 .docs/     → Product plan
 ```
 
-One backend. Both frontends call `apps/api`.
+One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (never `npm i` inside an app).
 
 ## Locked stack (Phase 1)
 
-| App | Stack |
-|-----|--------|
-| `api` | NestJS · TypeScript · PostgreSQL · Prisma · session cookies + Guards |
-| `pms` | React · Vite · TypeScript · Tailwind CSS · shadcn/ui |
-| `web` | **Undecided** (Phase 2 — discuss later; scaffold only for now) |
+| App | Stack | Scaffold |
+|-----|--------|----------|
+| `api` | NestJS · TypeScript · PostgreSQL · Prisma · session cookies + Guards | Nest ready; Prisma/auth **not** yet |
+| `pms` | React · Vite · TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) | Ready to build screens |
+| `web` | **Undecided** (Phase 2) | Placeholder only |
 
 Do not introduce Express+Mongo, a second API, or a second booking database.
+
+## Commands
+
+From **repo root**:
+
+| Task | Command |
+|------|---------|
+| Install | `pnpm install` |
+| Typecheck (husky) | `pnpm typecheck` |
+| API dev | `pnpm --filter @cabin/api dev` |
+| PMS dev | `pnpm --filter @cabin/pms dev` |
+| Add dep to one app | `pnpm --filter @cabin/api add <pkg>` |
 
 ## Product path
 
@@ -92,7 +104,7 @@ type(scope): summary
 Scopes: `api` | `pms` | `web` | `packages` | `repo` | `deps`
 
 - `pre-commit` → `pnpm typecheck`
-- `commit-msg` → commitlint  
+- `commit-msg` → commitlint
 - Do not `--no-verify` unless the user asks
 
 ```bash

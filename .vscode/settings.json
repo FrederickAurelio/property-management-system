@@ -1,0 +1,19 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+
+  "tailwindCSS.experimental.configFile": {
+    "apps/pms/src/index.css": "apps/pms/**"
+  },
+  "tailwindCSS.classAttributes": ["class", "className", "class:list"],
+  "tailwindCSS.classFunctions": ["cva", "cn", "clsx", "twMerge"],
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript",
+    "typescriptreact": "javascript"
+  }
+}

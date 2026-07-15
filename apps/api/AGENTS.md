@@ -1,6 +1,11 @@
 # apps/api
 
-NestJS backend. **Source of truth** for units, reservations, availability, staff auth, and ops workflows. Serves `pms` (Phase 1) and `web` (Phase 2).
+NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, availability, staff auth, and ops. Serves `pms` (Phase 1) and `web` (Phase 2).
+
+## Status
+
+- Nest scaffold ready (`dev` / `build` / `typecheck` / Jest)
+- **Not yet:** Prisma, Postgres, auth, feature modules
 
 ## Stack (locked)
 
@@ -9,17 +14,19 @@ NestJS backend. **Source of truth** for units, reservations, availability, staff
 - Session cookies + role Guards (`admin` | `front_desk`)
 - Validation on DTOs; CORS allowlist for FE origins
 
+## Run
+
+```bash
+pnpm --filter @cabin/api dev
+pnpm --filter @cabin/api typecheck
+pnpm --filter @cabin/api test
+```
+
 ## Security
 
-**Phase 1 (staff PMS):** Nest built-ins first — `helmet`, CORS allowlist, login rate-limit, sessions + Guards. Enough while the API is staff-facing.
+**Phase 1 (staff PMS):** Nest built-ins first — `helmet`, CORS allowlist, login rate-limit, sessions + Guards.
 
-**Later (esp. public `web`):** [Arcjet](https://docs.arcjet.com) (`@arcjet/nest`) on the **API only** — not the FE. Nest Guard / request protection for:
-
-- Rate limiting
-- Bot detection
-- Shield / basic attack filtering
-
-Arcjet does **not** replace auth, Prisma/Postgres overlap rules, or DTO validation. Add when public routes need it; skip on day one.
+**Later (public `web`):** [Arcjet](https://docs.arcjet.com) (`@arcjet/nest`) on the **API only**. Does not replace auth, Prisma overlap rules, or DTO validation.
 
 ## Phase 1 build order
 
@@ -44,6 +51,11 @@ One calendar per unit. Confirmed stays must not overlap on the same unit (Postgr
 ## Module shape
 
 Prefer Nest feature modules: `auth`, `units`, `reservations`, `ops`, later `ingest`, `ical`.
+
+## Code conventions
+
+- DTOs with `class-validator` (+ `ValidationPipe`). No bare `any` on controllers.
+- Prisma only inside services — not controllers.
 
 ## Don’t
 

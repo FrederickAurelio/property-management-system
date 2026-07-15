@@ -1,11 +1,28 @@
 # apps/pms
 
-Staff Property Management UI. **Phase 1 frontend.** Talks only to `apps/api`.
+Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to `apps/api`.
+
+## Status
+
+- Vite + React + TS ready
+- Tailwind CSS v4 (`@tailwindcss/vite`) + Prettier class sort
+- shadcn/ui (radix-nova); import via `@/` → `src/`
+- **Not yet:** routing, auth UI, domain screens
 
 ## Stack (locked)
 
 - React + Vite + TypeScript
-- Tailwind CSS + shadcn/ui
+- Tailwind CSS v4 + shadcn/ui
+
+## Run
+
+```bash
+pnpm --filter @cabin/pms dev
+pnpm --filter @cabin/pms typecheck
+pnpm --filter @cabin/pms format
+```
+
+Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 
 ## Phase 1 screens
 
@@ -30,5 +47,6 @@ Staff Property Management UI. **Phase 1 frontend.** Talks only to `apps/api`.
 - Public guest browse/book flows (that’s `apps/web`)
 - Call OTAs from the browser
 - Invent local booking truth that bypasses the API
+- Use `npm i` inside this folder (pnpm from repo root only)
 
 Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`
