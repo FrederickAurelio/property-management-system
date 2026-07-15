@@ -1,11 +1,30 @@
 # packages/
 
-Shared libraries live here (e.g. `@cabin/shared-types`).
+Shared libraries for **two or more apps**. Not a junk drawer for one app’s internals.
 
-Import into apps via workspace protocol once a package is added:
+## When code belongs here
 
-```json
-"@cabin/shared-types": "workspace:*"
-```
+| Put in `packages/` | Keep in `apps/` |
+|--------------------|-----------------|
+| Types / constants / pure helpers used by 2+ apps | Nest modules, guards, controllers |
+| Stable cross-app contracts (API wire shapes, shared enums) | React/Vite UI, routing |
+| Small isomorphic utilities (no Nest/React/Prisma imports) | Prisma schema, DB access, env boot |
 
-Keep empty until two apps need the same code.
+**Trigger:** you are about to paste the same file into a second app → stop and add or extend a package instead.
+
+## How to add a package
+
+1. Create `packages/<name>/` with `package.json` (`name`: `@cabin/<name>`), `tsconfig.json`, `src/`.
+2. Emit build output apps can load (typical: `dist/` + `"prepare": "pnpm run build"`).
+3. Document the package in its own short `AGENTS.md` (what’s in / what’s out).
+4. In each consumer: `"@cabin/<name>": "workspace:*"` → `pnpm install` from **repo root**.
+5. Import `@cabin/<name>` only — never `../../apps/...`.
+6. Ensure root `typecheck` builds packages that need `dist/` before app checks.
+
+## Inventory
+
+| Package | Purpose |
+|---------|---------|
+| [`@cabin/api-contract`](api-contract/) | HTTP success/error envelope + error codes (api + pms; web later) |
+
+Add rows when new packages appear. Details for each package live in that package’s `AGENTS.md`.

@@ -1,33 +1,109 @@
 ---
-description: pnpm workspace pitfalls — install, env, IDE, native builds (any tool)
+description: pnpm workspace pitfalls — install, env, IDE, native builds, shared packages
 alwaysApply: true
 ---
 
 # Monorepo tooling (general)
 
-This repo is **one pnpm workspace**. Tutorials for a single app often break here — use this checklist for **any** new tool (Prisma, Redis client, Sentry, Arcjet, etc.).
+This repo is **one pnpm workspace**. Tutorials for a single app break here. Follow this so TypeScript + ESLint show **accurate** errors (real bugs), not fake “Unsafe call of a type that could not be resolved” floods — and so shared code is not copy-pasted across apps.
 
-## Always
+## Root cause of fake IDE errors
+
+Type-aware ESLint (`recommendedTypeChecked` / `no-unsafe-*`) needs the **app’s** `tsconfig` + that app’s `node_modules`.
+
+If the ESLint language server runs with **repo-root CWD**:
+
+1. It cannot resolve that app’s deps / generated code the same way as `pnpm --filter @cabin/<app>`
+2. Types become `error` / unresolved
+3. Every call looks like `no-unsafe-call` / `no-unsafe-assignment`
+
+That is a **misconfigured IDE**, not a reason to turn off `no-unsafe-*`. Keep those rules **error**. Fix the workspace so types resolve; then only real issues remain.
+
+Do **not** use `"eslint.workingDirectories": [{ "mode": "auto" }]` here. Root `pnpm-lock.yaml` makes auto treat the monorepo root as the project; nested apps then get the wrong CWD.
+
+## Locked IDE setup (do not “workaround” around this)
+
+1. Open **[`cabin.code-workspace`](cabin.code-workspace)** (multi-root), not only the repo folder if diagnostics stay wrong.
+2. [`.vscode/settings.json`](.vscode/settings.json) must list each app with `changeProcessCWD: true`:
+
+```json
+"eslint.workingDirectories": [
+  { "directory": "apps/api", "changeProcessCWD": true },
+  { "directory": "apps/pms", "changeProcessCWD": true },
+  { "directory": "apps/web", "changeProcessCWD": true }
+],
+"eslint.useFlatConfig": true
+```
+
+3. Each app owns its own `eslint.config.*` + `tsconfig*.json`. No root type-aware ESLint config.
+4. After changing those settings: **ESLint: Restart ESLint Server**, then **Developer: Reload Window** if needed.
+5. Truth check — IDE Problems for a file must match CLI from that app:
+
+```bash
+pnpm --filter @cabin/api lint
+pnpm --filter @cabin/api typecheck
+```
+
+If CLI is clean and IDE is red → IDE CWD/workspace is wrong. If CLI is red → fix the code (or generate / build deps).
+
+## Shared `packages/` (general)
+
+`packages/*` = workspace libraries imported by **two or more** apps. Not a junk drawer. Not for Nest controllers, Prisma schema, or React screens.
+
+**When to add or extend a package**
+
+- Same types, constants, or pure helpers are about to exist in 2+ apps → put them in `packages/<name>` once.
+- Before inventing a second copy of DTO/wire shapes, enums, or shared utils → check `packages/` first.
+
+**When to keep code in an app**
+
+- Framework runtime (Nest modules/guards, React components, Vite, Prisma client usage)
+- Secrets, env loading, Docker, app entrypoints
+
+**How to wire**
+
+1. Create `packages/<name>` with its own `package.json` (`@cabin/<name>`), `tsconfig`, and `src/`.
+2. Prefer a build to `dist/` + `"prepare": "pnpm run build"` so Nest and Vite both resolve real JS/types after `pnpm install`.
+3. In each consumer app: `"@cabin/<name>": "workspace:*"`, then `pnpm install` from **repo root**.
+4. Import from `@cabin/<name>` — never relative-path into another app (`apps/pms` must not import from `apps/api/src`).
+5. Root `pnpm typecheck` should build shared packages that emit `dist/` before app typechecks (see root `package.json`).
+
+**Do not**
+
+- Duplicate the same constants/types in two apps “just for now”
+- Put app A’s Nest/React code inside a package “so B can import it”
+- `npm i` inside `packages/*` or `apps/*` (always root + filter / workspace)
+
+Inventory and add-package checklist: [`packages/README.md`](packages/README.md).
+
+## Always (any new tool)
 
 1. Install from **repo root**: `pnpm --filter @cabin/<app> add <pkg>` (never `npm i` / `yarn` inside an app).
-2. Root-only tools (husky, commitlint): `pnpm add -D <pkg> -w` (or edit root `package.json`).
-3. **One** shared secrets file: repo root `.env` / `.env.example`. Don’t invent `apps/foo/.env` unless the tool truly cannot see the root (document why).
-4. If install says `ERR_PNPM_IGNORED_BUILDS` / needs postinstall (native binaries, engines): add the package under `pnpm-workspace.yaml` → `allowBuilds: { "<pkg>": true }`, then reinstall.
-5. IDE typed lint must be **per app**: `.vscode/settings.json` → `eslint.workingDirectories: [{ "pattern": "apps/*" }]`. Root-cwd ESLint → fake `Unsafe call of a type that could not be resolved`.
-6. Generated/codegen output (Prisma, GraphQL, OpenAPI): put it where the app tsconfig can see it; gitignore if regenerated; run generate after install/schema change. Don’t assume `node_modules` default paths behave like npm.
+2. Root-only tools (husky, commitlint): `pnpm add -D <pkg> -w`.
+3. **One** secrets file: repo root `.env` / `.env.example`.
+4. Native postinstall / engines: `pnpm-workspace.yaml` → `allowBuilds: { "<pkg>": true }`, then reinstall.
+5. Generated output (Prisma, etc.): path the app tsconfig can import; gitignore if regenerated; run generate after install/schema change. For Nest, keep build `rootDir` as `src` and copy generated files into `dist` via `nest-cli` `assets` — otherwise runtime looks under `dist/.../generated` and fails with `Cannot find module`. Put `tsBuildInfoFile` under `dist/` (or disable incremental on the build tsconfig) so Nest `deleteOutDir` cannot leave a stale cache that skips emit → `Cannot find module .../dist/main`.
+6. Shared code for 2+ apps → `packages/` + `workspace:*` (see above).
 
 ## Before blaming the library
 
-| Symptom | Check |
-|---------|--------|
-| Module / types not found in IDE only | ESLint workingDirectories; reload window; package installed on the **right** filter |
-| Works in one app, missing in another | Dep is in that app’s `package.json`? |
-| Postinstall / binary / engine missing | `allowBuilds` |
-| Env undefined at runtime/CLI | Root `.env` loaded? Script cwd is `apps/<name>` → path to root `.env` |
-| Lockfile fight / duplicate versions | One `pnpm-lock.yaml` at root — don’t commit app-level lockfiles |
+| Symptom | Fix |
+|---------|-----|
+| Flood of `Unsafe * of a type that could not be resolved` in IDE only | Workspace + `eslint.workingDirectories` + restart ESLint; compare to `pnpm --filter … lint` |
+| CLI lint/typecheck red, IDE green | Trust CLI; fix code |
+| Module missing in one app | Dep in that app’s `package.json`? right `--filter`? |
+| Workspace package types/runtime missing | Package built (`prepare` / `pnpm --filter @cabin/<pkg> build`)? `workspace:*` linked? |
+| `ERR_PNPM_IGNORED_BUILDS` | `allowBuilds` |
+| Env undefined | Root `.env`; scripts under `apps/<name>` must load `../../.env` |
+| Lockfile / duplicate versions | One root `pnpm-lock.yaml` only |
+| Same types defined in two apps | Move to `packages/`; delete the copies |
 
 ## Don’t
 
-- `npm install` inside `apps/*`
-- Global “turn off no-unsafe-*” to hide workspace misconfig
-- Copy-paste single-repo setup without checking filter, env path, and allowBuilds
+- `npm install` inside `apps/*` or `packages/*`
+- Turn off `no-unsafe-*` / `recommendedTypeChecked` to hide monorepo misconfig
+- Root-only ESLint type-aware lint for all apps
+- `eslint.workingDirectories: [{ "mode": "auto" }]` with a root lockfile
+- Copy-paste shared types/constants into multiple apps
+- Import across apps with relative paths (`apps/a` → `apps/b`)
+- Copy-paste single-repo setup without filter, env path, allowBuilds, per-app IDE CWD, and packages rules

@@ -7,10 +7,11 @@
   },
   "scripts": {
     "prepare": "husky",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "typecheck:api": "pnpm --filter @cabin/api run typecheck",
-    "typecheck:pms": "pnpm --filter @cabin/pms run typecheck",
+    "typecheck": "pnpm --filter @cabin/api-contract run build && pnpm -r --if-present run typecheck",
+    "typecheck:api": "pnpm --filter @cabin/api-contract run build && pnpm --filter @cabin/api run typecheck",
+    "typecheck:pms": "pnpm --filter @cabin/api-contract run build && pnpm --filter @cabin/pms run typecheck",
     "typecheck:web": "pnpm --filter @cabin/web run typecheck",
+    "typecheck:packages": "pnpm --filter @cabin/api-contract run typecheck",
     "lint": "pnpm -r --if-present run lint",
     "build": "pnpm -r --if-present run build",
     "test": "pnpm -r --if-present run test",
@@ -20,6 +21,7 @@
     "db:ps": "docker compose ps",
     "prisma:generate": "pnpm --filter @cabin/api prisma:generate",
     "prisma:migrate": "pnpm --filter @cabin/api prisma:migrate",
+    "prisma:seed": "pnpm --filter @cabin/api prisma:seed",
     "prisma:studio": "pnpm --filter @cabin/api prisma:studio"
   },
   "devDependencies": {

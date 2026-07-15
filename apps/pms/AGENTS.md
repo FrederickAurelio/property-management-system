@@ -7,12 +7,24 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 - Vite + React + TS ready
 - Tailwind CSS v4 (`@tailwindcss/vite`) + Prettier class sort
 - shadcn/ui (radix-nova); import via `@/` → `src/`
+- API client: `src/lib/api` (session cookies + envelope unwrap)
 - **Not yet:** routing, auth UI, domain screens
 
 ## Stack (locked)
 
 - React + Vite + TypeScript
 - Tailwind CSS v4 + shadcn/ui
+
+## API client
+
+- Always use [`src/lib/api/client.ts`](src/lib/api/client.ts) — never raw `fetch` to the API.
+- Shared HTTP contract types: `@cabin/api-contract` (from `packages/`) — do not duplicate cross-app types here.
+- `credentials: 'include'` (cookie `cabin.sid`).
+- Success body `{ data, meta? }` → client returns `data`.
+- Errors `{ error: { code, message, details? } }` → throws `ApiError`.
+- Auth helpers: `login` / `logout` / `me` in `src/lib/api/auth.ts`.
+- 401 hook: `setUnauthorizedHandler(() => …)` (wire to `/login` when routing exists).
+- Env: root `.env` → `VITE_API_URL` (`vite.config` `envDir` = repo root).
 
 ## Run
 
@@ -39,7 +51,7 @@ Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 
 - Optimize for front-desk speed, not marketing
 - Quick-confirm = review draft, minimal typing
-- Honor roles from API (`admin` / `front_desk`)
+- Honor roles from API (`SUPER_ADMIN` | `ADMIN` | `FRONT_DESK`)
 - Be honest about iCal delay; never promise zero conflicts
 
 ## Don’t
@@ -47,6 +59,7 @@ Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 - Public guest browse/book flows (that’s `apps/web`)
 - Call OTAs from the browser
 - Invent local booking truth that bypasses the API
+- Put tokens in `localStorage` (session cookie only)
 - Use `npm i` inside this folder (pnpm from repo root only)
 
 Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`

@@ -1,0 +1,36 @@
+---
+description: How to write AGENTS.md and .cursor/rules/*.mdc — general patterns, not one-off cases
+alwaysApply: true
+---
+
+# Writing AGENTS.md and `.mdc` rules
+
+These files guide future humans and agents. Write **reusable patterns**, not a diary of today’s bug.
+
+## Always
+
+- **General over specific.** Encode the *rule* (“shared code for 2+ apps → `packages/`”), not the incident (“don’t copy ApiErrorCode again”).
+- **Rewrite, don’t append.** When decisions change, replace the old section. Never stack “also…” / “we also fixed…”.
+- **One job per file.** Root AGENTS = repo-wide. App/package AGENTS = that app/package only. One `.mdc` = one concern.
+- **Locked decisions only.** Stack, phase, hard don’ts, invariants. Skip tutorials, speculation, and chat recap.
+- **Prefer bullets and tables.** Target ~one screen when possible.
+- **Link out** for depth (`.docs/`, package README, another rule). Don’t paste the same wall in three places.
+- **Delete stale lines.** Drop “not yet” / finished milestones; update status in place.
+- **Examples are optional and secondary.** If you need an example, one short one is enough — the rule must still make sense after that example is deleted.
+
+## Never
+
+- Changelog-style notes (“fixed ESLint unsafe…”, “added bcrypt allowBuilds because…”)
+- Rules that only name one symbol/file unless that *is* the locked API
+- Copy-paste the same paragraph into root + app + `.mdc`
+- Growing files by appending every new edge case — fold into the general rule or link
+
+## Where it lives
+
+| Kind | Put |
+|------|-----|
+| Repo-wide writing + product brief | Root `AGENTS.md` |
+| App/package locked stack | That folder’s `AGENTS.md` |
+| Always-on or globbed agent constraints | `.cursor/rules/*.mdc` |
+
+Root `AGENTS.md` → “How to write AGENTS.md and rules” is the human-facing source of truth for this policy; keep this `.mdc` aligned with it.

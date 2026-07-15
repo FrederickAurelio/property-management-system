@@ -7,5 +7,6 @@ alwaysApply: false
 # PMS
 
 - React + Vite + Tailwind + shadcn. Staff ops only → `apps/api`.
+- Call API only via `src/lib/api`; shared wire types from `packages/` — do not duplicate cross-app contracts here.
 - Calendar, reservations, check-in/out, quick-confirm first.
 - Read `apps/pms/AGENTS.md`.

@@ -4,41 +4,86 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 
 ## Status
 
-- Nest + **Prisma 6** wired (`PrismaModule` / `PrismaService`)
-- Local Postgres via root Compose (`pnpm db:up`)
-- **Not yet:** domain models, auth, feature modules
+- Nest + **Prisma 6** + local Postgres (`pnpm db:up`)
+- **Staff auth:** cookie sessions (`express-session` + `connect-pg-simple`), `Admin` model, roles below
+- **Not yet:** property/unit/reservation modules, admin CRUD, permission matrix
 
 ## Stack (locked)
 
 - NestJS + TypeScript
 - PostgreSQL + Prisma 6
-- Session cookies + role Guards (`admin` | `front_desk`)
-- Validation on DTOs; CORS allowlist for FE origins
+- Session cookies in Postgres + role Guards (`SUPER_ADMIN` | `ADMIN` | `FRONT_DESK`)
+- Validation on DTOs; CORS allowlist for FE origins (`credentials: true`)
+
+## Roles
+
+| Role | Intent |
+|------|--------|
+| `SUPER_ADMIN` | Manage staff + full system (seeded bootstrap account) |
+| `ADMIN` | Modules / settings / ops — not admin-user CRUD |
+| `FRONT_DESK` | Daily ops only (matrix later) |
+
+## Auth endpoints
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `POST` | `/auth/login` | `{ username, password }` → session cookie |
+| `POST` | `/auth/logout` | Destroy session (authenticated) |
+| `GET` | `/auth/me` | Current admin + role |
+
+Cookie name: `cabin.sid` (httpOnly). Env: `SESSION_SECRET`, `CORS_ORIGINS`, seed vars below.
+
+## HTTP contract
+
+Controllers return **domain objects only**. Global `TransformInterceptor` + `HttpExceptionFilter` own the wire shape.
+
+**Success (2xx):** `{ data: T, meta?: { requestId } }` — header `x-request-id` mirrors `meta.requestId`.
+
+**Error (4xx/5xx):** `{ error: { code, message, details? }, meta?: { requestId } }`
+
+| HTTP | `error.code` |
+|------|----------------|
+| 400 | `VALIDATION_FAILED` or `BAD_REQUEST` |
+| 401 | `AUTH_UNAUTHORIZED` |
+| 403 | `AUTH_FORBIDDEN` |
+| 404 | `NOT_FOUND` |
+| 409 | `CONFLICT` |
+| 500 | `INTERNAL_ERROR` |
+
+FE: `credentials: 'include'`; unwrap `data`; never parse Nest’s default error shape. Shared setup: `setupHttpContract()` in `src/common/http/`.
+
+Cross-app wire types: import from `@cabin/api-contract` (see `packages/`). Do not redefine the same envelope/codes in this app.
 
 ## Run
 
 ```bash
 pnpm db:up
 pnpm prisma:generate
-pnpm --filter @cabin/api prisma:migrate   # after first models exist
+pnpm --filter @cabin/api prisma:migrate
+pnpm --filter @cabin/api prisma:seed
 pnpm --filter @cabin/api dev
 pnpm --filter @cabin/api typecheck
+pnpm --filter @cabin/api lint
 pnpm --filter @cabin/api test
 ```
 
-`GET /health` — Nest + Postgres (`SELECT 1`).
+IDE must match CLI (`pnpm --filter @cabin/api lint`). Open [`cabin.code-workspace`](../../cabin.code-workspace). See [`.cursor/rules/monorepo-tooling.mdc`](../../.cursor/rules/monorepo-tooling.mdc).
 
-Env: **one** file — repo root `.env` (Compose + `DATABASE_URL`). Schema: `apps/api/prisma/schema.prisma`. Client output: `apps/api/src/generated/prisma` (gitignored; `pnpm prisma:generate`).
+`GET /health` → `{ data: { status: "ok", database: "up" }, meta: { requestId } }`.
+
+Env: **one** file — repo root `.env`. Schema: `apps/api/prisma/schema.prisma`. Client: `apps/api/src/generated/prisma` (gitignored).
+
+Seed (first `SUPER_ADMIN`): `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`).
 
 ## Security
 
-**Phase 1 (staff PMS):** Nest built-ins first — `helmet`, CORS allowlist, login rate-limit, sessions + Guards.
+**Phase 1 (staff PMS):** CORS allowlist, sessions + Guards. Add helmet + login rate-limit soon.
 
-**Later (public `web`):** [Arcjet](https://docs.arcjet.com) (`@arcjet/nest`) on the **API only**. Does not replace auth, Prisma overlap rules, or DTO validation.
+**Later (public `web`):** [Arcjet](https://docs.arcjet.com) on the **API only**.
 
 ## Phase 1 build order
 
-1. Auth + roles
+1. Auth + roles ← **in progress** (login done; admin CRUD next)
 2. Units CRUD
 3. Reservations CRUD + availability (overlap enforced in DB)
 4. Check-in / check-out
@@ -58,12 +103,13 @@ One calendar per unit. Confirmed stays must not overlap on the same unit (Postgr
 
 ## Module shape
 
-Prefer Nest feature modules: `auth`, `units`, `reservations`, `ops`, later `ingest`, `ical`.
+Prefer Nest feature modules: `auth`, `units`, `reservations`, `ops`, later `ingest`, `ical`. Next: `admins` (SUPER_ADMIN-only CRUD).
 
 ## Code conventions
 
 - DTOs with `class-validator` (+ `ValidationPipe`). No bare `any` on controllers.
 - Prisma only inside services — not controllers.
+- Use `SessionAuthGuard` + `@Roles(...)` / `RolesGuard` for protected routes.
 
 ## Don’t
 
@@ -71,6 +117,7 @@ Prefer Nest feature modules: `auth`, `units`, `reservations`, `ops`, later `inge
 - Second database for bookings
 - Trust UI-only overlap checks
 - Channel Manager in Phase 1
+- Mix guest `User` with `Admin` (guests are Phase 2)
 - Put Arcjet (or API secrets) in the frontend
 
 Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`

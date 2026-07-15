@@ -6,9 +6,11 @@ alwaysApply: true
 # Monorepo
 
 - Apps: `api` (`@cabin/api` Nest), `pms` (`@cabin/pms` Vite/React/Tailwind/shadcn), `web` (Phase 2 scaffold).
-- **pnpm only** from repo root. Never `npm i` inside an app.
+- Shared libs: `packages/*` — code needed by **2+ apps** (types, constants, pure helpers). Apps depend via `workspace:*`. See `packages/README.md` + `.cursor/rules/monorepo-tooling.mdc`.
+- **pnpm only** from repo root. Never `npm i` inside an app or package.
 - One API only. Product: `AGENTS.md` + `.docs/cabin-pms-client-plan.md`.
 - Phase 1 = `api` + `pms`. No `web` booking, CM, or OTA scraping in Phase 1.
 - Unique-unit calendars. Overlap safety in Postgres.
-- Tooling pitfalls (pnpm builds, Prisma output, single `.env`, ESLint per app): `.cursor/rules/monorepo-tooling.mdc`.
-- When editing `AGENTS.md`: rewrite cleanly — see root `AGENTS.md` → “How to write AGENTS.md”.
+- Tooling pitfalls (pnpm builds, Prisma output, single `.env`, ESLint per app, shared packages): `.cursor/rules/monorepo-tooling.mdc`.
+- When editing `AGENTS.md` or `.cursor/rules/*.mdc`: **general patterns, not one-off cases** — see root `AGENTS.md` → “How to write…” and `.cursor/rules/agents-writing.mdc`.
+- Open the repo via `cabin.code-workspace` when IDE diagnostics look wrong.
