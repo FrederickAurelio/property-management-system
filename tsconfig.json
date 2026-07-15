@@ -1,8 +1,0 @@
-{
-  "files": [],
-  "compilerOptions": {
-    "strict": true,
-    "noEmit": true
-  },
-  "exclude": ["apps", "packages", "node_modules"]
-}
