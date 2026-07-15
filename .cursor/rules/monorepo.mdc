@@ -1,12 +1,12 @@
 ---
-description: Cabin PMS monorepo — architecture and phase hard stops
+description: Cabin PMS monorepo — architecture, stack, phase hard stops
 alwaysApply: true
 ---
 
 # Monorepo
 
-- Layout: `apps/api` (BE), `apps/pms` (staff FE), `apps/web` (public FE). One API only.
-- Product truth: `AGENTS.md` + `.docs/cabin-pms-client-plan.md`.
-- Phase 1 = `api` + `pms`. Do not build `web` booking until Phase 2.
-- No second backend. No OTA scraping / remote “Import now”. No Channel Manager in Phase 1.
-- Inventory = unique units (one calendar each). Share via `packages/` only when two apps need it.
+- Apps: `api` (Nest+Postgres+Prisma), `pms` (React/Vite/Tailwind/shadcn), `web` (Phase 2; FE stack undecided).
+- One API only. Product: `AGENTS.md` + `.docs/cabin-pms-client-plan.md`.
+- Phase 1 = `api` + `pms`. No `web` booking, CM, or OTA scraping in Phase 1.
+- Unique-unit calendars. Overlap safety in Postgres.
+- When editing `AGENTS.md`: rewrite cleanly — see root `AGENTS.md` → “How to write AGENTS.md”.

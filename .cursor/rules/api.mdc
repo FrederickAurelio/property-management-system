@@ -6,7 +6,7 @@ alwaysApply: false
 
 # API
 
-- Source of truth for units, reservations, availability. Overlap checks on the server.
-- Sources: `manual` | `website` | `booking_com` | `airbnb` | `agoda`
-- Unique-unit calendars. iCal sync updates PMS only — does not refresh OTAs.
-- Read `apps/api/AGENTS.md` for Phase 1 surface.
+- Nest + PostgreSQL + Prisma. Session auth + role Guards.
+- Overlap checks in DB/transactions. Sources: `manual` | `website` | `booking_com` | `airbnb` | `agoda`.
+- iCal updates PMS only — does not refresh OTAs.
+- Read `apps/api/AGENTS.md`.

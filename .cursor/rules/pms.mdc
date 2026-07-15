@@ -6,7 +6,6 @@ alwaysApply: false
 
 # PMS
 
-- Staff ops only. Talk to `apps/api` only — no OTA calls in the browser.
-- Prioritize calendar, reservations, check-in/out, quick-confirm.
-- Quick-confirm: pre-filled draft → Confirm → save.
-- Read `apps/pms/AGENTS.md` for Phase 1 screens.
+- React + Vite + Tailwind + shadcn. Staff ops only → `apps/api`.
+- Calendar, reservations, check-in/out, quick-confirm first.
+- Read `apps/pms/AGENTS.md`.

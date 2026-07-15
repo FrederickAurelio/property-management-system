@@ -6,6 +6,5 @@ alwaysApply: false
 
 # Web
 
-- Phase 2. Prefer `api` + `pms` unless Phase 2 is explicitly started.
-- Guest booking only; writes to shared `apps/api` (`source: website`).
-- No separate booking DB. Read `apps/web/AGENTS.md` when Phase 2 is active.
+- Phase 2. FE stack undecided. Books via shared `apps/api` only.
+- Prefer `api` + `pms` until Phase 2 starts. Read `apps/web/AGENTS.md`.

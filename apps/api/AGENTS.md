@@ -1,37 +1,56 @@
-# apps/api — Agent Brief
+# apps/api
 
-Backend for the Cabin PMS. **Single source of truth** for units, reservations, staff auth, check-in/out, reports, email ingest, and (later) iCal + public booking writes.
+NestJS backend. **Source of truth** for units, reservations, availability, staff auth, and ops workflows. Serves `pms` (Phase 1) and `web` (Phase 2).
 
-## Role
+## Stack (locked)
 
-- Serves `apps/pms` (Phase 1) and `apps/web` (Phase 2)
-- Owns the database and business rules
-- Does **not** scrape OTAs or trigger remote OTA refresh
+- NestJS + TypeScript
+- PostgreSQL + Prisma
+- Session cookies + role Guards (`admin` | `front_desk`)
+- Validation on DTOs; CORS allowlist for FE origins
 
-## Phase 1 API surface (priority)
+## Security
 
-1. Auth + staff roles (admin / front desk)
+**Phase 1 (staff PMS):** Nest built-ins first — `helmet`, CORS allowlist, login rate-limit, sessions + Guards. Enough while the API is staff-facing.
+
+**Later (esp. public `web`):** [Arcjet](https://docs.arcjet.com) (`@arcjet/nest`) on the **API only** — not the FE. Nest Guard / request protection for:
+
+- Rate limiting
+- Bot detection
+- Shield / basic attack filtering
+
+Arcjet does **not** replace auth, Prisma/Postgres overlap rules, or DTO validation. Add when public routes need it; skip on day one.
+
+## Phase 1 build order
+
+1. Auth + roles
 2. Units CRUD
-3. Reservations CRUD (sources: `manual`, later `website`, `booking_com`, `airbnb`, `agoda`)
-4. Calendar / availability queries
-5. Check-in / check-out status workflow
-6. Basic reports (occupancy, arrivals/departures, revenue by source)
-7. Email ingest → draft reservation → notify → confirm endpoint
-8. iCal import + Sync now (Phase 1.x)
+3. Reservations CRUD + availability (overlap enforced in DB)
+4. Check-in / check-out
+5. Basic reports
+6. Email ingest → draft → notify → confirm
+7. iCal import + Sync now
 
-## Domain model
+Reservation `source`: `manual` | `website` | `booking_com` | `airbnb` | `agoda`
+
+## Domain
 
 ```text
 property → unit_type (optional) → unit → reservations / blocks
 ```
 
-One calendar per **unit**. Avoid allotment-first design unless product explicitly needs it.
+One calendar per unit. Confirmed stays must not overlap on the same unit (Postgres exclusion / transactional write).
 
-## Rules of engagement
+## Module shape
 
-- Overlap / double-book detection belongs here, not only in the UI
-- “Sync all” refreshes **our** copy of calendars — it does not force OTAs to pull
-- Keep secrets in env; never commit credentials
-- Prefer clear domain modules (units, reservations, auth, ingest, ical) over a dump of routes
+Prefer Nest feature modules: `auth`, `units`, `reservations`, `ops`, later `ingest`, `ical`.
 
-See also: root `AGENTS.md`, `.docs/cabin-pms-client-plan.md`
+## Don’t
+
+- Scrape OTAs or remote “Import now”
+- Second database for bookings
+- Trust UI-only overlap checks
+- Channel Manager in Phase 1
+- Put Arcjet (or API secrets) in the frontend
+
+Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`

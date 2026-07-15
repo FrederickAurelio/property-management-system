@@ -1,29 +1,34 @@
-# apps/pms — Agent Brief
+# apps/pms
 
-Staff-facing Property Management System UI. This is the **Phase 1 frontend**.
+Staff Property Management UI. **Phase 1 frontend.** Talks only to `apps/api`.
 
-## Role
+## Stack (locked)
 
-- Ops brain for front desk / admin: units, calendar, reservations, check-in/out, reports, quick-confirm
-- Talks only to `apps/api` — no direct OTA APIs
-- Not the public guest site (`apps/web` is Phase 2)
+- React + Vite + TypeScript
+- Tailwind CSS + shadcn/ui
 
-## Phase 1 screens (priority)
+## Phase 1 screens
 
-1. Auth (staff login)
-2. Units list / CRUD
+1. Staff login
+2. Units CRUD
 3. Calendar (busy/free per unit)
-4. Manual reservation create/edit
+4. Manual reservations
 5. Check-in / check-out + daily arrivals/departures
 6. Basic reports
-7. Quick-confirm draft reservation (pre-filled from email ingest ping)
-8. Optional: Sync now + “refresh Airbnb/Agoda if urgent” checklist
+7. Quick-confirm (pre-filled draft → Confirm)
+8. Optional: Sync now + “refresh OTA if urgent” checklist
 
-## UX notes
+## UX
 
-- Optimize for speed of confirm and daily ops, not marketing polish
-- Quick-confirm should feel like reviewing a draft PR: pre-filled → Confirm → saved
-- Warn about iCal delay / double-book risk when relevant; do not promise zero conflicts
-- Roles: admin vs front desk — hide admin-only settings accordingly
+- Optimize for front-desk speed, not marketing
+- Quick-confirm = review draft, minimal typing
+- Honor roles from API (`admin` / `front_desk`)
+- Be honest about iCal delay; never promise zero conflicts
 
-See also: root `AGENTS.md`, `.docs/cabin-pms-client-plan.md`
+## Don’t
+
+- Public guest browse/book flows (that’s `apps/web`)
+- Call OTAs from the browser
+- Invent local booking truth that bypasses the API
+
+Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`

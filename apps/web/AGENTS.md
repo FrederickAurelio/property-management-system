@@ -1,24 +1,26 @@
-# apps/web — Agent Brief
+# apps/web
 
-Public browse / booking frontend for the company website. **Phase 2** — do not treat as current MVP unless the user explicitly starts Phase 2.
+Public browse/booking UI. **Phase 2** — idle scaffold until Phase 2 is explicitly started.
 
-## Role
+## Stack
 
-- Guests browse units and book
-- Writes reservations into the **same** `apps/api` as the PMS
-- Not a staff tool (staff use `apps/pms`)
+**Undecided.** Choose when Phase 2 starts. Do not assume the same stack as `pms`.
 
-## Phase 2 scope (when activated)
+Whatever the FE is, bookings write to the shared `apps/api` (`source: website`).
 
-1. Unit browse + availability
-2. Booking flow → creates reservation in API (`source: website`)
-3. Works with PMS iCal **export hub** (API exports `.ics` per unit for OTAs)
+## Phase 2 scope
 
-## Rules of engagement
+1. Browse units + availability (from API)
+2. Book → reservation in shared API
+3. Relies on API iCal export hub for OTAs
 
-- Until Phase 2 is started: keep this app minimal (scaffold only); prefer work in `api` + `pms`
-- Never invent a separate booking database
-- Availability must respect PMS calendar truth (including OTA-derived blocks once imported)
-- Guest UX can be branded/marketing-led; still one composition, no ops-dashboard clutter
+## Don’t
 
-See also: root `AGENTS.md`, `.docs/cabin-pms-client-plan.md`
+- Build this before Phase 1 ops MVP is solid
+- Separate booking database
+- Staff check-in, reports, or quick-confirm here
+- Lock a FE stack here without an explicit decision
+
+Until Phase 2: prefer work in `api` + `pms`.
+
+Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`
