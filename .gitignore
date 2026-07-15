@@ -1,0 +1,30 @@
+# deps
+node_modules/
+.pnpm-store/
+vendor/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# build
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# IDE / OS
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# local tooling
+.turbo/
+.cache/
+tmp/
+temp/

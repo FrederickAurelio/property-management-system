@@ -1,0 +1,15 @@
+---
+description: Public web frontend conventions when editing apps/web
+globs: apps/web/**
+alwaysApply: false
+---
+
+# Public web rules
+
+- Phase 2 app. Prefer `api` + `pms` work unless Phase 2 is explicitly active.
+- Guest-facing only — no staff check-in, reports, or quick-confirm here.
+- All bookings write to the shared `apps/api` (`source: website`).
+- Availability must come from API calendar truth, not a local-only store.
+- Do not add a separate booking backend.
+- Brand/marketing UI is fine; keep one clear booking job per flow.
+- Also read `apps/web/AGENTS.md` when working here.

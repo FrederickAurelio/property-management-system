@@ -1,0 +1,17 @@
+---
+description: Backend API conventions when editing apps/api
+globs: apps/api/**
+alwaysApply: false
+---
+
+# API rules
+
+- This app is the only source of truth for units, reservations, and availability.
+- Enforce reservation overlap checks on the server, not only in clients.
+- Reservation `source` values: `manual` | `website` | `booking_com` | `airbnb` | `agoda`.
+- Model inventory as unique units with per-unit calendars.
+- iCal sync refreshes PMS data; it does not remotely refresh OTAs.
+- No OTA extranet scraping; no Channel Manager unless Phase 3 is explicitly started.
+- Keep auth/roles (admin, front desk) on protected routes.
+- Prefer modular domains: auth, units, reservations, ops, ingest, ical.
+- Also read `apps/api/AGENTS.md` when working here.

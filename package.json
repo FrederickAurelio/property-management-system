@@ -1,0 +1,24 @@
+{
+  "name": "property-management-sys",
+  "private": true,
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "typecheck:api": "pnpm --filter @cabin/api run typecheck",
+    "typecheck:pms": "pnpm --filter @cabin/pms run typecheck",
+    "typecheck:web": "pnpm --filter @cabin/web run typecheck",
+    "lint": "pnpm -r --if-present run lint",
+    "build": "pnpm -r --if-present run build",
+    "test": "pnpm -r --if-present run test"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "husky": "^9.1.7",
+    "typescript": "^5.8.3"
+  }
+}

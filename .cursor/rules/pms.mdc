@@ -1,0 +1,16 @@
+---
+description: Staff PMS frontend conventions when editing apps/pms
+globs: apps/pms/**
+alwaysApply: false
+---
+
+# PMS UI rules
+
+- This is the staff ops app only. Do not build public guest browse/book flows here.
+- Call `apps/api` for all data. No direct OTA integrations in the browser.
+- Prioritize calendar, reservations, check-in/out, and quick-confirm over marketing UI.
+- Quick-confirm = review pre-filled draft → Confirm → persist. Minimize typing.
+- Show role-appropriate UI (admin vs front desk).
+- Be honest about iCal delay; never claim zero double-booking.
+- Keep ops screens dense and actionable; avoid landing-page decoration.
+- Also read `apps/pms/AGENTS.md` when working here.
