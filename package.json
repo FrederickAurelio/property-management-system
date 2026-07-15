@@ -13,7 +13,14 @@
     "typecheck:web": "pnpm --filter @cabin/web run typecheck",
     "lint": "pnpm -r --if-present run lint",
     "build": "pnpm -r --if-present run build",
-    "test": "pnpm -r --if-present run test"
+    "test": "pnpm -r --if-present run test",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres",
+    "db:ps": "docker compose ps",
+    "prisma:generate": "pnpm --filter @cabin/api prisma:generate",
+    "prisma:migrate": "pnpm --filter @cabin/api prisma:migrate",
+    "prisma:studio": "pnpm --filter @cabin/api prisma:studio"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

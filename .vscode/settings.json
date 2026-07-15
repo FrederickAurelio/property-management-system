@@ -3,6 +3,9 @@
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.preferences.importModuleSpecifier": "non-relative",
 
+  "eslint.workingDirectories": [{ "pattern": "apps/*" }],
+  "eslint.useFlatConfig": true,
+
   "editor.quickSuggestions": {
     "strings": true
   },

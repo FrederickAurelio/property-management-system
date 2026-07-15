@@ -1,0 +1,33 @@
+---
+description: pnpm workspace pitfalls — install, env, IDE, native builds (any tool)
+alwaysApply: true
+---
+
+# Monorepo tooling (general)
+
+This repo is **one pnpm workspace**. Tutorials for a single app often break here — use this checklist for **any** new tool (Prisma, Redis client, Sentry, Arcjet, etc.).
+
+## Always
+
+1. Install from **repo root**: `pnpm --filter @cabin/<app> add <pkg>` (never `npm i` / `yarn` inside an app).
+2. Root-only tools (husky, commitlint): `pnpm add -D <pkg> -w` (or edit root `package.json`).
+3. **One** shared secrets file: repo root `.env` / `.env.example`. Don’t invent `apps/foo/.env` unless the tool truly cannot see the root (document why).
+4. If install says `ERR_PNPM_IGNORED_BUILDS` / needs postinstall (native binaries, engines): add the package under `pnpm-workspace.yaml` → `allowBuilds: { "<pkg>": true }`, then reinstall.
+5. IDE typed lint must be **per app**: `.vscode/settings.json` → `eslint.workingDirectories: [{ "pattern": "apps/*" }]`. Root-cwd ESLint → fake `Unsafe call of a type that could not be resolved`.
+6. Generated/codegen output (Prisma, GraphQL, OpenAPI): put it where the app tsconfig can see it; gitignore if regenerated; run generate after install/schema change. Don’t assume `node_modules` default paths behave like npm.
+
+## Before blaming the library
+
+| Symptom | Check |
+|---------|--------|
+| Module / types not found in IDE only | ESLint workingDirectories; reload window; package installed on the **right** filter |
+| Works in one app, missing in another | Dep is in that app’s `package.json`? |
+| Postinstall / binary / engine missing | `allowBuilds` |
+| Env undefined at runtime/CLI | Root `.env` loaded? Script cwd is `apps/<name>` → path to root `.env` |
+| Lockfile fight / duplicate versions | One `pnpm-lock.yaml` at root — don’t commit app-level lockfiles |
+
+## Don’t
+
+- `npm install` inside `apps/*`
+- Global “turn off no-unsafe-*” to hide workspace misconfig
+- Copy-paste single-repo setup without checking filter, env path, and allowBuilds

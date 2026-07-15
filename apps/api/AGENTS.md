@@ -4,23 +4,31 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 
 ## Status
 
-- Nest scaffold ready (`dev` / `build` / `typecheck` / Jest)
-- **Not yet:** Prisma, Postgres, auth, feature modules
+- Nest + **Prisma 6** wired (`PrismaModule` / `PrismaService`)
+- Local Postgres via root Compose (`pnpm db:up`)
+- **Not yet:** domain models, auth, feature modules
 
 ## Stack (locked)
 
 - NestJS + TypeScript
-- PostgreSQL + Prisma
+- PostgreSQL + Prisma 6
 - Session cookies + role Guards (`admin` | `front_desk`)
 - Validation on DTOs; CORS allowlist for FE origins
 
 ## Run
 
 ```bash
+pnpm db:up
+pnpm prisma:generate
+pnpm --filter @cabin/api prisma:migrate   # after first models exist
 pnpm --filter @cabin/api dev
 pnpm --filter @cabin/api typecheck
 pnpm --filter @cabin/api test
 ```
+
+`GET /health` — Nest + Postgres (`SELECT 1`).
+
+Env: **one** file — repo root `.env` (Compose + `DATABASE_URL`). Schema: `apps/api/prisma/schema.prisma`. Client output: `apps/api/src/generated/prisma` (gitignored; `pnpm prisma:generate`).
 
 ## Security
 

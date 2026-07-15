@@ -10,4 +10,5 @@ alwaysApply: true
 - One API only. Product: `AGENTS.md` + `.docs/cabin-pms-client-plan.md`.
 - Phase 1 = `api` + `pms`. No `web` booking, CM, or OTA scraping in Phase 1.
 - Unique-unit calendars. Overlap safety in Postgres.
+- Tooling pitfalls (pnpm builds, Prisma output, single `.env`, ESLint per app): `.cursor/rules/monorepo-tooling.mdc`.
 - When editing `AGENTS.md`: rewrite cleanly — see root `AGENTS.md` → “How to write AGENTS.md”.

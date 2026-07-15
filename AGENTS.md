@@ -22,6 +22,7 @@ apps/pms   → Staff PMS UI (Phase 1)         @cabin/pms
 apps/web   → Public browse/book (Phase 2)   @cabin/web (scaffold only)
 packages/  → Shared code when two apps need it
 .docs/     → Product plan
+docker-compose.yml → local Postgres now; api/pms/web later on cabin-net
 ```
 
 One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (never `npm i` inside an app).
@@ -30,7 +31,7 @@ One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (nev
 
 | App | Stack | Scaffold |
 |-----|--------|----------|
-| `api` | NestJS · TypeScript · PostgreSQL · Prisma · session cookies + Guards | Nest ready; Prisma/auth **not** yet |
+| `api` | NestJS · TypeScript · PostgreSQL · Prisma 6 · session cookies + Guards | Prisma wired; auth/domain **not** yet |
 | `pms` | React · Vite · TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) | Ready to build screens |
 | `web` | **Undecided** (Phase 2) | Placeholder only |
 
@@ -44,9 +45,15 @@ From **repo root**:
 |------|---------|
 | Install | `pnpm install` |
 | Typecheck (husky) | `pnpm typecheck` |
+| Postgres up | `pnpm db:up` |
+| Postgres down | `pnpm db:down` |
+| Prisma generate | `pnpm prisma:generate` |
+| Prisma migrate | `pnpm prisma:migrate` |
 | API dev | `pnpm --filter @cabin/api dev` |
 | PMS dev | `pnpm --filter @cabin/pms dev` |
 | Add dep to one app | `pnpm --filter @cabin/api add <pkg>` |
+
+Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`).
 
 ## Product path
 

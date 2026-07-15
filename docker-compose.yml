@@ -1,0 +1,73 @@
+# Cabin PMS — local / future full-stack Docker
+# Now: Postgres only (host port for Nest + Prisma on the host).
+# Later: uncomment / add api, pms, web on the same network.
+
+name: cabin
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cabin-postgres
+    restart: unless-stopped
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-cabin_pms}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - cabin
+
+  # --- future (host apps talk to postgres via localhost for now) ---
+  # api:
+  #   build: ./apps/api
+  #   container_name: cabin-api
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cabin_pms}?schema=public
+  #   ports:
+  #     - '${API_PORT:-3000}:3000'
+  #   networks:
+  #     - cabin
+  #
+  # pms:
+  #   build: ./apps/pms
+  #   container_name: cabin-pms
+  #   depends_on:
+  #     - api
+  #   ports:
+  #     - '${PMS_PORT:-5173}:5173'
+  #   networks:
+  #     - cabin
+  #
+  # web:
+  #   build: ./apps/web
+  #   container_name: cabin-web
+  #   depends_on:
+  #     - api
+  #   ports:
+  #     - '${WEB_PORT:-5174}:5174'
+  #   networks:
+  #     - cabin
+
+volumes:
+  postgres_data:
+    name: cabin-postgres-data
+
+networks:
+  cabin:
+    name: cabin-net

@@ -2,6 +2,10 @@ packages:
   - "apps/*"
   - "packages/*"
 
-# Optional eslint native resolver — JS fallback is enough
+# Packages allowed to run install scripts (pnpm 11)
 allowBuilds:
+  "@prisma/client": true
+  "@prisma/engines": true
+  prisma: true
+  # Optional eslint native resolver — JS fallback is enough
   unrs-resolver: false
