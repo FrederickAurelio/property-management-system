@@ -1,0 +1,12 @@
+export const ApiErrorCode = {
+  VALIDATION_FAILED: 'VALIDATION_FAILED',
+  BAD_REQUEST: 'BAD_REQUEST',
+  AUTH_UNAUTHORIZED: 'AUTH_UNAUTHORIZED',
+  AUTH_FORBIDDEN: 'AUTH_FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  CONFLICT: 'CONFLICT',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+} as const;
+
+export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

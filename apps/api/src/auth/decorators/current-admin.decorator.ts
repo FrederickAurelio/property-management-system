@@ -1,12 +1,10 @@
 import {
   createParamDecorator,
-  ExecutionContext,
+  type ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Request } from 'express';
-import type { PublicAdmin } from '../auth.service';
-
-type RequestWithAdmin = Request & { admin?: PublicAdmin };
+import type { PublicAdmin } from '@cabin/api-contract';
+import type { RequestWithAdmin } from '../guards/session-auth.guard';
 
 export const CurrentAdmin = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): PublicAdmin => {

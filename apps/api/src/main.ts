@@ -3,10 +3,15 @@ import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import pg from 'pg';
 import { AppModule } from './app.module';
+import {
+  SESSION_COOKIE_NAME,
+  sessionCookieOptions,
+} from './auth/session.util';
 import { setupHttpContract } from './common/http/setup-http-contract.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const isProd = process.env.NODE_ENV === 'production';
 
   const sessionSecret = process.env.SESSION_SECRET;
   if (!sessionSecret) {
@@ -18,10 +23,19 @@ async function bootstrap() {
     throw new Error('DATABASE_URL is required');
   }
 
+  if (isProd && !process.env.CORS_ORIGINS?.trim()) {
+    throw new Error('CORS_ORIGINS is required in production');
+  }
+
   const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+
+  if (isProd) {
+    // Secure cookies need the real client protocol when TLS terminates upstream.
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  }
 
   app.enableCors({
     origin: corsOrigins,
@@ -32,6 +46,7 @@ async function bootstrap() {
 
   const PgSession = connectPgSimple(session);
   const pool = new pg.Pool({ connectionString: databaseUrl });
+  const cookie = sessionCookieOptions();
 
   app.use(
     session({
@@ -40,16 +55,11 @@ async function bootstrap() {
         tableName: 'session',
         createTableIfMissing: false,
       }),
-      name: 'cabin.sid',
+      name: SESSION_COOKIE_NAME,
       secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
-      cookie: {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      },
+      cookie,
     }),
   );
 

@@ -1,4 +1,16 @@
-import type { Request } from 'express';
+import type { CookieOptions, Request, Response } from 'express';
+
+export const SESSION_COOKIE_NAME = 'cabin.sid';
+
+export function sessionCookieOptions(): CookieOptions {
+  return {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  };
+}
 
 function toError(err: unknown): Error {
   if (err instanceof Error) {
@@ -31,4 +43,9 @@ export function destroySession(req: Request): Promise<void> {
       resolve();
     });
   });
+}
+
+/** Clear the session cookie after destroy (same options as login cookie). */
+export function clearSessionCookie(res: Response): void {
+  res.clearCookie(SESSION_COOKIE_NAME, sessionCookieOptions());
 }

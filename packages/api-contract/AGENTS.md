@@ -2,9 +2,20 @@
 
 Shared **HTTP wire contract** for Cabin frontends and the API.
 
+## Layout
+
+```text
+src/
+  index.ts          # public barrel — import only from @cabin/api-contract
+  envelope.ts       # success/error body shapes + isApiSuccessEnvelope
+  error-codes.ts    # ApiErrorCode
+  api-error.ts      # ApiError (FE client throw type)
+  auth.ts           # AdminRole, PublicAdmin
+```
+
 ## In
 
-- Error codes, success/error envelope types, `isApiSuccessEnvelope`, `ApiError`
+- Envelope types, error codes, `ApiError`, staff wire types (`AdminRole`, `PublicAdmin`)
 
 ## Out
 
@@ -13,7 +24,7 @@ Shared **HTTP wire contract** for Cabin frontends and the API.
 ## Use
 
 ```ts
-import { ApiErrorCode, type ApiSuccess } from '@cabin/api-contract';
+import { ApiErrorCode, type PublicAdmin } from '@cabin/api-contract';
 ```
 
 Depend with `"@cabin/api-contract": "workspace:*"`. `pnpm install` runs `prepare` → builds `dist/`.

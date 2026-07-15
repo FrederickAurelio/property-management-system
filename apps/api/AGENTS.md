@@ -31,7 +31,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 | `POST` | `/auth/logout` | Destroy session (authenticated) |
 | `GET` | `/auth/me` | Current admin + role |
 
-Cookie name: `cabin.sid` (httpOnly). Env: `SESSION_SECRET`, `CORS_ORIGINS`, seed vars below.
+Cookie name: `cabin.sid` (httpOnly). Logout clears the cookie. Env: `SESSION_SECRET`, `CORS_ORIGINS` (required in production), seed vars below. Production enables Express `trust proxy` for secure cookies behind TLS termination.
 
 ## HTTP contract
 
@@ -52,7 +52,7 @@ Controllers return **domain objects only**. Global `TransformInterceptor` + `Htt
 
 FE: `credentials: 'include'`; unwrap `data`; never parse Nest’s default error shape. Shared setup: `setupHttpContract()` in `src/common/http/`.
 
-Cross-app wire types: import from `@cabin/api-contract` (see `packages/`). Do not redefine the same envelope/codes in this app.
+Cross-app wire types: import from `@cabin/api-contract` (see `packages/`) — envelope, codes, `AdminRole`, `PublicAdmin`. Do not redefine those here.
 
 ## Run
 

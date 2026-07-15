@@ -6,14 +6,20 @@ import {
   HttpStatus,
   Post,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
-import { AuthService, type PublicAdmin } from './auth.service';
+import type { PublicAdmin } from '@cabin/api-contract';
+import type { Request, Response } from 'express';
+import { AuthService } from './auth.service';
 import { CurrentAdmin } from './decorators/current-admin.decorator';
 import { LoginDto } from './dto/login.dto';
 import { SessionAuthGuard } from './guards/session-auth.guard';
-import { destroySession, regenerateSession } from './session.util';
+import {
+  clearSessionCookie,
+  destroySession,
+  regenerateSession,
+} from './session.util';
 
 @Controller('auth')
 export class AuthController {
@@ -39,8 +45,12 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(SessionAuthGuard)
-  async logout(@Req() req: Request): Promise<{ ok: true }> {
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ ok: true }> {
     await destroySession(req);
+    clearSessionCookie(res);
     return { ok: true };
   }
 

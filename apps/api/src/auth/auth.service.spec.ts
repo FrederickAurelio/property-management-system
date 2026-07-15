@@ -44,8 +44,8 @@ describe('AuthService', () => {
       username: adminRow.username,
       role: AdminRole.SUPER_ADMIN,
       isActive: true,
-      createdAt: adminRow.createdAt,
-      updatedAt: adminRow.updatedAt,
+      createdAt: adminRow.createdAt.toISOString(),
+      updatedAt: adminRow.updatedAt.toISOString(),
     });
   });
 

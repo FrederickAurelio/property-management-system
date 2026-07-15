@@ -18,7 +18,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 ## API client
 
 - Always use [`src/lib/api/client.ts`](src/lib/api/client.ts) — never raw `fetch` to the API.
-- Shared HTTP contract types: `@cabin/api-contract` (from `packages/`) — do not duplicate cross-app types here.
+- Shared HTTP contract types: `@cabin/api-contract` (envelope, codes, `PublicAdmin`, `AdminRole`) — do not duplicate cross-app types here.
 - `credentials: 'include'` (cookie `cabin.sid`).
 - Success body `{ data, meta? }` → client returns `data`.
 - Errors `{ error: { code, message, details? } }` → throws `ApiError`.

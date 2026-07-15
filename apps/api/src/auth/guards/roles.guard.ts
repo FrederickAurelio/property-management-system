@@ -5,7 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { AdminRole } from '../../generated/prisma/index.js';
+import type { AdminRole } from '@cabin/api-contract';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import type { RequestWithAdmin } from './session-auth.guard';
 

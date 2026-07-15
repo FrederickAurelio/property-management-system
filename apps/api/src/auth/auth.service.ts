@@ -1,16 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import type { PublicAdmin } from '@cabin/api-contract';
 import * as bcrypt from 'bcrypt';
-import type { Admin, AdminRole } from '../generated/prisma/index.js';
+import type { Admin } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service';
-
-export type PublicAdmin = {
-  id: string;
-  username: string;
-  role: AdminRole;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-};
 
 @Injectable()
 export class AuthService {
@@ -22,8 +14,8 @@ export class AuthService {
       username: admin.username,
       role: admin.role,
       isActive: admin.isActive,
-      createdAt: admin.createdAt,
-      updatedAt: admin.updatedAt,
+      createdAt: admin.createdAt.toISOString(),
+      updatedAt: admin.updatedAt.toISOString(),
     };
   }
 

@@ -4,15 +4,19 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { PublicAdmin } from '@cabin/api-contract';
 import type { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
-import type { PublicAdmin } from '../auth.service';
+import { AuthService } from '../auth.service';
 
 export type RequestWithAdmin = Request & { admin?: PublicAdmin };
 
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithAdmin>();
@@ -31,14 +35,7 @@ export class SessionAuthGuard implements CanActivate {
       throw new UnauthorizedException('Not authenticated');
     }
 
-    request.admin = {
-      id: admin.id,
-      username: admin.username,
-      role: admin.role,
-      isActive: admin.isActive,
-      createdAt: admin.createdAt,
-      updatedAt: admin.updatedAt,
-    };
+    request.admin = this.authService.toPublic(admin);
 
     return true;
   }

@@ -1,13 +1,7 @@
+import type { PublicAdmin } from "@cabin/api-contract";
 import { apiRequest } from "./client";
 
-export type PublicAdmin = {
-  id: string;
-  username: string;
-  role: "SUPER_ADMIN" | "ADMIN" | "FRONT_DESK";
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
+export type { PublicAdmin };
 
 export function login(username: string, password: string): Promise<PublicAdmin> {
   return apiRequest<PublicAdmin>("/auth/login", {
