@@ -34,9 +34,4 @@ One calendar per **unit**. Avoid allotment-first design unless product explicitl
 - Keep secrets in env; never commit credentials
 - Prefer clear domain modules (units, reservations, auth, ingest, ical) over a dump of routes
 
-## Local agent files
-
-- Rules: `.cursor/rules/`
-- Skills: `.cursor/skills/`
-
 See also: root `AGENTS.md`, `.docs/cabin-pms-client-plan.md`

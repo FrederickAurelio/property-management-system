@@ -26,9 +26,4 @@ Staff-facing Property Management System UI. This is the **Phase 1 frontend**.
 - Warn about iCal delay / double-book risk when relevant; do not promise zero conflicts
 - Roles: admin vs front desk — hide admin-only settings accordingly
 
-## Local agent files
-
-- Rules: `.cursor/rules/`
-- Skills: `.cursor/skills/`
-
 See also: root `AGENTS.md`, `.docs/cabin-pms-client-plan.md`

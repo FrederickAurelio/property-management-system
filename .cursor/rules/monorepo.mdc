@@ -1,15 +1,12 @@
 ---
-description: Cabin PMS monorepo architecture and phase boundaries
+description: Cabin PMS monorepo — architecture and phase hard stops
 alwaysApply: true
 ---
 
-# Monorepo rules
+# Monorepo
 
-- Apps: `apps/api` (BE), `apps/pms` (staff FE), `apps/web` (public FE). One API for both frontends.
-- Product source of truth: `.docs/cabin-pms-client-plan.md` and root `AGENTS.md`.
-- Phase 1 = ops only (`api` + `pms`). Do not prioritize `apps/web` until Phase 2.
-- PMS is ops calendar truth. OTAs stay on iCal until Phase 3 CM.
-- Never scrape OTA extranets or automate OTA “Import now”.
-- Do not add a second backend or duplicate reservation stores.
-- Prefer unique-unit inventory (one calendar per cabin/unit).
-- Scope edits to the app you are changing; share types via `packages/` only when both FEs need them.
+- Layout: `apps/api` (BE), `apps/pms` (staff FE), `apps/web` (public FE). One API only.
+- Product truth: `AGENTS.md` + `.docs/cabin-pms-client-plan.md`.
+- Phase 1 = `api` + `pms`. Do not build `web` booking until Phase 2.
+- No second backend. No OTA scraping / remote “Import now”. No Channel Manager in Phase 1.
+- Inventory = unique units (one calendar each). Share via `packages/` only when two apps need it.

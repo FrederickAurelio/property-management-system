@@ -1,33 +1,18 @@
 ---
-description: Conventional commit messages enforced by commitlint + husky
+description: Conventional Commits + husky gates (commitlint scopes)
 alwaysApply: true
 ---
 
-# Commit messages
-
-Format (required):
+# Commits
 
 ```text
-type(scope): short summary
+type(scope): summary
 ```
 
-- **type:** `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
-- **scope (required):** `api` | `pms` | `web` | `packages` | `repo` | `deps`
-- **summary:** imperative, lowercase start preferred, no period, max ~100 chars header
+- **type:** feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert
+- **scope (required):** api | pms | web | packages | repo | deps
+- Imperative summary, no trailing period, header ≤ 100 chars
 
-Examples:
-
-```text
-feat(api): add units CRUD endpoints
-fix(pms): show overlap error from API
-chore(repo): add husky pre-commit typecheck
-docs(repo): update phase build order
-```
-
-Body optional. Explain **why** when non-obvious.
-
-Hooks block bad commits:
+Hooks (do not `--no-verify` unless user asks):
+- `pre-commit` → `pnpm typecheck`
 - `commit-msg` → commitlint
-- `pre-commit` → `pnpm typecheck` across all apps
-
-Do not use `--no-verify` unless the user explicitly asks.

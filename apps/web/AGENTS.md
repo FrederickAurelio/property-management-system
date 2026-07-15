@@ -21,9 +21,4 @@ Public browse / booking frontend for the company website. **Phase 2** — do not
 - Availability must respect PMS calendar truth (including OTA-derived blocks once imported)
 - Guest UX can be branded/marketing-led; still one composition, no ops-dashboard clutter
 
-## Local agent files
-
-- Rules: `.cursor/rules/`
-- Skills: `.cursor/skills/`
-
 See also: root `AGENTS.md`, `.docs/cabin-pms-client-plan.md`

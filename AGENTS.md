@@ -42,7 +42,7 @@ OTA sync today stays **native iCal** (Booking.com · Airbnb · Agoda). Do not sc
 | Staff UI | `apps/pms/AGENTS.md` |
 | Public site | `apps/web/AGENTS.md` |
 
-Each app also has `.cursor/rules/` and `.cursor/skills/`. Prefer app-local rules when editing that app.
+Each app has an `AGENTS.md`. Root `.cursor/rules/` applies by glob when editing that app.
 
 ## Hard don’ts
 
@@ -93,4 +93,4 @@ pnpm typecheck:pms
 pnpm typecheck:web
 ```
 
-See `.cursor/rules/commits.mdc` and skill `commit-messages`.
+See `.cursor/rules/commits.mdc`.
