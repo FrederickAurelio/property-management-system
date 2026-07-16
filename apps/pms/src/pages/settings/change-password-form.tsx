@@ -5,6 +5,7 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Field,
   FieldDescription,
@@ -47,6 +48,7 @@ export function ChangePasswordForm() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const form = useForm<PasswordValues>({
     resolver: zodResolver(passwordSchema as never),
@@ -58,132 +60,148 @@ export function ChangePasswordForm() {
   });
 
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit(() => {
-        // UI-only — wire to API later
-        handleSuccess("Password updated (preview)");
-        form.reset();
-      })}
-    >
-      <FieldGroup>
-        <Controller
-          name="currentPassword"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="settings-current-password">
-                Current password
-              </FieldLabel>
-              <InputGroup className="max-w-sm">
-                <InputGroupInput
-                  {...field}
-                  id="settings-current-password"
-                  type={showCurrent ? "text" : "password"}
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  aria-invalid={fieldState.invalid}
-                  className="text-base md:text-sm"
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    size="icon-xs"
-                    aria-label={
-                      showCurrent ? "Hide password" : "Show password"
-                    }
-                    onClick={() => {
-                      setShowCurrent((prev) => !prev);
-                    }}
-                  >
-                    {showCurrent ? <EyeOffIcon /> : <EyeIcon />}
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
-              {fieldState.invalid && (
-                <FieldError errors={[fieldState.error]} />
-              )}
-            </Field>
-          )}
-        />
-        <Controller
-          name="newPassword"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="settings-new-password">
-                New password
-              </FieldLabel>
-              <FieldDescription>At least 8 characters.</FieldDescription>
-              <InputGroup className="max-w-sm">
-                <InputGroupInput
-                  {...field}
-                  id="settings-new-password"
-                  type={showNew ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  aria-invalid={fieldState.invalid}
-                  className="text-base md:text-sm"
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    size="icon-xs"
-                    aria-label={showNew ? "Hide password" : "Show password"}
-                    onClick={() => {
-                      setShowNew((prev) => !prev);
-                    }}
-                  >
-                    {showNew ? <EyeOffIcon /> : <EyeIcon />}
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
-              {fieldState.invalid && (
-                <FieldError errors={[fieldState.error]} />
-              )}
-            </Field>
-          )}
-        />
-        <Controller
-          name="confirmPassword"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="settings-confirm-password">
-                Confirm new password
-              </FieldLabel>
-              <InputGroup className="max-w-sm">
-                <InputGroupInput
-                  {...field}
-                  id="settings-confirm-password"
-                  type={showConfirm ? "text" : "password"}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  aria-invalid={fieldState.invalid}
-                  className="text-base md:text-sm"
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    size="icon-xs"
-                    aria-label={
-                      showConfirm ? "Hide password" : "Show password"
-                    }
-                    onClick={() => {
-                      setShowConfirm((prev) => !prev);
-                    }}
-                  >
-                    {showConfirm ? <EyeOffIcon /> : <EyeIcon />}
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
-              {fieldState.invalid && (
-                <FieldError errors={[fieldState.error]} />
-              )}
-            </Field>
-          )}
-        />
-        <Button type="submit" className="w-fit">
-          Update password
-        </Button>
-      </FieldGroup>
-    </form>
+    <>
+      <form
+        noValidate
+        onSubmit={form.handleSubmit(() => {
+          setConfirmOpen(true);
+        })}
+      >
+        <FieldGroup>
+          <Controller
+            name="currentPassword"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="settings-current-password">
+                  Current password
+                </FieldLabel>
+                <InputGroup className="max-w-sm">
+                  <InputGroupInput
+                    {...field}
+                    id="settings-current-password"
+                    type={showCurrent ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    aria-invalid={fieldState.invalid}
+                    className="text-base md:text-sm"
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      size="icon-xs"
+                      aria-label={
+                        showCurrent ? "Hide password" : "Show password"
+                      }
+                      onClick={() => {
+                        setShowCurrent((prev) => !prev);
+                      }}
+                    >
+                      {showCurrent ? <EyeOffIcon /> : <EyeIcon />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+          <Controller
+            name="newPassword"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="settings-new-password">
+                  New password
+                </FieldLabel>
+                <FieldDescription>At least 8 characters.</FieldDescription>
+                <InputGroup className="max-w-sm">
+                  <InputGroupInput
+                    {...field}
+                    id="settings-new-password"
+                    type={showNew ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    aria-invalid={fieldState.invalid}
+                    className="text-base md:text-sm"
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      size="icon-xs"
+                      aria-label={showNew ? "Hide password" : "Show password"}
+                      onClick={() => {
+                        setShowNew((prev) => !prev);
+                      }}
+                    >
+                      {showNew ? <EyeOffIcon /> : <EyeIcon />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+          <Controller
+            name="confirmPassword"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="settings-confirm-password">
+                  Confirm new password
+                </FieldLabel>
+                <InputGroup className="max-w-sm">
+                  <InputGroupInput
+                    {...field}
+                    id="settings-confirm-password"
+                    type={showConfirm ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    aria-invalid={fieldState.invalid}
+                    className="text-base md:text-sm"
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      size="icon-xs"
+                      aria-label={
+                        showConfirm ? "Hide password" : "Show password"
+                      }
+                      onClick={() => {
+                        setShowConfirm((prev) => !prev);
+                      }}
+                    >
+                      {showConfirm ? <EyeOffIcon /> : <EyeIcon />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+          <Button type="submit" className="w-fit">
+            Update password
+          </Button>
+        </FieldGroup>
+      </form>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Update password?"
+        description="Your password will change immediately. You’ll stay signed in on this device; other sessions may need the new password."
+        confirmLabel="Update password"
+        onConfirm={() => {
+          // UI-only — wire to API later
+          handleSuccess("Password updated (preview)");
+          form.reset();
+          setShowCurrent(false);
+          setShowNew(false);
+          setShowConfirm(false);
+        }}
+      />
+    </>
   );
 }

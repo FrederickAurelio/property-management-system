@@ -7,6 +7,7 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -109,6 +110,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [roleTarget, setRoleTarget] = useState<StaffRow | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<StaffRow | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<StaffRow | null>(null);
   const [nextRole, setNextRole] = useState<AdminRole>(AdminRole.FRONT_DESK);
 
   const staff = useMemo(
@@ -167,7 +169,6 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       ),
     );
     handleSuccess(`Revoked access for ${revokeTarget.username} (preview)`);
-    setRevokeTarget(null);
   }
 
   function confirmRoleChange() {
@@ -274,7 +275,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                         setRevokeTarget(row);
                       }}
                       onRestore={() => {
-                        restoreAccess(row);
+                        setRestoreTarget(row);
                       }}
                     />
                   </TableCell>
@@ -329,7 +330,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                   setRevokeTarget(row);
                 }}
                 onRestore={() => {
-                  restoreAccess(row);
+                  setRestoreTarget(row);
                 }}
               />
             </li>
@@ -548,47 +549,55 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       </Dialog>
 
       {/* Revoke */}
-      <Dialog
+      <ConfirmDialog
         open={revokeTarget !== null}
         onOpenChange={(open) => {
           if (!open) setRevokeTarget(null);
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Revoke access</DialogTitle>
-            <DialogDescription>
-              {revokeTarget && (
-                <>
-                  <span className="font-medium text-foreground">
-                    {revokeTarget.username}
-                  </span>{" "}
-                  will not be able to sign in. The account is kept for history
-                  and can be restored later.
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setRevokeTarget(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={confirmRevoke}
-            >
-              Revoke access
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Revoke access?"
+        description={
+          revokeTarget ? (
+            <>
+              <span className="font-medium text-foreground">
+                {revokeTarget.username}
+              </span>{" "}
+              will not be able to sign in. The account stays in the list for
+              history and can be restored later.
+            </>
+          ) : (
+            ""
+          )
+        }
+        confirmLabel="Revoke access"
+        variant="destructive"
+        onConfirm={confirmRevoke}
+      />
+
+      {/* Restore */}
+      <ConfirmDialog
+        open={restoreTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRestoreTarget(null);
+        }}
+        title="Restore access?"
+        description={
+          restoreTarget ? (
+            <>
+              <span className="font-medium text-foreground">
+                {restoreTarget.username}
+              </span>{" "}
+              will be able to sign in again with their existing password and
+              role.
+            </>
+          ) : (
+            ""
+          )
+        }
+        confirmLabel="Restore access"
+        onConfirm={() => {
+          if (restoreTarget) restoreAccess(restoreTarget);
+        }}
+      />
     </div>
   );
 }

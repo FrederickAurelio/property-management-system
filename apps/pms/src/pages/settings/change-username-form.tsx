@@ -1,8 +1,10 @@
 /* anchor: Linear settings form, diverge: RHF + Zod Field pattern from login */
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Field,
   FieldDescription,
@@ -34,54 +36,90 @@ type ChangeUsernameFormProps = {
 export function ChangeUsernameForm({
   currentUsername,
 }: ChangeUsernameFormProps) {
+  const [pendingUsername, setPendingUsername] = useState<string | null>(null);
+
   const form = useForm<UsernameValues>({
     resolver: zodResolver(usernameSchema as never),
     defaultValues: { username: currentUsername },
   });
 
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((values) => {
-        if (values.username === currentUsername) {
-          handleSuccess("Username unchanged");
-          return;
+    <>
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((values) => {
+          if (values.username === currentUsername) {
+            handleSuccess("Username unchanged");
+            return;
+          }
+          setPendingUsername(values.username);
+        })}
+      >
+        <FieldGroup>
+          <Controller
+            name="username"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="settings-username">Username</FieldLabel>
+                <FieldDescription>
+                  Used to sign in. Letters, numbers, and . _ - only.
+                </FieldDescription>
+                <Input
+                  {...field}
+                  id="settings-username"
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="front.desk"
+                  aria-invalid={fieldState.invalid}
+                  className="max-w-sm text-base md:text-sm"
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+          <Button type="submit" className="w-fit">
+            Save username
+          </Button>
+        </FieldGroup>
+      </form>
+
+      <ConfirmDialog
+        open={pendingUsername !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingUsername(null);
+        }}
+        title="Change username?"
+        description={
+          pendingUsername ? (
+            <>
+              Your sign-in name will change from{" "}
+              <span className="font-medium text-foreground">
+                {currentUsername}
+              </span>{" "}
+              to{" "}
+              <span className="font-medium text-foreground">
+                {pendingUsername}
+              </span>
+              . Use the new username the next time you sign in.
+            </>
+          ) : (
+            ""
+          )
         }
-        // UI-only — wire to API later
-        handleSuccess("Username updated (preview)");
-        form.reset({ username: values.username });
-      })}
-    >
-      <FieldGroup>
-        <Controller
-          name="username"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="settings-username">Username</FieldLabel>
-              <FieldDescription>
-                Used to sign in. Letters, numbers, and . _ - only.
-              </FieldDescription>
-              <Input
-                {...field}
-                id="settings-username"
-                type="text"
-                autoComplete="username"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="front.desk"
-                aria-invalid={fieldState.invalid}
-                className="max-w-sm text-base md:text-sm"
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-        <Button type="submit" className="w-fit">
-          Save username
-        </Button>
-      </FieldGroup>
-    </form>
+        confirmLabel="Change username"
+        onConfirm={() => {
+          if (!pendingUsername) return;
+          // UI-only — wire to API later
+          handleSuccess("Username updated (preview)");
+          form.reset({ username: pendingUsername });
+        }}
+      />
+    </>
   );
 }
