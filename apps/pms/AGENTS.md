@@ -8,10 +8,10 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 - Tailwind CSS v4 (`@tailwindcss/vite`) + Prettier class sort
 - shadcn/ui (radix-nova); import via `@/` → `src/`
 - Declarative React Router (`BrowserRouter`) + TanStack Query providers
-- Routes: `/login` (public) · `/` private app shell (`PrivateRoute` → `AppLayout` → children)
+- Routes: `/login` (public staff login) · `/` private app shell (`PrivateRoute` → `AppLayout` → children)
 - Axios API client: `src/lib/api` (session cookies + envelope unwrap + Sonner helpers)
-- RHF + Zod + shadcn `Field` / `Controller` ready
-- **Not yet:** auth UI, sidebar/bottom nav, domain screens
+- RHF + Zod + shadcn `Field` / `Controller` (login form wired)
+- **Not yet:** sidebar/bottom nav, domain screens
 
 ## Stack (locked)
 
