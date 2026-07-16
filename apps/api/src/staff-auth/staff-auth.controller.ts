@@ -54,9 +54,9 @@ export class StaffAuthController {
     return { ok: true };
   }
 
-  @Get('me')
+  @Get('session')
   @UseGuards(StaffSessionAuthGuard)
-  me(@CurrentAdmin() admin: PublicAdmin): PublicAdmin {
+  session(@CurrentAdmin() admin: PublicAdmin): PublicAdmin {
     return admin;
   }
 }

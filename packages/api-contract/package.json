@@ -3,19 +3,29 @@
   "version": "0.0.0",
   "private": true,
   "description": "Shared API wire contract (success/error envelope + error codes) for api, pms, and later web",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      },
+      "default": "./dist/cjs/index.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm run build:cjs && pnpm run build:esm",
+    "build:cjs": "tsc -p tsconfig.json && printf '%s\\n' '{ \"type\": \"commonjs\" }' > dist/cjs/package.json",
+    "build:esm": "tsc -p tsconfig.esm.json && printf '%s\\n' '{ \"type\": \"module\" }' > dist/esm/package.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepare": "pnpm run build"
   },

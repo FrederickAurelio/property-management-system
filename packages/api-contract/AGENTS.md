@@ -27,6 +27,6 @@ src/
 import { ApiErrorCode, type PublicAdmin } from '@cabin/api-contract';
 ```
 
-Depend with `"@cabin/api-contract": "workspace:*"`. `pnpm install` runs `prepare` → builds `dist/`.
+Depend with `"@cabin/api-contract": "workspace:*"`. `pnpm install` runs `prepare` → builds **dual** `dist/cjs` (Nest `require`) + `dist/esm` (Vite named `import`). Package `exports` nest `types` under both `import` and `require` so type-only members (`PublicAdmin`, etc.) resolve in the IDE.
 
 General packages rules: [`../README.md`](../README.md) · [`.cursor/rules/monorepo-tooling.mdc`](../../.cursor/rules/monorepo-tooling.mdc).

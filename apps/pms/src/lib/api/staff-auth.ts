@@ -1,25 +1,30 @@
+import type { AxiosRequestConfig } from "axios";
 import type { PublicAdmin } from "@cabin/api-contract";
-import { apiRequest } from "./client";
+import { api } from "./client";
 
 export type { PublicAdmin };
 
-export function staffLogin(
+export async function staffLogin(
   username: string,
   password: string,
 ): Promise<PublicAdmin> {
-  return apiRequest<PublicAdmin>("/staff/auth/login", {
-    method: "POST",
-    body: { username, password },
-    skipUnauthorizedRedirect: true,
-  });
+  const { data } = await api.post<PublicAdmin>(
+    "/staff/auth/login",
+    { username, password },
+    { skipUnauthorizedRedirect: true },
+  );
+  return data;
 }
 
-export function staffLogout(): Promise<{ ok: true }> {
-  return apiRequest<{ ok: true }>("/staff/auth/logout", {
-    method: "POST",
-  });
+export async function staffLogout(): Promise<{ ok: true }> {
+  const { data } = await api.post<{ ok: true }>("/staff/auth/logout");
+  return data;
 }
 
-export function staffMe(): Promise<PublicAdmin> {
-  return apiRequest<PublicAdmin>("/staff/auth/me");
+/** Current staff from session cookie (no password). */
+export async function staffSession(
+  config?: AxiosRequestConfig,
+): Promise<PublicAdmin> {
+  const { data } = await api.get<PublicAdmin>("/staff/auth/session", config);
+  return data;
 }

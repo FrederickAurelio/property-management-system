@@ -33,7 +33,7 @@ Examples: `@StaffRoles('ADMIN')` → ADMIN + SUPER_ADMIN · `@StaffRoles('FRONT_
 |--------|------|--------|
 | `POST` | `/staff/auth/login` | `{ username, password }` → session cookie |
 | `POST` | `/staff/auth/logout` | Destroy session (authenticated) |
-| `GET` | `/staff/auth/me` | Current admin + role |
+| `GET` | `/staff/auth/session` | Current admin from cookie (all fields except password) |
 
 Cookie name: `cabin.pms.sid` (httpOnly). Logout clears the cookie. Env: `SESSION_SECRET`, `CORS_ORIGINS` (required in production), seed vars below. Production enables Express `trust proxy` for secure cookies behind TLS termination.
 

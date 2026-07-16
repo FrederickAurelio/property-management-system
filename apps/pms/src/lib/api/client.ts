@@ -1,18 +1,24 @@
-import { ApiError, ApiErrorCode, type ApiErrorBody, type ApiSuccess } from "./types";
+import axios, {
+  type AxiosError,
+  type AxiosInstance,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from "axios";
+import {
+  ApiError,
+  ApiErrorCode,
+  type ApiErrorBody,
+  type ApiSuccess,
+} from "./types";
 
-const apiBaseUrl = () => {
-  const base = import.meta.env.VITE_API_URL;
-  if (typeof base !== "string" || base.length === 0) {
-    throw new Error("VITE_API_URL is not set (repo root .env)");
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    /** Skip 401 → login hook (use for login itself). */
+    skipUnauthorizedRedirect?: boolean;
   }
-  return base.replace(/\/$/, "");
-};
+}
 
-export type ApiRequestOptions = Omit<RequestInit, "body"> & {
-  body?: unknown;
-  /** Skip 401 → login hook (use for login itself). */
-  skipUnauthorizedRedirect?: boolean;
-};
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
 
 /**
  * Hook for AUTH_UNAUTHORIZED (except login). Wire to router when routes exist.
@@ -20,7 +26,9 @@ export type ApiRequestOptions = Omit<RequestInit, "body"> & {
  */
 let onUnauthorized: (() => void) | undefined;
 
-export function setUnauthorizedHandler(handler: (() => void) | undefined): void {
+export function setUnauthorizedHandler(
+  handler: (() => void) | undefined,
+): void {
   onUnauthorized = handler;
 }
 
@@ -37,90 +45,131 @@ function isApiErrorBody(value: unknown): value is ApiErrorBody {
   );
 }
 
-async function parseJson(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (!text) {
-    return undefined;
-  }
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return undefined;
-  }
+function isApiSuccessEnvelope(value: unknown): value is ApiSuccess<unknown> {
+  return typeof value === "object" && value !== null && "data" in value;
 }
 
-/**
- * Typed fetch to Nest API. Session cookie via credentials: 'include'.
- * Success → unwraps `{ data }`. Error → throws `ApiError`.
- */
-export async function apiRequest<T>(
-  path: string,
-  options: ApiRequestOptions = {},
-): Promise<T> {
-  const { body, skipUnauthorizedRedirect, headers, ...rest } = options;
-  const url = `${apiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
+function mapAxiosError(error: AxiosError): ApiError {
+  const config = error.config as InternalAxiosRequestConfig | undefined;
+  const skipUnauthorizedRedirect = Boolean(config?.skipUnauthorizedRedirect);
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      ...rest,
-      credentials: "include",
-      headers: {
-        Accept: "application/json",
-        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-        ...headers,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-  } catch {
-    throw new ApiError({
-      status: 0,
-      code: ApiErrorCode.NETWORK_ERROR,
-      message: "Network request failed",
-    });
-  }
+  if (error.response) {
+    const { status, data } = error.response;
 
-  const payload = await parseJson(response);
+    if (GATEWAY_STATUSES.has(status)) {
+      return new ApiError({
+        status,
+        code: ApiErrorCode.SERVER_UNAVAILABLE,
+        message: "Cannot reach the server",
+      });
+    }
 
-  if (!response.ok) {
-    if (isApiErrorBody(payload)) {
-      const err = new ApiError({
-        status: response.status,
-        code: payload.error.code,
-        message: payload.error.message,
-        details: payload.error.details,
-        requestId: payload.meta?.requestId,
+    if (isApiErrorBody(data)) {
+      const apiError = new ApiError({
+        status,
+        code: data.error.code,
+        message: data.error.message,
+        details: data.error.details,
+        requestId: data.meta?.requestId,
       });
 
       if (
         !skipUnauthorizedRedirect &&
-        response.status === 401 &&
-        err.code === ApiErrorCode.AUTH_UNAUTHORIZED
+        status === 401 &&
+        apiError.code === ApiErrorCode.AUTH_UNAUTHORIZED
       ) {
         onUnauthorized?.();
       }
 
-      throw err;
+      return apiError;
     }
 
-    throw new ApiError({
-      status: response.status,
+    return new ApiError({
+      status,
       code: ApiErrorCode.INTERNAL_ERROR,
-      message: response.statusText || "Request failed",
+      message: error.response.statusText || "Request failed",
     });
   }
 
   if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "data" in payload
+    error.code === "ECONNABORTED" ||
+    error.code === "ETIMEDOUT" ||
+    error.message.toLowerCase().includes("timeout")
   ) {
-    return (payload as ApiSuccess<T>).data;
+    return new ApiError({
+      status: 0,
+      code: ApiErrorCode.TIMEOUT,
+      message: "Request timed out",
+    });
   }
 
-  throw new ApiError({
-    status: response.status,
-    code: ApiErrorCode.INTERNAL_ERROR,
-    message: "Invalid API success envelope",
+  if (
+    error.code === "ERR_NETWORK" ||
+    error.code === "ECONNREFUSED" ||
+    error.message.toLowerCase().includes("network")
+  ) {
+    const refused =
+      error.code === "ECONNREFUSED" ||
+      error.message.toLowerCase().includes("refused");
+
+    return new ApiError({
+      status: 0,
+      code: refused
+        ? ApiErrorCode.SERVER_UNAVAILABLE
+        : ApiErrorCode.NETWORK_ERROR,
+      message: refused ? "Cannot reach the server" : "Network request failed",
+    });
+  }
+
+  return new ApiError({
+    status: 0,
+    code: ApiErrorCode.NETWORK_ERROR,
+    message: "Network request failed",
   });
 }
+
+/** Shared axios instance — use `api.get` / `api.post` / … */
+export const api: AxiosInstance = axios.create({
+  baseURL: "/api",
+  withCredentials: true,
+  timeout: 30_000,
+  headers: {
+    Accept: "application/json",
+  },
+});
+
+api.interceptors.response.use(
+  (response: AxiosResponse) => {
+    const payload = response.data as unknown;
+
+    if (isApiSuccessEnvelope(payload)) {
+      // Nest wraps success as `{ data, meta? }` — callers get unwrapped `data`.
+      return { ...response, data: payload.data };
+    }
+
+    return Promise.reject(
+      new ApiError({
+        status: response.status,
+        code: ApiErrorCode.INTERNAL_ERROR,
+        message: "Invalid API success envelope",
+      }),
+    );
+  },
+  (error: unknown) => {
+    if (axios.isAxiosError(error)) {
+      return Promise.reject(mapAxiosError(error));
+    }
+
+    if (error instanceof ApiError) {
+      return Promise.reject(error);
+    }
+
+    return Promise.reject(
+      new ApiError({
+        status: 0,
+        code: ApiErrorCode.NETWORK_ERROR,
+        message: "Network request failed",
+      }),
+    );
+  },
+);
