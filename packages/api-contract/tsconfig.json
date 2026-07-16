@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "composite": true,
     "target": "ES2022",
     "module": "Node16",
     "moduleResolution": "Node16",
@@ -9,6 +8,7 @@
     "sourceMap": true,
     "outDir": "dist/cjs",
     "rootDir": "src",
+    "tsBuildInfoFile": "dist/cjs/tsconfig.tsbuildinfo",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,

@@ -5,15 +5,13 @@ Shared **HTTP wire contract** for Cabin frontends and the API.
 ## Layout
 
 ```text
-src/
-  index.ts              # public barrel — import only from @cabin/api-contract
-  envelope.ts           # success/error body shapes + isApiSuccessEnvelope
-  error-codes.ts        # ApiErrorCode
-  api-error.ts          # ApiError (FE client throw type)
-  admin.ts              # AdminRole, PublicAdmin
-  staff-credentials.ts  # username/password min/max + pattern
-  field-error.ts        # ApiFieldError + ApiFieldReason
+src/          ← TypeScript source only (.ts)
+dist/cjs/     ← CJS emit (Nest)
+dist/esm/     ← ESM emit (Vite)
+scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 ```
+
+**Never** commit or keep `.js` / `.d.ts` / `.js.map` under `src/`. Build only via `pnpm run build` (runs `clean:src-artifacts` first). If junk reappears after IDE compile or a mistaken `tsc` on a single file, run `pnpm --filter @cabin/api-contract run clean:src-artifacts`.
 
 ## In
 
