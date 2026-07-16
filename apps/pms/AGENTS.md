@@ -54,6 +54,19 @@ Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 - Honor roles from API (`SUPER_ADMIN` | `ADMIN` | `FRONT_DESK`)
 - Be honest about iCal delay; never promise zero conflicts
 
+### UI skills (PMS only)
+
+Use only these from [`.cursor/skills/`](../../.cursor/skills/README.md):
+
+| Order | Skill | For |
+|-------|--------|-----|
+| 1 | `shadcn` | Add/compose shadcn components |
+| 2 | `product-ui-design` | Shipped admin look; anti AI-slop |
+
+Do **not** load `ui-design-brain` / `ui-craft` / `ui-craft-dense-dashboard` for PMS — those are reserved for customer-facing `apps/web` (Phase 2).
+
+Anchor DNA: **Linear-dense / Stripe-data**. No purple gradients, glowing status dots, or landing-page hero patterns.
+
 ## Don’t
 
 - Public guest browse/book flows (that’s `apps/web`)
