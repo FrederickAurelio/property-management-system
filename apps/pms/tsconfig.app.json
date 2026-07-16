@@ -18,8 +18,7 @@
     "strict": true,
 
     "paths": {
-      "@/*": ["./src/*"],
-      "@cabin/api-contract": ["../../packages/api-contract/src/index.ts"]
+      "@/*": ["./src/*"]
     },
 
     /* Linting */

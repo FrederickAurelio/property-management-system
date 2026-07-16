@@ -46,6 +46,7 @@ Use `@cabin/api-contract` for shared bounds, `ApiFieldReason`, wire types — in
 - `eslint.workingDirectories: [{ "mode": "auto" }]` with root lockfile
 - Change code when `pnpm --filter @cabin/api lint` is clean
 - Relative imports into `packages/` or app-local mirrors of `@cabin/api-contract`
+- `tsconfig` `paths` pointing at `packages/*/src` in Nest apps (breaks `rootDir` on `nest build` / watch — use built `dist/` via `node_modules`)
 - Emit build output into `packages/*/src/`
 
 Tooling: [`monorepo-tooling.mdc`](monorepo-tooling.mdc) · packages: [`packages/README.md`](../../packages/README.md)

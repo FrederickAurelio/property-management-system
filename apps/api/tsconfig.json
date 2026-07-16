@@ -18,12 +18,8 @@
     "strict": true,
     "types": ["node", "jest"],
     "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "paths": {
-      "@cabin/api-contract": ["../../packages/api-contract/src/index.ts"]
-    }
+    "noFallthroughCasesInSwitch": true
   },
   "include": ["src/**/*", "prisma/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../../packages/api-contract" }]
+  "exclude": ["node_modules", "dist"]
 }
