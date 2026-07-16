@@ -4,7 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { PublicAdmin } from '@cabin/api-contract';
-import type { RequestWithAdmin } from '../guards/session-auth.guard';
+import type { RequestWithAdmin } from '../guards/staff-session-auth.guard';
 
 export const CurrentAdmin = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): PublicAdmin => {

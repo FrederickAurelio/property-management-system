@@ -19,10 +19,10 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 
 - Always use [`src/lib/api/client.ts`](src/lib/api/client.ts) — never raw `fetch` to the API.
 - Shared HTTP contract types: `@cabin/api-contract` (envelope, codes, `PublicAdmin`, `AdminRole`) — do not duplicate cross-app types here.
-- `credentials: 'include'` (cookie `cabin.sid`).
+- `credentials: 'include'` (cookie `cabin.pms.sid`).
 - Success body `{ data, meta? }` → client returns `data`.
 - Errors `{ error: { code, message, details? } }` → throws `ApiError`.
-- Auth helpers: `login` / `logout` / `me` in `src/lib/api/auth.ts`.
+- Staff auth helpers: `staffLogin` / `staffLogout` / `staffMe` in `src/lib/api/staff-auth.ts`.
 - 401 hook: `setUnauthorizedHandler(() => …)` (wire to `/login` when routing exists).
 - Env: root `.env` → `VITE_API_URL` (`vite.config` `envDir` = repo root).
 

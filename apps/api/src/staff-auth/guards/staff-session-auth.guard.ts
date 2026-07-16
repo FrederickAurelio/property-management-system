@@ -7,15 +7,15 @@ import {
 import type { PublicAdmin } from '@cabin/api-contract';
 import type { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AuthService } from '../auth.service';
+import { StaffAuthService } from '../staff-auth.service';
 
 export type RequestWithAdmin = Request & { admin?: PublicAdmin };
 
 @Injectable()
-export class SessionAuthGuard implements CanActivate {
+export class StaffSessionAuthGuard implements CanActivate {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly authService: AuthService,
+    private readonly staffAuthService: StaffAuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -35,7 +35,7 @@ export class SessionAuthGuard implements CanActivate {
       throw new UnauthorizedException('Not authenticated');
     }
 
-    request.admin = this.authService.toPublic(admin);
+    request.admin = this.staffAuthService.toPublic(admin);
 
     return true;
   }

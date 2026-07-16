@@ -5,7 +5,7 @@ import type { Admin } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
-export class AuthService {
+export class StaffAuthService {
   constructor(private readonly prisma: PrismaService) {}
 
   toPublic(admin: Admin): PublicAdmin {

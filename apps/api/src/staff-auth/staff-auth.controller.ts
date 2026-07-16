@@ -11,27 +11,27 @@ import {
 } from '@nestjs/common';
 import type { PublicAdmin } from '@cabin/api-contract';
 import type { Request, Response } from 'express';
-import { AuthService } from './auth.service';
+import { StaffAuthService } from './staff-auth.service';
 import { CurrentAdmin } from './decorators/current-admin.decorator';
-import { LoginDto } from './dto/login.dto';
-import { SessionAuthGuard } from './guards/session-auth.guard';
+import { StaffLoginDto } from './dto/staff-login.dto';
+import { StaffSessionAuthGuard } from './guards/staff-session-auth.guard';
 import {
   clearSessionCookie,
   destroySession,
   regenerateSession,
 } from './session.util';
 
-@Controller('auth')
-export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+@Controller('staff/auth')
+export class StaffAuthController {
+  constructor(private readonly staffAuthService: StaffAuthService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
-    @Body() dto: LoginDto,
+    @Body() dto: StaffLoginDto,
     @Req() req: Request,
   ): Promise<PublicAdmin> {
-    const admin = await this.authService.validateCredentials(
+    const admin = await this.staffAuthService.validateCredentials(
       dto.username,
       dto.password,
     );
@@ -44,7 +44,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(StaffSessionAuthGuard)
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -55,7 +55,7 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(StaffSessionAuthGuard)
   me(@CurrentAdmin() admin: PublicAdmin): PublicAdmin {
     return admin;
   }

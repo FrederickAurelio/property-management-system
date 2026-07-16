@@ -17,7 +17,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 
 ## Roles
 
-Hierarchy: `SUPER_ADMIN` > `ADMIN` > `FRONT_DESK`. `@Roles(X)` means **X or higher**.
+Hierarchy: `SUPER_ADMIN` > `ADMIN` > `FRONT_DESK`. `@StaffRoles(X)` means **X or higher**.
 
 | Role | Intent |
 |------|--------|
@@ -25,17 +25,17 @@ Hierarchy: `SUPER_ADMIN` > `ADMIN` > `FRONT_DESK`. `@Roles(X)` means **X or high
 | `ADMIN` | Modules / settings / ops — not admin-user CRUD |
 | `FRONT_DESK` | Daily ops only (matrix later) |
 
-Examples: `@Roles('ADMIN')` → ADMIN + SUPER_ADMIN · `@Roles('FRONT_DESK')` → all staff · `@Roles('SUPER_ADMIN')` → SUPER_ADMIN only.
+Examples: `@StaffRoles('ADMIN')` → ADMIN + SUPER_ADMIN · `@StaffRoles('FRONT_DESK')` → all staff · `@StaffRoles('SUPER_ADMIN')` → SUPER_ADMIN only.
 
-## Auth endpoints
+## Staff auth endpoints
 
 | Method | Path | Notes |
 |--------|------|--------|
-| `POST` | `/auth/login` | `{ username, password }` → session cookie |
-| `POST` | `/auth/logout` | Destroy session (authenticated) |
-| `GET` | `/auth/me` | Current admin + role |
+| `POST` | `/staff/auth/login` | `{ username, password }` → session cookie |
+| `POST` | `/staff/auth/logout` | Destroy session (authenticated) |
+| `GET` | `/staff/auth/me` | Current admin + role |
 
-Cookie name: `cabin.sid` (httpOnly). Logout clears the cookie. Env: `SESSION_SECRET`, `CORS_ORIGINS` (required in production), seed vars below. Production enables Express `trust proxy` for secure cookies behind TLS termination.
+Cookie name: `cabin.pms.sid` (httpOnly). Logout clears the cookie. Env: `SESSION_SECRET`, `CORS_ORIGINS` (required in production), seed vars below. Production enables Express `trust proxy` for secure cookies behind TLS termination.
 
 ## HTTP contract
 
@@ -87,7 +87,7 @@ Seed (first `SUPER_ADMIN`): `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defau
 
 ## Phase 1 build order
 
-1. Auth + roles ← **in progress** (login done; admin CRUD next)
+1. Staff auth + roles ← **in progress** (login done; admin CRUD next)
 2. Units CRUD
 3. Reservations CRUD + availability (overlap enforced in DB)
 4. Check-in / check-out
@@ -107,13 +107,13 @@ One calendar per unit. Confirmed stays must not overlap on the same unit (Postgr
 
 ## Module shape
 
-Prefer Nest feature modules: `auth`, `units`, `reservations`, `ops`, later `ingest`, `ical`. Next: `admins` (SUPER_ADMIN-only CRUD).
+Prefer Nest feature modules: `staff-auth`, `units`, `reservations`, `ops`, later `ingest`, `ical`. Next: `admins` (SUPER_ADMIN-only CRUD).
 
 ## Code conventions
 
 - DTOs with `class-validator` (+ `ValidationPipe`). No bare `any` on controllers.
 - Prisma only inside services — not controllers.
-- Use `SessionAuthGuard` + `@Roles(...)` / `RolesGuard` for protected routes (`@Roles` is minimum-role, not an exact allowlist).
+- Use `StaffSessionAuthGuard` + `@StaffRoles(...)` / `StaffRolesGuard` for protected routes (`@StaffRoles` is minimum-role, not an exact allowlist).
 
 ## Don’t
 

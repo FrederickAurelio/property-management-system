@@ -4,13 +4,14 @@ import connectPgSimple from 'connect-pg-simple';
 import pg from 'pg';
 import { AppModule } from './app.module';
 import {
-  SESSION_COOKIE_NAME,
+  STAFF_SESSION_COOKIE_NAME,
   sessionCookieOptions,
-} from './auth/session.util';
+} from './staff-auth/session.util';
 import { setupHttpContract } from './common/http/setup-http-contract.js';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const isProd = process.env.NODE_ENV === 'production';
 
   const sessionSecret = process.env.SESSION_SECRET;
@@ -34,7 +35,7 @@ async function bootstrap() {
 
   if (isProd) {
     // Secure cookies need the real client protocol when TLS terminates upstream.
-    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+    app.set('trust proxy', 1);
   }
 
   app.enableCors({
@@ -55,7 +56,7 @@ async function bootstrap() {
         tableName: 'session',
         createTableIfMissing: false,
       }),
-      name: SESSION_COOKIE_NAME,
+      name: STAFF_SESSION_COOKIE_NAME,
       secret: sessionSecret,
       resave: false,
       saveUninitialized: false,

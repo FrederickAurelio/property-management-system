@@ -7,7 +7,7 @@ export const AdminRole = {
 
 export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole];
 
-/** Staff admin as returned by `/auth/*` (JSON dates are ISO strings). */
+/** Staff admin as returned by `/staff/auth/*` (JSON dates are ISO strings). */
 export type PublicAdmin = {
   id: string;
   username: string;

@@ -10,7 +10,7 @@ src/
   envelope.ts       # success/error body shapes + isApiSuccessEnvelope
   error-codes.ts    # ApiErrorCode
   api-error.ts      # ApiError (FE client throw type)
-  auth.ts           # AdminRole, PublicAdmin
+  admin.ts          # AdminRole, PublicAdmin
 ```
 
 ## In

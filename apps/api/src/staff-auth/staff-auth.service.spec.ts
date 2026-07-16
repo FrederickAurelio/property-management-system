@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { AuthService } from './auth.service';
+import { StaffAuthService } from './staff-auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminRole } from '../generated/prisma/index.js';
 
-describe('AuthService', () => {
-  let service: AuthService;
+describe('StaffAuthService', () => {
+  let service: StaffAuthService;
   let prisma: { admin: { findUnique: jest.Mock } };
 
   const adminRow = {
@@ -28,10 +28,13 @@ describe('AuthService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AuthService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        StaffAuthService,
+        { provide: PrismaService, useValue: prisma },
+      ],
     }).compile();
 
-    service = module.get(AuthService);
+    service = module.get(StaffAuthService);
   });
 
   it('returns public admin when credentials match', async () => {

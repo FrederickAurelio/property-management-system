@@ -1,9 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AdminRole } from '@cabin/api-contract';
-import { ROLES_KEY } from '../decorators/roles.decorator';
-import { RolesGuard } from './roles.guard';
-import type { RequestWithAdmin } from './session-auth.guard';
+import { STAFF_ROLES_KEY } from '../decorators/staff-roles.decorator';
+import { StaffRolesGuard } from './staff-roles.guard';
+import type { RequestWithAdmin } from './staff-session-auth.guard';
 
 function mockContext(adminRole?: AdminRole) {
   const request = {
@@ -28,13 +28,13 @@ function mockContext(adminRole?: AdminRole) {
   };
 }
 
-describe('RolesGuard', () => {
-  let guard: RolesGuard;
+describe('StaffRolesGuard', () => {
+  let guard: StaffRolesGuard;
   let reflector: Reflector;
 
   beforeEach(() => {
     reflector = new Reflector();
-    guard = new RolesGuard(reflector);
+    guard = new StaffRolesGuard(reflector);
   });
 
   it('allows when no roles metadata is set', () => {
@@ -113,7 +113,7 @@ describe('RolesGuard', () => {
     );
   });
 
-  it('reads roles via ROLES_KEY', () => {
+  it('reads roles via STAFF_ROLES_KEY', () => {
     const spy = jest
       .spyOn(reflector, 'getAllAndOverride')
       .mockReturnValue([AdminRole.ADMIN]);
@@ -121,7 +121,7 @@ describe('RolesGuard', () => {
     guard.canActivate(mockContext(AdminRole.ADMIN) as never);
 
     expect(spy).toHaveBeenCalledWith(
-      ROLES_KEY,
+      STAFF_ROLES_KEY,
       expect.arrayContaining([expect.anything(), expect.anything()]),
     );
   });

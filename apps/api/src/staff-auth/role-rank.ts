@@ -1,6 +1,6 @@
 import { AdminRole } from '@cabin/api-contract';
 
-/** Higher number = more privileged. Used by RolesGuard as a minimum bar. */
+/** Higher number = more privileged. Used by StaffRolesGuard as a minimum bar. */
 export const ADMIN_ROLE_RANK: Record<AdminRole, number> = {
   [AdminRole.FRONT_DESK]: 1,
   [AdminRole.ADMIN]: 2,

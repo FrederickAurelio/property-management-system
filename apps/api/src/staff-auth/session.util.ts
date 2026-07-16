@@ -1,6 +1,6 @@
 import type { CookieOptions, Request, Response } from 'express';
 
-export const SESSION_COOKIE_NAME = 'cabin.sid';
+export const STAFF_SESSION_COOKIE_NAME = 'cabin.pms.sid';
 
 export function sessionCookieOptions(): CookieOptions {
   return {
@@ -45,7 +45,7 @@ export function destroySession(req: Request): Promise<void> {
   });
 }
 
-/** Clear the session cookie after destroy (same options as login cookie). */
+/** Clear the staff session cookie after destroy (same options as login cookie). */
 export function clearSessionCookie(res: Response): void {
-  res.clearCookie(SESSION_COOKIE_NAME, sessionCookieOptions());
+  res.clearCookie(STAFF_SESSION_COOKIE_NAME, sessionCookieOptions());
 }
