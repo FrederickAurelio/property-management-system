@@ -1,21 +1,25 @@
 /* anchor: Stripe-data team table / Linear members, diverge: soft revoke via isActive */
 import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AdminRole,
+  ApiError,
   STAFF_PASSWORD_MAX,
   STAFF_PASSWORD_MIN,
   STAFF_USERNAME_MAX,
   STAFF_USERNAME_MIN,
   STAFF_USERNAME_PATTERN,
+  isApiFieldError,
   type PublicAdmin,
 } from "@cabin/api-contract";
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
+import { QueryRetryButton } from "@/components/query-retry-button";
+import { ReauthPasswordDialog } from "@/components/reauth-password-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -53,14 +58,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { handleSuccess } from "@/lib/api";
+import {
+  applyApiFieldError,
+  changeAdminRole,
+  createAdmin,
+  handleError,
+  handleSuccess,
+  listAdmins,
+  setAdminActive,
+  staffAdminsQueryKey,
+} from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
-  MOCK_STAFF,
-  type StaffRow,
   countActiveSuperAdmins,
   formatRole,
-} from "./mock-staff";
+  type StaffRow,
+} from "./staff-utils";
 
 const createSchema = z.object({
   username: z
@@ -101,46 +114,34 @@ type StaffSectionProps = {
   currentAdmin: PublicAdmin;
 };
 
+type PendingAction =
+  | { kind: "create"; values: CreateValues }
+  | { kind: "role"; target: StaffRow; role: AdminRole }
+  | { kind: "revoke"; target: StaffRow }
+  | { kind: "restore"; target: StaffRow };
+
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
   }).format(new Date(iso));
 }
 
-function withCurrentAdmin(
-  rows: StaffRow[],
-  current: PublicAdmin,
-): StaffRow[] {
-  const withoutDup = rows.filter(
-    (row) =>
-      row.id !== current.id &&
-      row.username.toLowerCase() !== current.username.toLowerCase(),
-  );
-  return [current, ...withoutDup];
+function currentPasswordMessage(error: unknown): string | null {
+  if (!(error instanceof ApiError) || !isApiFieldError(error.details)) {
+    return null;
+  }
+  if (error.details.field !== "currentPassword") return null;
+  return error.message || "Current password is incorrect";
 }
 
 export function StaffSection({ currentAdmin }: StaffSectionProps) {
-  const [rows, setRows] = useState<StaffRow[]>(() =>
-    MOCK_STAFF.filter(
-      (row) =>
-        row.id !== currentAdmin.id &&
-        row.username.toLowerCase() !== currentAdmin.username.toLowerCase(),
-    ),
-  );
+  const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [roleTarget, setRoleTarget] = useState<StaffRow | null>(null);
-  const [revokeTarget, setRevokeTarget] = useState<StaffRow | null>(null);
-  const [restoreTarget, setRestoreTarget] = useState<StaffRow | null>(null);
   const [nextRole, setNextRole] = useState<AdminRole>(AdminRole.FRONT_DESK);
-
-  const staff = useMemo(
-    () => withCurrentAdmin(rows, currentAdmin),
-    [rows, currentAdmin],
-  );
-
-  const activeSuperCount = useMemo(
-    () => countActiveSuperAdmins(staff),
-    [staff],
+  const [pending, setPending] = useState<PendingAction | null>(null);
+  const [reauthServerError, setReauthServerError] = useState<string | null>(
+    null,
   );
 
   const createForm = useForm<CreateValues>({
@@ -152,6 +153,18 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
     },
   });
 
+  const listQuery = useQuery({
+    queryKey: staffAdminsQueryKey,
+    queryFn: listAdmins,
+  });
+
+  const staff = useMemo(() => listQuery.data ?? [], [listQuery.data]);
+
+  const activeSuperCount = useMemo(
+    () => countActiveSuperAdmins(staff),
+    [staff],
+  );
+
   function isLastActiveSuper(row: StaffRow): boolean {
     return (
       row.role === AdminRole.SUPER_ADMIN &&
@@ -160,61 +173,231 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
     );
   }
 
-  function restoreAccess(row: StaffRow) {
-    setRows((prev) =>
-      prev.map((item) =>
-        item.id === row.id
-          ? {
-              ...item,
-              isActive: true,
-              updatedAt: new Date().toISOString(),
-            }
-          : item,
-      ),
-    );
-    handleSuccess(`Restored access for ${row.username} (preview)`);
+  function closeReauth(options?: { reopenCreate?: boolean }) {
+    const reopenCreate = options?.reopenCreate === true;
+    setPending(null);
+    setReauthServerError(null);
+    if (reopenCreate) {
+      setCreateOpen(true);
+    }
   }
 
-  function confirmRevoke() {
-    if (!revokeTarget) return;
-    setRows((prev) =>
-      prev.map((item) =>
-        item.id === revokeTarget.id
-          ? {
-              ...item,
-              isActive: false,
-              updatedAt: new Date().toISOString(),
-            }
-          : item,
-      ),
-    );
-    handleSuccess(`Revoked access for ${revokeTarget.username} (preview)`);
-  }
+  const createMutation = useMutation({
+    mutationFn: createAdmin,
+    onSuccess: (admin) => {
+      void queryClient.invalidateQueries({ queryKey: staffAdminsQueryKey });
+      handleSuccess(`Created ${admin.username}`);
+      createForm.reset({
+        username: "",
+        password: "",
+        role: AdminRole.FRONT_DESK,
+      });
+      setCreateOpen(false);
+      closeReauth();
+    },
+    onError: (error) => {
+      const passwordMsg = currentPasswordMessage(error);
+      if (passwordMsg) {
+        setReauthServerError(passwordMsg);
+        return;
+      }
+      if (
+        error instanceof ApiError &&
+        isApiFieldError(error.details) &&
+        error.details.field === "username"
+      ) {
+        closeReauth({ reopenCreate: true });
+        applyApiFieldError(error, createForm.setError);
+        return;
+      }
+      handleError(error);
+    },
+  });
 
-  function confirmRoleChange() {
-    if (!roleTarget) return;
-    if (
-      roleTarget.role === AdminRole.SUPER_ADMIN &&
-      nextRole !== AdminRole.SUPER_ADMIN &&
-      isLastActiveSuper(roleTarget)
-    ) {
+  const roleMutation = useMutation({
+    mutationFn: ({
+      id,
+      role,
+      currentPassword,
+    }: {
+      id: string;
+      role: AdminRole;
+      currentPassword: string;
+    }) => changeAdminRole(id, { role, currentPassword }),
+    onSuccess: (admin) => {
+      void queryClient.invalidateQueries({ queryKey: staffAdminsQueryKey });
+      handleSuccess(`Updated ${admin.username} to ${formatRole(admin.role)}`);
+      setRoleTarget(null);
+      closeReauth();
+    },
+    onError: (error) => {
+      const passwordMsg = currentPasswordMessage(error);
+      if (passwordMsg) {
+        setReauthServerError(passwordMsg);
+        return;
+      }
+      handleError(error);
+    },
+  });
+
+  const activeMutation = useMutation({
+    mutationFn: ({
+      id,
+      isActive,
+      currentPassword,
+    }: {
+      id: string;
+      isActive: boolean;
+      currentPassword: string;
+    }) => setAdminActive(id, { isActive, currentPassword }),
+    onSuccess: (admin) => {
+      void queryClient.invalidateQueries({ queryKey: staffAdminsQueryKey });
+      handleSuccess(
+        admin.isActive
+          ? `Restored access for ${admin.username}`
+          : `Revoked access for ${admin.username}`,
+      );
+      closeReauth();
+    },
+    onError: (error) => {
+      const passwordMsg = currentPasswordMessage(error);
+      if (passwordMsg) {
+        setReauthServerError(passwordMsg);
+        return;
+      }
+      handleError(error);
+    },
+  });
+
+  const isMutating =
+    createMutation.isPending ||
+    roleMutation.isPending ||
+    activeMutation.isPending;
+
+  function submitReauth(currentPassword: string) {
+    if (!pending) return;
+    if (pending.kind === "create") {
+      createMutation.mutate({
+        ...pending.values,
+        currentPassword,
+      });
       return;
     }
-    setRows((prev) =>
-      prev.map((item) =>
-        item.id === roleTarget.id
-          ? {
-              ...item,
-              role: nextRole,
-              updatedAt: new Date().toISOString(),
-            }
-          : item,
+    if (pending.kind === "role") {
+      roleMutation.mutate({
+        id: pending.target.id,
+        role: pending.role,
+        currentPassword,
+      });
+      return;
+    }
+    if (pending.kind === "revoke") {
+      activeMutation.mutate({
+        id: pending.target.id,
+        isActive: false,
+        currentPassword,
+      });
+      return;
+    }
+    activeMutation.mutate({
+      id: pending.target.id,
+      isActive: true,
+      currentPassword,
+    });
+  }
+
+  const reauthCopy = useMemo(() => {
+    if (!pending) {
+      return {
+        title: "Confirm",
+        description: "Enter your current password to confirm.",
+        confirmLabel: "Confirm",
+        variant: "default" as const,
+      };
+    }
+    if (pending.kind === "create") {
+      return {
+        title: "Create staff?",
+        description: (
+          <>
+            Create{" "}
+            <span className="font-medium text-foreground">
+              {pending.values.username}
+            </span>{" "}
+            as {formatRole(pending.values.role)}. Enter your current password to
+            confirm.
+          </>
+        ),
+        confirmLabel: "Create staff",
+        variant: "default" as const,
+      };
+    }
+    if (pending.kind === "role") {
+      return {
+        title: "Change role?",
+        description: (
+          <>
+            Update{" "}
+            <span className="font-medium text-foreground">
+              {pending.target.username}
+            </span>{" "}
+            to {formatRole(pending.role)}. Enter your current password to
+            confirm.
+          </>
+        ),
+        confirmLabel: "Save role",
+        variant: "default" as const,
+      };
+    }
+    if (pending.kind === "revoke") {
+      return {
+        title: "Revoke access?",
+        description: (
+          <>
+            <span className="font-medium text-foreground">
+              {pending.target.username}
+            </span>{" "}
+            will not be able to sign in. The account stays in the list and can
+            be restored later. Enter your current password to confirm.
+          </>
+        ),
+        confirmLabel: "Revoke access",
+        variant: "destructive" as const,
+      };
+    }
+    return {
+      title: "Restore access?",
+      description: (
+        <>
+          <span className="font-medium text-foreground">
+            {pending.target.username}
+          </span>{" "}
+          will be able to sign in again. Enter your current password to confirm.
+        </>
       ),
+      confirmLabel: "Restore access",
+      variant: "default" as const,
+    };
+  }, [pending]);
+
+  if (listQuery.isPending) {
+    return <StaffListSkeleton />;
+  }
+
+  if (listQuery.isError) {
+    return (
+      <div className="flex flex-col items-start gap-3 rounded-lg border border-border px-4 py-6">
+        <p className="text-sm text-muted-foreground">
+          Couldn’t load staff. Check your connection and try again.
+        </p>
+        <QueryRetryButton
+          onRetry={() => {
+            void listQuery.refetch();
+          }}
+          isRetrying={listQuery.isFetching}
+        />
+      </div>
     );
-    handleSuccess(
-      `Updated ${roleTarget.username} to ${formatRole(nextRole)} (preview)`,
-    );
-    setRoleTarget(null);
   }
 
   return (
@@ -241,7 +424,6 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
         </Button>
       </div>
 
-      {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
         <Table>
           <TableHeader>
@@ -292,10 +474,10 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                         setRoleTarget(row);
                       }}
                       onRevoke={() => {
-                        setRevokeTarget(row);
+                        setPending({ kind: "revoke", target: row });
                       }}
                       onRestore={() => {
-                        setRestoreTarget(row);
+                        setPending({ kind: "restore", target: row });
                       }}
                     />
                   </TableCell>
@@ -306,7 +488,6 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
         </Table>
       </div>
 
-      {/* Mobile cards */}
       <ul className="flex flex-col gap-2 md:hidden">
         {staff.map((row) => {
           const isSelf = row.id === currentAdmin.id;
@@ -347,10 +528,10 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                   setRoleTarget(row);
                 }}
                 onRevoke={() => {
-                  setRevokeTarget(row);
+                  setPending({ kind: "revoke", target: row });
                 }}
                 onRestore={() => {
-                  setRestoreTarget(row);
+                  setPending({ kind: "restore", target: row });
                 }}
               />
             </li>
@@ -358,8 +539,13 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
         })}
       </ul>
 
-      {/* Create */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          if (isMutating) return;
+          setCreateOpen(open);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add staff</DialogTitle>
@@ -371,27 +557,8 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
             noValidate
             id="create-staff"
             onSubmit={createForm.handleSubmit((values) => {
-              if (
-                staff.some(
-                  (row) =>
-                    row.username.toLowerCase() === values.username.toLowerCase(),
-                )
-              ) {
-                createForm.setError("username", {
-                  message: "Username already taken",
-                });
-                return;
-              }
-              const created: StaffRow = {
-                id: `admin_${crypto.randomUUID().slice(0, 8)}`,
-                username: values.username,
-                role: values.role,
-                isActive: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              };
-              setRows((prev) => [created, ...prev]);
-              handleSuccess(`Created ${values.username} (preview)`);
+              setReauthServerError(null);
+              setPending({ kind: "create", values });
               setCreateOpen(false);
             })}
           >
@@ -490,16 +657,16 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
               Cancel
             </Button>
             <Button type="submit" form="create-staff">
-              Create
+              Continue
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Change role */}
       <Dialog
         open={roleTarget !== null}
         onOpenChange={(open) => {
+          if (isMutating) return;
           if (!open) setRoleTarget(null);
         }}
       >
@@ -507,8 +674,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
           <DialogHeader>
             <DialogTitle>Change role</DialogTitle>
             <DialogDescription>
-              {roleTarget &&
-                `Update access for ${roleTarget.username}.`}
+              {roleTarget && `Update access for ${roleTarget.username}.`}
             </DialogDescription>
           </DialogHeader>
           <Field>
@@ -527,10 +693,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                   Front desk
                 </SelectItem>
                 <SelectItem value={AdminRole.ADMIN}>Admin</SelectItem>
-                <SelectItem
-                  value={AdminRole.SUPER_ADMIN}
-                  disabled={false}
-                >
+                <SelectItem value={AdminRole.SUPER_ADMIN}>
                   Super admin
                 </SelectItem>
               </SelectContent>
@@ -538,10 +701,10 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
             {roleTarget &&
               isLastActiveSuper(roleTarget) &&
               nextRole !== AdminRole.SUPER_ADMIN && (
-              <p className="text-sm text-destructive">
-                You cannot demote the last active super admin.
-              </p>
-            )}
+                <p className="text-sm text-destructive">
+                  You cannot demote the last active super admin.
+                </p>
+              )}
           </Field>
           <DialogFooter>
             <Button
@@ -560,64 +723,71 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                 isLastActiveSuper(roleTarget) &&
                 nextRole !== AdminRole.SUPER_ADMIN
               }
-              onClick={confirmRoleChange}
+              onClick={() => {
+                if (!roleTarget) return;
+                setReauthServerError(null);
+                setPending({
+                  kind: "role",
+                  target: roleTarget,
+                  role: nextRole,
+                });
+                setRoleTarget(null);
+              }}
             >
-              Save role
+              Continue
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Revoke */}
-      <ConfirmDialog
-        open={revokeTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) setRevokeTarget(null);
-        }}
-        title="Revoke access?"
-        description={
-          revokeTarget ? (
-            <>
-              <span className="font-medium text-foreground">
-                {revokeTarget.username}
-              </span>{" "}
-              will not be able to sign in. The account stays in the list for
-              history and can be restored later.
-            </>
-          ) : (
-            ""
-          )
+      <ReauthPasswordDialog
+        key={
+          pending
+            ? `${pending.kind}-${"target" in pending ? pending.target.id : pending.values.username}`
+            : "closed"
         }
-        confirmLabel="Revoke access"
-        variant="destructive"
-        onConfirm={confirmRevoke}
+        open={pending !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeReauth({ reopenCreate: pending?.kind === "create" });
+          }
+        }}
+        title={reauthCopy.title}
+        description={reauthCopy.description}
+        confirmLabel={reauthCopy.confirmLabel}
+        variant={reauthCopy.variant}
+        isPending={isMutating}
+        serverError={reauthServerError}
+        onClearServerError={() => {
+          setReauthServerError(null);
+        }}
+        onConfirm={submitReauth}
       />
+    </div>
+  );
+}
 
-      {/* Restore */}
-      <ConfirmDialog
-        open={restoreTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) setRestoreTarget(null);
-        }}
-        title="Restore access?"
-        description={
-          restoreTarget ? (
-            <>
-              <span className="font-medium text-foreground">
-                {restoreTarget.username}
-              </span>{" "}
-              will be able to sign in again with their existing password and
-              role.
-            </>
-          ) : (
-            ""
-          )
-        }
-        confirmLabel="Restore access"
-        onConfirm={() => {
-          if (restoreTarget) restoreAccess(restoreTarget);
-        }}
-      />
+function StaffListSkeleton() {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-between gap-3">
+        <Skeleton className="h-10 w-64 max-w-full" />
+        <Skeleton className="h-8 w-24" />
+      </div>
+      <div className="hidden rounded-lg border border-border md:block">
+        <div className="flex flex-col gap-3 p-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-10 w-full" />
+          ))}
+        </div>
+      </div>
+      <ul className="flex flex-col gap-2 md:hidden">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <li key={index}>
+            <Skeleton className="h-20 w-full rounded-lg" />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

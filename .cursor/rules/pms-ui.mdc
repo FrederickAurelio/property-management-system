@@ -66,3 +66,14 @@ Keep `? :` when both branches render real UI (`isActive ? "Active" : "Revoked"`)
 
 - Forms: `useForm` + `zodResolver` + `Controller` + shadcn `<Field />` — see `apps/pms/AGENTS.md`.
 - Optimize for front-desk speed, not marketing. Anchor: Linear-dense / Stripe-data admin.
+
+## GET / list loading & errors
+
+For query-backed screens (lists, detail fetches):
+
+| State | UI |
+|-------|-----|
+| Loading | Prefer **Skeleton** (match layout), not an indefinite blank or spinner-only page |
+| Error | Short message + shared [`QueryRetryButton`](../../apps/pms/src/components/query-retry-button.tsx) calling `refetch` |
+
+Do not leave failed GETs silent or without a way to retry.

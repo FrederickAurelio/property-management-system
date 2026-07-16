@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AdminsModule } from './admins/admins.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { StaffAuthModule } from './staff-auth/staff-auth.module';
 
@@ -18,6 +19,7 @@ import { StaffAuthModule } from './staff-auth/staff-auth.module';
     }),
     PrismaModule,
     StaffAuthModule,
+    AdminsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

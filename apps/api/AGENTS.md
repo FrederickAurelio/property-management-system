@@ -6,7 +6,8 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 
 - Nest + **Prisma 6** + local Postgres (`pnpm db:up`)
 - **Staff auth:** cookie sessions (`express-session` + `connect-pg-simple`), `Admin` model, roles below
-- **Not yet:** property/unit/reservation modules, admin CRUD, permission matrix
+- **Staff CRUD (`admins`):** SUPER_ADMIN-only list / create / change role / revoke-restore
+- **Not yet:** property/unit/reservation modules, permission matrix
 
 ## Stack (locked)
 
@@ -40,6 +41,17 @@ Examples: `@StaffRoles('ADMIN')` → ADMIN + SUPER_ADMIN · `@StaffRoles('FRONT_
 Username: min 3 / max 64, charset `a-zA-Z0-9._-`. Password: min 8 / max 128. Domain field errors use `details: { field, reason }` (`USERNAME_TAKEN`, `INVALID_CURRENT_PASSWORD`, `SAME_AS_CURRENT`, `USERNAME_UNCHANGED`). Limits: `@cabin/api-contract`.
 
 Cookie name: `cabin.pms.sid` (httpOnly). Logout clears the cookie. Env: `SESSION_SECRET`, `CORS_ORIGINS` (required in production), seed vars below. Production enables Express `trust proxy` for secure cookies behind TLS termination.
+
+## Staff admin endpoints (SUPER_ADMIN only)
+
+All require session + `@StaffRoles('SUPER_ADMIN')`. Mutates require the actor’s `currentPassword` (same field-error pattern as change username). Soft revoke via `isActive`.
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `GET` | `/admins` | All admins including self (`PublicAdmin[]`, no pagination) |
+| `POST` | `/admins` | `{ username, password, role, currentPassword }` → create |
+| `PATCH` | `/admins/:id/role` | `{ role, currentPassword }` — not self; not last active SUPER_ADMIN demote |
+| `PATCH` | `/admins/:id/active` | `{ isActive, currentPassword }` — not self-revoke; not last active SUPER_ADMIN revoke |
 
 ## HTTP contract
 
@@ -91,7 +103,7 @@ Seed (first `SUPER_ADMIN`): `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defau
 
 ## Phase 1 build order
 
-1. Staff auth + roles ← **in progress** (login done; admin CRUD next)
+1. Staff auth + roles ← **done** (auth + SUPER_ADMIN staff CRUD)
 2. Units CRUD
 3. Reservations CRUD + availability (overlap enforced in DB)
 4. Check-in / check-out
@@ -111,7 +123,7 @@ One calendar per unit. Confirmed stays must not overlap on the same unit (Postgr
 
 ## Module shape
 
-Prefer Nest feature modules: `staff-auth`, `units`, `reservations`, `ops`, later `ingest`, `ical`. Next: `admins` (SUPER_ADMIN-only CRUD).
+Prefer Nest feature modules: `staff-auth`, `admins`, `units`, `reservations`, `ops`, later `ingest`, `ical`.
 
 ## Code conventions
 

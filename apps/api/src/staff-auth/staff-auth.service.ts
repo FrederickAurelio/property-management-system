@@ -7,25 +7,17 @@ import {
 } from '@nestjs/common';
 import { ApiFieldReason, type PublicAdmin } from '@cabin/api-contract';
 import * as bcrypt from 'bcrypt';
+import { BCRYPT_ROUNDS, toPublicAdmin } from '../common/staff/admin-mapper.js';
 import { Prisma } from '../generated/prisma/index.js';
 import type { Admin } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service';
-
-const BCRYPT_ROUNDS = 12;
 
 @Injectable()
 export class StaffAuthService {
   constructor(private readonly prisma: PrismaService) {}
 
   toPublic(admin: Admin): PublicAdmin {
-    return {
-      id: admin.id,
-      username: admin.username,
-      role: admin.role,
-      isActive: admin.isActive,
-      createdAt: admin.createdAt.toISOString(),
-      updatedAt: admin.updatedAt.toISOString(),
-    };
+    return toPublicAdmin(admin);
   }
 
   async validateCredentials(

@@ -1,7 +1,13 @@
 export { api, setUnauthorizedHandler } from "./client";
 export { handleError, handleSuccess } from "./toast";
 export { applyApiFieldError } from "./field-error";
-export { staffSessionQueryKey } from "./query-keys";
+export { staffAdminsQueryKey, staffSessionQueryKey } from "./query-keys";
+export {
+  changeAdminRole,
+  createAdmin,
+  listAdmins,
+  setAdminActive,
+} from "./admins";
 export {
   staffChangePassword,
   staffChangeUsername,
