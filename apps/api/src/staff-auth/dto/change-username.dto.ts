@@ -14,7 +14,7 @@ import {
   STAFF_USERNAME_PATTERN,
 } from '@cabin/api-contract';
 
-export class StaffLoginDto {
+export class ChangeUsernameDto {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
@@ -32,5 +32,5 @@ export class StaffLoginDto {
   @IsNotEmpty()
   @MinLength(STAFF_PASSWORD_MIN)
   @MaxLength(STAFF_PASSWORD_MAX)
-  password!: string;
+  currentPassword!: string;
 }

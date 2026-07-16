@@ -28,3 +28,25 @@ export async function staffSession(
   const { data } = await api.get<PublicAdmin>("/staff/auth/session", config);
   return data;
 }
+
+export async function staffChangeUsername(input: {
+  username: string;
+  currentPassword: string;
+}): Promise<PublicAdmin> {
+  const { data } = await api.patch<PublicAdmin>(
+    "/staff/auth/username",
+    input,
+  );
+  return data;
+}
+
+export async function staffChangePassword(input: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ ok: true }> {
+  const { data } = await api.patch<{ ok: true }>(
+    "/staff/auth/password",
+    input,
+  );
+  return data;
+}

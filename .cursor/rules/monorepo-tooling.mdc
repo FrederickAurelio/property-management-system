@@ -19,12 +19,14 @@ If the ESLint language server runs with **repo-root CWD**:
 
 That is a **misconfigured IDE**, not a reason to turn off `no-unsafe-*`. Keep those rules **error**. Fix the workspace so types resolve; then only real issues remain.
 
+**Full diagnosis** (decorator imports, package `src/` pollution, truth-check table): [`.cursor/rules/monorepo-eslint-types.mdc`](monorepo-eslint-types.mdc).
+
 Do **not** use `"eslint.workingDirectories": [{ "mode": "auto" }]` here. Root `pnpm-lock.yaml` makes auto treat the monorepo root as the project; nested apps then get the wrong CWD.
 
 ## Locked IDE setup (do not “workaround” around this)
 
 1. Open **[`cabin.code-workspace`](cabin.code-workspace)** (multi-root), not only the repo folder if diagnostics stay wrong.
-2. [`.vscode/settings.json`](.vscode/settings.json) must list each app with `changeProcessCWD: true`:
+2. [`.vscode/settings.json`](.vscode/settings.json) (single-root / **cabin (root)** folder) lists each app with `changeProcessCWD: true`. **`cabin.code-workspace`** also sets per-app-folder `eslint.workingDirectories: [{ "directory": ".", "changeProcessCWD": true }]` on the `api` / `pms` / `web` roots — required when you open files from those sidebar roots instead of `cabin (root)`.
 
 ```json
 "eslint.workingDirectories": [
@@ -44,7 +46,7 @@ pnpm --filter @cabin/api lint
 pnpm --filter @cabin/api typecheck
 ```
 
-If CLI is clean and IDE is red → IDE CWD/workspace is wrong. If CLI is red → fix the code (or generate / build deps).
+If CLI is clean and IDE is red → IDE CWD/workspace is wrong — **do not change code**; see [monorepo-eslint-types.mdc](monorepo-eslint-types.mdc). If CLI is red → fix the code (or generate / build deps).
 
 ## Shared `packages/` (general)
 
@@ -63,7 +65,7 @@ If CLI is clean and IDE is red → IDE CWD/workspace is wrong. If CLI is red →
 **How to wire**
 
 1. Create `packages/<name>` with its own `package.json` (`@cabin/<name>`), `tsconfig`, and `src/`.
-2. Prefer a build to `dist/` + `"prepare": "pnpm run build"` so Nest and Vite both resolve real JS/types after `pnpm install`.
+2. Prefer a build to `dist/` + `"prepare": "pnpm run build"` so Nest and Vite both resolve real JS/types after `pnpm install`. **Never** emit `.js` / `.d.ts` into `packages/*/src/` — only `dist/` (see [monorepo-eslint-types.mdc](monorepo-eslint-types.mdc)).
 3. In each consumer app: `"@cabin/<name>": "workspace:*"`, then `pnpm install` from **repo root**.
 4. Import from `@cabin/<name>` — never relative-path into another app (`apps/pms` must not import from `apps/api/src`).
 5. Root `pnpm typecheck` should build shared packages that emit `dist/` before app typechecks (see root `package.json`).
@@ -89,7 +91,7 @@ Inventory and add-package checklist: [`packages/README.md`](packages/README.md).
 
 | Symptom | Fix |
 |---------|-----|
-| Flood of `Unsafe * of a type that could not be resolved` in IDE only | Workspace + `eslint.workingDirectories` + restart ESLint; compare to `pnpm --filter … lint` |
+| Flood of `Unsafe * of a type that could not be resolved` in IDE only | Run `pnpm --filter @cabin/api lint` first. If clean → IDE/workspace only ([monorepo-eslint-types.mdc](monorepo-eslint-types.mdc)). **Never** change code to work around. |
 | CLI lint/typecheck red, IDE green | Trust CLI; fix code |
 | Module missing in one app | Dep in that app’s `package.json`? right `--filter`? |
 | Workspace package types/runtime missing | Package built (`prepare` / `pnpm --filter @cabin/<pkg> build`)? `workspace:*` linked? |

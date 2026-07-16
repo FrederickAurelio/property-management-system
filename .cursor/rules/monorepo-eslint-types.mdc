@@ -1,0 +1,51 @@
+---
+description: Monorepo type-aware ESLint — fake no-unsafe-* floods, workspace package resolution
+alwaysApply: true
+---
+
+# Monorepo — ESLint types & `no-unsafe-*`
+
+Type-aware ESLint (`recommendedTypeChecked` / `no-unsafe-*`) is **on** in `apps/api`. Do **not** disable it.
+
+## Mandatory gate before any “fix”
+
+When IDE shows `Unsafe * of a type that could not be resolved` or `error typed`:
+
+```bash
+pnpm --filter @cabin/api-contract build
+pnpm --filter @cabin/api lint
+pnpm --filter @cabin/api typecheck
+```
+
+| CLI | What to do |
+|-----|------------|
+| **Clean** | **Do not change application code** — no import swaps, no string-literal substitutes, no app-local constant copies, no `../../packages/...` imports. Fix IDE/workspace only (below). |
+| **Red** | Fix real types, build deps, or code bugs. |
+
+IDE Problems must match CLI. CLI wins.
+
+## What the message means
+
+`error typed` = TypeScript could not resolve an import (often `@cabin/api-contract`). ESLint flags every use. Code is usually fine; **resolution** is broken in the IDE language server.
+
+## Fix IDE/workspace (not code)
+
+1. Open **[`cabin.code-workspace`](../../cabin.code-workspace)** (not repo folder alone).
+2. Per-app sidebar roots (`api`, `pms`, `web`) need `eslint.workingDirectories: [{ "directory": ".", "changeProcessCWD": true }]`. **cabin (root)** uses `apps/<app>` paths — see [`monorepo-tooling.mdc`](monorepo-tooling.mdc).
+3. `pnpm --filter @cabin/api-contract build` (or `pnpm install` from root).
+4. No compiled `.js` / `.d.ts` in `packages/*/src/` — emit **only** to `dist/`.
+5. **ESLint: Restart ESLint Server** → **Developer: Reload Window**.
+
+## Imports (locked)
+
+Use `@cabin/api-contract` for shared bounds, `ApiFieldReason`, wire types — in API DTOs, services, tests, and PMS. Never duplicate the same constants in an app to satisfy IDE ESLint.
+
+## Don’t
+
+- Turn off `no-unsafe-*` or `recommendedTypeChecked`
+- `eslint.workingDirectories: [{ "mode": "auto" }]` with root lockfile
+- Change code when `pnpm --filter @cabin/api lint` is clean
+- Relative imports into `packages/` or app-local mirrors of `@cabin/api-contract`
+- Emit build output into `packages/*/src/`
+
+Tooling: [`monorepo-tooling.mdc`](monorepo-tooling.mdc) · packages: [`packages/README.md`](../../packages/README.md)

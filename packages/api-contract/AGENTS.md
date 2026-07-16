@@ -6,16 +6,19 @@ Shared **HTTP wire contract** for Cabin frontends and the API.
 
 ```text
 src/
-  index.ts          # public barrel — import only from @cabin/api-contract
-  envelope.ts       # success/error body shapes + isApiSuccessEnvelope
-  error-codes.ts    # ApiErrorCode
-  api-error.ts      # ApiError (FE client throw type)
-  admin.ts          # AdminRole, PublicAdmin
+  index.ts              # public barrel — import only from @cabin/api-contract
+  envelope.ts           # success/error body shapes + isApiSuccessEnvelope
+  error-codes.ts        # ApiErrorCode
+  api-error.ts          # ApiError (FE client throw type)
+  admin.ts              # AdminRole, PublicAdmin
+  staff-credentials.ts  # username/password min/max + pattern
+  field-error.ts        # ApiFieldError + ApiFieldReason
 ```
 
 ## In
 
 - Envelope types, error codes, `ApiError`, staff wire types (`AdminRole`, `PublicAdmin`)
+- Staff credential limits + structured field-error reasons for forms
 
 ## Out
 

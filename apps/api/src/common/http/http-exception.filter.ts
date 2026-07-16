@@ -84,6 +84,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const record = exceptionResponse as {
       message?: string | string[];
       error?: string;
+      details?: unknown;
     };
 
     if (Array.isArray(record.message)) {
@@ -94,7 +95,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     if (typeof record.message === 'string' && record.message.length > 0) {
-      return { message: record.message };
+      return {
+        message: record.message,
+        ...(record.details !== undefined ? { details: record.details } : {}),
+      };
+    }
+
+    if (record.details !== undefined) {
+      return { message: fallbackMessage, details: record.details };
     }
 
     return { message: fallbackMessage };

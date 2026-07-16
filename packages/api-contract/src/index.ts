@@ -2,3 +2,5 @@ export * from './error-codes.js';
 export * from './envelope.js';
 export * from './api-error.js';
 export * from './admin.js';
+export * from './staff-credentials.js';
+export * from './field-error.js';

@@ -22,6 +22,12 @@ import {
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  STAFF_PASSWORD_MAX,
+  STAFF_PASSWORD_MIN,
+  STAFF_USERNAME_MAX,
+  STAFF_USERNAME_MIN,
+} from "@cabin/api-contract";
+import {
   handleError,
   handleSuccess,
   staffLogin,
@@ -32,12 +38,24 @@ const loginSchema = z.object({
   username: z
     .string()
     .trim()
-    .min(1, "Username is required")
-    .max(64, "Username must be at most 64 characters"),
+    .min(
+      STAFF_USERNAME_MIN,
+      `Username must be at least ${STAFF_USERNAME_MIN} characters`,
+    )
+    .max(
+      STAFF_USERNAME_MAX,
+      `Username must be at most ${STAFF_USERNAME_MAX} characters`,
+    ),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128, "Password must be at most 128 characters"),
+    .min(
+      STAFF_PASSWORD_MIN,
+      `Password must be at least ${STAFF_PASSWORD_MIN} characters`,
+    )
+    .max(
+      STAFF_PASSWORD_MAX,
+      `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
+    ),
 });
 
 type LoginValues = z.infer<typeof loginSchema>;

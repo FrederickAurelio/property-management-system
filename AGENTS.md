@@ -34,7 +34,7 @@ One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (nev
 
 **Shared packages:** if two apps need the same types/constants/pure helpers, put them in `packages/` and depend with `workspace:*` — do not copy between apps. How-to: [`packages/README.md`](packages/README.md) · tooling: [`.cursor/rules/monorepo-tooling.mdc`](.cursor/rules/monorepo-tooling.mdc).
 
-**IDE:** open [`cabin.code-workspace`](cabin.code-workspace) so ESLint/TS use per-app CWD. Details: monorepo-tooling rule. Do not silence `no-unsafe-*` to hide workspace misconfig.
+**IDE:** open [`cabin.code-workspace`](cabin.code-workspace). If IDE shows `no-unsafe-*` but `pnpm --filter @cabin/api lint` is clean → fix workspace, **do not change code** ([`.cursor/rules/monorepo-eslint-types.mdc`](.cursor/rules/monorepo-eslint-types.mdc)).
 
 ## Locked stack (Phase 1)
 

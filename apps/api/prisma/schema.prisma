@@ -16,7 +16,7 @@ enum AdminRole {
 
 model Admin {
   id           String    @id @default(cuid())
-  username     String    @unique
+  username     String    @unique @db.VarChar(64)
   passwordHash String
   role         AdminRole
   isActive     Boolean   @default(true)

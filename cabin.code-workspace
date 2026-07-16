@@ -2,24 +2,39 @@
   "folders": [
     {
       "name": "cabin (root)",
-      "path": "."
+      "path": ".",
     },
     {
       "name": "api",
-      "path": "apps/api"
+      "path": "apps/api",
+      "settings": {
+        "eslint.workingDirectories": [
+          { "directory": ".", "changeProcessCWD": true },
+        ],
+      },
     },
     {
       "name": "pms",
-      "path": "apps/pms"
+      "path": "apps/pms",
+      "settings": {
+        "eslint.workingDirectories": [
+          { "directory": ".", "changeProcessCWD": true },
+        ],
+      },
     },
     {
       "name": "web",
-      "path": "apps/web"
+      "path": "apps/web",
+      "settings": {
+        "eslint.workingDirectories": [
+          { "directory": ".", "changeProcessCWD": true },
+        ],
+      },
     },
     {
       "name": "api-contract",
-      "path": "packages/api-contract"
-    }
+      "path": "packages/api-contract",
+    },
   ],
   "settings": {
     "typescript.tsdk": "node_modules/typescript/lib",
@@ -27,21 +42,22 @@
     "eslint.workingDirectories": [
       { "directory": "apps/api", "changeProcessCWD": true },
       { "directory": "apps/pms", "changeProcessCWD": true },
-      { "directory": "apps/web", "changeProcessCWD": true }
+      { "directory": "apps/web", "changeProcessCWD": true },
     ],
     "eslint.useFlatConfig": true,
     "eslint.validate": [
       "javascript",
       "javascriptreact",
       "typescript",
-      "typescriptreact"
-    ]
+      "typescriptreact",
+    ],
+    "prisma.pinToPrisma6": true,
   },
   "extensions": {
     "recommendations": [
       "dbaeumer.vscode-eslint",
       "Prisma.prisma",
-      "bradlc.vscode-tailwindcss"
-    ]
-  }
+      "bradlc.vscode-tailwindcss",
+    ],
+  },
 }

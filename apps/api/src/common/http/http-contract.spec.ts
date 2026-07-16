@@ -2,9 +2,9 @@ import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { of } from 'rxjs';
 import { lastValueFrom } from 'rxjs';
 import { TransformInterceptor } from './transform.interceptor';
-import { ApiErrorCode } from '@cabin/api-contract';
+import { ApiErrorCode, ApiFieldReason } from '@cabin/api-contract';
 import { HttpExceptionFilter } from './http-exception.filter';
-import { UnauthorizedException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 
 describe('TransformInterceptor', () => {
   it('wraps plain payloads in data + meta.requestId', async () => {
@@ -47,6 +47,41 @@ describe('HttpExceptionFilter', () => {
         message: 'Not authenticated',
       },
       meta: { requestId: 'req_err' },
+    });
+  });
+
+  it('forwards custom details on ConflictException', () => {
+    const filter = new HttpExceptionFilter();
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+
+    filter.catch(
+      new ConflictException({
+        message: 'Username is already taken',
+        details: {
+          field: 'username',
+          reason: ApiFieldReason.USERNAME_TAKEN,
+        },
+      }),
+      {
+        switchToHttp: () => ({
+          getResponse: () => ({ status }),
+          getRequest: () => ({ requestId: 'req_conflict' }),
+        }),
+      } as never,
+    );
+
+    expect(status).toHaveBeenCalledWith(409);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: ApiErrorCode.CONFLICT,
+        message: 'Username is already taken',
+        details: {
+          field: 'username',
+          reason: ApiFieldReason.USERNAME_TAKEN,
+        },
+      },
+      meta: { requestId: 'req_conflict' },
     });
   });
 });

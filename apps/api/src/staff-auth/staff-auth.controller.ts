@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -13,6 +14,8 @@ import type { PublicAdmin } from '@cabin/api-contract';
 import type { Request, Response } from 'express';
 import { StaffAuthService } from './staff-auth.service';
 import { CurrentAdmin } from './decorators/current-admin.decorator';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ChangeUsernameDto } from './dto/change-username.dto';
 import { StaffLoginDto } from './dto/staff-login.dto';
 import { StaffSessionAuthGuard } from './guards/staff-session-auth.guard';
 import {
@@ -58,5 +61,31 @@ export class StaffAuthController {
   @UseGuards(StaffSessionAuthGuard)
   session(@CurrentAdmin() admin: PublicAdmin): PublicAdmin {
     return admin;
+  }
+
+  @Patch('username')
+  @UseGuards(StaffSessionAuthGuard)
+  changeUsername(
+    @CurrentAdmin() admin: PublicAdmin,
+    @Body() dto: ChangeUsernameDto,
+  ): Promise<PublicAdmin> {
+    return this.staffAuthService.changeUsername(
+      admin.id,
+      dto.username,
+      dto.currentPassword,
+    );
+  }
+
+  @Patch('password')
+  @UseGuards(StaffSessionAuthGuard)
+  changePassword(
+    @CurrentAdmin() admin: PublicAdmin,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ ok: true }> {
+    return this.staffAuthService.changePassword(
+      admin.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 }

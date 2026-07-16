@@ -1,6 +1,11 @@
 /* anchor: Linear settings form, diverge: current + new + confirm password */
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import {
+  STAFF_PASSWORD_MAX,
+  STAFF_PASSWORD_MIN,
+} from "@cabin/api-contract";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,18 +24,32 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { handleSuccess } from "@/lib/api";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  applyApiFieldError,
+  handleSuccess,
+  staffChangePassword,
+} from "@/lib/api";
 
 const passwordSchema = z
   .object({
     currentPassword: z
       .string()
       .min(1, "Current password is required")
-      .max(128, "Password must be at most 128 characters"),
+      .max(
+        STAFF_PASSWORD_MAX,
+        `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
+      ),
     newPassword: z
       .string()
-      .min(8, "New password must be at least 8 characters")
-      .max(128, "Password must be at most 128 characters"),
+      .min(
+        STAFF_PASSWORD_MIN,
+        `New password must be at least ${STAFF_PASSWORD_MIN} characters`,
+      )
+      .max(
+        STAFF_PASSWORD_MAX,
+        `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
+      ),
     confirmPassword: z.string().min(1, "Confirm your new password"),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {
@@ -59,6 +78,24 @@ export function ChangePasswordForm() {
     },
   });
 
+  const mutation = useMutation({
+    mutationFn: staffChangePassword,
+    onSuccess: () => {
+      handleSuccess("Password updated");
+      form.reset();
+      setShowCurrent(false);
+      setShowNew(false);
+      setShowConfirm(false);
+      setConfirmOpen(false);
+    },
+    onError: (error) => {
+      setConfirmOpen(false);
+      applyApiFieldError(error, form.setError);
+    },
+  });
+
+  const isPending = mutation.isPending;
+
   return (
     <>
       <form
@@ -84,6 +121,7 @@ export function ChangePasswordForm() {
                     autoComplete="current-password"
                     placeholder="••••••••"
                     aria-invalid={fieldState.invalid}
+                    disabled={isPending}
                     className="text-base md:text-sm"
                   />
                   <InputGroupAddon align="inline-end">
@@ -92,6 +130,7 @@ export function ChangePasswordForm() {
                       aria-label={
                         showCurrent ? "Hide password" : "Show password"
                       }
+                      disabled={isPending}
                       onClick={() => {
                         setShowCurrent((prev) => !prev);
                       }}
@@ -114,7 +153,9 @@ export function ChangePasswordForm() {
                 <FieldLabel htmlFor="settings-new-password">
                   New password
                 </FieldLabel>
-                <FieldDescription>At least 8 characters.</FieldDescription>
+                <FieldDescription>
+                  At least {STAFF_PASSWORD_MIN} characters.
+                </FieldDescription>
                 <InputGroup className="max-w-sm">
                   <InputGroupInput
                     {...field}
@@ -123,12 +164,14 @@ export function ChangePasswordForm() {
                     autoComplete="new-password"
                     placeholder="••••••••"
                     aria-invalid={fieldState.invalid}
+                    disabled={isPending}
                     className="text-base md:text-sm"
                   />
                   <InputGroupAddon align="inline-end">
                     <InputGroupButton
                       size="icon-xs"
                       aria-label={showNew ? "Hide password" : "Show password"}
+                      disabled={isPending}
                       onClick={() => {
                         setShowNew((prev) => !prev);
                       }}
@@ -159,6 +202,7 @@ export function ChangePasswordForm() {
                     autoComplete="new-password"
                     placeholder="••••••••"
                     aria-invalid={fieldState.invalid}
+                    disabled={isPending}
                     className="text-base md:text-sm"
                   />
                   <InputGroupAddon align="inline-end">
@@ -167,6 +211,7 @@ export function ChangePasswordForm() {
                       aria-label={
                         showConfirm ? "Hide password" : "Show password"
                       }
+                      disabled={isPending}
                       onClick={() => {
                         setShowConfirm((prev) => !prev);
                       }}
@@ -181,25 +226,35 @@ export function ChangePasswordForm() {
               </Field>
             )}
           />
-          <Button type="submit" className="w-fit">
-            Update password
+          <Button type="submit" className="w-fit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner data-icon="inline-start" />
+                Updating…
+              </>
+            ) : (
+              "Update password"
+            )}
           </Button>
         </FieldGroup>
       </form>
 
       <ConfirmDialog
         open={confirmOpen}
-        onOpenChange={setConfirmOpen}
+        onOpenChange={(open) => {
+          if (isPending) return;
+          setConfirmOpen(open);
+        }}
         title="Update password?"
         description="Your password will change immediately. You’ll stay signed in on this device; other sessions may need the new password."
         confirmLabel="Update password"
+        confirmDisabled={isPending}
         onConfirm={() => {
-          // UI-only — wire to API later
-          handleSuccess("Password updated (preview)");
-          form.reset();
-          setShowCurrent(false);
-          setShowNew(false);
-          setShowConfirm(false);
+          const values = form.getValues();
+          mutation.mutate({
+            currentPassword: values.currentPassword,
+            newPassword: values.newPassword,
+          });
         }}
       />
     </>

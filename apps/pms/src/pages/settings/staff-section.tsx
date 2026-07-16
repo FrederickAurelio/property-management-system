@@ -1,7 +1,15 @@
 /* anchor: Stripe-data team table / Linear members, diverge: soft revoke via isActive */
 import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AdminRole, type PublicAdmin } from "@cabin/api-contract";
+import {
+  AdminRole,
+  STAFF_PASSWORD_MAX,
+  STAFF_PASSWORD_MIN,
+  STAFF_USERNAME_MAX,
+  STAFF_USERNAME_MIN,
+  STAFF_USERNAME_PATTERN,
+  type PublicAdmin,
+} from "@cabin/api-contract";
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -58,16 +66,28 @@ const createSchema = z.object({
   username: z
     .string()
     .trim()
-    .min(1, "Username is required")
-    .max(64, "Username must be at most 64 characters")
+    .min(
+      STAFF_USERNAME_MIN,
+      `Username must be at least ${STAFF_USERNAME_MIN} characters`,
+    )
+    .max(
+      STAFF_USERNAME_MAX,
+      `Username must be at most ${STAFF_USERNAME_MAX} characters`,
+    )
     .regex(
-      /^[a-zA-Z0-9._-]+$/,
+      STAFF_USERNAME_PATTERN,
       "Use letters, numbers, dots, hyphens, or underscores",
     ),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128, "Password must be at most 128 characters"),
+    .min(
+      STAFF_PASSWORD_MIN,
+      `Password must be at least ${STAFF_PASSWORD_MIN} characters`,
+    )
+    .max(
+      STAFF_PASSWORD_MAX,
+      `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
+    ),
   role: z.enum([
     AdminRole.SUPER_ADMIN,
     AdminRole.ADMIN,

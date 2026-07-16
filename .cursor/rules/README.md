@@ -9,6 +9,7 @@ Layered **glob** rules under `.cursor/rules/`. Entry files apply to the whole ap
 | `agents-writing.mdc` | How to write AGENTS + rules |
 | `monorepo.mdc` | Architecture, phase, hard stops |
 | `monorepo-tooling.mdc` | pnpm, ESLint CWD, packages, Prisma output |
+| `monorepo-eslint-types.mdc` | `no-unsafe-*` floods, workspace package resolution, trust CLI over IDE |
 | `commits.mdc` | Conventional commits + husky |
 
 ## Per app — entry + concerns
