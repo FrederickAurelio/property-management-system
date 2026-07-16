@@ -17,11 +17,15 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 
 ## Roles
 
+Hierarchy: `SUPER_ADMIN` > `ADMIN` > `FRONT_DESK`. `@Roles(X)` means **X or higher**.
+
 | Role | Intent |
 |------|--------|
 | `SUPER_ADMIN` | Manage staff + full system (seeded bootstrap account) |
 | `ADMIN` | Modules / settings / ops — not admin-user CRUD |
 | `FRONT_DESK` | Daily ops only (matrix later) |
+
+Examples: `@Roles('ADMIN')` → ADMIN + SUPER_ADMIN · `@Roles('FRONT_DESK')` → all staff · `@Roles('SUPER_ADMIN')` → SUPER_ADMIN only.
 
 ## Auth endpoints
 
@@ -109,7 +113,7 @@ Prefer Nest feature modules: `auth`, `units`, `reservations`, `ops`, later `inge
 
 - DTOs with `class-validator` (+ `ValidationPipe`). No bare `any` on controllers.
 - Prisma only inside services — not controllers.
-- Use `SessionAuthGuard` + `@Roles(...)` / `RolesGuard` for protected routes.
+- Use `SessionAuthGuard` + `@Roles(...)` / `RolesGuard` for protected routes (`@Roles` is minimum-role, not an exact allowlist).
 
 ## Don’t
 
