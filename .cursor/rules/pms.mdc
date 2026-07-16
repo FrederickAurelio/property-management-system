@@ -9,5 +9,6 @@ alwaysApply: false
 Concern rules layer on via tighter globs (`pms-api`, `pms-ui`). Map: [`.cursor/rules/README.md`](README.md).
 
 - React + Vite + Tailwind + shadcn. Staff ops only → `apps/api`.
+- UI/UX: always read `shadcn` + `product-ui-design` skills; apply with judgment — `pms-ui.mdc`.
 - Calendar, reservations, check-in/out, quick-confirm first.
 - Read `apps/pms/AGENTS.md`.

@@ -7,14 +7,22 @@ import {
   OctagonXIcon,
   Loader2Icon,
 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
+  const isMobile = useIsMobile();
 
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      position={isMobile ? "top-center" : "bottom-right"}
+      offset={
+        isMobile
+          ? { top: "calc(3rem + env(safe-area-inset-top, 0px))" }
+          : undefined
+      }
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,

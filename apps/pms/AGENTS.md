@@ -11,7 +11,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 - Routes: `/login` (public staff login) · `/` private app shell (`PrivateRoute` → `AppLayout` → children)
 - Axios API client: `src/lib/api` (session cookies + envelope unwrap + Sonner helpers)
 - RHF + Zod + shadcn `Field` / `Controller` (login form wired)
-- **Not yet:** sidebar/bottom nav, domain screens
+- **Not yet:** domain screens (layout shell with sidebar + bottom nav wired)
 
 ## Stack (locked)
 
@@ -66,6 +66,7 @@ Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 
 ## UX
 
+- **Responsive web + mobile** — staff use desk and handheld; plan both from the start (`.cursor/rules/pms-ui.mdc`)
 - Optimize for front-desk speed, not marketing
 - Quick-confirm = review draft, minimal typing
 - Honor roles from API (`SUPER_ADMIN` | `ADMIN` | `FRONT_DESK`)
@@ -73,14 +74,14 @@ Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 
 ### UI skills (PMS only)
 
-Use only these from [`.cursor/skills/`](../../.cursor/skills/README.md):
+**Always use** — in order — from [`.cursor/skills/`](../../.cursor/skills/README.md). **Apply with judgment**; skills are defaults, not gospel. Full workflow + when to override: `.cursor/rules/pms-ui.mdc`.
 
 | Order | Skill               | For                              |
 | ----- | ------------------- | -------------------------------- |
 | 1     | `shadcn`            | Add/compose shadcn components    |
 | 2     | `product-ui-design` | Shipped admin look; anti AI-slop |
 
-Do **not** load `ui-design-brain` / `ui-craft` / `ui-craft-dense-dashboard` for PMS — those are reserved for customer-facing `apps/web` (Phase 2).
+Do **not** load `ui-design-brain` / `ui-craft` / `ui-craft-dense-dashboard` for PMS — reserved for `apps/web` (Phase 2).
 
 Anchor DNA: **Linear-dense / Stripe-data**. No purple gradients, glowing status dots, or landing-page hero patterns.
 

@@ -1,13 +1,24 @@
+/* anchor: Linear-dense shell, diverge: mobile bottom nav + Cabin warm primary tokens */
 import { Outlet } from "react-router";
+import { AppHeader } from "@/components/layout/app-header";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-/**
- * Authenticated app chrome.
- * Later: sidebar (desktop) + bottom nav (mobile). For now: route outlet only.
- */
 export function AppLayout() {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="min-h-svh">
-      <Outlet />
-    </div>
+    <SidebarProvider defaultOpen>
+      {!isMobile && <AppSidebar />}
+      <SidebarInset>
+        <AppHeader />
+        <div className="flex min-h-[calc(100svh-3rem)] flex-1 flex-col pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0">
+          <Outlet />
+        </div>
+      </SidebarInset>
+      {isMobile && <BottomNav />}
+    </SidebarProvider>
   );
 }

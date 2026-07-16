@@ -1,5 +1,5 @@
 ---
-description: PMS UI — pages, components, shadcn, admin register
+description: PMS UI — pages, components, shadcn, responsive web + mobile, admin register
 globs:
   - apps/pms/src/pages/**
   - apps/pms/src/components/**
@@ -8,9 +8,61 @@ alwaysApply: false
 
 # PMS — UI
 
-From `.cursor/skills/`: use **`shadcn`** then **`product-ui-design`** only.
+**Always read and apply** `.cursor/skills/` **`shadcn`** then **`product-ui-design`** when building or changing UI/UX. Do **not** load `ui-design-brain` / `ui-craft*` (reserved for `apps/web`).
 
-Do **not** load `ui-design-brain` / `ui-craft*` for PMS (reserved for `apps/web`). No marketing/landing design skills on PMS.
+**Use judgment — don't obey blindly.** Skills are the floor (components, tokens, anti-slop, workflow), not a substitute for the task. Override when the product wins:
+
+| Prefer skills when… | Override when… |
+|---------------------|----------------|
+| Adding/composing components | No shadcn primitive fits and a small custom piece is clearer (e.g. bottom nav) |
+| Tokens, spacing, tell-scan | A rule fights front-desk speed, mobile parity, or this app's shell |
+| Anchor + restraint on admin surfaces | Motion/animation helps a rare moment — still frequency-gate daily actions |
+| Checklists before ship | A checklist item would make this screen worse; note why and diverge |
+
+If you skip a skill step, say what you skipped and why in the PR/commit mindset — not silent drift.
+
+Do **not** load marketing/landing design skills on PMS.
+
+## Responsive — web and mobile
+
+Staff use PMS on **desk monitors and phones/tablets** (check-in on the floor, quick-confirm between guests). Plan **both** from the first layout — not desktop-only with a later mobile pass.
+
+| Concern | Rule |
+|---------|------|
+| CSS | Mobile-first Tailwind; scale up with `sm:` / `md:` / `lg:` |
+| Parity | Core ops stay usable on mobile — simplify layout, don't drop workflows |
+| Shell | Desktop: persistent sidebar. Mobile/tablet: drawer or bottom nav — page chrome must not eat half the viewport |
+| Touch | Tappable targets ≥44px; inputs ≥16px on mobile (iOS zoom); prefer `Drawer` over wide `Dialog` on narrow screens |
+| Dense data | Tables: horizontal scroll with affordance, card/list fallback, or hide columns — never clip critical actions |
+| Done | Sanity-check ~375px and ~1280px+; no accidental horizontal scroll |
+
+Skills handle visual register and anti-slop. **Responsive behavior is non-negotiable** even when skills skew desktop-admin.
+
+## Skill workflow (before shipping UI)
+
+| Step | Skill | Action |
+|------|-------|--------|
+| 1 | `shadcn` | Search/add components first; compose; semantic tokens; `gap-*` not `space-*` |
+| 2 | `product-ui-design` | Pick anchor (`Linear-dense` / `Stripe-data`); add `/* anchor: …, diverge: … */` on page/layout files |
+| 3 | `product-ui-design` | Tell scan — read `references/ai-tells.md`; optional `scripts/scan-tells.py <path>` |
+| 4 | This rule | Responsive pass at ~375px and ~1280px+ |
+
+**Floor defaults:** no route/page transition animation on shell nav (frequency-gated); no decorative glass/blur on chrome; touch targets ≥44px on mobile.
+
+## JSX conditionals
+
+Prefer **`&&`** for show/hide. Do **not** use `condition ? <X /> : null`.
+
+```tsx
+// Prefer
+{canManageStaff && <StaffSection />}
+{description && <p>{description}</p>}
+
+// Avoid
+{canManageStaff ? <StaffSection /> : null}
+```
+
+Keep `? :` when both branches render real UI (`isActive ? "Active" : "Revoked"`).
 
 - Forms: `useForm` + `zodResolver` + `Controller` + shadcn `<Field />` — see `apps/pms/AGENTS.md`.
 - Optimize for front-desk speed, not marketing. Anchor: Linear-dense / Stripe-data admin.
