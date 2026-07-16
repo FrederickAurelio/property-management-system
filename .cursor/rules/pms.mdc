@@ -1,18 +1,13 @@
 ---
-description: Constraints when editing apps/pms
+description: PMS entry — stack and phase when editing apps/pms
 globs: apps/pms/**
 alwaysApply: false
 ---
 
-# PMS
+# PMS (entry)
+
+Concern rules layer on via tighter globs (`pms-api`, `pms-ui`). Map: [`.cursor/rules/README.md`](README.md).
 
 - React + Vite + Tailwind + shadcn. Staff ops only → `apps/api`.
-- Call API only via `src/lib/api`; shared wire types from `packages/` — do not duplicate cross-app contracts here.
 - Calendar, reservations, check-in/out, quick-confirm first.
 - Read `apps/pms/AGENTS.md`.
-
-## UI skills (PMS only)
-
-From `.cursor/skills/`: use **`shadcn`** then **`product-ui-design`** only.
-
-Do **not** load `ui-design-brain` / `ui-craft*` for PMS (reserved for `apps/web`). No marketing/landing design skills on PMS.

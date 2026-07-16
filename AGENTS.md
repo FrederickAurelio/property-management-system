@@ -15,6 +15,8 @@ Short source of truth — **not** a changelog and **not** a dump of today’s in
 - **Delete stale lines.** Drop finished “not yet” noise; update status in place.
 - **Examples are optional.** At most one short example; the rule must still work if that example is removed.
 
+**When a `.mdc` outgrows one file:** split by concern, not by milestone. Split `apps/<app>/**` into `<app>-<concern>.mdc` (own tight `globs`, e.g. `api-http.mdc`, `api-prisma.mdc`, `api-auth.mdc`) only when the file stops fitting one screen **and** mixes 2+ stable concerns, or one concern inside it keeps getting violated and needs a tighter glob. Shipping a new module/feature is never a reason to split — fold it into the existing concern bullet or into that app's `AGENTS.md`.
+
 Same policy for agents: [`.cursor/rules/agents-writing.mdc`](.cursor/rules/agents-writing.mdc).
 
 ## Layout
@@ -93,7 +95,7 @@ OTA sync today: native iCal (Booking.com · Airbnb · Agoda). No extranet scrapi
 | Staff UI | `apps/pms/AGENTS.md` |
 | Public site | `apps/web/AGENTS.md` |
 
-Constraints: `.cursor/rules/` (globbed per app). Commits: `.cursor/rules/commits.mdc`. Tooling/packages: `.cursor/rules/monorepo-tooling.mdc`.
+Constraints: `.cursor/rules/` — layered entry + concern globs per app (map: [`.cursor/rules/README.md`](.cursor/rules/README.md)). Commits: `.cursor/rules/commits.mdc`. Tooling/packages: `.cursor/rules/monorepo-tooling.mdc`.
 
 ## Hard don’ts
 

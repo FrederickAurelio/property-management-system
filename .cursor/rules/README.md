@@ -1,0 +1,22 @@
+# Cursor rules layout
+
+Layered **glob** rules under `.cursor/rules/`. Entry files apply to the whole app; concern files add context when matching paths are open.
+
+## Always on
+
+| File | Role |
+|------|------|
+| `agents-writing.mdc` | How to write AGENTS + rules |
+| `monorepo.mdc` | Architecture, phase, hard stops |
+| `monorepo-tooling.mdc` | pnpm, ESLint CWD, packages, Prisma output |
+| `commits.mdc` | Conventional commits + husky |
+
+## Per app — entry + concerns
+
+| App | Entry (`apps/<app>/**`) | Concern files (tighter globs) |
+|-----|--------------------------|-------------------------------|
+| `api` | `api.mdc` | `api-http`, `api-prisma`, `api-auth` · *slot:* `api-domain` when reservations/units/ical modules land |
+| `pms` | `pms.mdc` | `pms-api`, `pms-ui` |
+| `web` | `web.mdc` | *Phase 2 slots:* `web-api`, `web-ui` |
+
+Deep playbook: `apps/<app>/AGENTS.md`. Add a concern `.mdc` only when [agents-writing.mdc](agents-writing.mdc) scaling criteria apply.

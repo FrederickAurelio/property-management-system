@@ -12,5 +12,5 @@ alwaysApply: true
 - Phase 1 = `api` + `pms`. No `web` booking, CM, or OTA scraping in Phase 1.
 - Unique-unit calendars. Overlap safety in Postgres.
 - Tooling pitfalls (pnpm builds, Prisma output, single `.env`, ESLint per app, shared packages): `.cursor/rules/monorepo-tooling.mdc`.
-- When editing `AGENTS.md` or `.cursor/rules/*.mdc`: **general patterns, not one-off cases** — see root `AGENTS.md` → “How to write…” and `.cursor/rules/agents-writing.mdc`.
+- When editing `AGENTS.md` or `.cursor/rules/*.mdc`: **general patterns, not one-off cases** — see root `AGENTS.md` → “How to write…” and `.cursor/rules/agents-writing.mdc`. App rules scale via layered globs — map: `.cursor/rules/README.md`.
 - Open the repo via `cabin.code-workspace` when IDE diagnostics look wrong.

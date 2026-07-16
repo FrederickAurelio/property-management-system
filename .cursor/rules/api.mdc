@@ -1,19 +1,15 @@
 ---
-description: Constraints when editing apps/api
+description: API entry — stack and domain invariants when editing apps/api
 globs: apps/api/**
 alwaysApply: false
 ---
 
-# API
+# API (entry)
 
-- Nest + PostgreSQL + Prisma 6. Staff sessions via `staff-auth` module + role Guards (`SUPER_ADMIN` > `ADMIN` > `FRONT_DESK`; `@StaffRoles(X)` = X or higher). Cookie: `cabin.pms.sid`.
-- HTTP envelope via `setupHttpContract()`; shared wire types from `packages/` (`@cabin/api-contract`) — do not redefine the same contract in this app.
-- Staff identity is `Admin` (not guest `User`). Prisma client: `src/generated/prisma`.
-- After schema change: `pnpm prisma:generate`. Root `.env` only (`DATABASE_URL`, `SESSION_SECRET`).
-- DTOs with `class-validator`. No bare `any` on controllers.
-- Prisma only inside services — not controllers.
-- Controllers return domain objects only — never wrap `{ data }` by hand.
-- Overlap checks in DB/transactions. Sources: `manual` | `website` | `booking_com` | `airbnb` | `agoda`.
+Concern rules layer on via tighter globs (`api-http`, `api-prisma`, `api-auth`). Map: [`.cursor/rules/README.md`](README.md).
+
+- Nest + PostgreSQL + Prisma 6. Staff identity is `Admin` (not guest `User`).
+- Root `.env` only (`DATABASE_URL`, `SESSION_SECRET`).
+- Overlap checks in DB/transactions. Reservation sources: `manual` | `website` | `booking_com` | `airbnb` | `agoda`.
 - iCal updates PMS only — does not refresh OTAs.
-- Use `StaffSessionAuthGuard` + `@StaffRoles(...)` / `StaffRolesGuard` for protected staff routes.
 - Read `apps/api/AGENTS.md` + `.cursor/rules/monorepo-tooling.mdc`.

@@ -1,0 +1,13 @@
+---
+description: API data layer — Prisma schema, services, generate
+globs:
+  - apps/api/prisma/**
+  - apps/api/src/prisma/**
+  - apps/api/src/**/*.service.ts
+alwaysApply: false
+---
+
+# API — Prisma
+
+- Prisma client: `src/generated/prisma`. After schema change: `pnpm prisma:generate`.
+- Prisma only inside **services** — not controllers.

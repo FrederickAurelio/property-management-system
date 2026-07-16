@@ -1,0 +1,11 @@
+---
+description: API staff auth — sessions, guards, roles
+globs: apps/api/src/staff-auth/**
+alwaysApply: false
+---
+
+# API — staff auth
+
+- `staff-auth` module + cookie `cabin.pms.sid` (httpOnly session in Postgres).
+- Roles: `SUPER_ADMIN` > `ADMIN` > `FRONT_DESK`. `@StaffRoles(X)` = **X or higher** (minimum role, not exact allowlist).
+- Use `StaffSessionAuthGuard` + `@StaffRoles(...)` / `StaffRolesGuard` on protected staff routes.

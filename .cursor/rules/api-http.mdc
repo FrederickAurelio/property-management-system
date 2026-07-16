@@ -1,0 +1,14 @@
+---
+description: API HTTP layer — envelope, controllers, DTOs
+globs:
+  - apps/api/src/common/http/**
+  - apps/api/src/**/*.controller.ts
+  - apps/api/src/**/*.dto.ts
+alwaysApply: false
+---
+
+# API — HTTP
+
+- Envelope via `setupHttpContract()`; shared wire types from `@cabin/api-contract` — do not redefine the same contract in this app.
+- Controllers return **domain objects only** — never wrap `{ data }` by hand.
+- DTOs with `class-validator`. No bare `any` on controllers.

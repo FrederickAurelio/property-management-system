@@ -1,0 +1,16 @@
+---
+description: PMS UI — pages, components, shadcn, admin register
+globs:
+  - apps/pms/src/pages/**
+  - apps/pms/src/components/**
+alwaysApply: false
+---
+
+# PMS — UI
+
+From `.cursor/skills/`: use **`shadcn`** then **`product-ui-design`** only.
+
+Do **not** load `ui-design-brain` / `ui-craft*` for PMS (reserved for `apps/web`). No marketing/landing design skills on PMS.
+
+- Forms: `useForm` + `zodResolver` + `Controller` + shadcn `<Field />` — see `apps/pms/AGENTS.md`.
+- Optimize for front-desk speed, not marketing. Anchor: Linear-dense / Stripe-data admin.
