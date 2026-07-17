@@ -1,9 +1,17 @@
-/* anchor: Linear list/grid items, diverge: ghost icon row actions + tooltips */
+/* anchor: Linear list/grid items, diverge: ⋯ menu for admins, direct View icon for FRONT_DESK */
 import type { MouseEvent, ReactNode } from "react";
 import { Link } from "react-router";
-import { EyeIcon, ImageIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { EyeIcon, ImageIcon, MoreHorizontalIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -93,30 +101,59 @@ export function ExplorerItem({
   onEdit,
   onDelete,
 }: ExplorerItemProps) {
-  const actions = (
-    <div className="flex shrink-0 items-center">
-      <IconAction
-        label={canManage ? "Edit" : "View"}
-        onClick={(event) => {
-          stopNav(event);
-          onEdit();
-        }}
-      >
-        {canManage ? <PencilIcon /> : <EyeIcon />}
-      </IconAction>
-      {canManage && onDelete && (
-        <IconAction
-          label="Delete"
-          className="hover:text-destructive"
+  const actions = canManage ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="shrink-0"
+          aria-label={`Actions for ${title}`}
           onClick={(event) => {
             stopNav(event);
-            onDelete();
           }}
         >
-          <Trash2Icon />
-        </IconAction>
-      )}
-    </div>
+          <MoreHorizontalIcon />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onSelect={() => {
+              onEdit();
+            }}
+          >
+            Edit
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        {onDelete && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => {
+                  onDelete();
+                }}
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : (
+    <IconAction
+      label="View"
+      onClick={(event) => {
+        stopNav(event);
+        onEdit();
+      }}
+    >
+      <EyeIcon />
+    </IconAction>
   );
 
   if (view === "grid") {
