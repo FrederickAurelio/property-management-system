@@ -31,7 +31,7 @@ export const primaryNavItems: NavItem[] = [
 
 /** Property ops — not account/security */
 export const secondaryNavItems: NavItem[] = [
-  { title: "Units", href: "/units", icon: Building2 },
+  { title: "Properties", href: "/properties", icon: Building2 },
   { title: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
