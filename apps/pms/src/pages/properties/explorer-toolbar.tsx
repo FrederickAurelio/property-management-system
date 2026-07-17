@@ -104,12 +104,14 @@ function ViewModeToggle({
 type ExplorerToolbarProps = {
   layer: ExplorerLayer;
   createLabel: string;
+  canManage?: boolean;
   onCreate: () => void;
 };
 
 export function ExplorerToolbar({
   layer,
   createLabel,
+  canManage = true,
   onCreate,
 }: ExplorerToolbarProps) {
   const { propertyId, unitTypeId } = useParams();
@@ -238,10 +240,12 @@ export function ExplorerToolbar({
             }}
           />
 
-          <Button type="button" size="sm" onClick={onCreate}>
-            <PlusIcon data-icon="inline-start" />
-            {createLabel}
-          </Button>
+          {canManage && (
+            <Button type="button" size="sm" onClick={onCreate}>
+              <PlusIcon data-icon="inline-start" />
+              {createLabel}
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -13,6 +13,7 @@ import { AMENITY_GROUPS, type AmenityGroupKey } from "./amenity-catalog";
 type AmenitiesFieldProps = {
   value: Amenities;
   onChange: (next: Amenities) => void;
+  readOnly?: boolean;
 };
 
 function toggleCode(
@@ -26,7 +27,11 @@ function toggleCode(
   return list.filter((item) => item !== code);
 }
 
-export function AmenitiesField({ value, onChange }: AmenitiesFieldProps) {
+export function AmenitiesField({
+  value,
+  onChange,
+  readOnly = false,
+}: AmenitiesFieldProps) {
   function setGroup(key: AmenityGroupKey, code: string, checked: boolean) {
     onChange({
       ...value,
@@ -58,6 +63,7 @@ export function AmenitiesField({ value, onChange }: AmenitiesFieldProps) {
                   <Checkbox
                     id={id}
                     checked={checked}
+                    disabled={readOnly}
                     onCheckedChange={(next) => {
                       setGroup(group.key, option.code, next === true);
                     }}

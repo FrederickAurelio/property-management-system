@@ -20,6 +20,7 @@ import {
 } from "@/components/explorer/explorer-item";
 import { useExplorerSearchParams } from "@/components/explorer/explorer-params";
 import { ExplorerToolbar } from "./explorer-toolbar";
+import { useInventoryAccess } from "./inventory-access";
 import {
   formatUnitStatus,
   type Unit,
@@ -31,6 +32,7 @@ import { UnitFormDialog } from "./unit-form-dialog";
 
 export function UnitsPage() {
   const { propertyId = "", unitTypeId = "" } = useParams();
+  const { canManage } = useInventoryAccess();
   // MOCK — read full inventory snapshot; replace with useQuery per unitTypeId.
   const inventory = useInventory();
   const { q, view, status } = useExplorerSearchParams();
@@ -70,6 +72,9 @@ export function UnitsPage() {
   }
 
   function openCreate() {
+    if (!canManage) {
+      return;
+    }
     setEditTarget(null);
     setFormOpen(true);
   }
@@ -89,6 +94,7 @@ export function UnitsPage() {
       <ExplorerToolbar
         layer="units"
         createLabel="Add unit"
+        canManage={canManage}
         onCreate={openCreate}
       />
 
@@ -107,7 +113,7 @@ export function UnitsPage() {
                 : `Add physical units for ${unitType.name}. Each gets its own calendar.`}
             </EmptyDescription>
           </EmptyHeader>
-          {!q && status === "all" && (
+          {!q && status === "all" && canManage && (
             <EmptyContent>
               <Button type="button" size="sm" onClick={openCreate}>
                 Add unit
@@ -138,6 +144,7 @@ export function UnitsPage() {
                 view={view}
                 title={title}
                 meta={metaParts.join(" · ") || "—"}
+                canManage={canManage}
                 badge={
                   unit.status !== "ACTIVE" && (
                     <StatusBadge
@@ -150,9 +157,13 @@ export function UnitsPage() {
                   setEditTarget(unit);
                   setFormOpen(true);
                 }}
-                onDelete={() => {
-                  setDeleteTarget(unit);
-                }}
+                onDelete={
+                  canManage
+                    ? () => {
+                        setDeleteTarget(unit);
+                      }
+                    : undefined
+                }
               />
             );
           })}
@@ -161,6 +172,7 @@ export function UnitsPage() {
 
       <UnitFormDialog
         open={formOpen}
+        readOnly={!canManage}
         onOpenChange={(open) => {
           setFormOpen(open);
           if (!open) {
@@ -172,7 +184,8 @@ export function UnitsPage() {
         unit={editTarget}
       />
 
-      <ConfirmDialog
+      {canManage && (
+        <ConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
           if (!open) {
@@ -190,6 +203,7 @@ export function UnitsPage() {
         variant="destructive"
         onConfirm={confirmDelete}
       />
+      )}
     </>
   );
 }

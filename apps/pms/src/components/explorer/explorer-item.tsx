@@ -1,17 +1,14 @@
-/* anchor: Linear list/grid items, diverge: open on primary / manage via ⋯ + media thumb */
-import type { ReactNode } from "react";
+/* anchor: Linear list/grid items, diverge: ghost icon row actions + tooltips */
+import type { MouseEvent, ReactNode } from "react";
 import { Link } from "react-router";
-import { ImageIcon, MoreHorizontalIcon } from "lucide-react";
+import { EyeIcon, ImageIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ExplorerView } from "./types";
 
@@ -23,8 +20,9 @@ type ExplorerItemProps = {
   badge?: ReactNode;
   /** Cover / first gallery image */
   imageUrl?: string | null;
+  canManage?: boolean;
   onEdit: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
 };
 
 function Thumb({ url, title }: { url?: string | null; title: string }) {
@@ -49,6 +47,41 @@ function Thumb({ url, title }: { url?: string | null; title: string }) {
   );
 }
 
+function stopNav(event: MouseEvent) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function IconAction({
+  label,
+  onClick,
+  children,
+  className,
+}: {
+  label: string;
+  onClick: (event: MouseEvent) => void;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className={cn("text-muted-foreground", className)}
+          aria-label={label}
+          onClick={onClick}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function ExplorerItem({
   view,
   title,
@@ -56,49 +89,34 @@ export function ExplorerItem({
   href,
   badge,
   imageUrl,
+  canManage = true,
   onEdit,
   onDelete,
 }: ExplorerItemProps) {
-  const menu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="shrink-0"
-          aria-label={`Actions for ${title}`}
+  const actions = (
+    <div className="flex shrink-0 items-center">
+      <IconAction
+        label={canManage ? "Edit" : "View"}
+        onClick={(event) => {
+          stopNav(event);
+          onEdit();
+        }}
+      >
+        {canManage ? <PencilIcon /> : <EyeIcon />}
+      </IconAction>
+      {canManage && onDelete && (
+        <IconAction
+          label="Delete"
+          className="hover:text-destructive"
           onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
+            stopNav(event);
+            onDelete();
           }}
         >
-          <MoreHorizontalIcon />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            onSelect={() => {
-              onEdit();
-            }}
-          >
-            Edit
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            variant="destructive"
-            onSelect={() => {
-              onDelete();
-            }}
-          >
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <Trash2Icon />
+        </IconAction>
+      )}
+    </div>
   );
 
   if (view === "grid") {
@@ -123,7 +141,7 @@ export function ExplorerItem({
             </p>
           </div>
           <div className={href ? "pointer-events-auto relative z-10" : undefined}>
-            {menu}
+            {actions}
           </div>
         </div>
       </>
@@ -162,7 +180,7 @@ export function ExplorerItem({
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</p>
       </div>
-      {menu}
+      {actions}
     </>
   );
 
@@ -188,7 +206,7 @@ export function ExplorerItem({
             </p>
           </div>
         </div>
-        <div className="relative z-10 pointer-events-auto">{menu}</div>
+        <div className="relative z-10 pointer-events-auto">{actions}</div>
       </div>
     );
   }

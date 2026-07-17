@@ -59,9 +59,15 @@ type SortableTileProps = {
   item: MediaItem;
   onPreview: () => void;
   onRemove: () => void;
+  readOnly?: boolean;
 };
 
-function SortableTile({ item, onPreview, onRemove }: SortableTileProps) {
+function SortableTile({
+  item,
+  onPreview,
+  onRemove,
+  readOnly = false,
+}: SortableTileProps) {
   const {
     attributes,
     listeners,
@@ -86,31 +92,33 @@ function SortableTile({ item, onPreview, onRemove }: SortableTileProps) {
         item={item}
         onPreview={onPreview}
         overlay={
-          <>
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon-xs"
-              className="cursor-grab touch-none active:cursor-grabbing"
-              aria-label="Drag to reorder"
-              {...attributes}
-              {...listeners}
-            >
-              <GripVerticalIcon />
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon-xs"
-              aria-label={`Remove ${item.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onRemove();
-              }}
-            >
-              <Trash2Icon />
-            </Button>
-          </>
+          readOnly ? undefined : (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-xs"
+                className="cursor-grab touch-none active:cursor-grabbing"
+                aria-label="Drag to reorder"
+                {...attributes}
+                {...listeners}
+              >
+                <GripVerticalIcon />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-xs"
+                aria-label={`Remove ${item.name}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemove();
+                }}
+              >
+                <Trash2Icon />
+              </Button>
+            </>
+          )
         }
       />
       <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.name}</p>
@@ -121,11 +129,13 @@ function SortableTile({ item, onPreview, onRemove }: SortableTileProps) {
 type SortableMediaFieldProps = {
   value: MediaItem[];
   onChange: (next: MediaItem[]) => void;
+  readOnly?: boolean;
 };
 
 export function SortableMediaField({
   value,
   onChange,
+  readOnly = false,
 }: SortableMediaFieldProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -166,49 +176,73 @@ export function SortableMediaField({
       <div>
         <p className="text-sm font-medium">Media</p>
         <FieldDescription>
-          Images and videos. Drag to set order — the first image is the card
-          thumbnail. Desktop: hover eye to preview. Mobile: long-press to
-          preview.
+          {readOnly
+            ? "Images and videos attached to this unit type."
+            : "Images and videos. Drag to set order — the first image is the card thumbnail. Desktop: hover eye to preview. Mobile: long-press to preview."}
         </FieldDescription>
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={onDragEnd}
-      >
-        <SortableContext items={ids} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {value.map((item, index) => (
-              <SortableTile
-                key={item.id}
+      {readOnly ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {value.map((item, index) => (
+            <div key={item.id}>
+              <MediaThumb
                 item={item}
                 onPreview={() => {
                   setPreviewIndex(index);
                   setPreviewOpen(true);
                 }}
-                onRemove={() => {
-                  onChange(value.filter((m) => m.id !== item.id));
-                }}
               />
-            ))}
-            <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground">
-              <PlusIcon className="size-5" />
-              <span className="text-xs">Add media</span>
-              <input
-                type="file"
-                accept={ACCEPT}
-                multiple
-                className="sr-only"
-                onChange={(event) => {
-                  void onPick(event.target.files);
-                  event.target.value = "";
-                }}
-              />
-            </label>
-          </div>
-        </SortableContext>
-      </DndContext>
+              <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                {item.name}
+              </p>
+            </div>
+          ))}
+          {value.length === 0 && (
+            <p className="col-span-full text-sm text-muted-foreground">
+              No media
+            </p>
+          )}
+        </div>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
+        >
+          <SortableContext items={ids} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {value.map((item, index) => (
+                <SortableTile
+                  key={item.id}
+                  item={item}
+                  onPreview={() => {
+                    setPreviewIndex(index);
+                    setPreviewOpen(true);
+                  }}
+                  onRemove={() => {
+                    onChange(value.filter((m) => m.id !== item.id));
+                  }}
+                />
+              ))}
+              <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground">
+                <PlusIcon className="size-5" />
+                <span className="text-xs">Add media</span>
+                <input
+                  type="file"
+                  accept={ACCEPT}
+                  multiple
+                  className="sr-only"
+                  onChange={(event) => {
+                    void onPick(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
 
       <MediaPreviewDialog
         open={previewOpen}
@@ -224,9 +258,14 @@ export function SortableMediaField({
 type CoverImageFieldProps = {
   value: MediaItem | null;
   onChange: (next: MediaItem | null) => void;
+  readOnly?: boolean;
 };
 
-export function CoverImageField({ value, onChange }: CoverImageFieldProps) {
+export function CoverImageField({
+  value,
+  onChange,
+  readOnly = false,
+}: CoverImageFieldProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const items = value ? [value] : [];
 
@@ -274,41 +313,47 @@ export function CoverImageField({ value, onChange }: CoverImageFieldProps) {
               setPreviewOpen(true);
             }}
             overlay={
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-xs"
-                aria-label="Remove cover"
-                onClick={() => {
-                  if (value.url.startsWith("blob:")) {
-                    // MOCK — revoke blob URL from local preview.
-                    URL.revokeObjectURL(value.url);
-                  }
-                  onChange(null);
-                }}
-              >
-                <Trash2Icon />
-              </Button>
+              readOnly ? undefined : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon-xs"
+                  aria-label="Remove cover"
+                  onClick={() => {
+                    if (value.url.startsWith("blob:")) {
+                      // MOCK — revoke blob URL from local preview.
+                      URL.revokeObjectURL(value.url);
+                    }
+                    onChange(null);
+                  }}
+                >
+                  <Trash2Icon />
+                </Button>
+              )
             }
           />
           <div className="flex flex-col gap-2">
-            <label className="inline-flex cursor-pointer">
-              <span className="inline-flex h-7 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted">
-                Replace
-              </span>
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(event) => {
-                  void onPick(event.target.files);
-                  event.target.value = "";
-                }}
-              />
-            </label>
+            {!readOnly && (
+              <label className="inline-flex cursor-pointer">
+                <span className="inline-flex h-7 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted">
+                  Replace
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(event) => {
+                    void onPick(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            )}
             <p className="text-xs text-muted-foreground">{value.name}</p>
           </div>
         </div>
+      ) : readOnly ? (
+        <p className="text-sm text-muted-foreground">No cover image</p>
       ) : (
         <label className="flex h-28 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground sm:w-48">
           <PlusIcon className="size-5" />

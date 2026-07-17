@@ -20,6 +20,7 @@ import {
 } from "@/components/explorer/explorer-item";
 import { useExplorerSearchParams } from "@/components/explorer/explorer-params";
 import { ExplorerToolbar } from "./explorer-toolbar";
+import { useInventoryAccess } from "./inventory-access";
 import { formatLayout, firstImageUrl, type UnitType } from "./inventory-types";
 import { countAmenities, formatBedSummary } from "./amenity-catalog";
 // MOCK — replace imports with API client + useMutation when backend is wired.
@@ -32,6 +33,7 @@ import { UnitTypeFormDialog } from "./unit-type-form-dialog";
 
 export function UnitTypesPage() {
   const { propertyId = "" } = useParams();
+  const { canManage } = useInventoryAccess();
   // MOCK — read full inventory snapshot; replace with useQuery per propertyId.
   const inventory = useInventory();
   const { q, view } = useExplorerSearchParams();
@@ -72,6 +74,9 @@ export function UnitTypesPage() {
   }
 
   function openCreate() {
+    if (!canManage) {
+      return;
+    }
     setEditTarget(null);
     setFormOpen(true);
   }
@@ -106,6 +111,7 @@ export function UnitTypesPage() {
       <ExplorerToolbar
         layer="types"
         createLabel="Add type"
+        canManage={canManage}
         onCreate={openCreate}
       />
 
@@ -124,7 +130,7 @@ export function UnitTypesPage() {
                 : `Add types for ${property.name} — shared beds, size, and guest limits.`}
             </EmptyDescription>
           </EmptyHeader>
-          {!q && (
+          {!q && canManage && (
             <EmptyContent>
               <Button type="button" size="sm" onClick={openCreate}>
                 Add type
@@ -159,6 +165,7 @@ export function UnitTypesPage() {
                 meta={metaParts.join(" · ")}
                 href={`/properties/${propertyId}/types/${unitType.id}`}
                 imageUrl={firstImageUrl(unitType.media)}
+                canManage={canManage}
                 badge={
                   !unitType.isActive && (
                     <StatusBadge label="Inactive" tone="muted" />
@@ -168,9 +175,13 @@ export function UnitTypesPage() {
                   setEditTarget(unitType);
                   setFormOpen(true);
                 }}
-                onDelete={() => {
-                  setDeleteTarget(unitType);
-                }}
+                onDelete={
+                  canManage
+                    ? () => {
+                        setDeleteTarget(unitType);
+                      }
+                    : undefined
+                }
               />
             );
           })}
@@ -179,6 +190,7 @@ export function UnitTypesPage() {
 
       <UnitTypeFormDialog
         open={formOpen}
+        readOnly={!canManage}
         onOpenChange={(open) => {
           setFormOpen(open);
           if (!open) {
@@ -189,7 +201,8 @@ export function UnitTypesPage() {
         unitType={editTarget}
       />
 
-      <ConfirmDialog
+      {canManage && (
+        <ConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
           if (!open) {
@@ -221,6 +234,7 @@ export function UnitTypesPage() {
           confirmDelete();
         }}
       />
+      )}
     </>
   );
 }

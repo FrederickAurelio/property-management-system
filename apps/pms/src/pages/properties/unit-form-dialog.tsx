@@ -52,6 +52,7 @@ type UnitFormDialogProps = {
   propertyId: string;
   unitTypeId: string;
   unit?: Unit | null;
+  readOnly?: boolean;
 };
 
 export function UnitFormDialog({
@@ -60,6 +61,7 @@ export function UnitFormDialog({
   propertyId,
   unitTypeId,
   unit,
+  readOnly = false,
 }: UnitFormDialogProps) {
   const isEdit = Boolean(unit);
   const form = useForm<FormValues>({
@@ -134,10 +136,10 @@ export function UnitFormDialog({
     <ResponsiveFormShell
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "Edit unit" : "Add unit"}
+      title={readOnly ? "View unit" : isEdit ? "Edit unit" : "Add unit"}
       description="Physical apartment — one calendar each."
       footer={
-        <>
+        readOnly ? (
           <Button
             type="button"
             variant="outline"
@@ -145,23 +147,39 @@ export function UnitFormDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            Close
           </Button>
-          <Button
-            type="submit"
-            form="unit-form"
-            disabled={form.formState.isSubmitting}
-          >
-            {isEdit ? "Save" : "Create"}
-          </Button>
-        </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="unit-form"
+              disabled={form.formState.isSubmitting}
+            >
+              {isEdit ? "Save" : "Create"}
+            </Button>
+          </>
+        )
       }
     >
       <form
         id="unit-form"
         className="flex flex-col gap-4"
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={readOnly ? undefined : form.handleSubmit(onSubmit)}
       >
+        <fieldset
+          disabled={readOnly}
+          className="m-0 min-w-0 border-0 p-0"
+        >
         <FieldGroup>
           <Controller
             control={form.control}
@@ -221,7 +239,11 @@ export function UnitFormDialog({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
                   <FieldLabel>Status</FieldLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    disabled={readOnly}
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger
                       className="w-full"
                       aria-invalid={fieldState.invalid || undefined}
@@ -247,7 +269,11 @@ export function UnitFormDialog({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid || undefined}>
                 <FieldLabel>Bookable</FieldLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  disabled={readOnly}
+                  onValueChange={field.onChange}
+                >
                   <SelectTrigger
                     className="w-full"
                     aria-invalid={fieldState.invalid || undefined}
@@ -282,6 +308,7 @@ export function UnitFormDialog({
             )}
           />
         </FieldGroup>
+        </fieldset>
       </form>
     </ResponsiveFormShell>
   );

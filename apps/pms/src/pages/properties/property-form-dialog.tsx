@@ -64,12 +64,14 @@ type PropertyFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   property?: Property | null;
+  readOnly?: boolean;
 };
 
 export function PropertyFormDialog({
   open,
   onOpenChange,
   property,
+  readOnly = false,
 }: PropertyFormDialogProps) {
   const isEdit = Boolean(property);
   const form = useForm<FormValues>({
@@ -168,10 +170,12 @@ export function PropertyFormDialog({
     <ResponsiveFormShell
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "Edit property" : "Add property"}
+      title={
+        readOnly ? "View property" : isEdit ? "Edit property" : "Add property"
+      }
       description="Place-level settings for inventory and check-in times."
       footer={
-        <>
+        readOnly ? (
           <Button
             type="button"
             variant="outline"
@@ -179,23 +183,39 @@ export function PropertyFormDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            Close
           </Button>
-          <Button
-            type="submit"
-            form="property-form"
-            disabled={form.formState.isSubmitting}
-          >
-            {isEdit ? "Save" : "Create"}
-          </Button>
-        </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="property-form"
+              disabled={form.formState.isSubmitting}
+            >
+              {isEdit ? "Save" : "Create"}
+            </Button>
+          </>
+        )
       }
     >
       <form
         id="property-form"
         className="flex flex-col gap-4"
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={readOnly ? undefined : form.handleSubmit(onSubmit)}
       >
+        <fieldset
+          disabled={readOnly}
+          className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0"
+        >
         <FieldGroup>
           <Controller
             control={form.control}
@@ -385,7 +405,11 @@ export function PropertyFormDialog({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid || undefined}>
                 <FieldLabel>Active</FieldLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  disabled={readOnly}
+                  onValueChange={field.onChange}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -403,12 +427,17 @@ export function PropertyFormDialog({
         </FieldGroup>
 
         <Separator />
+        </fieldset>
 
         <Controller
           control={form.control}
           name="coverImage"
           render={({ field }) => (
-            <CoverImageField value={field.value} onChange={field.onChange} />
+            <CoverImageField
+              value={field.value}
+              onChange={field.onChange}
+              readOnly={readOnly}
+            />
           )}
         />
       </form>

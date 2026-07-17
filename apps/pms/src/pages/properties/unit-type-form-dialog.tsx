@@ -160,6 +160,7 @@ type UnitTypeFormDialogProps = {
   onOpenChange: (open: boolean) => void;
   propertyId: string;
   unitType?: UnitType | null;
+  readOnly?: boolean;
 };
 
 export function UnitTypeFormDialog({
@@ -167,6 +168,7 @@ export function UnitTypeFormDialog({
   onOpenChange,
   propertyId,
   unitType,
+  readOnly = false,
 }: UnitTypeFormDialogProps) {
   const isEdit = Boolean(unitType);
   // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
@@ -248,10 +250,16 @@ export function UnitTypeFormDialog({
       open={open}
       onOpenChange={onOpenChange}
       size="lg"
-      title={isEdit ? "Edit unit type" : "Add unit type"}
+      title={
+        readOnly
+          ? "View unit type"
+          : isEdit
+            ? "Edit unit type"
+            : "Add unit type"
+      }
       description="Shared specs — beds, size, amenities — for every unit of this kind."
       footer={
-        <>
+        readOnly ? (
           <Button
             type="button"
             variant="outline"
@@ -259,23 +267,39 @@ export function UnitTypeFormDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            Close
           </Button>
-          <Button
-            type="submit"
-            form="unit-type-form"
-            disabled={form.formState.isSubmitting}
-          >
-            {isEdit ? "Save" : "Create"}
-          </Button>
-        </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="unit-type-form"
+              disabled={form.formState.isSubmitting}
+            >
+              {isEdit ? "Save" : "Create"}
+            </Button>
+          </>
+        )
       }
     >
       <form
         id="unit-type-form"
         className="flex flex-col gap-5"
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={readOnly ? undefined : form.handleSubmit(onSubmit)}
       >
+        <fieldset
+          disabled={readOnly}
+          className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0"
+        >
         <FieldGroup>
           <Controller
             control={form.control}
@@ -316,7 +340,11 @@ export function UnitTypeFormDialog({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid || undefined}>
                 <FieldLabel>Layout</FieldLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  disabled={readOnly}
+                  onValueChange={field.onChange}
+                >
                   <SelectTrigger
                     className="w-full"
                     aria-invalid={fieldState.invalid || undefined}
@@ -414,7 +442,11 @@ export function UnitTypeFormDialog({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
                   <FieldLabel>Smoking</FieldLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    disabled={readOnly}
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -435,7 +467,11 @@ export function UnitTypeFormDialog({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
                   <FieldLabel>Active</FieldLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    disabled={readOnly}
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -470,12 +506,17 @@ export function UnitTypeFormDialog({
         </FieldGroup>
 
         <Separator />
+        </fieldset>
 
         <Controller
           control={form.control}
           name="media"
           render={({ field }) => (
-            <SortableMediaField value={field.value} onChange={field.onChange} />
+            <SortableMediaField
+              value={field.value}
+              onChange={field.onChange}
+              readOnly={readOnly}
+            />
           )}
         />
 
@@ -486,7 +527,11 @@ export function UnitTypeFormDialog({
           name="bedConfig"
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid || undefined}>
-              <BedConfigField value={field.value} onChange={field.onChange} />
+              <BedConfigField
+                value={field.value}
+                onChange={field.onChange}
+                readOnly={readOnly}
+              />
               <FieldError errors={[fieldState.error]} />
             </Field>
           )}
@@ -498,7 +543,11 @@ export function UnitTypeFormDialog({
           control={form.control}
           name="amenities"
           render={({ field }) => (
-            <AmenitiesField value={field.value} onChange={field.onChange} />
+            <AmenitiesField
+              value={field.value}
+              onChange={field.onChange}
+              readOnly={readOnly}
+            />
           )}
         />
       </form>

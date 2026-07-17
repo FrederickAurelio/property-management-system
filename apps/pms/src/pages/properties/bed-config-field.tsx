@@ -21,9 +21,14 @@ import { BED_KIND_OPTIONS } from "./amenity-catalog";
 type BedConfigFieldProps = {
   value: BedConfigRoom[];
   onChange: (next: BedConfigRoom[]) => void;
+  readOnly?: boolean;
 };
 
-export function BedConfigField({ value, onChange }: BedConfigFieldProps) {
+export function BedConfigField({
+  value,
+  onChange,
+  readOnly = false,
+}: BedConfigFieldProps) {
   function updateRoom(index: number, patch: Partial<BedConfigRoom>) {
     onChange(
       value.map((room, i) => {
@@ -116,6 +121,7 @@ export function BedConfigField({ value, onChange }: BedConfigFieldProps) {
               <Input
                 id={`bed-room-${roomIndex}`}
                 value={room.room}
+                disabled={readOnly}
                 onChange={(event) => {
                   updateRoom(roomIndex, { room: event.target.value });
                 }}
@@ -123,18 +129,20 @@ export function BedConfigField({ value, onChange }: BedConfigFieldProps) {
                 autoComplete="off"
               />
             </Field>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="mt-6 shrink-0"
-              aria-label={`Remove ${room.room || "room"}`}
-              onClick={() => {
-                removeRoom(roomIndex);
-              }}
-            >
-              <Trash2Icon />
-            </Button>
+            {!readOnly && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="mt-6 shrink-0"
+                aria-label={`Remove ${room.room || "room"}`}
+                onClick={() => {
+                  removeRoom(roomIndex);
+                }}
+              >
+                <Trash2Icon />
+              </Button>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -148,6 +156,7 @@ export function BedConfigField({ value, onChange }: BedConfigFieldProps) {
                   <FieldLabel className="sr-only">Bed type</FieldLabel>
                   <Select
                     value={bed.type}
+                    disabled={readOnly}
                     onValueChange={(next) => {
                       updateBed(roomIndex, bedIndex, {
                         type: next as BedKind,
@@ -181,6 +190,7 @@ export function BedConfigField({ value, onChange }: BedConfigFieldProps) {
                     min={1}
                     max={10}
                     value={bed.count}
+                    disabled={readOnly}
                     onChange={(event) => {
                       const n = Number(event.target.value);
                       updateBed(roomIndex, bedIndex, {
@@ -190,41 +200,47 @@ export function BedConfigField({ value, onChange }: BedConfigFieldProps) {
                     aria-label="Bed count"
                   />
                 </Field>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="mb-0.5"
-                  disabled={room.beds.length <= 1}
-                  aria-label="Remove bed"
-                  onClick={() => {
-                    removeBed(roomIndex, bedIndex);
-                  }}
-                >
-                  <Trash2Icon />
-                </Button>
+                {!readOnly && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="mb-0.5"
+                    disabled={room.beds.length <= 1}
+                    aria-label="Remove bed"
+                    onClick={() => {
+                      removeBed(roomIndex, bedIndex);
+                    }}
+                  >
+                    <Trash2Icon />
+                  </Button>
+                )}
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              onClick={() => {
-                addBed(roomIndex);
-              }}
-            >
-              <PlusIcon data-icon="inline-start" />
-              Add bed
-            </Button>
+            {!readOnly && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => {
+                  addBed(roomIndex);
+                }}
+              >
+                <PlusIcon data-icon="inline-start" />
+                Add bed
+              </Button>
+            )}
           </div>
         </div>
       ))}
 
-      <Button type="button" variant="outline" size="sm" onClick={addRoom}>
-        <PlusIcon data-icon="inline-start" />
-        Add room
-      </Button>
+      {!readOnly && (
+        <Button type="button" variant="outline" size="sm" onClick={addRoom}>
+          <PlusIcon data-icon="inline-start" />
+          Add room
+        </Button>
+      )}
     </div>
   );
 }

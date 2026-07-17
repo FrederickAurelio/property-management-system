@@ -19,6 +19,7 @@ import {
 } from "@/components/explorer/explorer-item";
 import { useExplorerSearchParams } from "@/components/explorer/explorer-params";
 import { ExplorerToolbar } from "./explorer-toolbar";
+import { useInventoryAccess } from "./inventory-access";
 import type { Property } from "./inventory-types";
 // MOCK — replace imports with API client + useMutation when backend is wired.
 import {
@@ -29,6 +30,7 @@ import {
 import { PropertyFormDialog } from "./property-form-dialog";
 
 export function PropertiesPage() {
+  const { canManage } = useInventoryAccess();
   // MOCK — read full inventory snapshot; replace with useQuery("properties").
   const inventory = useInventory();
   const { q, view } = useExplorerSearchParams();
@@ -67,6 +69,9 @@ export function PropertiesPage() {
   }, [inventory.properties, q]);
 
   function openCreate() {
+    if (!canManage) {
+      return;
+    }
     setEditTarget(null);
     setFormOpen(true);
   }
@@ -104,6 +109,7 @@ export function PropertiesPage() {
       <ExplorerToolbar
         layer="properties"
         createLabel="Add property"
+        canManage={canManage}
         onCreate={openCreate}
       />
 
@@ -122,7 +128,7 @@ export function PropertiesPage() {
                 : "Add a property to start organizing unit types and units."}
             </EmptyDescription>
           </EmptyHeader>
-          {!q && (
+          {!q && canManage && (
             <EmptyContent>
               <Button type="button" size="sm" onClick={openCreate}>
                 Add property
@@ -150,6 +156,7 @@ export function PropertiesPage() {
                 meta={metaParts.join(" · ")}
                 href={`/properties/${property.id}`}
                 imageUrl={property.coverImage?.url}
+                canManage={canManage}
                 badge={
                   !property.isActive && (
                     <StatusBadge label="Inactive" tone="muted" />
@@ -159,9 +166,13 @@ export function PropertiesPage() {
                   setEditTarget(property);
                   setFormOpen(true);
                 }}
-                onDelete={() => {
-                  setDeleteTarget(property);
-                }}
+                onDelete={
+                  canManage
+                    ? () => {
+                        setDeleteTarget(property);
+                      }
+                    : undefined
+                }
               />
             );
           })}
@@ -170,6 +181,7 @@ export function PropertiesPage() {
 
       <PropertyFormDialog
         open={formOpen}
+        readOnly={!canManage}
         onOpenChange={(open) => {
           setFormOpen(open);
           if (!open) {
@@ -179,7 +191,8 @@ export function PropertiesPage() {
         property={editTarget}
       />
 
-      <ConfirmDialog
+      {canManage && (
+        <ConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
           if (!open) {
@@ -212,6 +225,7 @@ export function PropertiesPage() {
           confirmDelete();
         }}
       />
+      )}
     </>
   );
 }
