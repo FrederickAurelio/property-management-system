@@ -1,7 +1,23 @@
 /* anchor: Linear settings form, diverge: unit type + beds + amenities per _docs */
 import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  BedKind,
+  EMPTY_AMENITIES,
+  INVENTORY_CODE_MAX,
+  INVENTORY_CODE_MIN,
+  INVENTORY_CODE_PATTERN,
+  INVENTORY_NAME_MAX,
+  INVENTORY_NAME_MIN,
+  MediaKind,
+  UnitLayout,
+  type Amenities,
+  type BedConfigRoom,
+  type MediaItem,
+  type StaffUnitType,
+} from "@cabin/api-contract";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,36 +43,30 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { handleSuccess } from "@/lib/api";
+import {
+  applyApiFieldError,
+  createUnitType,
+  handleSuccess,
+  staffPropertiesQueryKeyPrefix,
+  staffPropertyQueryKey,
+  staffUnitTypeQueryKey,
+  staffUnitTypesQueryKeyPrefix,
+  updateUnitType,
+} from "@/lib/api";
 import { AmenitiesField } from "./amenities-field";
 import { BedConfigField } from "./bed-config-field";
-import {
-  EMPTY_AMENITIES,
-  digitsFromIdrInput,
-  formatIdrInput,
-  type Amenities,
-  type BedConfigRoom,
-  type MediaItem,
-  type UnitLayout,
-  type UnitType,
-} from "./inventory-types";
-// MOCK — replace with API mutations (POST/PATCH /staff/unit-types) when backend is wired.
-import {
-  InventoryConflictError,
-  createUnitType,
-  updateUnitType,
-} from "./mock-inventory";
+import { digitsFromIdrInput, formatIdrInput } from "./inventory-types";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 import { SortableMediaField } from "@/components/media/sortable-media-field";
 
 const bedKindSchema = z.enum([
-  "SINGLE",
-  "DOUBLE",
-  "LARGE_DOUBLE",
-  "QUEEN",
-  "KING",
-  "SOFA_BED",
-  "OTHER",
+  BedKind.SINGLE,
+  BedKind.DOUBLE,
+  BedKind.LARGE_DOUBLE,
+  BedKind.QUEEN,
+  BedKind.KING,
+  BedKind.SOFA_BED,
+  BedKind.OTHER,
 ]);
 
 const schema = z
@@ -64,16 +74,25 @@ const schema = z
     code: z
       .string()
       .trim()
-      .min(2, "Code is required")
-      .max(32)
-      .regex(/^[A-Za-z0-9_-]+$/, "Use letters, numbers, _ or -"),
-    name: z.string().trim().min(2, "Name is required").max(128),
-    layout: z.enum(["STUDIO", "APARTMENT", "CABIN", "OTHER"]),
+      .min(INVENTORY_CODE_MIN, "Code is required")
+      .max(INVENTORY_CODE_MAX)
+      .regex(INVENTORY_CODE_PATTERN, "Use letters, numbers, _ or -"),
+    name: z
+      .string()
+      .trim()
+      .min(INVENTORY_NAME_MIN, "Name is required")
+      .max(INVENTORY_NAME_MAX),
+    layout: z.enum([
+      UnitLayout.STUDIO,
+      UnitLayout.APARTMENT,
+      UnitLayout.CABIN,
+      UnitLayout.OTHER,
+    ]),
     sizeSqm: z.string().trim(),
     bathroomCount: z.string().trim(),
     maxGuests: z.string().trim(),
     defaultPriceIdr: z.string().trim(),
-    description: z.string().trim().max(2000),
+    description: z.string().trim().max(4000),
     smokingAllowed: z.enum(["true", "false"]),
     isActive: z.enum(["true", "false"]),
     bedConfig: z.array(
@@ -99,7 +118,7 @@ const schema = z
     media: z.array(
       z.object({
         id: z.string(),
-        kind: z.enum(["IMAGE", "VIDEO"]),
+        kind: z.enum([MediaKind.IMAGE, MediaKind.VIDEO]),
         url: z.string(),
         name: z.string(),
         mimeType: z.string(),
@@ -166,7 +185,7 @@ type FormValues = z.infer<typeof schema>;
 const emptyDefaults: FormValues = {
   code: "",
   name: "",
-  layout: "APARTMENT",
+  layout: UnitLayout.APARTMENT,
   sizeSqm: "",
   bathroomCount: "1",
   maxGuests: "2",
@@ -183,7 +202,7 @@ type UnitTypeFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   propertyId: string;
-  unitType?: UnitType | null;
+  unitType?: StaffUnitType | null;
   readOnly?: boolean;
 };
 
@@ -195,6 +214,7 @@ export function UnitTypeFormDialog({
   readOnly = false,
 }: UnitTypeFormDialogProps) {
   const isEdit = Boolean(unitType);
+  const queryClient = useQueryClient();
   // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
@@ -226,16 +246,13 @@ export function UnitTypeFormDialog({
     );
   }, [open, unitType, form]);
 
-  function onSubmit(values: FormValues) {
-    try {
-      const bedroomCount =
-        values.layout === "STUDIO" ? 0 : values.bedConfig.length;
+  const saveMutation = useMutation({
+    mutationFn: async (values: FormValues) => {
       const payload = {
         code: values.code,
         name: values.name,
-        layout: values.layout as UnitLayout,
+        layout: values.layout,
         sizeSqm: values.sizeSqm ? Number(values.sizeSqm) : null,
-        bedroomCount,
         bathroomCount: Number(values.bathroomCount),
         maxGuests: Number(values.maxGuests),
         defaultPriceIdr: Number(values.defaultPriceIdr),
@@ -247,29 +264,39 @@ export function UnitTypeFormDialog({
         media: values.media as MediaItem[],
       };
       if (unitType) {
-        // MOCK — local update; replace with PATCH /staff/unit-types/:id.
-        updateUnitType(unitType.id, payload);
-        handleSuccess("Unit type updated");
-      } else {
-        // MOCK — local create; replace with POST /staff/properties/:propertyId/unit-types.
-        createUnitType(propertyId, payload);
-        handleSuccess("Unit type created");
+        return updateUnitType(unitType.id, payload);
       }
+      return createUnitType(propertyId, payload);
+    },
+    onSuccess: (saved) => {
+      void queryClient.invalidateQueries({
+        queryKey: staffUnitTypesQueryKeyPrefix,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffUnitTypeQueryKey(saved.id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffPropertyQueryKey(propertyId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffPropertiesQueryKeyPrefix,
+      });
+      handleSuccess(unitType ? "Unit type updated" : "Unit type created");
       onOpenChange(false);
-    } catch (error) {
-      if (error instanceof InventoryConflictError) {
-        // MOCK — map to ApiError field details when API is wired.
-        form.setError("code", { message: error.message });
-        return;
-      }
-      throw error;
-    }
+    },
+    onError: (error) => {
+      applyApiFieldError(error, form.setError);
+    },
+  });
+
+  function onSubmit(values: FormValues) {
+    saveMutation.mutate(values);
   }
 
-  const bedConfig = form.watch("bedConfig");
-  const layout = form.watch("layout");
+  const bedConfig = useWatch({ control: form.control, name: "bedConfig" });
+  const layout = useWatch({ control: form.control, name: "layout" });
   const bedroomCountView =
-    layout === "STUDIO" ? 0 : bedConfig.length;
+    layout === UnitLayout.STUDIO ? 0 : (bedConfig?.length ?? 0);
 
   return (
     <ResponsiveFormShell
@@ -309,7 +336,9 @@ export function UnitTypeFormDialog({
             <Button
               type="submit"
               form="unit-type-form"
-              disabled={form.formState.isSubmitting}
+              disabled={
+                form.formState.isSubmitting || saveMutation.isPending
+              }
             >
               {isEdit ? "Save" : "Create"}
             </Button>

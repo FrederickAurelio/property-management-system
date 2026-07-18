@@ -25,6 +25,8 @@ type ExplorerItemProps = {
   title: string;
   meta: string;
   href?: string;
+  /** Router location state for the drill-down link (breadcrumb name reuse). */
+  linkState?: object;
   badge?: ReactNode;
   /** Cover / first gallery image */
   imageUrl?: string | null;
@@ -95,6 +97,7 @@ export function ExplorerItem({
   title,
   meta,
   href,
+  linkState,
   badge,
   imageUrl,
   canManage = true,
@@ -189,6 +192,7 @@ export function ExplorerItem({
         <div className={cn(className, "relative")}>
           <Link
             to={href}
+            state={linkState}
             className="absolute inset-0 z-0 rounded-lg focus-visible:ring-1 focus-visible:ring-ring"
             aria-label={`Open ${title}`}
           />
@@ -226,6 +230,7 @@ export function ExplorerItem({
       <div className={cn(rowClass, "relative")}>
         <Link
           to={href}
+          state={linkState}
           className="absolute inset-0 rounded-lg focus-visible:ring-1 focus-visible:ring-ring"
           aria-label={`Open ${title}`}
         />

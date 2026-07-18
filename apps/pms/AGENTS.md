@@ -10,8 +10,9 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 - Declarative React Router (`BrowserRouter`) + TanStack Query providers
 - Routes: `/login` (public staff login) · `/` private app shell (`PrivateRoute` → `AppLayout` → children)
 - Axios API client: `src/lib/api` (session cookies + envelope unwrap + Sonner helpers)
-- RHF + Zod + shadcn `Field` / `Controller` (login form wired)
-- **Not yet:** domain screens (layout shell with sidebar + bottom nav wired)
+- RHF + Zod + shadcn `Field` / `Controller` (login + inventory forms wired)
+- Inventory explorer wired to Nest (`/staff/properties|unit-types|units`) — infinite lists + CRUD
+- **Not yet:** reservations / calendar / check-in ops screens
 
 ## Stack (locked)
 
@@ -36,15 +37,29 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 - Errors `{ error: { code, message, details? } }` → throws `ApiError`. Also maps timeout / network / 502–504 to FE-only codes (`TIMEOUT`, `NETWORK_ERROR`, `SERVER_UNAVAILABLE`).
 - Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers) — paths `/staff/auth/*`.
 - Staff admin helpers: `listAdmins` / `createAdmin` / `changeAdminRole` / `setAdminActive` (`/staff/admins`, SUPER_ADMIN). Query key: `staffAdminsQueryKey`.
-- Nest inventory (when wired): call `/staff/properties`, `/staff/unit-types`, `/staff/units` — never invent unprefixed API paths. SPA routes like `/properties` are UI-only.
+- Inventory helpers: `listProperties` / `listUnitTypes` / `listUnits` (+ create/update/delete + detail GETs) under `/staff/properties|unit-types|units`. Wire types `StaffProperty` / `StaffUnitType` / `StaffUnit`; lists are `Paginated<T>`.
+- SPA routes like `/properties` are UI-only — never invent unprefixed Nest paths.
 - 401 hook: `setUnauthorizedHandler` (wired to `/login` via `UnauthorizedRedirect`). Session probe on login uses `{ skipUnauthorizedRedirect: true }`.
 - Toasts: `handleSuccess` / `handleError` from screens/mutations — **not** inside the interceptor.
 - Env: root `.env` → `VITE_API_URL` is the **proxy target only** (`vite.config` `envDir` = repo root).
-- GET lists: Skeleton loading + `QueryRetryButton` on error (see `.cursor/rules/pms-ui.mdc`).
+- GET lists: Skeleton + `QueryRetryButton` on page-1 error; infinite lists use `InfiniteListFooter` (see `.cursor/rules/pms-ui.mdc`).
+
+## Server state (TanStack Query)
+
+Locked BE→FE wiring (keys, `useQuery` / `useInfiniteQuery` / `useMutation`, cache, toast vs field highlight): [`.cursor/rules/pms-query.mdc`](../../.cursor/rules/pms-query.mdc).
+
+| Concern | Rule |
+|---------|------|
+| Query keys | `src/lib/api/query-keys.ts` — import from `@/lib/api` |
+| Paginated lists | `useInfiniteQuery` + `getNextPageParamFromPageInfo`; filters in key |
+| List writes | `invalidateQueries` on resource prefix + `handleSuccess` |
+| Login / self-profile | `setQueryData(staffSessionQueryKey, …)` |
+| Form domain errors | `applyApiFieldError` → RHF (BE `details: { field, reason }`) |
+| Everything else | `handleError` toast (or re-auth dialog / GET retry) |
 
 ## Forms
 
-Use shadcn’s RHF pattern: `useForm` + `zodResolver` + `Controller` + `<Field />` (not the legacy `<Form>` wrapper). See [shadcn React Hook Form](https://ui.shadcn.com/docs/forms/react-hook-form).
+Use shadcn’s RHF pattern: `useForm` + `zodResolver` + `Controller` + `<Field />` (not the legacy `<Form>` wrapper). See [shadcn React Hook Form](https://ui.shadcn.com/docs/forms/react-hook-form). Zod bounds from `@cabin/api-contract`. Field names must match Nest DTO / `details.field`.
 
 ## Run
 

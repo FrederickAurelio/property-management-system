@@ -1,6 +1,26 @@
-/* anchor: Linear settings form, diverge: property CRUD mock fields */
+/* anchor: Linear settings form, diverge: property CRUD fields */
 import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  INVENTORY_ADDRESS_MAX,
+  INVENTORY_CITY_MAX,
+  INVENTORY_CODE_MAX,
+  INVENTORY_CODE_MIN,
+  INVENTORY_CODE_PATTERN,
+  INVENTORY_COUNTRY_CODE_LENGTH,
+  INVENTORY_GOOGLE_PLACE_ID_MAX,
+  INVENTORY_HHMM_PATTERN,
+  INVENTORY_LAT_MAX,
+  INVENTORY_LAT_MIN,
+  INVENTORY_LNG_MAX,
+  INVENTORY_LNG_MIN,
+  INVENTORY_NAME_MAX,
+  INVENTORY_NAME_MIN,
+  INVENTORY_TIMEZONE_MAX,
+  type MediaItem,
+  type StaffProperty,
+} from "@cabin/api-contract";
 import { ExternalLinkIcon } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -21,41 +41,57 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { handleSuccess } from "@/lib/api";
 import {
-  googleMapsUrl,
-  type MediaItem,
-  type Property,
-} from "./inventory-types";
-// MOCK — replace with API mutations (POST/PATCH /staff/properties) when backend is wired.
-import {
-  InventoryConflictError,
+  applyApiFieldError,
   createProperty,
+  handleSuccess,
+  staffPropertiesQueryKeyPrefix,
+  staffPropertyQueryKey,
   updateProperty,
-} from "./mock-inventory";
+} from "@/lib/api";
+import { googleMapsUrl } from "./inventory-types";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 import { CoverImageField } from "@/components/media/sortable-media-field";
+
+const hhmmOrEmpty = z.union([
+  z.literal(""),
+  z.string().trim().regex(INVENTORY_HHMM_PATTERN, "Use HH:MM"),
+]);
 
 const schema = z
   .object({
     code: z
       .string()
       .trim()
-      .min(2, "Code is required")
-      .max(32, "Max 32 characters")
-      .regex(/^[A-Za-z0-9_-]+$/, "Use letters, numbers, _ or -"),
-    name: z.string().trim().min(2, "Name is required").max(128),
-    timezone: z.string().trim().min(1, "Timezone is required").max(64),
-    city: z.union([z.literal(""), z.string().trim().max(128)]),
+      .min(INVENTORY_CODE_MIN, "Code is required")
+      .max(INVENTORY_CODE_MAX, `Max ${INVENTORY_CODE_MAX} characters`)
+      .regex(INVENTORY_CODE_PATTERN, "Use letters, numbers, _ or -"),
+    name: z
+      .string()
+      .trim()
+      .min(INVENTORY_NAME_MIN, "Name is required")
+      .max(INVENTORY_NAME_MAX),
+    timezone: z
+      .string()
+      .trim()
+      .min(1, "Timezone is required")
+      .max(INVENTORY_TIMEZONE_MAX),
+    city: z.union([
+      z.literal(""),
+      z.string().trim().max(INVENTORY_CITY_MAX),
+    ]),
     countryCode: z.union([
       z.literal(""),
       z
         .string()
         .trim()
-        .length(2, "Use a 2-letter code")
+        .length(INVENTORY_COUNTRY_CODE_LENGTH, "Use a 2-letter code")
         .regex(/^[A-Za-z]{2}$/, "Use a 2-letter code"),
     ]),
-    addressLine: z.union([z.literal(""), z.string().trim().max(255)]),
+    addressLine: z.union([
+      z.literal(""),
+      z.string().trim().max(INVENTORY_ADDRESS_MAX),
+    ]),
     latitude: z.string().trim(),
     longitude: z.string().trim(),
     googlePlaceId: z.union([
@@ -64,13 +100,13 @@ const schema = z
         .string()
         .trim()
         .min(10, "Place ID looks too short")
-        .max(256)
+        .max(INVENTORY_GOOGLE_PLACE_ID_MAX)
         .regex(/^[\w-]+$/, "Use the Place ID only (e.g. ChIJ…)"),
     ]),
-    checkInFrom: z.union([z.literal(""), z.string().trim().max(5)]),
-    checkInUntil: z.union([z.literal(""), z.string().trim().max(5)]),
-    checkOutFrom: z.union([z.literal(""), z.string().trim().max(5)]),
-    checkOutUntil: z.union([z.literal(""), z.string().trim().max(5)]),
+    checkInFrom: hhmmOrEmpty,
+    checkInUntil: hhmmOrEmpty,
+    checkOutFrom: hhmmOrEmpty,
+    checkOutUntil: hhmmOrEmpty,
     isActive: z.enum(["true", "false"]),
     coverImage: z.custom<MediaItem | null>(),
   })
@@ -94,18 +130,26 @@ const schema = z
 
     const lat = Number(latRaw);
     const lng = Number(lngRaw);
-    if (Number.isNaN(lat) || lat < -90 || lat > 90) {
+    if (
+      Number.isNaN(lat) ||
+      lat < INVENTORY_LAT_MIN ||
+      lat > INVENTORY_LAT_MAX
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["latitude"],
-        message: "Enter a latitude between -90 and 90",
+        message: `Enter a latitude between ${INVENTORY_LAT_MIN} and ${INVENTORY_LAT_MAX}`,
       });
     }
-    if (Number.isNaN(lng) || lng < -180 || lng > 180) {
+    if (
+      Number.isNaN(lng) ||
+      lng < INVENTORY_LNG_MIN ||
+      lng > INVENTORY_LNG_MAX
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["longitude"],
-        message: "Enter a longitude between -180 and 180",
+        message: `Enter a longitude between ${INVENTORY_LNG_MIN} and ${INVENTORY_LNG_MAX}`,
       });
     }
   });
@@ -133,7 +177,7 @@ const emptyDefaults: FormValues = {
 type PropertyFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  property?: Property | null;
+  property?: StaffProperty | null;
   readOnly?: boolean;
 };
 
@@ -144,10 +188,50 @@ export function PropertyFormDialog({
   readOnly = false,
 }: PropertyFormDialogProps) {
   const isEdit = Boolean(property);
+  const queryClient = useQueryClient();
   const form = useForm<FormValues>({
     // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
     resolver: zodResolver(schema as never),
     defaultValues: emptyDefaults,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (values: FormValues) => {
+      const payload = {
+        code: values.code,
+        name: values.name,
+        timezone: values.timezone,
+        city: values.city || null,
+        countryCode: values.countryCode || null,
+        addressLine: values.addressLine || null,
+        latitude: values.latitude ? Number(values.latitude) : null,
+        longitude: values.longitude ? Number(values.longitude) : null,
+        googlePlaceId: values.googlePlaceId || null,
+        checkInFrom: values.checkInFrom || null,
+        checkInUntil: values.checkInUntil || null,
+        checkOutFrom: values.checkOutFrom || null,
+        checkOutUntil: values.checkOutUntil || null,
+        coverImage: values.coverImage,
+        isActive: values.isActive === "true",
+      };
+      if (property) {
+        return updateProperty(property.id, payload);
+      }
+      return createProperty(payload);
+    },
+    onSuccess: (saved) => {
+      void queryClient.invalidateQueries({
+        queryKey: staffPropertiesQueryKeyPrefix,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffPropertyQueryKey(saved.id),
+      });
+      handleSuccess(property ? "Property updated" : "Property created");
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      applyApiFieldError(error, form.setError);
+    },
   });
 
   useEffect(() => {
@@ -211,42 +295,7 @@ export function PropertyFormDialog({
   });
 
   function onSubmit(values: FormValues) {
-    try {
-      const payload = {
-        code: values.code,
-        name: values.name,
-        timezone: values.timezone,
-        city: values.city || null,
-        countryCode: values.countryCode || null,
-        addressLine: values.addressLine || null,
-        latitude: values.latitude ? Number(values.latitude) : null,
-        longitude: values.longitude ? Number(values.longitude) : null,
-        googlePlaceId: values.googlePlaceId || null,
-        checkInFrom: values.checkInFrom || null,
-        checkInUntil: values.checkInUntil || null,
-        checkOutFrom: values.checkOutFrom || null,
-        checkOutUntil: values.checkOutUntil || null,
-        coverImage: values.coverImage,
-        isActive: values.isActive === "true",
-      };
-      if (property) {
-        // MOCK — local update; replace with PATCH /staff/properties/:id.
-        updateProperty(property.id, payload);
-        handleSuccess("Property updated");
-      } else {
-        // MOCK — local create; replace with POST /staff/properties.
-        createProperty(payload);
-        handleSuccess("Property created");
-      }
-      onOpenChange(false);
-    } catch (error) {
-      if (error instanceof InventoryConflictError) {
-        // MOCK — map to ApiError field details when API is wired.
-        form.setError("code", { message: error.message });
-        return;
-      }
-      throw error;
-    }
+    saveMutation.mutate(values);
   }
 
   return (
@@ -282,7 +331,9 @@ export function PropertyFormDialog({
             <Button
               type="submit"
               form="property-form"
-              disabled={form.formState.isSubmitting}
+              disabled={
+                form.formState.isSubmitting || saveMutation.isPending
+              }
             >
               {isEdit ? "Save" : "Create"}
             </Button>

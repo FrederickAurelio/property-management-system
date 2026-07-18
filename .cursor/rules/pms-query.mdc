@@ -1,0 +1,103 @@
+---
+description: PMS server state — TanStack Query, mutations, toast vs field errors
+globs:
+  - apps/pms/src/pages/**
+  - apps/pms/src/components/**
+  - apps/pms/src/lib/api/query-keys.ts
+  - apps/pms/src/lib/api/infinite-page.ts
+  - apps/pms/src/lib/api/field-error.ts
+  - apps/pms/src/lib/api/toast.ts
+  - apps/pms/src/lib/query-client.ts
+alwaysApply: false
+---
+
+# PMS — Query & mutate
+
+Wire Nest → PMS in three layers. Do not collapse them.
+
+| Layer | Owns |
+|-------|------|
+| `src/lib/api` helpers | Thin `api.*` wrappers; return unwrapped `T`; Nest paths under `/staff/...` |
+| Query keys | `src/lib/api/query-keys.ts` — `as const` tuples; one key (or factory) per resource |
+| Screens / forms | `useQuery` / `useInfiniteQuery` / `useMutation`, cache updates, toasts, RHF `setError` |
+
+Client / envelope / credentials: [`pms-api.mdc`](pms-api.mdc). GET loading UX: [`pms-ui.mdc`](pms-ui.mdc). BE field-error shape: [`api-http.mdc`](api-http.mdc).
+
+## Queries
+
+```ts
+useQuery({ queryKey: staffAdminsQueryKey, queryFn: listAdmins })
+```
+
+- Import keys + helpers from `@/lib/api` (barrel). Do not invent inline key strings in pages.
+- Auth session probes: `retry: false`. Login-page probe: `staffSession({ skipUnauthorizedRedirect: true })`.
+- Defaults live in `src/lib/query-client.ts` (staleTime 30s; no refetch-on-focus; never retry 4xx `ApiError`; mutations `retry: false`). Override only when the screen needs it.
+- Unpaginated list / detail GET UI: Skeleton + `QueryRetryButton` → `refetch` (`pms-ui`).
+
+## Infinite lists (offset `Paginated<T>`)
+
+Nest lists return `{ items, pageInfo }` (`Paginated` / `PageInfo` in `@cabin/api-contract`). Use `useInfiniteQuery` — not page-number UI.
+
+```ts
+useInfiniteQuery({
+  queryKey: staffPropertiesQueryKey(filters), // filters in key so q/status reset pages
+  queryFn: ({ pageParam }) => listProperties({ page: pageParam, ...filters }),
+  initialPageParam: INFINITE_INITIAL_PAGE, // 1
+  getNextPageParam: getNextPageParamFromPageInfo,
+})
+```
+
+| Rule | Detail |
+|------|--------|
+| Page param | 1-based `page`; next = `page < totalPages ? page + 1 : undefined` via `getNextPageParamFromPageInfo` |
+| Query keys | Factories include list filters (`q`, `status`, …). Invalidate with the **prefix** tuple after writes |
+| Flatten | `data.pages.flatMap((p) => p.items)` |
+| Scroll UX | Shared [`InfiniteListFooter`](../../apps/pms/src/components/infinite-list-footer.tsx) + `react-intersection-observer` (`pms-ui`) |
+
+**Errors (do not conflate):**
+
+| Failure | Keep loaded pages? | Retry |
+|---------|--------------------|-------|
+| Page 1 (`isError` && no `data`) | N/A | `refetch` |
+| Page 2+ (`isFetchNextPageError`) | **Yes** | `fetchNextPage()` — same failed `pageParam` |
+
+On next-page error: **unmount the in-view sentinel** and show footer + `QueryRetryButton`. Leaving the sentinel `inView` while errored causes an auto-fetch loop.
+
+## Mutations & cache
+
+| After success | Cache |
+|---------------|--------|
+| Login / self-profile patch that returns `StaffAdmin` | `setQueryData(staffSessionQueryKey, admin)` |
+| List create / update / delete | `invalidateQueries({ queryKey: …Prefix })` for that resource |
+| Logout | `invalidateQueries(staffSessionQueryKey)` then navigate `/login` |
+
+Always `handleSuccess` in the mutation `onSuccess` (or screen handler) — never in the axios interceptor.
+
+## Errors — pick one path
+
+| Failure | Handler |
+|---------|---------|
+| Domain field error `details: { field, reason }` | `applyApiFieldError(error, form.setError)` — if it returns `true`, **do not** also `handleError` |
+| Re-auth password dialog (`INVALID_CURRENT_PASSWORD`) | Dialog `serverError` (or equivalent) — no toast |
+| Login / auth / 404 / role / class-validator `string[]` / network | `handleError` → Sonner toast |
+| Delete blocked (`HAS_CHILDREN`) | Dialog or toast — **not** RHF `setError` |
+| Failed GET (page 1 / detail) | Inline message + retry — **not** a toast storm |
+| Failed infinite next page | Footer retry via `fetchNextPage` — see above |
+
+`applyApiFieldError` already toasts non-field errors. Callers that branch first (re-auth vs username) must not double-toast.
+
+## Forms ↔ BE
+
+- Zod mins/maxes/patterns from `@cabin/api-contract` — same bounds as Nest DTOs.
+- Form property names **must** match DTO / `details.field` so highlight lands on the right input.
+- UI: `Controller` + `<Field data-invalid={fieldState.invalid}>` + `<FieldError />`.
+- New `ApiFieldReason` → add in `@cabin/api-contract` first; optional label in `FIELD_REASON_MESSAGE`.
+
+## Don’t
+
+- Toast inside axios interceptors
+- Second axios instance / raw `fetch` to Nest
+- Duplicate query-key literals outside `query-keys.ts`
+- `setError` for operational conflicts (`HAS_CHILDREN`) or login credential failures
+- Optimistic UI unless the screen explicitly needs it (default = invalidate / setQueryData from response)
+- Keep the infinite-scroll sentinel mounted while `isFetchNextPageError` (error loop)

@@ -1,6 +1,14 @@
 /* anchor: Linear-dense explorer, diverge: properties root list */
 import { useMemo, useState } from "react";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { StaffProperty } from "@cabin/api-contract";
 import { Building2Icon } from "lucide-react";
+import { InfiniteListFooter } from "@/components/infinite-list-footer";
+import { QueryRetryButton } from "@/components/query-retry-button";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -11,7 +19,17 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { handleError, handleSuccess } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  deleteProperty,
+  getNextPageParamFromPageInfo,
+  handleError,
+  handleSuccess,
+  INFINITE_INITIAL_PAGE,
+  listProperties,
+  staffPropertiesQueryKey,
+  staffPropertiesQueryKeyPrefix,
+} from "@/lib/api";
 import {
   ExplorerGrid,
   ExplorerItem,
@@ -20,53 +38,45 @@ import {
 import { useExplorerSearchParams } from "@/components/explorer/explorer-params";
 import { ExplorerToolbar } from "./explorer-toolbar";
 import { useInventoryAccess } from "./inventory-access";
-import type { Property } from "./inventory-types";
-// MOCK — replace imports with API client + useMutation when backend is wired.
-import {
-  InventoryConflictError,
-  deleteProperty,
-  useInventory,
-} from "./mock-inventory";
 import { PropertyFormDialog } from "./property-form-dialog";
 
 export function PropertiesPage() {
   const { canManage } = useInventoryAccess();
-  // MOCK — read full inventory snapshot; replace with useQuery("properties").
-  const inventory = useInventory();
   const { q, view } = useExplorerSearchParams();
+  const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Property | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
+  const [editTarget, setEditTarget] = useState<StaffProperty | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StaffProperty | null>(null);
 
-  // MOCK — aggregate child counts client-side; API list should return typeCount/unitCount.
-  const countsByProperty = useMemo(() => {
-    const types = new Map<string, number>();
-    const units = new Map<string, number>();
-    for (const t of inventory.unitTypes) {
-      types.set(t.propertyId, (types.get(t.propertyId) ?? 0) + 1);
-    }
-    for (const u of inventory.units) {
-      units.set(u.propertyId, (units.get(u.propertyId) ?? 0) + 1);
-    }
-    return { types, units };
-  }, [inventory.unitTypes, inventory.units]);
+  const listFilters = useMemo(() => ({ q: q.trim() || undefined }), [q]);
 
-  // MOCK — client-side search/sort; move to API query params when wired.
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    const list = [...inventory.properties].sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-    if (!needle) {
-      return list;
-    }
-    return list.filter(
-      (p) =>
-        p.name.toLowerCase().includes(needle) ||
-        p.code.toLowerCase().includes(needle) ||
-        (p.city?.toLowerCase().includes(needle) ?? false),
-    );
-  }, [inventory.properties, q]);
+  const listQuery = useInfiniteQuery({
+    queryKey: staffPropertiesQueryKey(listFilters),
+    queryFn: ({ pageParam }) =>
+      listProperties({ page: pageParam, q: listFilters.q }),
+    initialPageParam: INFINITE_INITIAL_PAGE,
+    getNextPageParam: getNextPageParamFromPageInfo,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (input: { id: string; name: string }) =>
+      deleteProperty(input.id),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: staffPropertiesQueryKeyPrefix,
+      });
+      handleSuccess(`Deleted ${variables.name}`);
+      setDeleteTarget(null);
+    },
+    onError: (error) => {
+      handleError(error);
+    },
+  });
+
+  const items = useMemo(
+    () => listQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [listQuery.data],
+  );
 
   function openCreate() {
     if (!canManage) {
@@ -76,32 +86,8 @@ export function PropertiesPage() {
     setFormOpen(true);
   }
 
-  function confirmDelete() {
-    if (!deleteTarget) {
-      return;
-    }
-    try {
-      // MOCK — local delete; replace with DELETE /staff/properties/:id mutation.
-      deleteProperty(deleteTarget.id);
-      handleSuccess(`Deleted ${deleteTarget.name}`);
-      setDeleteTarget(null);
-    } catch (error) {
-      if (error instanceof InventoryConflictError) {
-        // MOCK — map to ApiError from envelope when API is wired.
-        handleError(error);
-        return;
-      }
-      throw error;
-    }
-  }
-
-  // MOCK — delete guard counts; API should return these on property detail/list.
-  const deleteTypeCount = deleteTarget
-    ? (countsByProperty.types.get(deleteTarget.id) ?? 0)
-    : 0;
-  const deleteUnitCount = deleteTarget
-    ? (countsByProperty.units.get(deleteTarget.id) ?? 0)
-    : 0;
+  const deleteTypeCount = deleteTarget?.typeCount ?? 0;
+  const deleteUnitCount = deleteTarget?.unitCount ?? 0;
   const deleteBlocked = deleteTypeCount > 0 || deleteUnitCount > 0;
 
   return (
@@ -113,7 +99,29 @@ export function PropertiesPage() {
         onCreate={openCreate}
       />
 
-      {filtered.length === 0 ? (
+      {listQuery.isPending && (
+        <ExplorerGrid view={view}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-36 w-full rounded-lg" />
+          ))}
+        </ExplorerGrid>
+      )}
+
+      {listQuery.isError && !listQuery.data && (
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-border px-4 py-6">
+          <p className="text-sm text-muted-foreground">
+            Couldn’t load properties. Check your connection and try again.
+          </p>
+          <QueryRetryButton
+            onRetry={() => {
+              void listQuery.refetch();
+            }}
+            isRetrying={listQuery.isFetching}
+          />
+        </div>
+      )}
+
+      {listQuery.data && items.length === 0 && (
         <Empty className="border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -136,47 +144,58 @@ export function PropertiesPage() {
             </EmptyContent>
           )}
         </Empty>
-      ) : (
-        <ExplorerGrid view={view}>
-          {filtered.map((property) => {
-            const typeCount = countsByProperty.types.get(property.id) ?? 0;
-            const unitCount = countsByProperty.units.get(property.id) ?? 0;
-            const metaParts = [
-              property.city,
-              property.code,
-              `${typeCount} type${typeCount === 1 ? "" : "s"}`,
-              `${unitCount} unit${unitCount === 1 ? "" : "s"}`,
-            ].filter(Boolean);
+      )}
 
-            return (
-              <ExplorerItem
-                key={property.id}
-                view={view}
-                title={property.name}
-                meta={metaParts.join(" · ")}
-                href={`/properties/${property.id}`}
-                imageUrl={property.coverImage?.url}
-                canManage={canManage}
-                badge={
-                  !property.isActive && (
-                    <StatusBadge label="Inactive" tone="muted" />
-                  )
-                }
-                onEdit={() => {
-                  setEditTarget(property);
-                  setFormOpen(true);
-                }}
-                onDelete={
-                  canManage
-                    ? () => {
-                        setDeleteTarget(property);
-                      }
-                    : undefined
-                }
-              />
-            );
-          })}
-        </ExplorerGrid>
+      {listQuery.data && items.length > 0 && (
+        <>
+          <ExplorerGrid view={view}>
+            {items.map((property) => {
+              const metaParts = [
+                property.city,
+                property.code,
+                `${property.typeCount} type${property.typeCount === 1 ? "" : "s"}`,
+                `${property.unitCount} unit${property.unitCount === 1 ? "" : "s"}`,
+              ].filter(Boolean);
+
+              return (
+                <ExplorerItem
+                  key={property.id}
+                  view={view}
+                  title={property.name}
+                  meta={metaParts.join(" · ")}
+                  href={`/properties/${property.id}`}
+                  linkState={{ propertyName: property.name }}
+                  imageUrl={property.coverImage?.url}
+                  canManage={canManage}
+                  badge={
+                    !property.isActive && (
+                      <StatusBadge label="Inactive" tone="muted" />
+                    )
+                  }
+                  onEdit={() => {
+                    setEditTarget(property);
+                    setFormOpen(true);
+                  }}
+                  onDelete={
+                    canManage
+                      ? () => {
+                          setDeleteTarget(property);
+                        }
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </ExplorerGrid>
+          <InfiniteListFooter
+            hasNextPage={Boolean(listQuery.hasNextPage)}
+            isFetchingNextPage={listQuery.isFetchingNextPage}
+            isFetchNextPageError={listQuery.isFetchNextPageError}
+            fetchNextPage={() => {
+              void listQuery.fetchNextPage();
+            }}
+          />
+        </>
       )}
 
       <PropertyFormDialog
@@ -193,38 +212,42 @@ export function PropertiesPage() {
 
       {canManage && (
         <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
+          open={Boolean(deleteTarget)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTarget(null);
+            }
+          }}
+          title="Delete property?"
+          description={
+            deleteBlocked ? (
+              <>
+                Cannot delete <strong>{deleteTarget?.name}</strong> while it
+                still has {deleteTypeCount} type
+                {deleteTypeCount === 1 ? "" : "s"} and {deleteUnitCount} unit
+                {deleteUnitCount === 1 ? "" : "s"}. Remove those first.
+              </>
+            ) : (
+              <>
+                This permanently removes <strong>{deleteTarget?.name}</strong>.
+              </>
+            )
           }
-        }}
-        title="Delete property?"
-        description={
-          deleteBlocked ? (
-            <>
-              Cannot delete <strong>{deleteTarget?.name}</strong> while it still
-              has {deleteTypeCount} type
-              {deleteTypeCount === 1 ? "" : "s"} and {deleteUnitCount} unit
-              {deleteUnitCount === 1 ? "" : "s"}. Remove those first.
-            </>
-          ) : (
-            <>
-              This permanently removes <strong>{deleteTarget?.name}</strong> from
-              the mock inventory.
-            </>
-          )
-        }
-        confirmLabel={deleteBlocked ? "Got it" : "Delete"}
-        variant={deleteBlocked ? "default" : "destructive"}
-        onConfirm={() => {
-          if (deleteBlocked) {
-            setDeleteTarget(null);
-            return;
-          }
-          confirmDelete();
-        }}
-      />
+          confirmLabel={deleteBlocked ? "Got it" : "Delete"}
+          variant={deleteBlocked ? "default" : "destructive"}
+          onConfirm={() => {
+            if (deleteBlocked) {
+              setDeleteTarget(null);
+              return;
+            }
+            if (deleteTarget) {
+              deleteMutation.mutate({
+                id: deleteTarget.id,
+                name: deleteTarget.name,
+              });
+            }
+          }}
+        />
       )}
     </>
   );

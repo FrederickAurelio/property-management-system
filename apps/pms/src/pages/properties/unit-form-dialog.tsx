@@ -1,6 +1,16 @@
-/* anchor: Linear settings form, diverge: unit CRUD mock fields */
+/* anchor: Linear settings form, diverge: unit CRUD fields */
 import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  INVENTORY_CODE_MAX,
+  INVENTORY_CODE_MIN,
+  INVENTORY_CODE_PATTERN,
+  INVENTORY_FLOOR_MAX,
+  INVENTORY_NAME_MAX,
+  UnitStatus,
+  type StaffUnit,
+} from "@cabin/api-contract";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -20,27 +30,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { handleSuccess } from "@/lib/api";
-import type { Unit, UnitStatus } from "./inventory-types";
-// MOCK — replace with API mutations (POST/PATCH /staff/units) when backend is wired.
 import {
-  InventoryConflictError,
+  applyApiFieldError,
   createUnit,
+  handleSuccess,
+  staffPropertiesQueryKeyPrefix,
+  staffPropertyQueryKey,
+  staffUnitsQueryKeyPrefix,
+  staffUnitQueryKey,
+  staffUnitTypeQueryKey,
   updateUnit,
-} from "./mock-inventory";
+} from "@/lib/api";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 
 const schema = z.object({
   code: z
     .string()
     .trim()
-    .min(1, "Code is required")
-    .max(32)
-    .regex(/^[A-Za-z0-9_-]+$/, "Use letters, numbers, _ or -"),
-  name: z.union([z.literal(""), z.string().trim().max(128)]),
-  floor: z.union([z.literal(""), z.string().trim().max(16)]),
-  status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]),
-  notes: z.union([z.literal(""), z.string().trim().max(2000)]),
+    .min(INVENTORY_CODE_MIN, "Code is required")
+    .max(INVENTORY_CODE_MAX)
+    .regex(INVENTORY_CODE_PATTERN, "Use letters, numbers, _ or -"),
+  name: z.union([z.literal(""), z.string().trim().max(INVENTORY_NAME_MAX)]),
+  floor: z.union([z.literal(""), z.string().trim().max(INVENTORY_FLOOR_MAX)]),
+  status: z.enum([
+    UnitStatus.ACTIVE,
+    UnitStatus.INACTIVE,
+    UnitStatus.MAINTENANCE,
+  ]),
+  notes: z.union([z.literal(""), z.string().trim().max(4000)]),
   isActive: z.enum(["true", "false"]),
 });
 
@@ -51,7 +68,7 @@ type UnitFormDialogProps = {
   onOpenChange: (open: boolean) => void;
   propertyId: string;
   unitTypeId: string;
-  unit?: Unit | null;
+  unit?: StaffUnit | null;
   readOnly?: boolean;
 };
 
@@ -64,6 +81,7 @@ export function UnitFormDialog({
   readOnly = false,
 }: UnitFormDialogProps) {
   const isEdit = Boolean(unit);
+  const queryClient = useQueryClient();
   const form = useForm<FormValues>({
     // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
     resolver: zodResolver(schema as never),
@@ -71,7 +89,7 @@ export function UnitFormDialog({
       code: "",
       name: "",
       floor: "",
-      status: "ACTIVE",
+      status: UnitStatus.ACTIVE,
       notes: "",
       isActive: "true",
     },
@@ -95,41 +113,61 @@ export function UnitFormDialog({
             code: "",
             name: "",
             floor: "",
-            status: "ACTIVE",
+            status: UnitStatus.ACTIVE,
             notes: "",
             isActive: "true",
           },
     );
   }, [open, unit, form]);
 
-  function onSubmit(values: FormValues) {
-    try {
-      const payload = {
+  const saveMutation = useMutation({
+    mutationFn: async (values: FormValues) => {
+      if (unit) {
+        return updateUnit(unit.id, {
+          code: values.code,
+          name: values.name || null,
+          floor: values.floor || null,
+          status: values.status,
+          notes: values.notes || null,
+          isActive: values.isActive === "true",
+        });
+      }
+      return createUnit(propertyId, {
+        unitTypeId,
         code: values.code,
         name: values.name || null,
         floor: values.floor || null,
-        status: values.status as UnitStatus,
+        status: values.status,
         notes: values.notes || null,
         isActive: values.isActive === "true",
-      };
-      if (unit) {
-        // MOCK — local update; replace with PATCH /staff/units/:id.
-        updateUnit(unit.id, payload);
-        handleSuccess("Unit updated");
-      } else {
-        // MOCK — local create; replace with POST /staff/properties/:propertyId/units.
-        createUnit(propertyId, unitTypeId, payload);
-        handleSuccess("Unit created");
-      }
+      });
+    },
+    onSuccess: (saved) => {
+      void queryClient.invalidateQueries({
+        queryKey: staffUnitsQueryKeyPrefix,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffUnitQueryKey(saved.id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffUnitTypeQueryKey(unitTypeId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffPropertyQueryKey(propertyId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffPropertiesQueryKeyPrefix,
+      });
+      handleSuccess(unit ? "Unit updated" : "Unit created");
       onOpenChange(false);
-    } catch (error) {
-      if (error instanceof InventoryConflictError) {
-        // MOCK — map to ApiError field details when API is wired.
-        form.setError("code", { message: error.message });
-        return;
-      }
-      throw error;
-    }
+    },
+    onError: (error) => {
+      applyApiFieldError(error, form.setError);
+    },
+  });
+
+  function onSubmit(values: FormValues) {
+    saveMutation.mutate(values);
   }
 
   return (
@@ -163,7 +201,7 @@ export function UnitFormDialog({
             <Button
               type="submit"
               form="unit-form"
-              disabled={form.formState.isSubmitting}
+              disabled={form.formState.isSubmitting || saveMutation.isPending}
             >
               {isEdit ? "Save" : "Create"}
             </Button>
@@ -176,58 +214,21 @@ export function UnitFormDialog({
         className="flex flex-col gap-4"
         onSubmit={readOnly ? undefined : form.handleSubmit(onSubmit)}
       >
-        <fieldset
-          disabled={readOnly}
-          className="m-0 min-w-0 border-0 p-0"
-        >
-        <FieldGroup>
-          <Controller
-            control={form.control}
-            name="code"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid || undefined}>
-                <FieldLabel htmlFor="unit-code">Code</FieldLabel>
-                <Input
-                  {...field}
-                  id="unit-code"
-                  aria-invalid={fieldState.invalid || undefined}
-                  placeholder="B-0801"
-                  autoComplete="off"
-                  className="uppercase"
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-          <Controller
-            control={form.control}
-            name="name"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid || undefined}>
-                <FieldLabel htmlFor="unit-name">Display name</FieldLabel>
-                <Input
-                  {...field}
-                  id="unit-name"
-                  aria-invalid={fieldState.invalid || undefined}
-                  placeholder="Optional"
-                  autoComplete="off"
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-          <div className="grid grid-cols-2 gap-3">
+        <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
+          <FieldGroup>
             <Controller
               control={form.control}
-              name="floor"
+              name="code"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel htmlFor="unit-floor">Floor</FieldLabel>
+                  <FieldLabel htmlFor="unit-code">Code</FieldLabel>
                   <Input
                     {...field}
-                    id="unit-floor"
+                    id="unit-code"
                     aria-invalid={fieldState.invalid || undefined}
+                    placeholder="B-0801"
                     autoComplete="off"
+                    className="uppercase"
                   />
                   <FieldError errors={[fieldState.error]} />
                 </Field>
@@ -235,10 +236,80 @@ export function UnitFormDialog({
             />
             <Controller
               control={form.control}
-              name="status"
+              name="name"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel>Status</FieldLabel>
+                  <FieldLabel htmlFor="unit-name">Display name</FieldLabel>
+                  <Input
+                    {...field}
+                    id="unit-name"
+                    aria-invalid={fieldState.invalid || undefined}
+                    placeholder="Optional"
+                    autoComplete="off"
+                  />
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Controller
+                control={form.control}
+                name="floor"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid || undefined}>
+                    <FieldLabel htmlFor="unit-floor">Floor</FieldLabel>
+                    <Input
+                      {...field}
+                      id="unit-floor"
+                      aria-invalid={fieldState.invalid || undefined}
+                      autoComplete="off"
+                    />
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="status"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid || undefined}>
+                    <FieldLabel>Status</FieldLabel>
+                    <Select
+                      value={field.value}
+                      disabled={readOnly}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger
+                        className="w-full"
+                        aria-invalid={fieldState.invalid || undefined}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value={UnitStatus.ACTIVE}>
+                            Active
+                          </SelectItem>
+                          <SelectItem value={UnitStatus.INACTIVE}>
+                            Inactive
+                          </SelectItem>
+                          <SelectItem value={UnitStatus.MAINTENANCE}>
+                            Maintenance
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+            </div>
+            <Controller
+              control={form.control}
+              name="isActive"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid || undefined}>
+                  <FieldLabel>Bookable</FieldLabel>
                   <Select
                     value={field.value}
                     disabled={readOnly}
@@ -252,9 +323,8 @@ export function UnitFormDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="ACTIVE">Active</SelectItem>
-                        <SelectItem value="INACTIVE">Inactive</SelectItem>
-                        <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                        <SelectItem value="true">Yes</SelectItem>
+                        <SelectItem value="false">No</SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>
@@ -262,52 +332,23 @@ export function UnitFormDialog({
                 </Field>
               )}
             />
-          </div>
-          <Controller
-            control={form.control}
-            name="isActive"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid || undefined}>
-                <FieldLabel>Bookable</FieldLabel>
-                <Select
-                  value={field.value}
-                  disabled={readOnly}
-                  onValueChange={field.onChange}
-                >
-                  <SelectTrigger
-                    className="w-full"
+            <Controller
+              control={form.control}
+              name="notes"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid || undefined}>
+                  <FieldLabel htmlFor="unit-notes">Internal notes</FieldLabel>
+                  <Textarea
+                    {...field}
+                    id="unit-notes"
+                    rows={3}
                     aria-invalid={fieldState.invalid || undefined}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="true">Yes</SelectItem>
-                      <SelectItem value="false">No</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-          <Controller
-            control={form.control}
-            name="notes"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid || undefined}>
-                <FieldLabel htmlFor="unit-notes">Internal notes</FieldLabel>
-                <Textarea
-                  {...field}
-                  id="unit-notes"
-                  rows={3}
-                  aria-invalid={fieldState.invalid || undefined}
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-        </FieldGroup>
+                  />
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+          </FieldGroup>
         </fieldset>
       </form>
     </ResponsiveFormShell>

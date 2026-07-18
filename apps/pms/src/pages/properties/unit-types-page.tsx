@@ -1,7 +1,16 @@
 /* anchor: Linear-dense explorer, diverge: unit types under a property */
 import { useMemo, useState } from "react";
-import { Navigate, useParams } from "react-router";
+import { Navigate, useLocation, useParams } from "react-router";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { StaffUnitType } from "@cabin/api-contract";
 import { LayersIcon } from "lucide-react";
+import { InfiniteListFooter } from "@/components/infinite-list-footer";
+import { QueryRetryButton } from "@/components/query-retry-button";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -12,7 +21,21 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { handleError, handleSuccess } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ApiError,
+  deleteUnitType,
+  getNextPageParamFromPageInfo,
+  getProperty,
+  handleError,
+  handleSuccess,
+  INFINITE_INITIAL_PAGE,
+  listUnitTypes,
+  staffPropertiesQueryKeyPrefix,
+  staffPropertyQueryKey,
+  staffUnitTypesQueryKey,
+  staffUnitTypesQueryKeyPrefix,
+} from "@/lib/api";
 import {
   ExplorerGrid,
   ExplorerItem,
@@ -20,57 +43,136 @@ import {
 } from "@/components/explorer/explorer-item";
 import { useExplorerSearchParams } from "@/components/explorer/explorer-params";
 import { ExplorerToolbar } from "./explorer-toolbar";
-import { useInventoryAccess } from "./inventory-access";
-import { formatLayout, formatIdr, firstImageUrl, type UnitType } from "./inventory-types";
-import { countAmenities, formatBedSummary } from "./amenity-catalog";
-// MOCK — replace imports with API client + useMutation when backend is wired.
 import {
-  InventoryConflictError,
-  deleteUnitType,
-  useInventory,
-} from "./mock-inventory";
+  findStaffPropertyName,
+  parseExplorerNavState,
+} from "./explorer-nav-state";
+import { useInventoryAccess } from "./inventory-access";
+import { formatLayout, formatIdr, firstImageUrl } from "./inventory-types";
+import { countAmenities, formatBedSummary } from "./amenity-catalog";
 import { UnitTypeFormDialog } from "./unit-type-form-dialog";
 
 export function UnitTypesPage() {
   const { propertyId = "" } = useParams();
+  const location = useLocation();
   const { canManage } = useInventoryAccess();
-  // MOCK — read full inventory snapshot; replace with useQuery per propertyId.
-  const inventory = useInventory();
   const { q, view } = useExplorerSearchParams();
+  const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<UnitType | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<UnitType | null>(null);
+  const [editTarget, setEditTarget] = useState<StaffUnitType | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StaffUnitType | null>(null);
 
-  // MOCK — resolve property from local store; replace with useQuery property detail.
-  const property = inventory.properties.find((p) => p.id === propertyId);
+  const navState = useMemo(
+    () => parseExplorerNavState(location.state),
+    [location.state],
+  );
+  const propertyNameHint = useMemo(
+    () =>
+      navState.propertyName ??
+      (propertyId
+        ? findStaffPropertyName(queryClient, propertyId)
+        : undefined),
+    [navState.propertyName, propertyId, queryClient],
+  );
 
-  // MOCK — aggregate unit counts client-side; API list should return unitCount per type.
-  const unitCountByType = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const u of inventory.units) {
-      counts.set(u.unitTypeId, (counts.get(u.unitTypeId) ?? 0) + 1);
-    }
-    return counts;
-  }, [inventory.units]);
+  const propertyQuery = useQuery({
+    queryKey: staffPropertyQueryKey(propertyId),
+    queryFn: () => getProperty(propertyId),
+    enabled: Boolean(propertyId) && !propertyNameHint,
+  });
 
-  // MOCK — client-side filter/sort; move to GET /staff/properties/:id/unit-types?q=.
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    const list = inventory.unitTypes
-      .filter((t) => t.propertyId === propertyId)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
-    if (!needle) {
-      return list;
-    }
-    return list.filter(
-      (t) =>
-        t.name.toLowerCase().includes(needle) ||
-        t.code.toLowerCase().includes(needle),
-    );
-  }, [inventory.unitTypes, propertyId, q]);
+  const propertyReady =
+    Boolean(propertyNameHint) || propertyQuery.isSuccess;
+  const propertyName =
+    propertyQuery.data?.name ?? propertyNameHint ?? "…";
 
-  if (!property) {
+  const listFilters = useMemo(() => ({ q: q.trim() || undefined }), [q]);
+
+  const listQuery = useInfiniteQuery({
+    queryKey: staffUnitTypesQueryKey(propertyId, listFilters),
+    queryFn: ({ pageParam }) =>
+      listUnitTypes(propertyId, { page: pageParam, q: listFilters.q }),
+    initialPageParam: INFINITE_INITIAL_PAGE,
+    getNextPageParam: getNextPageParamFromPageInfo,
+    enabled: Boolean(propertyId) && propertyReady,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (input: { id: string; name: string }) =>
+      deleteUnitType(input.id),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: staffUnitTypesQueryKeyPrefix,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffPropertyQueryKey(propertyId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffPropertiesQueryKeyPrefix,
+      });
+      handleSuccess(`Deleted ${variables.name}`);
+      setDeleteTarget(null);
+    },
+    onError: (error) => {
+      handleError(error);
+    },
+  });
+
+  const items = useMemo(
+    () => listQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [listQuery.data],
+  );
+
+  const propertyNotFound =
+    !propertyNameHint &&
+    propertyQuery.isError &&
+    propertyQuery.error instanceof ApiError &&
+    propertyQuery.error.status === 404;
+
+  if (propertyNotFound) {
     return <Navigate to="/properties" replace />;
+  }
+
+  if (!propertyReady && propertyQuery.isPending) {
+    return (
+      <>
+        <ExplorerToolbar
+          layer="types"
+          createLabel="Add type"
+          canManage={false}
+          onCreate={() => undefined}
+        />
+        <ExplorerGrid view={view}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-36 w-full rounded-lg" />
+          ))}
+        </ExplorerGrid>
+      </>
+    );
+  }
+
+  if (!propertyNameHint && propertyQuery.isError) {
+    return (
+      <>
+        <ExplorerToolbar
+          layer="types"
+          createLabel="Add type"
+          canManage={false}
+          onCreate={() => undefined}
+        />
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-border px-4 py-6">
+          <p className="text-sm text-muted-foreground">
+            Couldn’t load this property. Check your connection and try again.
+          </p>
+          <QueryRetryButton
+            onRetry={() => {
+              void propertyQuery.refetch();
+            }}
+            isRetrying={propertyQuery.isFetching}
+          />
+        </div>
+      </>
+    );
   }
 
   function openCreate() {
@@ -81,29 +183,7 @@ export function UnitTypesPage() {
     setFormOpen(true);
   }
 
-  function confirmDelete() {
-    if (!deleteTarget) {
-      return;
-    }
-    try {
-      // MOCK — local delete; replace with DELETE /staff/unit-types/:id mutation.
-      deleteUnitType(deleteTarget.id);
-      handleSuccess(`Deleted ${deleteTarget.name}`);
-      setDeleteTarget(null);
-    } catch (error) {
-      if (error instanceof InventoryConflictError) {
-        // MOCK — map to ApiError from envelope when API is wired.
-        handleError(error);
-        return;
-      }
-      throw error;
-    }
-  }
-
-  // MOCK — delete guard count; API should return unitCount on unit-type detail.
-  const deleteUnitCount = deleteTarget
-    ? (unitCountByType.get(deleteTarget.id) ?? 0)
-    : 0;
+  const deleteUnitCount = deleteTarget?.unitCount ?? 0;
   const deleteBlocked = deleteUnitCount > 0;
 
   return (
@@ -115,7 +195,29 @@ export function UnitTypesPage() {
         onCreate={openCreate}
       />
 
-      {filtered.length === 0 ? (
+      {listQuery.isPending && (
+        <ExplorerGrid view={view}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-36 w-full rounded-lg" />
+          ))}
+        </ExplorerGrid>
+      )}
+
+      {listQuery.isError && !listQuery.data && (
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-border px-4 py-6">
+          <p className="text-sm text-muted-foreground">
+            Couldn’t load unit types. Check your connection and try again.
+          </p>
+          <QueryRetryButton
+            onRetry={() => {
+              void listQuery.refetch();
+            }}
+            isRetrying={listQuery.isFetching}
+          />
+        </div>
+      )}
+
+      {listQuery.data && items.length === 0 && (
         <Empty className="border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -127,7 +229,7 @@ export function UnitTypesPage() {
             <EmptyDescription>
               {q
                 ? "Try a different search."
-                : `Add types for ${property.name} — shared beds, size, and guest limits.`}
+                : `Add types for ${propertyName} — shared beds, size, and guest limits.`}
             </EmptyDescription>
           </EmptyHeader>
           {!q && canManage && (
@@ -138,55 +240,70 @@ export function UnitTypesPage() {
             </EmptyContent>
           )}
         </Empty>
-      ) : (
-        <ExplorerGrid view={view}>
-          {filtered.map((unitType) => {
-            const unitCount = unitCountByType.get(unitType.id) ?? 0;
-            const amenityCount = countAmenities(unitType.amenities);
-            const beds = formatBedSummary(unitType.bedConfig);
-            const metaParts = [
-              formatLayout(unitType.layout),
-              unitType.sizeSqm != null ? `${unitType.sizeSqm} m²` : null,
-              `Max ${unitType.maxGuests}`,
-              `${formatIdr(unitType.defaultPriceIdr)}/night`,
-              beds,
-              amenityCount > 0
-                ? `${amenityCount} amenit${amenityCount === 1 ? "y" : "ies"}`
-                : null,
-              unitType.smokingAllowed ? "Smoking OK" : null,
-              `${unitCount} unit${unitCount === 1 ? "" : "s"}`,
-              unitType.code,
-            ].filter(Boolean);
+      )}
 
-            return (
-              <ExplorerItem
-                key={unitType.id}
-                view={view}
-                title={unitType.name}
-                meta={metaParts.join(" · ")}
-                href={`/properties/${propertyId}/types/${unitType.id}`}
-                imageUrl={firstImageUrl(unitType.media)}
-                canManage={canManage}
-                badge={
-                  !unitType.isActive && (
-                    <StatusBadge label="Inactive" tone="muted" />
-                  )
-                }
-                onEdit={() => {
-                  setEditTarget(unitType);
-                  setFormOpen(true);
-                }}
-                onDelete={
-                  canManage
-                    ? () => {
-                        setDeleteTarget(unitType);
-                      }
-                    : undefined
-                }
-              />
-            );
-          })}
-        </ExplorerGrid>
+      {listQuery.data && items.length > 0 && (
+        <>
+          <ExplorerGrid view={view}>
+            {items.map((unitType) => {
+              const amenityCount = countAmenities(unitType.amenities);
+              const beds = formatBedSummary(unitType.bedConfig);
+              const metaParts = [
+                formatLayout(unitType.layout),
+                unitType.sizeSqm != null ? `${unitType.sizeSqm} m²` : null,
+                `Max ${unitType.maxGuests}`,
+                `${formatIdr(unitType.defaultPriceIdr)}/night`,
+                beds,
+                amenityCount > 0
+                  ? `${amenityCount} amenit${amenityCount === 1 ? "y" : "ies"}`
+                  : null,
+                unitType.smokingAllowed ? "Smoking OK" : null,
+                `${unitType.unitCount} unit${unitType.unitCount === 1 ? "" : "s"}`,
+                unitType.code,
+              ].filter(Boolean);
+
+              return (
+                <ExplorerItem
+                  key={unitType.id}
+                  view={view}
+                  title={unitType.name}
+                  meta={metaParts.join(" · ")}
+                  href={`/properties/${propertyId}/types/${unitType.id}`}
+                  linkState={{
+                    propertyName,
+                    unitTypeName: unitType.name,
+                  }}
+                  imageUrl={firstImageUrl(unitType.media)}
+                  canManage={canManage}
+                  badge={
+                    !unitType.isActive && (
+                      <StatusBadge label="Inactive" tone="muted" />
+                    )
+                  }
+                  onEdit={() => {
+                    setEditTarget(unitType);
+                    setFormOpen(true);
+                  }}
+                  onDelete={
+                    canManage
+                      ? () => {
+                          setDeleteTarget(unitType);
+                        }
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </ExplorerGrid>
+          <InfiniteListFooter
+            hasNextPage={Boolean(listQuery.hasNextPage)}
+            isFetchingNextPage={listQuery.isFetchingNextPage}
+            isFetchNextPageError={listQuery.isFetchNextPageError}
+            fetchNextPage={() => {
+              void listQuery.fetchNextPage();
+            }}
+          />
+        </>
       )}
 
       <UnitTypeFormDialog
@@ -204,37 +321,41 @@ export function UnitTypesPage() {
 
       {canManage && (
         <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
+          open={Boolean(deleteTarget)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTarget(null);
+            }
+          }}
+          title="Delete unit type?"
+          description={
+            deleteBlocked ? (
+              <>
+                Cannot delete <strong>{deleteTarget?.name}</strong> while{" "}
+                {deleteUnitCount} unit{deleteUnitCount === 1 ? "" : "s"} still
+                use it. Remove or reassign those units first.
+              </>
+            ) : (
+              <>
+                This permanently removes <strong>{deleteTarget?.name}</strong>.
+              </>
+            )
           }
-        }}
-        title="Delete unit type?"
-        description={
-          deleteBlocked ? (
-            <>
-              Cannot delete <strong>{deleteTarget?.name}</strong> while{" "}
-              {deleteUnitCount} unit{deleteUnitCount === 1 ? "" : "s"} still use
-              it. Remove or reassign those units first.
-            </>
-          ) : (
-            <>
-              This permanently removes <strong>{deleteTarget?.name}</strong> from
-              the mock inventory.
-            </>
-          )
-        }
-        confirmLabel={deleteBlocked ? "Got it" : "Delete"}
-        variant={deleteBlocked ? "default" : "destructive"}
-        onConfirm={() => {
-          if (deleteBlocked) {
-            setDeleteTarget(null);
-            return;
-          }
-          confirmDelete();
-        }}
-      />
+          confirmLabel={deleteBlocked ? "Got it" : "Delete"}
+          variant={deleteBlocked ? "default" : "destructive"}
+          onConfirm={() => {
+            if (deleteBlocked) {
+              setDeleteTarget(null);
+              return;
+            }
+            if (deleteTarget) {
+              deleteMutation.mutate({
+                id: deleteTarget.id,
+                name: deleteTarget.name,
+              });
+            }
+          }}
+        />
       )}
     </>
   );

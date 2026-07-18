@@ -1,7 +1,8 @@
 # Inventory & reservation tables (prod design)
 
 **Status:** locked design for Prisma / API / PMS.  
-**FE mock (source of truth for current shapes):** [`apps/pms/src/pages/properties/mock-inventory.ts`](../apps/pms/src/pages/properties/mock-inventory.ts) + [`inventory-types.ts`](../apps/pms/src/pages/properties/inventory-types.ts).  
+**Wire types:** `@cabin/api-contract` (`StaffProperty` / `StaffUnitType` / `StaffUnit`).  
+**FE fixture (demo data only, not runtime):** [`apps/pms/src/pages/properties/seed-inventory.ts`](../apps/pms/src/pages/properties/seed-inventory.ts). Display helpers: [`inventory-types.ts`](../apps/pms/src/pages/properties/inventory-types.ts).  
 **Scope:** multi-property inventory + reservation-ready unit calendars.  
 **Product context:** [`.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md)
 

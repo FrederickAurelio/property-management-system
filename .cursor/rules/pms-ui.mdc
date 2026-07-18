@@ -74,6 +74,17 @@ For query-backed screens (lists, detail fetches):
 | State | UI |
 |-------|-----|
 | Loading | Prefer **Skeleton** (match layout), not an indefinite blank or spinner-only page |
-| Error | Short message + shared [`QueryRetryButton`](../../apps/pms/src/components/query-retry-button.tsx) calling `refetch` |
+| Error (page 1 / detail) | Short message + shared [`QueryRetryButton`](../../apps/pms/src/components/query-retry-button.tsx) calling `refetch` |
 
-Do not leave failed GETs silent or without a way to retry.
+### Infinite scroll footer
+
+Paginated explorer lists use [`InfiniteListFooter`](../../apps/pms/src/components/infinite-list-footer.tsx) + `react-intersection-observer` (`useInView`). Data rules: [`pms-query.mdc`](pms-query.mdc).
+
+| Footer state | UI |
+|--------------|-----|
+| Can load more | Sentinel `<div ref={…}>` — when in view → `fetchNextPage` |
+| Fetching next | Compact spinner / “Loading more…” |
+| Next-page error | **No sentinel.** Message + `QueryRetryButton` → `fetchNextPage` (resume failed page; prevents inView retry loop) |
+| No more pages | Empty |
+
+Do not leave failed GETs silent or without a way to retry. Data lifecycle (keys, mutations, toast vs field): [`pms-query.mdc`](pms-query.mdc).

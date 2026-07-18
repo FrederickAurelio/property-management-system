@@ -1,121 +1,34 @@
-// MOCK — domain entity shapes; align with @cabin/api-contract when API is wired.
-import type { MediaItem } from "@/components/media/types";
-
+/** Inventory display helpers — wire types come from `@cabin/api-contract`. */
 export type {
-  MediaKind,
+  Amenities,
+  BedConfigRoom,
+  BedKind,
   MediaItem,
-} from "@/components/media/types";
+  MediaKind,
+  StaffProperty,
+  StaffUnit,
+  StaffUnitType,
+  UnitLayout,
+  UnitStatus,
+} from "@cabin/api-contract";
+export {
+  EMPTY_AMENITIES,
+  MediaKind as MediaKindValue,
+  UnitLayout as UnitLayoutValue,
+  UnitStatus as UnitStatusValue,
+} from "@cabin/api-contract";
+export type { ExplorerView } from "@/components/explorer/types";
 export {
   isImageMime,
   isVideoMime,
   mediaKindFromMime,
 } from "@/components/media/types";
-export type { ExplorerView } from "@/components/explorer/types";
 
-export type UnitStatus = "ACTIVE" | "INACTIVE" | "MAINTENANCE";
-export type UnitLayout = "STUDIO" | "APARTMENT" | "CABIN" | "OTHER";
-
-export type BedKind =
-  | "SINGLE"
-  | "DOUBLE"
-  | "LARGE_DOUBLE"
-  | "QUEEN"
-  | "KING"
-  | "SOFA_BED"
-  | "OTHER";
-
-export type BedConfigRoom = {
-  room: string;
-  beds: { type: BedKind; count: number }[];
-};
-
-export type Amenities = {
-  highlights: string[];
-  kitchen: string[];
-  bathroom: string[];
-  view: string[];
-  facilities: string[];
-};
-
-export type Property = {
-  id: string;
-  code: string;
-  name: string;
-  timezone: string;
-  checkInFrom: string | null;
-  checkInUntil: string | null;
-  checkOutFrom: string | null;
-  checkOutUntil: string | null;
-  addressLine: string | null;
-  city: string | null;
-  countryCode: string | null;
-  /** WGS84 — used to plot all properties on our own map (web). */
-  latitude: number | null;
-  longitude: number | null;
-  /**
-   * Google Place ID (e.g. ChIJ…) — durable id for “Open in Google Maps”.
-   * Prefer this over share/short links.
-   */
-  googlePlaceId: string | null;
-  /** Single cover image for explorer cards */
-  coverImage: MediaItem | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type UnitType = {
-  id: string;
-  propertyId: string;
-  code: string;
-  name: string;
-  layout: UnitLayout;
-  sizeSqm: number | null;
-  bedroomCount: number;
-  bathroomCount: number;
-  maxGuests: number;
-  /** Default rack rate per night in IDR (whole rupiah, no decimals). */
-  defaultPriceIdr: number;
-  bedConfig: BedConfigRoom[];
-  amenities: Amenities;
-  /** Ordered gallery — first IMAGE is the card thumbnail */
-  media: MediaItem[];
-  description: string | null;
-  smokingAllowed: boolean;
-  sortOrder: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type Unit = {
-  id: string;
-  propertyId: string;
-  unitTypeId: string;
-  code: string;
-  name: string | null;
-  floor: string | null;
-  status: UnitStatus;
-  notes: string | null;
-  sortOrder: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type InventoryState = {
-  properties: Property[];
-  unitTypes: UnitType[];
-  units: Unit[];
-};
-
-export const EMPTY_AMENITIES: Amenities = {
-  highlights: [],
-  kitchen: [],
-  bathroom: [],
-  view: [],
-  facilities: [],
-};
+import type {
+  MediaItem,
+  UnitLayout,
+  UnitStatus,
+} from "@cabin/api-contract";
 
 export function formatUnitStatus(status: UnitStatus): string {
   switch (status) {
@@ -204,7 +117,6 @@ export function googleMapsUrl(input: {
       api: "1",
       query_place_id: placeId,
     });
-    // `query` helps Maps show a label; Place ID is what selects the place.
     const label = input.name?.trim() || input.addressLine?.trim();
     if (label) {
       params.set("query", label);

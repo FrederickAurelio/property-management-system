@@ -1,6 +1,8 @@
 /* anchor: Linear explorer chrome, diverge: breadcrumb + search + view toggle */
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { UnitStatus } from "@cabin/api-contract";
 import {
   LayoutGridIcon,
   ListIcon,
@@ -37,10 +39,19 @@ import {
 import { useExplorerSearchParams } from "@/components/explorer/explorer-params";
 import type { ExplorerView } from "@/components/explorer/types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import {
+  getProperty,
+  getUnitType,
+  staffPropertyQueryKey,
+  staffUnitTypeQueryKey,
+} from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { UnitStatus } from "./inventory-types";
-// MOCK — breadcrumb names from local store; replace with useQuery detail lookups.
-import { useInventory } from "./mock-inventory";
+import {
+  findStaffPropertyName,
+  findStaffUnitTypeName,
+  parseExplorerNavState,
+  type ExplorerNavState,
+} from "./explorer-nav-state";
 
 export type ExplorerLayer = "properties" | "types" | "units";
 
@@ -115,8 +126,12 @@ export function ExplorerToolbar({
   onCreate,
 }: ExplorerToolbarProps) {
   const { propertyId, unitTypeId } = useParams();
-  // MOCK — toolbar reads in-memory inventory for breadcrumb labels.
-  const inventory = useInventory();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const navState = useMemo(
+    () => parseExplorerNavState(location.state),
+    [location.state],
+  );
   const { q, view, status, patch } = useExplorerSearchParams();
   const [qDraft, setQDraft] = useState(q);
   const [prevQ, setPrevQ] = useState(q);
@@ -133,15 +148,48 @@ export function ExplorerToolbar({
     patch({ q: debouncedQ });
   }, [debouncedQ, q, patch]);
 
-  // MOCK — breadcrumb labels from in-memory inventory; API detail queries later.
-  const property = useMemo(
-    () => inventory.properties.find((p) => p.id === propertyId),
-    [inventory.properties, propertyId],
-  );
-  const unitType = useMemo(
-    () => inventory.unitTypes.find((t) => t.id === unitTypeId),
-    [inventory.unitTypes, unitTypeId],
-  );
+  const propertyNameHint = useMemo(() => {
+    if (!propertyId || layer === "properties") {
+      return undefined;
+    }
+    return (
+      navState.propertyName ??
+      findStaffPropertyName(queryClient, propertyId)
+    );
+  }, [propertyId, layer, navState.propertyName, queryClient]);
+
+  const unitTypeNameHint = useMemo(() => {
+    if (!unitTypeId || layer !== "units") {
+      return undefined;
+    }
+    return (
+      navState.unitTypeName ??
+      findStaffUnitTypeName(queryClient, unitTypeId)
+    );
+  }, [unitTypeId, layer, navState.unitTypeName, queryClient]);
+
+  const propertyQuery = useQuery({
+    queryKey: staffPropertyQueryKey(propertyId ?? ""),
+    queryFn: () => getProperty(propertyId!),
+    enabled:
+      Boolean(propertyId) && layer !== "properties" && !propertyNameHint,
+  });
+
+  const unitTypeQuery = useQuery({
+    queryKey: staffUnitTypeQueryKey(unitTypeId ?? ""),
+    queryFn: () => getUnitType(unitTypeId!),
+    enabled: Boolean(unitTypeId) && layer === "units" && !unitTypeNameHint,
+  });
+
+  const propertyName =
+    propertyQuery.data?.name ?? propertyNameHint ?? "…";
+  const unitTypeName =
+    unitTypeQuery.data?.name ?? unitTypeNameHint ?? "…";
+
+  const propertyCrumbState: ExplorerNavState = {
+    propertyName:
+      propertyName !== "…" ? propertyName : navState.propertyName,
+  };
 
   return (
     <div className="sticky top-12 z-20 flex flex-col gap-3 border-b border-border bg-background pb-3">
@@ -156,33 +204,34 @@ export function ExplorerToolbar({
               </BreadcrumbLink>
             )}
           </BreadcrumbItem>
-          {property && (
+          {propertyId && layer !== "properties" && (
             <>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {layer === "types" ? (
                   <BreadcrumbPage className="max-w-[12rem] truncate sm:max-w-xs">
-                    {property.name}
+                    {propertyName}
                   </BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
                     <Link
-                      to={`/properties/${property.id}`}
+                      to={`/properties/${propertyId}`}
+                      state={propertyCrumbState}
                       className="max-w-[12rem] truncate sm:max-w-xs"
                     >
-                      {property.name}
+                      {propertyName}
                     </Link>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
             </>
           )}
-          {unitType && layer === "units" && (
+          {unitTypeId && layer === "units" && (
             <>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbPage className="max-w-[12rem] truncate sm:max-w-xs">
-                  {unitType.name}
+                  {unitTypeName}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </>
@@ -216,7 +265,7 @@ export function ExplorerToolbar({
             <Select
               value={status}
               onValueChange={(value) => {
-                patch({ status: value as UnitStatus | "all" });
+                patch({ status: value });
               }}
             >
               <SelectTrigger className="w-[9.5rem]" size="sm">
@@ -225,9 +274,11 @@ export function ExplorerToolbar({
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                  <SelectItem value={UnitStatus.ACTIVE}>Active</SelectItem>
+                  <SelectItem value={UnitStatus.INACTIVE}>Inactive</SelectItem>
+                  <SelectItem value={UnitStatus.MAINTENANCE}>
+                    Maintenance
+                  </SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
