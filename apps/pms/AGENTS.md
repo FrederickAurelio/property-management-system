@@ -29,13 +29,14 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 
 - Always import `api` from [`src/lib/api`](src/lib/api) — never create another axios instance / raw `fetch` to the Nest API.
 - Call sites: `api.get` / `api.post` / `api.patch` / `api.delete`. Interceptors handle envelope + errors.
-- Shared HTTP contract types: `@cabin/api-contract` (envelope, codes, `PublicAdmin`, `AdminRole`) — do not duplicate cross-app types here.
+- Shared HTTP contract types: `@cabin/api-contract` (envelope, codes, `StaffAdmin`, `AdminRole`) — do not duplicate cross-app types here.
 - `withCredentials: true` (cookie `cabin.pms.sid`).
 - `baseURL: "/api"`. Dev: Vite proxies `/api` → Nest (`VITE_API_URL`, default `http://localhost:3000`) and strips the prefix. Prod: reverse-proxy `/api` the same way.
 - Success `{ data, meta? }` → interceptor sets `response.data` to unwrapped `data` → `(await api.get<T>(…)).data`.
 - Errors `{ error: { code, message, details? } }` → throws `ApiError`. Also maps timeout / network / 502–504 to FE-only codes (`TIMEOUT`, `NETWORK_ERROR`, `SERVER_UNAVAILABLE`).
-- Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers).
-- Staff admin helpers: `listAdmins` / `createAdmin` / `changeAdminRole` / `setAdminActive` (`/admins`, SUPER_ADMIN). Query key: `staffAdminsQueryKey`.
+- Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers) — paths `/staff/auth/*`.
+- Staff admin helpers: `listAdmins` / `createAdmin` / `changeAdminRole` / `setAdminActive` (`/staff/admins`, SUPER_ADMIN). Query key: `staffAdminsQueryKey`.
+- Nest inventory (when wired): call `/staff/properties`, `/staff/unit-types`, `/staff/units` — never invent unprefixed API paths. SPA routes like `/properties` are UI-only.
 - 401 hook: `setUnauthorizedHandler` (wired to `/login` via `UnauthorizedRedirect`). Session probe on login uses `{ skipUnauthorizedRedirect: true }`.
 - Toasts: `handleSuccess` / `handleError` from screens/mutations — **not** inside the interceptor.
 - Env: root `.env` → `VITE_API_URL` is the **proxy target only** (`vite.config` `envDir` = repo root).

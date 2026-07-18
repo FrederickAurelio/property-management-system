@@ -40,7 +40,7 @@ import {
   type UnitLayout,
   type UnitType,
 } from "./inventory-types";
-// MOCK — replace with API mutations (POST/PATCH /unit-types) when backend is wired.
+// MOCK — replace with API mutations (POST/PATCH /staff/unit-types) when backend is wired.
 import {
   InventoryConflictError,
   createUnitType,
@@ -247,11 +247,11 @@ export function UnitTypeFormDialog({
         media: values.media as MediaItem[],
       };
       if (unitType) {
-        // MOCK — local update; replace with PATCH /unit-types/:id.
+        // MOCK — local update; replace with PATCH /staff/unit-types/:id.
         updateUnitType(unitType.id, payload);
         handleSuccess("Unit type updated");
       } else {
-        // MOCK — local create; replace with POST /properties/:propertyId/unit-types.
+        // MOCK — local create; replace with POST /staff/properties/:propertyId/unit-types.
         createUnitType(propertyId, payload);
         handleSuccess("Unit type created");
       }

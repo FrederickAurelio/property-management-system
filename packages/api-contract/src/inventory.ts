@@ -94,7 +94,8 @@ export const INVENTORY_LAT_MAX = 90;
 export const INVENTORY_LNG_MIN = -180;
 export const INVENTORY_LNG_MAX = 180;
 
-export type PublicProperty = {
+/** Staff/PMS wire shape for a property (full ops row + counts). Not the public website catalog. */
+export type StaffProperty = {
   id: string;
   code: string;
   name: string;
@@ -117,7 +118,7 @@ export type PublicProperty = {
   updatedAt: string;
 };
 
-export type PublicUnitType = {
+export type StaffUnitType = {
   id: string;
   propertyId: string;
   code: string;
@@ -140,7 +141,7 @@ export type PublicUnitType = {
   updatedAt: string;
 };
 
-export type PublicUnit = {
+export type StaffUnit = {
   id: string;
   propertyId: string;
   unitTypeId: string;

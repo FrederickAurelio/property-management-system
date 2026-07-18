@@ -4,7 +4,7 @@ import {
   type AdminRole,
   type ApiErrorBody,
   type ApiSuccess,
-  type PublicAdmin,
+  type StaffAdmin,
 } from "@cabin/api-contract";
 
 export {
@@ -13,5 +13,5 @@ export {
   type AdminRole,
   type ApiErrorBody,
   type ApiSuccess,
-  type PublicAdmin,
+  type StaffAdmin,
 };

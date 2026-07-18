@@ -1,6 +1,6 @@
-import { AdminRole, type PublicAdmin } from "@cabin/api-contract";
+import { AdminRole, type StaffAdmin } from "@cabin/api-contract";
 
-export type StaffRow = PublicAdmin;
+export type StaffRow = StaffAdmin;
 
 export const ROLE_LABELS: Record<AdminRole, string> = {
   SUPER_ADMIN: "Super admin",

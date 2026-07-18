@@ -16,8 +16,8 @@ scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 ## In
 
 - Envelope types, error codes, `ApiError`
-- Staff wire types (`AdminRole`, `PublicAdmin`) + credential limits
-- Inventory wire types (`PublicProperty`, `PublicUnitType`, `PublicUnit`, enums, `MediaItem`, `Amenities`, `BedConfigRoom`)
+- Staff wire types (`AdminRole`, `StaffAdmin`) + credential limits — `Staff*` = staff/PMS wire shapes, **not** the public website catalog
+- Inventory wire types (`StaffProperty`, `StaffUnitType`, `StaffUnit`, enums, `MediaItem`, `Amenities`, `BedConfigRoom`)
 - Pagination: `Paginated<T>`, `PageInfo`, `buildPageInfo`, page size bounds
 - Structured field-error reasons (`ApiFieldReason`: staff + inventory — `CODE_TAKEN`, `LAT_LNG_PAIR_REQUIRED`, `HAS_CHILDREN`, …)
 
@@ -36,7 +36,7 @@ List endpoints return domain `Paginated<T>` as `data` (envelope `meta` stays req
 ## Use
 
 ```ts
-import { ApiErrorCode, type PublicAdmin, type Paginated } from '@cabin/api-contract';
+import { ApiErrorCode, type StaffAdmin, type Paginated } from '@cabin/api-contract';
 ```
 
 Depend with `"@cabin/api-contract": "workspace:*"`. `pnpm install` runs `prepare` → builds **dual** `dist/cjs` (Nest `require`) + `dist/esm` (Vite named `import`). Package `exports` nest `types` under both `import` and `require` so type-only members resolve in the IDE.

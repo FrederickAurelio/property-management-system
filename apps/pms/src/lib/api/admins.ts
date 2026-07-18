@@ -1,8 +1,8 @@
-import type { AdminRole, PublicAdmin } from "@cabin/api-contract";
+import type { AdminRole, StaffAdmin } from "@cabin/api-contract";
 import { api } from "./client";
 
-export async function listAdmins(): Promise<PublicAdmin[]> {
-  const { data } = await api.get<PublicAdmin[]>("/admins");
+export async function listAdmins(): Promise<StaffAdmin[]> {
+  const { data } = await api.get<StaffAdmin[]>("/staff/admins");
   return data;
 }
 
@@ -11,23 +11,29 @@ export async function createAdmin(input: {
   password: string;
   role: AdminRole;
   currentPassword: string;
-}): Promise<PublicAdmin> {
-  const { data } = await api.post<PublicAdmin>("/admins", input);
+}): Promise<StaffAdmin> {
+  const { data } = await api.post<StaffAdmin>("/staff/admins", input);
   return data;
 }
 
 export async function changeAdminRole(
   id: string,
   input: { role: AdminRole; currentPassword: string },
-): Promise<PublicAdmin> {
-  const { data } = await api.patch<PublicAdmin>(`/admins/${id}/role`, input);
+): Promise<StaffAdmin> {
+  const { data } = await api.patch<StaffAdmin>(
+    `/staff/admins/${id}/role`,
+    input,
+  );
   return data;
 }
 
 export async function setAdminActive(
   id: string,
   input: { isActive: boolean; currentPassword: string },
-): Promise<PublicAdmin> {
-  const { data } = await api.patch<PublicAdmin>(`/admins/${id}/active`, input);
+): Promise<StaffAdmin> {
+  const { data } = await api.patch<StaffAdmin>(
+    `/staff/admins/${id}/active`,
+    input,
+  );
   return data;
 }

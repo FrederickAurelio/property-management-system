@@ -510,7 +510,7 @@ export class InventoryConflictError extends Error {
   }
 }
 
-// MOCK — local create; replace with POST /properties.
+// MOCK — local create; replace with POST /staff/properties.
 export function createProperty(input: PropertyInput): Property {
   const code = input.code.trim().toUpperCase();
   if (state.properties.some((p) => p.code === code)) {
@@ -541,7 +541,7 @@ export function createProperty(input: PropertyInput): Property {
   return property;
 }
 
-// MOCK — local update; replace with PATCH /properties/:id.
+// MOCK — local update; replace with PATCH /staff/properties/:id.
 export function updateProperty(id: string, input: PropertyInput): Property {
   const existing = state.properties.find((p) => p.id === id);
   if (!existing) {
@@ -578,7 +578,7 @@ export function updateProperty(id: string, input: PropertyInput): Property {
   return updated;
 }
 
-// MOCK — local delete; replace with DELETE /properties/:id.
+// MOCK — local delete; replace with DELETE /staff/properties/:id.
 export function deleteProperty(id: string): void {
   const typeCount = state.unitTypes.filter((t) => t.propertyId === id).length;
   const unitCount = state.units.filter((u) => u.propertyId === id).length;
@@ -593,7 +593,7 @@ export function deleteProperty(id: string): void {
   });
 }
 
-// MOCK — local create; replace with POST /properties/:propertyId/unit-types.
+// MOCK — local create; replace with POST /staff/properties/:propertyId/unit-types.
 export function createUnitType(
   propertyId: string,
   input: UnitTypeInput,
@@ -640,7 +640,7 @@ export function createUnitType(
   return unitType;
 }
 
-// MOCK — local update; replace with PATCH /unit-types/:id.
+// MOCK — local update; replace with PATCH /staff/unit-types/:id.
 export function updateUnitType(id: string, input: UnitTypeInput): UnitType {
   const existing = state.unitTypes.find((t) => t.id === id);
   if (!existing) {
@@ -684,7 +684,7 @@ export function updateUnitType(id: string, input: UnitTypeInput): UnitType {
   return updated;
 }
 
-// MOCK — local delete; replace with DELETE /unit-types/:id.
+// MOCK — local delete; replace with DELETE /staff/unit-types/:id.
 export function deleteUnitType(id: string): void {
   const unitCount = state.units.filter((u) => u.unitTypeId === id).length;
   if (unitCount > 0) {
@@ -698,7 +698,7 @@ export function deleteUnitType(id: string): void {
   });
 }
 
-// MOCK — local create; replace with POST /properties/:propertyId/units.
+// MOCK — local create; replace with POST /staff/properties/:propertyId/units.
 export function createUnit(
   propertyId: string,
   unitTypeId: string,
@@ -736,7 +736,7 @@ export function createUnit(
   return unit;
 }
 
-// MOCK — local update; replace with PATCH /units/:id.
+// MOCK — local update; replace with PATCH /staff/units/:id.
 export function updateUnit(id: string, input: UnitInput): Unit {
   const existing = state.units.find((u) => u.id === id);
   if (!existing) {
@@ -770,7 +770,7 @@ export function updateUnit(id: string, input: UnitInput): Unit {
   return updated;
 }
 
-// MOCK — local delete; replace with DELETE /units/:id.
+// MOCK — local delete; replace with DELETE /staff/units/:id.
 export function deleteUnit(id: string): void {
   if (!state.units.some((u) => u.id === id)) {
     throw new InventoryConflictError("Unit not found");

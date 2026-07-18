@@ -1,14 +1,14 @@
 import type { AxiosRequestConfig } from "axios";
-import type { PublicAdmin } from "@cabin/api-contract";
+import type { StaffAdmin } from "@cabin/api-contract";
 import { api } from "./client";
 
-export type { PublicAdmin };
+export type { StaffAdmin };
 
 export async function staffLogin(
   username: string,
   password: string,
-): Promise<PublicAdmin> {
-  const { data } = await api.post<PublicAdmin>(
+): Promise<StaffAdmin> {
+  const { data } = await api.post<StaffAdmin>(
     "/staff/auth/login",
     { username, password },
     { skipUnauthorizedRedirect: true },
@@ -24,16 +24,16 @@ export async function staffLogout(): Promise<{ ok: true }> {
 /** Current staff from session cookie (no password). */
 export async function staffSession(
   config?: AxiosRequestConfig,
-): Promise<PublicAdmin> {
-  const { data } = await api.get<PublicAdmin>("/staff/auth/session", config);
+): Promise<StaffAdmin> {
+  const { data } = await api.get<StaffAdmin>("/staff/auth/session", config);
   return data;
 }
 
 export async function staffChangeUsername(input: {
   username: string;
   currentPassword: string;
-}): Promise<PublicAdmin> {
-  const { data } = await api.patch<PublicAdmin>(
+}): Promise<StaffAdmin> {
+  const { data } = await api.patch<StaffAdmin>(
     "/staff/auth/username",
     input,
   );

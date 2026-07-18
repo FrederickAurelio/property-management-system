@@ -7,6 +7,7 @@ alwaysApply: false
 # PMS — API client
 
 - Import `api` from `src/lib/api` only — no second axios instance or raw `fetch` to Nest.
-- Shared wire types from `@cabin/api-contract` — do not duplicate cross-app contracts here.
+- Shared wire types from `@cabin/api-contract` (`StaffAdmin`, `StaffProperty`, …) — do not duplicate cross-app contracts here.
+- Nest paths are under `/staff/...` (auth, admins, inventory). Do not invent audience-neutral API paths.
 - `withCredentials: true` (cookie `cabin.pms.sid`). Interceptors own envelope unwrap + `ApiError`.
 - Toasts (`handleSuccess` / `handleError`) in screens/mutations — not inside the interceptor.

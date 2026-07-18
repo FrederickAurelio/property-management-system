@@ -81,7 +81,7 @@ export function PropertiesPage() {
       return;
     }
     try {
-      // MOCK — local delete; replace with DELETE /properties/:id mutation.
+      // MOCK — local delete; replace with DELETE /staff/properties/:id mutation.
       deleteProperty(deleteTarget.id);
       handleSuccess(`Deleted ${deleteTarget.name}`);
       setDeleteTarget(null);

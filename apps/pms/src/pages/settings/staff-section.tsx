@@ -11,7 +11,7 @@ import {
   STAFF_USERNAME_MIN,
   STAFF_USERNAME_PATTERN,
   isApiFieldError,
-  type PublicAdmin,
+  type StaffAdmin,
 } from "@cabin/api-contract";
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
@@ -111,7 +111,7 @@ const createSchema = z.object({
 type CreateValues = z.infer<typeof createSchema>;
 
 type StaffSectionProps = {
-  currentAdmin: PublicAdmin;
+  currentAdmin: StaffAdmin;
 };
 
 type PendingAction =

@@ -91,7 +91,7 @@ OTA sync today: native iCal (Booking.com · Airbnb · Agoda). No extranet scrapi
 |---------|------|
 | Repo / architecture | This file + `.docs/cabin-pms-client-plan.md` |
 | Shared libs | `packages/README.md` + that package’s `AGENTS.md` |
-| Backend | `apps/api/AGENTS.md` |
+| Backend | `apps/api/AGENTS.md` (audience: `staff` / `domain` / `public`) |
 | Staff UI | `apps/pms/AGENTS.md` |
 | Public site | `apps/web/AGENTS.md` |
 
@@ -105,6 +105,7 @@ Constraints: `.cursor/rules/` — layered entry + concern globs per app (map: [`
 - Rip OTA↔OTA iCal before PMS is trusted
 - Channel Manager or `web` booking before Phase 1 ops MVP is solid
 - Copy the same types/constants into two apps — use `packages/` instead
+- Flat audience-neutral Nest app routes (`/properties`, `/admins`) — use `/staff/...` or `/public/...` (see `apps/api/AGENTS.md`)
 
 ## Inventory
 

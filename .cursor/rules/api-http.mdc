@@ -12,6 +12,7 @@ alwaysApply: false
 
 - Envelope via `setupHttpContract()`; shared wire types from `@cabin/api-contract` — do not redefine the same contract in this app.
 - Controllers return **domain objects only** — never wrap `{ data }` by hand.
+- Audience controllers only under `staff/` or `public/`. `@Controller` paths must include `staff/` or `public/` (except `/health`).
 - DTOs with `class-validator`. No bare `any` on controllers.
 - DTO bounds (`@MinLength`, `@MaxLength`, `@Matches`, lat/lng min/max): import from `@cabin/api-contract` — same source as PMS Zod.
 

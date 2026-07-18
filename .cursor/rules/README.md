@@ -16,7 +16,7 @@ Layered **glob** rules under `.cursor/rules/`. Entry files apply to the whole ap
 
 | App | Entry (`apps/<app>/**`) | Concern files (tighter globs) |
 |-----|--------------------------|-------------------------------|
-| `api` | `api.mdc` | `api-http`, `api-prisma`, `api-auth` · *slot:* `api-domain` when reservations/units/ical modules land |
+| `api` | `api.mdc` | `api-http`, `api-prisma`, `api-auth`, `api-audience` · *slot:* `api-domain` for deep domain patterns if needed |
 | `pms` | `pms.mdc` | `pms-api`, `pms-ui` |
 | `web` | `web.mdc` | *Phase 2 slots:* `web-api`, `web-ui` |
 

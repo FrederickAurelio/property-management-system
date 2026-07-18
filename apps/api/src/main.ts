@@ -6,7 +6,7 @@ import { AppModule } from './app.module';
 import {
   STAFF_SESSION_COOKIE_NAME,
   sessionCookieOptions,
-} from './staff-auth/session.util';
+} from './staff/auth/session.util';
 import { setupHttpContract } from './common/http/setup-http-contract.js';
 import { NestExpressApplication } from '@nestjs/platform-express';
 

@@ -22,7 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { handleSuccess } from "@/lib/api";
 import type { Unit, UnitStatus } from "./inventory-types";
-// MOCK — replace with API mutations (POST/PATCH /units) when backend is wired.
+// MOCK — replace with API mutations (POST/PATCH /staff/units) when backend is wired.
 import {
   InventoryConflictError,
   createUnit,
@@ -113,11 +113,11 @@ export function UnitFormDialog({
         isActive: values.isActive === "true",
       };
       if (unit) {
-        // MOCK — local update; replace with PATCH /units/:id.
+        // MOCK — local update; replace with PATCH /staff/units/:id.
         updateUnit(unit.id, payload);
         handleSuccess("Unit updated");
       } else {
-        // MOCK — local create; replace with POST /properties/:propertyId/units.
+        // MOCK — local create; replace with POST /staff/properties/:propertyId/units.
         createUnit(propertyId, unitTypeId, payload);
         handleSuccess("Unit created");
       }

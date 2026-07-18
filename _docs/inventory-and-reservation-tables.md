@@ -513,13 +513,15 @@ Suggested Nest modules: `properties`, `units` (types + units), later `reservatio
 
 | Method | Path | Notes |
 |--------|------|--------|
-| `GET/POST` | `/properties` | |
-| `GET/PATCH` | `/properties/:id` | |
-| `GET/POST` | `/properties/:propertyId/unit-types` | |
-| `GET/PATCH` | `/unit-types/:id` | |
-| `GET/POST` | `/properties/:propertyId/units` | query: `unitTypeId`, `status` |
-| `GET/PATCH` | `/units/:id` | |
-| `GET` | `/properties/:propertyId/calendar` | units + reservations + blocks in range |
+| `GET/POST` | `/staff/properties` | |
+| `GET/PATCH` | `/staff/properties/:id` | |
+| `GET/POST` | `/staff/properties/:propertyId/unit-types` | |
+| `GET/PATCH` | `/staff/unit-types/:id` | |
+| `GET/POST` | `/staff/properties/:propertyId/units` | query: `unitTypeId`, `status` |
+| `GET/PATCH` | `/staff/units/:id` | |
+| `GET` | `/staff/properties/:propertyId/calendar` | units + reservations + blocks in range |
+
+Public website browse/book (Phase 2) uses `/public/...` — not these staff paths.
 | `GET/POST` | `/reservations` | |
 | `GET/PATCH` | `/reservations/:id` | status transitions |
 | `POST` | `/calendar-blocks` | |

@@ -27,7 +27,7 @@ import {
   type MediaItem,
   type Property,
 } from "./inventory-types";
-// MOCK — replace with API mutations (POST/PATCH /properties) when backend is wired.
+// MOCK — replace with API mutations (POST/PATCH /staff/properties) when backend is wired.
 import {
   InventoryConflictError,
   createProperty,
@@ -230,11 +230,11 @@ export function PropertyFormDialog({
         isActive: values.isActive === "true",
       };
       if (property) {
-        // MOCK — local update; replace with PATCH /properties/:id.
+        // MOCK — local update; replace with PATCH /staff/properties/:id.
         updateProperty(property.id, payload);
         handleSuccess("Property updated");
       } else {
-        // MOCK — local create; replace with POST /properties.
+        // MOCK — local create; replace with POST /staff/properties.
         createProperty(payload);
         handleSuccess("Property created");
       }

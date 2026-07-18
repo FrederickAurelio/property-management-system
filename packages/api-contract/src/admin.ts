@@ -7,8 +7,8 @@ export const AdminRole = {
 
 export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole];
 
-/** Staff admin as returned by `/staff/auth/*` (no password). JSON dates are ISO strings. */
-export type PublicAdmin = {
+/** Staff admin as returned by `/staff/auth/*` (no password). JSON dates are ISO strings. Staff/PMS wire shape — not the public website catalog. */
+export type StaffAdmin = {
   id: string;
   username: string;
   role: AdminRole;

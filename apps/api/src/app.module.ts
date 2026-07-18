@@ -3,12 +3,13 @@ import { ConfigModule } from '@nestjs/config';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AdminsModule } from './admins/admins.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { PropertiesModule } from './properties/properties.module.js';
-import { StaffAuthModule } from './staff-auth/staff-auth.module';
-import { UnitTypesModule } from './unit-types/unit-types.module.js';
-import { UnitsModule } from './units/units.module.js';
+import { StaffAuthModule } from './staff/auth/staff-auth.module';
+import { AdminsModule } from './staff/admins/admins.module';
+import { StaffPropertiesModule } from './staff/properties/properties.module.js';
+import { StaffUnitTypesModule } from './staff/unit-types/unit-types.module.js';
+import { StaffUnitsModule } from './staff/units/units.module.js';
+import { PublicModule } from './public/public.module.js';
 
 @Module({
   imports: [
@@ -23,9 +24,10 @@ import { UnitsModule } from './units/units.module.js';
     PrismaModule,
     StaffAuthModule,
     AdminsModule,
-    PropertiesModule,
-    UnitTypesModule,
-    UnitsModule,
+    StaffPropertiesModule,
+    StaffUnitTypesModule,
+    StaffUnitsModule,
+    PublicModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,0 +1,28 @@
+---
+description: API audience layout — staff vs domain vs public
+globs:
+  - apps/api/src/staff/**
+  - apps/api/src/domain/**
+  - apps/api/src/public/**
+  - apps/api/src/app.module.ts
+alwaysApply: false
+---
+
+# API — audience layout
+
+One Nest API, two HTTP audiences: **staff** (PMS) and **public** (web, Phase 2).
+
+| Folder | Role |
+|--------|------|
+| `src/staff/` | PMS HTTP only — controllers + guards; URLs under `/staff/...` |
+| `src/domain/` | Shared services, input DTOs, mappers — **no** controllers, **no** staff/public guards |
+| `src/public/` | Web HTTP only — URLs under `/public/...` (scaffold until Phase 2) |
+| `src/common/` | Cross-cutting (envelope, pagination base, staff mapper helpers) |
+
+- Staff-only features (auth, admin users) may keep service + controller under `staff/<feature>/`.
+- Logic both audiences will need (inventory, later availability / booking core) → `domain/<feature>/`; staff HTTP in `staff/`; public HTTP in `public/` when it exists.
+- Never share one controller across staff + public. Never loosen guards on `/staff/*` for the website — add a `public/` controller that calls `domain/`.
+- Never ship audience-neutral app paths (`/properties`, `/admins`). `/health` is infra-only.
+- Wire types: `Staff*` in `@cabin/api-contract` = staff/PMS shapes. Website gets its own thinner types later — do not treat `Staff*` as the public catalog.
+
+Endpoint tables: [`apps/api/AGENTS.md`](../../apps/api/AGENTS.md).

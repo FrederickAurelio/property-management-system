@@ -5,10 +5,10 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 ## Status
 
 - Nest + **Prisma 6** + local Postgres (`pnpm db:up`)
-- **Staff auth:** cookie sessions (`express-session` + `connect-pg-simple`), `Admin` model, roles below
-- **Staff CRUD (`admins`):** SUPER_ADMIN-only list / create / change role / revoke-restore
-- **Inventory CRUD:** `Property` / `UnitType` / `Unit` (15 endpoints) — session; reads `FRONT_DESK+`; writes `ADMIN+`
-- **Not yet:** reservations / calendar / permission matrix
+- **Staff auth:** cookie sessions (`express-session` + `connect-pg-simple`), `Admin` model, roles below — `/staff/auth`
+- **Staff CRUD:** SUPER_ADMIN-only list / create / change role / revoke-restore — `/staff/admins`
+- **Inventory CRUD:** `Property` / `UnitType` / `Unit` (15 endpoints) — `/staff/properties|unit-types|units`; reads `FRONT_DESK+`; writes `ADMIN+`
+- **Not yet:** reservations / calendar / permission matrix; public/web HTTP (`src/public/` scaffold only)
 
 ## Stack (locked)
 
@@ -16,6 +16,27 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - PostgreSQL + Prisma 6
 - Session cookies in Postgres + role Guards (`SUPER_ADMIN` | `ADMIN` | `FRONT_DESK`)
 - Validation on DTOs; CORS allowlist for FE origins (`credentials: true`)
+
+## Audience layout
+
+One API, two HTTP audiences. Folders and URL prefixes must match.
+
+```text
+src/staff/     → PMS HTTP only (`/staff/...` + StaffSessionAuthGuard / StaffRoles)
+src/domain/    → Shared services, input DTOs, mappers — no controllers
+src/public/    → Web HTTP only (`/public/...`) — Phase 2; empty module until then
+src/common/    → Cross-cutting (http envelope, pagination base, staff mapper helpers)
+```
+
+| New feature | Put HTTP in | Put logic in |
+|-------------|-------------|--------------|
+| Staff-only (auth, admin users, ops settings) | `staff/<feature>/` | same folder OK |
+| Shared later with web (inventory, availability, bookings core) | `staff/<feature>/` now; `public/<feature>/` when needed | `domain/<feature>/` |
+| Web-only | `public/<feature>/` | `domain/` if reusable, else under `public/` |
+
+Future modules (reservations, calendar, reports, ingest, ical) follow the same table — **not** a flat `src/reservations` with an audience-neutral `/reservations` controller.
+
+Rule: [`.cursor/rules/api-audience.mdc`](../../.cursor/rules/api-audience.mdc).
 
 ## Roles
 
@@ -36,7 +57,7 @@ Examples: `@StaffRoles('ADMIN')` → ADMIN + SUPER_ADMIN · `@StaffRoles('FRONT_
 | `POST` | `/staff/auth/login` | `{ username, password }` → session cookie |
 | `POST` | `/staff/auth/logout` | Destroy session (authenticated) |
 | `GET` | `/staff/auth/session` | Current admin from cookie (all fields except password) |
-| `PATCH` | `/staff/auth/username` | `{ username, currentPassword }` → `PublicAdmin` (authenticated) |
+| `PATCH` | `/staff/auth/username` | `{ username, currentPassword }` → `StaffAdmin` (authenticated) |
 | `PATCH` | `/staff/auth/password` | `{ currentPassword, newPassword }` → `{ ok: true }` (authenticated) |
 
 Username: min 3 / max 64, charset `a-zA-Z0-9._-`. Password: min 8 / max 128. Domain field errors use `details: { field, reason }` (`USERNAME_TAKEN`, `INVALID_CURRENT_PASSWORD`, `SAME_AS_CURRENT`, `USERNAME_UNCHANGED`). Limits: `@cabin/api-contract`.
@@ -49,10 +70,10 @@ All require session + `@StaffRoles('SUPER_ADMIN')`. Mutates require the actor’
 
 | Method | Path | Notes |
 |--------|------|--------|
-| `GET` | `/admins` | All admins including self (`PublicAdmin[]`, no pagination) |
-| `POST` | `/admins` | `{ username, password, role, currentPassword }` → create |
-| `PATCH` | `/admins/:id/role` | `{ role, currentPassword }` — not self; not last active SUPER_ADMIN demote |
-| `PATCH` | `/admins/:id/active` | `{ isActive, currentPassword }` — not self-revoke; not last active SUPER_ADMIN revoke |
+| `GET` | `/staff/admins` | All admins including self (`StaffAdmin[]`, no pagination) |
+| `POST` | `/staff/admins` | `{ username, password, role, currentPassword }` → create |
+| `PATCH` | `/staff/admins/:id/role` | `{ role, currentPassword }` — not self; not last active SUPER_ADMIN demote |
+| `PATCH` | `/staff/admins/:id/active` | `{ isActive, currentPassword }` — not self-revoke; not last active SUPER_ADMIN revoke |
 
 ## Inventory endpoints (session required)
 
@@ -60,23 +81,25 @@ Reads: `@StaffRoles('FRONT_DESK')`. Writes (POST/PATCH/DELETE): `@StaffRoles('AD
 
 List `data` shape: `{ items, pageInfo: { page, pageSize, total, totalPages } }` (`Paginated<T>` in `@cabin/api-contract`). Query: `page`, `pageSize` (default 20, max 100), `q?`, plus filters below.
 
+Wire types: `StaffProperty` / `StaffUnitType` / `StaffUnit` (staff/PMS shapes — not the public website catalog).
+
 | Method | Path | Notes |
 |--------|------|--------|
-| `GET` | `/properties` | Paginated; `isActive?`, `q?`. Full row + `typeCount` / `unitCount` |
-| `GET` | `/properties/:id` | Full property + counts |
-| `POST` | `/properties` | Create |
-| `PATCH` | `/properties/:id` | Update |
-| `DELETE` | `/properties/:id` | 409 `HAS_CHILDREN` if any unit types or units (service + FK Restrict) |
-| `GET` | `/properties/:propertyId/unit-types` | Paginated; `isActive?`, `q?`. Full row + `unitCount` |
-| `POST` | `/properties/:propertyId/unit-types` | Create; `bedroomCount` derived; `sortOrder` server-assigned |
-| `GET` | `/unit-types/:id` | Full unit type + `unitCount` |
-| `PATCH` | `/unit-types/:id` | Update |
-| `DELETE` | `/unit-types/:id` | 409 if any units |
-| `GET` | `/properties/:propertyId/units` | Paginated; `unitTypeId?`, `status?`, `isActive?`, `q?` |
-| `POST` | `/properties/:propertyId/units` | Body includes `unitTypeId` (must belong to property) |
-| `GET` | `/units/:id` | Full unit |
-| `PATCH` | `/units/:id` | Update (`propertyId` / `unitTypeId` immutable) |
-| `DELETE` | `/units/:id` | Hard delete (Restrict backstop when reservations exist later) |
+| `GET` | `/staff/properties` | Paginated; `isActive?`, `q?`. Full row + `typeCount` / `unitCount` |
+| `GET` | `/staff/properties/:id` | Full property + counts |
+| `POST` | `/staff/properties` | Create |
+| `PATCH` | `/staff/properties/:id` | Update |
+| `DELETE` | `/staff/properties/:id` | 409 `HAS_CHILDREN` if any unit types or units (service + FK Restrict) |
+| `GET` | `/staff/properties/:propertyId/unit-types` | Paginated; `isActive?`, `q?`. Full row + `unitCount` |
+| `POST` | `/staff/properties/:propertyId/unit-types` | Create; `bedroomCount` derived; `sortOrder` server-assigned |
+| `GET` | `/staff/unit-types/:id` | Full unit type + `unitCount` |
+| `PATCH` | `/staff/unit-types/:id` | Update |
+| `DELETE` | `/staff/unit-types/:id` | 409 if any units |
+| `GET` | `/staff/properties/:propertyId/units` | Paginated; `unitTypeId?`, `status?`, `isActive?`, `q?` |
+| `POST` | `/staff/properties/:propertyId/units` | Body includes `unitTypeId` (must belong to property) |
+| `GET` | `/staff/units/:id` | Full unit |
+| `PATCH` | `/staff/units/:id` | Update (`propertyId` / `unitTypeId` immutable) |
+| `DELETE` | `/staff/units/:id` | Hard delete (Restrict backstop when reservations exist later) |
 
 Media: jsonb `MediaItem` (`coverImage` / `media[]`); `url` is an external CDN link — API does not upload or serve bytes. Field reasons: `CODE_TAKEN`, `HAS_CHILDREN`, `LAT_LNG_PAIR_REQUIRED`, `UNIT_TYPE_INVALID` (+ lat/lng range via DTO).
 
@@ -103,7 +126,7 @@ FE: `credentials: 'include'`; unwrap `data`; never parse Nest’s default error 
 
 **Domain field errors (form highlight):** when a write fails on a **user-editable** input, return `details: { field, reason }` (`ApiFieldReason` in `@cabin/api-contract`). PMS maps those via `applyApiFieldError` → RHF `setError`. Use for uniqueness (`CODE_TAKEN`), lat/lng pair (`LAT_LNG_PAIR_REQUIRED` on the missing field), invalid `unitTypeId`, staff credential field errors. Do **not** use for 404, auth, or delete-blocked (`HAS_CHILDREN` → dialog/toast). Rule: [`.cursor/rules/api-http.mdc`](../../.cursor/rules/api-http.mdc).
 
-Cross-app wire types: import from `@cabin/api-contract` — envelope, codes, staff + inventory types, `Paginated` / `PageInfo`. Do not redefine those here.
+Cross-app wire types: import from `@cabin/api-contract` — envelope, codes, `Staff*` types, `Paginated` / `PageInfo`. Do not redefine those here.
 
 ## Run
 
@@ -120,7 +143,7 @@ pnpm --filter @cabin/api test
 
 IDE must match CLI (`pnpm --filter @cabin/api lint`). Open [`cabin.code-workspace`](../../cabin.code-workspace). See [`.cursor/rules/monorepo-tooling.mdc`](../../.cursor/rules/monorepo-tooling.mdc).
 
-`GET /health` → `{ data: { status: "ok", database: "up" }, meta: { requestId } }`.
+`GET /health` → `{ data: { status: "ok", database: "up" }, meta: { requestId } }` (infra; outside audience trees).
 
 Env: **one** file — repo root `.env`. Schema: `apps/api/prisma/schema.prisma`. Client: `apps/api/src/generated/prisma` (gitignored).
 
@@ -144,7 +167,7 @@ Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`)
 
 Reservation `source`: `manual` | `website` | `booking_com` | `airbnb` | `agoda`
 
-## Domain
+## Domain model
 
 ```text
 property → unit_type (optional) → unit → reservations / blocks
@@ -152,15 +175,13 @@ property → unit_type (optional) → unit → reservations / blocks
 
 One calendar per unit. Confirmed stays must not overlap on the same unit (Postgres exclusion / transactional write).
 
-## Module shape
-
-Prefer Nest feature modules: `staff-auth`, `admins`, `properties`, `unit-types`, `units`, later `reservations`, `ops`, `ingest`, `ical`.
-
 ## Code conventions
 
+- Controllers live only under `staff/` or `public/`. `@Controller` paths include `staff/` or `public/` (except `/health`).
+- Input DTOs for shared inventory live under `domain/<feature>/dto` (services already depend on them).
 - DTOs with `class-validator` (+ `ValidationPipe`). No bare `any` on controllers.
 - Prisma only inside services — not controllers.
-- Use `StaffSessionAuthGuard` + `@StaffRoles(...)` / `StaffRolesGuard` for protected routes (`@StaffRoles` is minimum-role, not an exact allowlist).
+- Use `StaffSessionAuthGuard` + `@StaffRoles(...)` / `StaffRolesGuard` on all `/staff/*` routes (`@StaffRoles` is minimum-role, not an exact allowlist).
 
 ## Don’t
 
@@ -170,5 +191,9 @@ Prefer Nest feature modules: `staff-auth`, `admins`, `properties`, `unit-types`,
 - Channel Manager in Phase 1
 - Mix guest `User` with `Admin` (guests are Phase 2)
 - Put Arcjet (or API secrets) in the frontend
+- Audience-neutral app API paths (`/properties`, `/admins`) — use `/staff/...` or `/public/...`
+- Controllers (or guards) under `domain/`
+- Unguard `/staff/*` for the website — add a `public/` controller that calls `domain/` instead
+- Reuse `Staff*` wire types as the public catalog contract without a deliberate public DTO
 
 Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`

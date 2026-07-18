@@ -53,7 +53,7 @@ export function UnitTypesPage() {
     return counts;
   }, [inventory.units]);
 
-  // MOCK — client-side filter/sort; move to GET /properties/:id/unit-types?q=.
+  // MOCK — client-side filter/sort; move to GET /staff/properties/:id/unit-types?q=.
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const list = inventory.unitTypes
@@ -86,7 +86,7 @@ export function UnitTypesPage() {
       return;
     }
     try {
-      // MOCK — local delete; replace with DELETE /unit-types/:id mutation.
+      // MOCK — local delete; replace with DELETE /staff/unit-types/:id mutation.
       deleteUnitType(deleteTarget.id);
       handleSuccess(`Deleted ${deleteTarget.name}`);
       setDeleteTarget(null);

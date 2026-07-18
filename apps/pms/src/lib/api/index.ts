@@ -14,7 +14,7 @@ export {
   staffLogin,
   staffLogout,
   staffSession,
-  type PublicAdmin,
+  type StaffAdmin,
 } from "./staff-auth";
 export {
   ApiError,

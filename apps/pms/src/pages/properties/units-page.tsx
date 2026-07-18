@@ -46,7 +46,7 @@ export function UnitsPage() {
     (t) => t.id === unitTypeId && t.propertyId === propertyId,
   );
 
-  // MOCK — client-side filter/sort; move to GET /unit-types/:id/units?q=&status=.
+  // MOCK — client-side filter/sort; move to GET /staff/unit-types/:id/units?q=&status=.
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     let list = inventory.units
@@ -83,7 +83,7 @@ export function UnitsPage() {
     if (!deleteTarget) {
       return;
     }
-    // MOCK — local delete; replace with DELETE /units/:id mutation.
+    // MOCK — local delete; replace with DELETE /staff/units/:id mutation.
     deleteUnit(deleteTarget.id);
     handleSuccess(`Deleted ${deleteTarget.code}`);
     setDeleteTarget(null);
