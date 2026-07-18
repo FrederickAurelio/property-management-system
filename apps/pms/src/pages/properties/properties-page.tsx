@@ -19,7 +19,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   deleteProperty,
   getNextPageParamFromPageInfo,
@@ -32,6 +31,7 @@ import {
 } from "@/lib/api";
 import {
   ExplorerGrid,
+  ExplorerGridSkeleton,
   ExplorerItem,
   StatusBadge,
 } from "@/components/explorer/explorer-item";
@@ -99,13 +99,7 @@ export function PropertiesPage() {
         onCreate={openCreate}
       />
 
-      {listQuery.isPending && (
-        <ExplorerGrid view={view}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-36 w-full rounded-lg" />
-          ))}
-        </ExplorerGrid>
-      )}
+      {listQuery.isPending && <ExplorerGridSkeleton view={view} />}
 
       {listQuery.isError && !listQuery.data && (
         <div className="flex flex-col items-start gap-3 rounded-lg border border-border px-4 py-6">

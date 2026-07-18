@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -287,4 +288,55 @@ export function ExplorerGrid({
     );
   }
   return <div className="flex flex-col gap-2">{children}</div>;
+}
+
+/** Mirrors `ExplorerItem` layout so loading doesn’t jump when data arrives. */
+export function ExplorerItemSkeleton({ view }: { view: ExplorerView }) {
+  if (view === "grid") {
+    return (
+      <div
+        className="flex flex-col overflow-hidden rounded-lg border border-border bg-card"
+        aria-hidden
+      >
+        <Skeleton className="aspect-4/3 w-full rounded-none border-b border-border" />
+        <div className="flex items-start justify-between gap-2 p-3">
+          <div className="min-w-0 flex-1">
+            <Skeleton className="h-4 w-32 max-w-full" />
+            <Skeleton className="mt-2 h-3 w-44 max-w-full" />
+          </div>
+          <Skeleton className="size-7 shrink-0 rounded-md" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex min-h-11 items-center gap-3 rounded-lg border border-border px-3 py-2"
+      aria-hidden
+    >
+      <Skeleton className="size-12 shrink-0 rounded-md" />
+      <div className="min-w-0 flex-1">
+        <Skeleton className="h-4 w-36 max-w-full" />
+        <Skeleton className="mt-1.5 h-3 w-48 max-w-full" />
+      </div>
+      <Skeleton className="size-7 shrink-0 rounded-md" />
+    </div>
+  );
+}
+
+export function ExplorerGridSkeleton({
+  view,
+  count = 6,
+}: {
+  view: ExplorerView;
+  count?: number;
+}) {
+  return (
+    <ExplorerGrid view={view}>
+      {Array.from({ length: count }).map((_, i) => (
+        <ExplorerItemSkeleton key={i} view={view} />
+      ))}
+    </ExplorerGrid>
+  );
 }
