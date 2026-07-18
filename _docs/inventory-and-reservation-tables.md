@@ -1,6 +1,7 @@
 # Inventory & reservation tables (prod design)
 
-**Status:** locked design for Prisma / API / PMS — implement next.  
+**Status:** locked design for Prisma / API / PMS.  
+**FE mock (source of truth for current shapes):** [`apps/pms/src/pages/properties/mock-inventory.ts`](../apps/pms/src/pages/properties/mock-inventory.ts) + [`inventory-types.ts`](../apps/pms/src/pages/properties/inventory-types.ts).  
 **Scope:** multi-property inventory + reservation-ready unit calendars.  
 **Product context:** [`.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md)
 
@@ -11,7 +12,7 @@
 Model real apartments the way ops and OTAs work:
 
 - Many **properties**
-- Each property has several **unit types** (shared specs: size, beds, amenities)
+- Each property has several **unit types** (shared specs: size, beds, amenities, rack rate)
 - Each type has many **units** (physical apartments — one calendar each)
 - **Reservations / blocks** attach to a **unit**, never only to a type
 
@@ -30,13 +31,13 @@ Booking.com “Deluxe Studio / 18 m² / amenities” = **UnitType**.
 
 | Table | Job | FE uses for | BE uses for |
 |-------|-----|-------------|-------------|
-| `Property` | Place / site | Property switcher, settings | Scope all inventory |
+| `Property` | Place / site | Property switcher, settings, maps | Scope all inventory |
 | `UnitType` | Kind of apartment (×5 at Skybreeze) | Type list, filters, type detail | Shared specs; allotment counts |
 | `Unit` | Bookable physical apartment | Unit list, calendar rows | Availability, iCal, ops |
 | `Reservation` | Confirmed stay on a unit | Calendar, arrivals, detail | Overlap, reports, check-in |
 | `CalendarBlock` | Non-guest hold (maintenance, owner use) | Calendar busy slots | Overlap with stays |
 
-Out of Phase 1 inventory tables: OTA rate plans, live prices, amenity master catalog, allotment-only inventory.
+Out of Phase 1 inventory tables: OTA rate plans, live OTA prices, amenity master catalog, allotment-only inventory.
 
 ---
 
@@ -96,6 +97,10 @@ BedKind
   SOFA_BED
   OTHER
 
+MediaKind
+  IMAGE
+  VIDEO
+
 ReservationSource
   MANUAL
   WEBSITE
@@ -118,7 +123,7 @@ CalendarBlockReason
   OTHER
 ```
 
-Wire these via `@cabin/api-contract` when FE + API both need them.
+Wire shared enums via `@cabin/api-contract` when FE + API both need them.
 
 ---
 
@@ -136,19 +141,31 @@ Wire these via `@cabin/api-contract` when FE + API both need them.
 | `checkInUntil` | `time` / `varchar(5)` | yes | e.g. `23:30` |
 | `checkOutFrom` | `time` / `varchar(5)` | yes | |
 | `checkOutUntil` | `time` / `varchar(5)` | yes | e.g. `12:00` |
-| `addressLine` | `varchar(255)` | yes | |
+| `addressLine` | `varchar(255)` | yes | Street / building line |
 | `city` | `varchar(128)` | yes | |
 | `countryCode` | `char(2)` | yes | `ID` |
+| `latitude` | `decimal(10,7)` | yes | WGS84 — **our** multi-property map pins (web) |
+| `longitude` | `decimal(10,7)` | yes | WGS84 — pair with `latitude` |
+| `googlePlaceId` | `varchar(256)` | yes | Google Place ID (`ChIJ…`) — **Open in Google Maps** (named place). Prefer over share/short links |
+| `coverImage` | `jsonb` | yes | Single `MediaItem` for explorer cards — see §6.3 |
 | `isActive` | `boolean` | no | default `true` |
 | `createdAt` | `timestamptz` | no | |
 | `updatedAt` | `timestamptz` | no | |
+
+**Location rules (locked)**
+
+- Text address (`addressLine` / `city` / `countryCode`) for display.
+- `latitude` + `longitude` + property `name` → Phase 2 web map (pin + title).
+- `googlePlaceId` → deep link to Google’s named place card (not bare coordinates as title).
+- Do **not** treat `maps.app.goo.gl` share URLs as the durable stored key.
 
 **Indexes / constraints**
 
 - `UNIQUE (code)`
 - `INDEX (isActive)`
+- `CHECK ((latitude IS NULL) = (longitude IS NULL))` — both null or both set
 
-**FE shape (list):** `{ id, code, name, city, isActive }`  
+**FE shape (list):** `{ id, code, name, city, coverImage, isActive }`  
 **FE shape (detail):** full row.
 
 ---
@@ -165,11 +182,13 @@ Shared product specs for every unit of that kind. Booking room-type detail lives
 | `name` | `varchar(128)` | no | e.g. `Deluxe Studio` |
 | `layout` | `UnitLayout` | no | `STUDIO` / `APARTMENT` / … |
 | `sizeSqm` | `decimal(6,2)` | yes | e.g. `18.00` |
-| `bedroomCount` | `int` | no | Studio → `0` (or `1` sleeping space — pick one and keep consistent; **recommend `0` for studio**) |
+| `bedroomCount` | `int` | no | **Derived on write** — see below |
 | `bathroomCount` | `int` | no | default `1` |
 | `maxGuests` | `int` | no | Hard cap for booking validation |
-| `bedConfig` | `jsonb` | no | See §6 |
-| `amenities` | `jsonb` | no | See §6 — grouped lists for FE |
+| `defaultPriceIdr` | `int` | no | Rack rate **per night**, whole rupiah (no decimals). Currency fixed IDR for now — no currency column |
+| `bedConfig` | `jsonb` | no | See §6.1 — rooms with **one or more** bed rows each |
+| `amenities` | `jsonb` | no | See §6.2 — grouped lists for FE |
+| `media` | `jsonb` | no | Ordered gallery — see §6.3; first `IMAGE` = card thumb |
 | `description` | `text` | yes | Optional marketing / notes |
 | `smokingAllowed` | `boolean` | no | default `false` |
 | `sortOrder` | `int` | no | default `0` — FE type list order |
@@ -177,19 +196,29 @@ Shared product specs for every unit of that kind. Booking room-type detail lives
 | `createdAt` | `timestamptz` | no | |
 | `updatedAt` | `timestamptz` | no | |
 
+**`bedroomCount` (locked)**
+
+```text
+layout === STUDIO  →  bedroomCount = 0
+otherwise          →  bedroomCount = bedConfig.length   (number of rooms)
+```
+
+PMS form shows bedrooms as **read-only**; staff edit rooms in `bedConfig`, not a separate bedroom input.
+
 **Indexes / constraints**
 
 - `UNIQUE (propertyId, code)`
 - `INDEX (propertyId, isActive)`
 - `INDEX (propertyId, sortOrder)`
+- `CHECK (defaultPriceIdr >= 0)`
 
 **FE shape (list):**  
-`{ id, propertyId, code, name, layout, sizeSqm, maxGuests, bedroomCount, bathroomCount, isActive, unitCount? }`  
-(`unitCount` = aggregate from API, not a stored column.)
+`{ id, propertyId, code, name, layout, sizeSqm, maxGuests, bedroomCount, bathroomCount, defaultPriceIdr, isActive, unitCount?, mediaThumb? }`  
+(`unitCount` = aggregate from API, not a stored column. Thumb = first IMAGE in `media`.)
 
-**FE shape (detail):** list fields + `bedConfig` + `amenities` + `description` + `smokingAllowed`.
+**FE shape (detail):** list fields + `bedConfig` + `amenities` + `media` + `description` + `smokingAllowed`.
 
-**Do not store:** OTA prices, “rooms left”, refundable flags, currency.
+**Do not store:** live OTA prices, multi-currency, “rooms left”, refundable flags.
 
 ---
 
@@ -292,7 +321,7 @@ Same overlap rule applies vs `CalendarBlock` on that unit.
 
 **FE shape (detail):** full row + nested `unit` + `unitType` summary.
 
-**Not on this table (yet):** line-item pricing, payments, multi-unit group bookings. Add later without changing the unit FK model.
+**Not on this table (yet):** line-item pricing, payments, multi-unit group bookings. Add later without changing the unit FK model. (Manual quotes may seed from `UnitType.defaultPriceIdr`.)
 
 ---
 
@@ -327,6 +356,8 @@ Non-guest occupancy (maintenance, owner, soft hold).
 
 ### 6.1 `bedConfig`
 
+Array of **rooms**. Each room has a name and **one or more** bed rows (e.g. 1 Queen + 1 Single in the same bedroom).
+
 ```json
 [
   {
@@ -351,7 +382,21 @@ Two-bedroom example:
 ]
 ```
 
-`type` values = `BedKind` enum strings. FE renders rooms; BE validates enum + `count >= 1`.
+Multi-bed in one room:
+
+```json
+[
+  {
+    "room": "Bedroom 1",
+    "beds": [
+      { "type": "QUEEN", "count": 1 },
+      { "type": "SINGLE", "count": 1 }
+    ]
+  }
+]
+```
+
+`type` values = `BedKind` enum strings. FE renders rooms + bed rows; BE validates enum + `count >= 1` + at least one bed per room.
 
 ### 6.2 `amenities`
 
@@ -400,35 +445,63 @@ Use **stable SCREAMING_SNAKE codes** in DB; map to labels in FE / `api-contract`
 
 Empty groups allowed (`[]`). Unknown future codes: ignore on FE, do not fail reads.
 
+### 6.3 `MediaItem` (`coverImage` / `media[]`)
+
+```json
+{
+  "id": "m_studio_1",
+  "kind": "IMAGE",
+  "url": "https://…",
+  "name": "Studio",
+  "mimeType": "image/jpeg"
+}
+```
+
+| Field | Notes |
+|-------|--------|
+| `kind` | `IMAGE` \| `VIDEO` |
+| `url` | Object URL (mock) or storage URL (prod) |
+| Array order on `UnitType.media` | Sortable; **first IMAGE** = explorer card thumbnail |
+| `Property.coverImage` | Single item or `null` |
+
 ---
 
-## 7. Skybreeze Sentraland — seed reference (UnitType)
+## 7. Seed reference (from PMS mock)
 
-Property (example):
+Aligned with [`mock-inventory.ts`](../apps/pms/src/pages/properties/mock-inventory.ts).
 
-| Field | Value |
-|-------|--------|
-| code | `SKYBREEZE_SENTRALAND` |
-| name | Skybreeze Sentraland |
-| timezone | `Asia/Jakarta` |
-| checkInFrom / Until | `15:00` / `23:30` |
-| checkOutUntil | `12:00` |
-| city | Medan |
-| countryCode | `ID` |
+### 7.1 Properties
 
-Unit types from Booking availability paste:
+| code | name | city | addressLine (summary) | lat / lng | googlePlaceId |
+|------|------|------|------------------------|-----------|---------------|
+| `SKYBREEZE_SENTRALAND` | Skybreeze Sentraland | Medan | Jl. Nikel, Sukaramai II, Medan Area … 20224 | `3.5858139` / `98.7040167` | `ChIJDQnc_KkxMTAR4tzfa3cP0Yw` |
+| `CABIN_LAKE_HOUSE` | Cabin Lake House | Berastagi | — | `3.1944` / `98.5089` | — |
 
-| code | name | layout | sizeSqm | bedrooms | maxGuests | beds (summary) |
-|------|------|--------|---------|----------|-----------|----------------|
-| `TWO_BR_STD` | Two-Bedroom Standard Apartment | `APARTMENT` | 36 | 2 | 3 | double + single |
-| `THREE_BR_STD` | Three-Bedroom Standard Apartment | `APARTMENT` | 54 | 3 | 3 | double + 2× single |
-| `DLX_KING_STUDIO` | Deluxe King Studio | `STUDIO` | 21 | 0 | 2 | 1 large double |
-| `DLX_QUEEN_STUDIO` | Deluxe Queen Studio | `STUDIO` | 18 | 0 | 2 | 1 large double |
-| `DLX_STUDIO` | Deluxe Studio | `STUDIO` | 18 | 0 | 2 | 1 large double |
+Skybreeze check-in `15:00`–`23:30`, check-out until `12:00`, timezone `Asia/Jakarta`.
 
-**Deluxe Studio detail** (from conversation) maps into `amenities` + `smokingAllowed: false` + `bedConfig` as in §6.
+### 7.2 Unit types (Skybreeze + cabin)
 
-**Units:** codes and counts per type are **TBD** (ops list). Schema does not need counts as columns — create N `Unit` rows when known.
+| code | name | layout | sizeSqm | bedrooms | baths | maxGuests | defaultPriceIdr | beds (summary) |
+|------|------|--------|---------|----------|-------|-----------|-----------------|----------------|
+| `TWO_BR_STD` | Two-Bedroom Standard Apartment | `APARTMENT` | 36 | 2 | 1 | 3 | 650000 | Bedroom1 double · Bedroom2 single |
+| `THREE_BR_STD` | Three-Bedroom Standard Apartment | `APARTMENT` | 54 | 3 | 1 | 3 | 850000 | double + 2× single |
+| `DLX_KING_STUDIO` | Deluxe King Studio | `STUDIO` | 21 | 0 | 1 | 2 | 550000 | 1 large double |
+| `DLX_QUEEN_STUDIO` | Deluxe Queen Studio | `STUDIO` | 18 | 0 | 1 | 2 | 450000 | 1 large double |
+| `DLX_STUDIO` | Deluxe Studio | `STUDIO` | 18 | 0 | 1 | 2 | 400000 | 1 large double |
+| `LAKE_CABIN` | Lake Cabin | `CABIN` | 42 | 1 | 1 | 2 | 750000 | 1 queen |
+
+Studios use `bedroomCount = 0` and a single `Studio` room in `bedConfig`. Amenity presets match §6.2 (apartments may omit `POOL_WITH_A_VIEW` in highlights).
+
+### 7.3 Units (mock sample)
+
+| property | unitType | codes (status) |
+|----------|----------|----------------|
+| Skybreeze | `TWO_BR_STD` | `B-0801`, `B-0802` ACTIVE · `B-0803` MAINTENANCE |
+| Skybreeze | `THREE_BR_STD` | `B-1201` |
+| Skybreeze | `DLX_KING_STUDIO` | `DS-0501` |
+| Skybreeze | `DLX_QUEEN_STUDIO` | `DQ-0701` |
+| Skybreeze | `DLX_STUDIO` | `DS-0901` ACTIVE · `DS-0902` INACTIVE |
+| Cabin Lake | `LAKE_CABIN` | `CABIN-01`, `CABIN-02` |
 
 Booking “We have 3 left” = derived availability for that type on a night (`count units where free`), **not** a stored allotment field.
 
@@ -485,7 +558,8 @@ Phase 1 MVP can require choosing a unit up front; type-then-assign is a UX layer
 | Temptation | Why not |
 |------------|---------|
 | `roomsLeft` / allotment int on `UnitType` | Lies the moment calendars move; derive it |
-| Price / currency on `Unit` or `UnitType` | OTA prices manual until CM; separate later |
+| Live OTA prices / multi-currency / rate plans | OTA prices stay manual until CM; rack rate is `defaultPriceIdr` only |
+| Google Maps **share** URL as primary location key | Prefer `googlePlaceId` + own lat/lng |
 | Guest master table required for Phase 1 | Snapshot columns on reservation enough for ops |
 | Amenity entity + M2M for Phase 1 | `jsonb` codes are enough; normalize later if `web` filters need it |
 | Scraped OTA HTML blobs | Forbidden; staff/seed enters structured fields |
@@ -494,34 +568,40 @@ Phase 1 MVP can require choosing a unit up front; type-then-assign is a UX layer
 
 ## 11. Implementation order
 
-1. Prisma models: `Property`, `UnitType`, `Unit` + enums  
-2. Migrate + seed property + 5 Skybreeze types (units when codes known)  
-3. CRUD API + PMS screens  
+1. Prisma models: `Property`, `UnitType`, `Unit` + enums (include location, `defaultPriceIdr`, media)  
+2. Migrate + seed from §7 (Skybreeze + cabin lake)  
+3. CRUD API + PMS screens (explorer mock already prototypes FE)  
 4. `Reservation` + `CalendarBlock` + overlap enforcement  
 5. Calendar read API for PMS  
 
 ---
 
-## 12. Open inputs (before seed units)
+## 12. Open inputs
 
-- [ ] Exact unit codes + count per type (ops list)  
-- [ ] Confirm `DLX_QUEEN_STUDIO` vs `DLX_STUDIO` stay two types (Booking lists both)  
-- [ ] Confirm studio `bedroomCount = 0`  
-- [ ] Multi-property now vs single property first (schema already supports many)
+- [x] Studio `bedroomCount = 0`  
+- [x] `DLX_QUEEN_STUDIO` vs `DLX_STUDIO` stay two types  
+- [x] Multi-property supported (Skybreeze + Cabin Lake in mock)  
+- [ ] Expand unit codes/counts to full ops inventory when known  
+- [ ] Cabin Lake `googlePlaceId` when available  
 
 ---
 
 ## 13. One-screen summary
 
 ```text
-Property          place
-UnitType          shared apartment product (beds, m², amenities)
+Property          place + address + lat/lng + googlePlaceId + cover
+UnitType          shared product (beds, m², amenities, defaultPriceIdr, media)
 Unit              physical apartment + calendar identity
 Reservation       guest stay on a unit  [checkIn, checkOut)
 CalendarBlock     non-guest busy on a unit
 
-3 properties → 3 Property rows
-5 types each → UnitType rows under that property
+bedroomCount      derived from bedConfig (studio = 0)
+bedConfig         rooms[]; each room may have multiple bed kinds
+defaultPriceIdr   rack IDR / night (not live OTA)
+maps              lat/lng = our pins; Place ID = Open in Google Maps
+
+N properties  → Property rows
+types each    → UnitType rows under that property
 N apartments  → Unit rows under each type
 Bookings      → Reservation.unitId
 ```

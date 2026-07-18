@@ -1,9 +1,10 @@
 ---
-description: API HTTP layer — envelope, controllers, DTOs
+description: API HTTP — envelope, DTOs, domain field errors for form highlight
 globs:
   - apps/api/src/common/http/**
   - apps/api/src/**/*.controller.ts
   - apps/api/src/**/*.dto.ts
+  - apps/api/src/**/*.service.ts
 alwaysApply: false
 ---
 
@@ -12,4 +13,38 @@ alwaysApply: false
 - Envelope via `setupHttpContract()`; shared wire types from `@cabin/api-contract` — do not redefine the same contract in this app.
 - Controllers return **domain objects only** — never wrap `{ data }` by hand.
 - DTOs with `class-validator`. No bare `any` on controllers.
-- DTO bounds (`@MinLength`, `@MaxLength`, `@Matches`): import from `@cabin/api-contract` — same source as PMS Zod.
+- DTO bounds (`@MinLength`, `@MaxLength`, `@Matches`, lat/lng min/max): import from `@cabin/api-contract` — same source as PMS Zod.
+
+## Domain field errors (form highlight)
+
+When a write fails because of a **user-fixable input**, throw Nest exceptions with structured details so PMS can highlight that field via `applyApiFieldError`:
+
+```ts
+throw new ConflictException({
+  message: 'A property with this code already exists',
+  details: { field: 'code', reason: ApiFieldReason.CODE_TAKEN },
+});
+```
+
+| Use `{ field, reason }` | Examples |
+|-------------------------|----------|
+| Unique / taken values | `CODE_TAKEN`, `USERNAME_TAKEN` |
+| Wrong current secret on form | `INVALID_CURRENT_PASSWORD` |
+| Cross-field form rules | `LAT_LNG_PAIR_REQUIRED` (`field` = missing side) |
+| Body FK the user chose | `UNIT_TYPE_INVALID` on `unitTypeId` |
+
+| Do **not** use for input highlight | How to return |
+|------------------------------------|---------------|
+| 404 missing resource | Plain `NotFoundException('…')` |
+| Auth / role | Guards → 401 / 403 |
+| Delete blocked by children | `HAS_CHILDREN` (+ counts) — FE dialog/toast, not `setError` |
+| Self-action forbidden (staff) | Plain `BadRequestException` message |
+
+Rules:
+
+1. `field` must match the **DTO / form property name** (e.g. `code`, `latitude`, `unitTypeId`).
+2. `reason` must be an `ApiFieldReason` in `@cabin/api-contract` — add the constant there first; PMS may add a label in `FIELD_REASON_MESSAGE`.
+3. Prefer DB uniqueness (`P2002`) + map to field error (race-safe) over a pre-check SELECT alone.
+4. class-validator failures stay `VALIDATION_FAILED` with string[] details — that is **not** the same shape; FE toasts those unless a dedicated mapper is added later.
+
+Deep playbook: [`apps/api/AGENTS.md`](../../apps/api/AGENTS.md).

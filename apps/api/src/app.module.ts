@@ -5,7 +5,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminsModule } from './admins/admins.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PropertiesModule } from './properties/properties.module.js';
 import { StaffAuthModule } from './staff-auth/staff-auth.module';
+import { UnitTypesModule } from './unit-types/unit-types.module.js';
+import { UnitsModule } from './units/units.module.js';
 
 @Module({
   imports: [
@@ -20,6 +23,9 @@ import { StaffAuthModule } from './staff-auth/staff-auth.module';
     PrismaModule,
     StaffAuthModule,
     AdminsModule,
+    PropertiesModule,
+    UnitTypesModule,
+    UnitsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -15,19 +15,30 @@ scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 
 ## In
 
-- Envelope types, error codes, `ApiError`, staff wire types (`AdminRole`, `PublicAdmin`)
-- Staff credential limits + structured field-error reasons for forms
+- Envelope types, error codes, `ApiError`
+- Staff wire types (`AdminRole`, `PublicAdmin`) + credential limits
+- Inventory wire types (`PublicProperty`, `PublicUnitType`, `PublicUnit`, enums, `MediaItem`, `Amenities`, `BedConfigRoom`)
+- Pagination: `Paginated<T>`, `PageInfo`, `buildPageInfo`, page size bounds
+- Structured field-error reasons (`ApiFieldReason`: staff + inventory — `CODE_TAKEN`, `LAT_LNG_PAIR_REQUIRED`, `HAS_CHILDREN`, …)
 
 ## Out
 
 - Nest filters/interceptors, Prisma, React, fetch clients (those stay in apps)
 
+## List pagination
+
+List endpoints return domain `Paginated<T>` as `data` (envelope `meta` stays request-id only):
+
+```ts
+{ data: { items: T[]; pageInfo: PageInfo }, meta?: { requestId } }
+```
+
 ## Use
 
 ```ts
-import { ApiErrorCode, type PublicAdmin } from '@cabin/api-contract';
+import { ApiErrorCode, type PublicAdmin, type Paginated } from '@cabin/api-contract';
 ```
 
-Depend with `"@cabin/api-contract": "workspace:*"`. `pnpm install` runs `prepare` → builds **dual** `dist/cjs` (Nest `require`) + `dist/esm` (Vite named `import`). Package `exports` nest `types` under both `import` and `require` so type-only members (`PublicAdmin`, etc.) resolve in the IDE.
+Depend with `"@cabin/api-contract": "workspace:*"`. `pnpm install` runs `prepare` → builds **dual** `dist/cjs` (Nest `require`) + `dist/esm` (Vite named `import`). Package `exports` nest `types` under both `import` and `require` so type-only members resolve in the IDE.
 
 General packages rules: [`../README.md`](../README.md) · [`.cursor/rules/monorepo-tooling.mdc`](../../.cursor/rules/monorepo-tooling.mdc).

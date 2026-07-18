@@ -25,6 +25,6 @@ Shared libraries for **two or more apps**. Not a junk drawer for one app’s int
 
 | Package | Purpose |
 |---------|---------|
-| [`@cabin/api-contract`](api-contract/) | HTTP envelope, error codes, staff wire types (api + pms; web later) |
+| [`@cabin/api-contract`](api-contract/) | HTTP envelope, error codes, staff + inventory wire types, pagination (`Paginated`) |
 
 Add rows when new packages appear. Details for each package live in that package’s `AGENTS.md`.

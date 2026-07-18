@@ -7,7 +7,8 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - Nest + **Prisma 6** + local Postgres (`pnpm db:up`)
 - **Staff auth:** cookie sessions (`express-session` + `connect-pg-simple`), `Admin` model, roles below
 - **Staff CRUD (`admins`):** SUPER_ADMIN-only list / create / change role / revoke-restore
-- **Not yet:** property/unit/reservation modules, permission matrix
+- **Inventory CRUD:** `Property` / `UnitType` / `Unit` (15 endpoints) — session; reads `FRONT_DESK+`; writes `ADMIN+`
+- **Not yet:** reservations / calendar / permission matrix
 
 ## Stack (locked)
 
@@ -53,6 +54,34 @@ All require session + `@StaffRoles('SUPER_ADMIN')`. Mutates require the actor’
 | `PATCH` | `/admins/:id/role` | `{ role, currentPassword }` — not self; not last active SUPER_ADMIN demote |
 | `PATCH` | `/admins/:id/active` | `{ isActive, currentPassword }` — not self-revoke; not last active SUPER_ADMIN revoke |
 
+## Inventory endpoints (session required)
+
+Reads: `@StaffRoles('FRONT_DESK')`. Writes (POST/PATCH/DELETE): `@StaffRoles('ADMIN')`.
+
+List `data` shape: `{ items, pageInfo: { page, pageSize, total, totalPages } }` (`Paginated<T>` in `@cabin/api-contract`). Query: `page`, `pageSize` (default 20, max 100), `q?`, plus filters below.
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `GET` | `/properties` | Paginated; `isActive?`, `q?`. Full row + `typeCount` / `unitCount` |
+| `GET` | `/properties/:id` | Full property + counts |
+| `POST` | `/properties` | Create |
+| `PATCH` | `/properties/:id` | Update |
+| `DELETE` | `/properties/:id` | 409 `HAS_CHILDREN` if any unit types or units (service + FK Restrict) |
+| `GET` | `/properties/:propertyId/unit-types` | Paginated; `isActive?`, `q?`. Full row + `unitCount` |
+| `POST` | `/properties/:propertyId/unit-types` | Create; `bedroomCount` derived; `sortOrder` server-assigned |
+| `GET` | `/unit-types/:id` | Full unit type + `unitCount` |
+| `PATCH` | `/unit-types/:id` | Update |
+| `DELETE` | `/unit-types/:id` | 409 if any units |
+| `GET` | `/properties/:propertyId/units` | Paginated; `unitTypeId?`, `status?`, `isActive?`, `q?` |
+| `POST` | `/properties/:propertyId/units` | Body includes `unitTypeId` (must belong to property) |
+| `GET` | `/units/:id` | Full unit |
+| `PATCH` | `/units/:id` | Update (`propertyId` / `unitTypeId` immutable) |
+| `DELETE` | `/units/:id` | Hard delete (Restrict backstop when reservations exist later) |
+
+Media: jsonb `MediaItem` (`coverImage` / `media[]`); `url` is an external CDN link — API does not upload or serve bytes. Field reasons: `CODE_TAKEN`, `HAS_CHILDREN`, `LAT_LNG_PAIR_REQUIRED`, `UNIT_TYPE_INVALID` (+ lat/lng range via DTO).
+
+Seed: Skybreeze Sentraland (1 property, 5 types, 8 units) + bootstrap `SUPER_ADMIN`.
+
 ## HTTP contract
 
 Controllers return **domain objects only**. Global `TransformInterceptor` + `HttpExceptionFilter` own the wire shape.
@@ -72,7 +101,9 @@ Controllers return **domain objects only**. Global `TransformInterceptor` + `Htt
 
 FE: `credentials: 'include'`; unwrap `data`; never parse Nest’s default error shape. Shared setup: `setupHttpContract()` in `src/common/http/`.
 
-Cross-app wire types: import from `@cabin/api-contract` (see `packages/`) — envelope, codes, `AdminRole`, `PublicAdmin`. Do not redefine those here.
+**Domain field errors (form highlight):** when a write fails on a **user-editable** input, return `details: { field, reason }` (`ApiFieldReason` in `@cabin/api-contract`). PMS maps those via `applyApiFieldError` → RHF `setError`. Use for uniqueness (`CODE_TAKEN`), lat/lng pair (`LAT_LNG_PAIR_REQUIRED` on the missing field), invalid `unitTypeId`, staff credential field errors. Do **not** use for 404, auth, or delete-blocked (`HAS_CHILDREN` → dialog/toast). Rule: [`.cursor/rules/api-http.mdc`](../../.cursor/rules/api-http.mdc).
+
+Cross-app wire types: import from `@cabin/api-contract` — envelope, codes, staff + inventory types, `Paginated` / `PageInfo`. Do not redefine those here.
 
 ## Run
 
@@ -93,7 +124,7 @@ IDE must match CLI (`pnpm --filter @cabin/api lint`). Open [`cabin.code-workspac
 
 Env: **one** file — repo root `.env`. Schema: `apps/api/prisma/schema.prisma`. Client: `apps/api/src/generated/prisma` (gitignored).
 
-Seed (first `SUPER_ADMIN`): `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`).
+Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`) + Skybreeze inventory (idempotent by property code).
 
 ## Security
 
@@ -104,7 +135,7 @@ Seed (first `SUPER_ADMIN`): `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defau
 ## Phase 1 build order
 
 1. Staff auth + roles ← **done** (auth + SUPER_ADMIN staff CRUD)
-2. Units CRUD
+2. Inventory CRUD (property / unit type / unit) ← **done**
 3. Reservations CRUD + availability (overlap enforced in DB)
 4. Check-in / check-out
 5. Basic reports
@@ -123,7 +154,7 @@ One calendar per unit. Confirmed stays must not overlap on the same unit (Postgr
 
 ## Module shape
 
-Prefer Nest feature modules: `staff-auth`, `admins`, `units`, `reservations`, `ops`, later `ingest`, `ical`.
+Prefer Nest feature modules: `staff-auth`, `admins`, `properties`, `unit-types`, `units`, later `reservations`, `ops`, `ingest`, `ical`.
 
 ## Code conventions
 

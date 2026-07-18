@@ -14,6 +14,19 @@ enum AdminRole {
   FRONT_DESK
 }
 
+enum UnitStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum UnitLayout {
+  STUDIO
+  APARTMENT
+  CABIN
+  OTHER
+}
+
 model Admin {
   id           String    @id @default(cuid())
   username     String    @unique @db.VarChar(64)
@@ -32,4 +45,83 @@ model Session {
 
   @@index([expire], map: "IDX_session_expire")
   @@map("session")
+}
+
+model Property {
+  id            String    @id @default(cuid())
+  code          String    @unique @db.VarChar(32)
+  name          String    @db.VarChar(128)
+  timezone      String    @db.VarChar(64)
+  checkInFrom   String?   @db.VarChar(5)
+  checkInUntil  String?   @db.VarChar(5)
+  checkOutFrom  String?   @db.VarChar(5)
+  checkOutUntil String?   @db.VarChar(5)
+  addressLine   String?   @db.VarChar(255)
+  city          String?   @db.VarChar(128)
+  countryCode   String?   @db.Char(2)
+  latitude      Decimal?  @db.Decimal(10, 7)
+  longitude     Decimal?  @db.Decimal(10, 7)
+  googlePlaceId String?   @db.VarChar(256)
+  coverImage    Json?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  unitTypes UnitType[]
+  units     Unit[]
+
+  @@index([isActive])
+  /// DB: Property_lat_lng_pair_check — (latitude IS NULL) = (longitude IS NULL)
+}
+
+model UnitType {
+  id              String     @id @default(cuid())
+  propertyId      String
+  code            String     @db.VarChar(32)
+  name            String     @db.VarChar(128)
+  layout          UnitLayout
+  sizeSqm         Decimal?   @db.Decimal(6, 2)
+  bedroomCount    Int
+  bathroomCount   Int        @default(1)
+  maxGuests       Int
+  defaultPriceIdr Int
+  bedConfig       Json
+  amenities       Json
+  media           Json
+  description     String?    @db.Text
+  smokingAllowed  Boolean    @default(false)
+  sortOrder       Int        @default(0)
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  units    Unit[]
+
+  @@unique([propertyId, code])
+  @@index([propertyId, isActive])
+  @@index([propertyId, sortOrder])
+}
+
+model Unit {
+  id         String     @id @default(cuid())
+  propertyId String
+  unitTypeId String
+  code       String     @db.VarChar(32)
+  name       String?    @db.VarChar(128)
+  floor      String?    @db.VarChar(16)
+  status     UnitStatus @default(ACTIVE)
+  notes      String?    @db.Text
+  sortOrder  Int        @default(0)
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unitType UnitType @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([propertyId, code])
+  @@index([propertyId, status, isActive])
+  @@index([unitTypeId, isActive])
+  @@index([propertyId, unitTypeId])
 }
