@@ -49,6 +49,14 @@ export type Property = {
   addressLine: string | null;
   city: string | null;
   countryCode: string | null;
+  /** WGS84 — used to plot all properties on our own map (web). */
+  latitude: number | null;
+  longitude: number | null;
+  /**
+   * Google Place ID (e.g. ChIJ…) — durable id for “Open in Google Maps”.
+   * Prefer this over share/short links.
+   */
+  googlePlaceId: string | null;
   /** Single cover image for explorer cards */
   coverImage: MediaItem | null;
   isActive: boolean;
@@ -163,6 +171,64 @@ export function digitsFromIdrInput(raw: string): string {
     return "";
   }
   return String(Number(digits));
+}
+
+export function hasCoordinates(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+): boolean {
+  return (
+    typeof latitude === "number" &&
+    Number.isFinite(latitude) &&
+    typeof longitude === "number" &&
+    Number.isFinite(longitude)
+  );
+}
+
+/**
+ * Prefer Google Place ID (named place card).
+ * Fall back to coordinates, then address text search.
+ */
+export function googleMapsUrl(input: {
+  googlePlaceId?: string | null;
+  name?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  addressLine?: string | null;
+  city?: string | null;
+  countryCode?: string | null;
+}): string | null {
+  const placeId = input.googlePlaceId?.trim();
+  if (placeId) {
+    const params = new URLSearchParams({
+      api: "1",
+      query_place_id: placeId,
+    });
+    // `query` helps Maps show a label; Place ID is what selects the place.
+    const label = input.name?.trim() || input.addressLine?.trim();
+    if (label) {
+      params.set("query", label);
+    }
+    return `https://www.google.com/maps/search/?${params.toString()}`;
+  }
+
+  if (hasCoordinates(input.latitude, input.longitude)) {
+    return `https://www.google.com/maps?q=${input.latitude},${input.longitude}`;
+  }
+
+  const query = [
+    input.name,
+    input.addressLine,
+    input.city,
+    input.countryCode,
+  ]
+    .map((part) => part?.trim())
+    .filter((part, index, all) => Boolean(part) && all.indexOf(part) === index)
+    .join(", ");
+  if (!query) {
+    return null;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
 /** First image in gallery order — used for unit-type cards. */

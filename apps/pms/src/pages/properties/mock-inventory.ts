@@ -72,9 +72,13 @@ const seed: InventoryState = {
       checkInUntil: "23:30",
       checkOutFrom: "08:00",
       checkOutUntil: "12:00",
-      addressLine: "Apartemen Sentraland Medan Tower Barcelona",
+      addressLine:
+        "Jl. Nikel, Sukaramai II, Kec. Medan Area, Kota Medan, Sumatera Utara 20224",
       city: "Medan",
       countryCode: "ID",
+      latitude: 3.5858139,
+      longitude: 98.7040167,
+      googlePlaceId: "ChIJDQnc_KkxMTAR4tzfa3cP0Yw",
       coverImage: {
         id: "cover_skybreeze",
         kind: "IMAGE",
@@ -98,6 +102,9 @@ const seed: InventoryState = {
       addressLine: null,
       city: "Berastagi",
       countryCode: "ID",
+      latitude: 3.1944,
+      longitude: 98.5089,
+      googlePlaceId: null,
       coverImage: {
         id: "cover_cabin",
         kind: "IMAGE",
@@ -456,6 +463,9 @@ export type PropertyInput = {
   city?: string | null;
   countryCode?: string | null;
   addressLine?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  googlePlaceId?: string | null;
   checkInFrom?: string | null;
   checkInUntil?: string | null;
   checkOutFrom?: string | null;
@@ -519,6 +529,9 @@ export function createProperty(input: PropertyInput): Property {
     addressLine: input.addressLine?.trim() || null,
     city: input.city?.trim() || null,
     countryCode: input.countryCode?.trim().toUpperCase() || null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    googlePlaceId: input.googlePlaceId?.trim() || null,
     coverImage: input.coverImage ?? null,
     isActive: input.isActive ?? true,
     createdAt: ts,
@@ -550,6 +563,9 @@ export function updateProperty(id: string, input: PropertyInput): Property {
     addressLine: input.addressLine?.trim() || null,
     city: input.city?.trim() || null,
     countryCode: input.countryCode?.trim().toUpperCase() || null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    googlePlaceId: input.googlePlaceId?.trim() || null,
     coverImage:
       input.coverImage !== undefined ? input.coverImage : existing.coverImage,
     isActive: input.isActive ?? existing.isActive,
