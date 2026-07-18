@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { StaffAuthModule } from './staff/auth/staff-auth.module';
 import { AdminsModule } from './staff/admins/admins.module';
+import { MediaModule } from './staff/media/media.module.js';
 import { StaffPropertiesModule } from './staff/properties/properties.module.js';
 import { StaffUnitTypesModule } from './staff/unit-types/unit-types.module.js';
 import { StaffUnitsModule } from './staff/units/units.module.js';
@@ -24,6 +25,7 @@ import { PublicModule } from './public/public.module.js';
     PrismaModule,
     StaffAuthModule,
     AdminsModule,
+    MediaModule,
     StaffPropertiesModule,
     StaffUnitTypesModule,
     StaffUnitsModule,

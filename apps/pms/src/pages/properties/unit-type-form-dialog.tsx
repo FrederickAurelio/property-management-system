@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: unit type + beds + amenities per _docs */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -215,6 +215,7 @@ export function UnitTypeFormDialog({
 }: UnitTypeFormDialogProps) {
   const isEdit = Boolean(unitType);
   const queryClient = useQueryClient();
+  const [mediaUploading, setMediaUploading] = useState(false);
   // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
@@ -248,6 +249,9 @@ export function UnitTypeFormDialog({
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
+      if (values.media.some((item) => item.url.startsWith("blob:"))) {
+        throw new Error("Media is still uploading — wait and try again");
+      }
       const payload = {
         code: values.code,
         name: values.name,
@@ -337,7 +341,9 @@ export function UnitTypeFormDialog({
               type="submit"
               form="unit-type-form"
               disabled={
-                form.formState.isSubmitting || saveMutation.isPending
+                form.formState.isSubmitting ||
+                saveMutation.isPending ||
+                mediaUploading
               }
             >
               {isEdit ? "Save" : "Create"}
@@ -607,6 +613,7 @@ export function UnitTypeFormDialog({
               value={field.value}
               onChange={field.onChange}
               readOnly={readOnly}
+              onUploadingChange={setMediaUploading}
             />
           )}
         />

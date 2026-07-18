@@ -38,6 +38,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 - Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers) — paths `/staff/auth/*`.
 - Staff admin helpers: `listAdmins` / `createAdmin` / `changeAdminRole` / `setAdminActive` (`/staff/admins`, SUPER_ADMIN). Query key: `staffAdminsQueryKey`.
 - Inventory helpers: `listProperties` / `listUnitTypes` / `listUnits` (+ create/update/delete + detail GETs) under `/staff/properties|unit-types|units`. Wire types `StaffProperty` / `StaffUnitType` / `StaffUnit`; lists are `Paginated<T>`.
+- Media helpers: `createUploadIntent` / `uploadMediaFile` (`src/lib/api/media.ts`) — Nest signs Cloudinary upload; browser POSTs bytes to Cloudinary; never put `CLOUDINARY_API_SECRET` in Vite.
 - SPA routes like `/properties` are UI-only — never invent unprefixed Nest paths.
 - 401 hook: `setUnauthorizedHandler` (wired to `/login` via `UnauthorizedRedirect`). Session probe on login uses `{ skipUnauthorizedRedirect: true }`.
 - Toasts: `handleSuccess` / `handleError` from screens/mutations — **not** inside the interceptor.

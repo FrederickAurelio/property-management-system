@@ -8,6 +8,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Staff auth:** cookie sessions (`express-session` + `connect-pg-simple`), `Admin` model, roles below — `/staff/auth`
 - **Staff CRUD:** SUPER_ADMIN-only list / create / change role / revoke-restore — `/staff/admins`
 - **Inventory CRUD:** `Property` / `UnitType` / `Unit` (15 endpoints) — `/staff/properties|unit-types|units`; reads `FRONT_DESK+`; writes `ADMIN+`
+- **Media upload-intent:** Cloudinary signed params — `POST /staff/media/upload-intent` (`ADMIN+`); Nest does not proxy file bytes
 - **Not yet:** reservations / calendar / permission matrix; public/web HTTP (`src/public/` scaffold only)
 
 ## Stack (locked)
@@ -101,7 +102,11 @@ Wire types: `StaffProperty` / `StaffUnitType` / `StaffUnit` (staff/PMS shapes �
 | `PATCH` | `/staff/units/:id` | Update (`propertyId` / `unitTypeId` immutable) |
 | `DELETE` | `/staff/units/:id` | Hard delete (Restrict backstop when reservations exist later) |
 
-Media: jsonb `MediaItem` (`coverImage` / `media[]`); `url` is an external CDN link — API does not upload or serve bytes. Field reasons: `CODE_TAKEN`, `HAS_CHILDREN`, `LAT_LNG_PAIR_REQUIRED`, `UNIT_TYPE_INVALID` (+ lat/lng range via DTO).
+Media: jsonb `MediaItem` (`coverImage` / `media[]`); `url` is a Cloudinary CDN link — API does not upload or serve bytes. Upload: `POST /staff/media/upload-intent` (`ADMIN+`) returns signed Cloudinary params (`MediaUploadIntent`); browser uploads directly. Bounds: `MEDIA_*` in `@cabin/api-contract`. Env: `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` (root `.env` only). Field reasons: `CODE_TAKEN`, `HAS_CHILDREN`, `LAT_LNG_PAIR_REQUIRED`, `UNIT_TYPE_INVALID` (+ lat/lng range via DTO).
+
+| Method | Path | Notes |
+|--------|------|--------|
+| `POST` | `/staff/media/upload-intent` | `{ kind, mimeType, byteSize, name? }` → signed Cloudinary upload params |
 
 Seed: Skybreeze Sentraland (1 property, 5 types, 8 units) + bootstrap `SUPER_ADMIN`.
 

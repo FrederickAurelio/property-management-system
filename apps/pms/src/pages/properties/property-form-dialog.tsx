@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: property CRUD fields */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -189,6 +189,7 @@ export function PropertyFormDialog({
 }: PropertyFormDialogProps) {
   const isEdit = Boolean(property);
   const queryClient = useQueryClient();
+  const [mediaUploading, setMediaUploading] = useState(false);
   const form = useForm<FormValues>({
     // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
     resolver: zodResolver(schema as never),
@@ -197,6 +198,9 @@ export function PropertyFormDialog({
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
+      if (values.coverImage?.url.startsWith("blob:")) {
+        throw new Error("Cover image is still uploading — wait and try again");
+      }
       const payload = {
         code: values.code,
         name: values.name,
@@ -332,7 +336,9 @@ export function PropertyFormDialog({
               type="submit"
               form="property-form"
               disabled={
-                form.formState.isSubmitting || saveMutation.isPending
+                form.formState.isSubmitting ||
+                saveMutation.isPending ||
+                mediaUploading
               }
             >
               {isEdit ? "Save" : "Create"}
@@ -663,6 +669,7 @@ export function PropertyFormDialog({
               value={field.value}
               onChange={field.onChange}
               readOnly={readOnly}
+              onUploadingChange={setMediaUploading}
             />
           )}
         />

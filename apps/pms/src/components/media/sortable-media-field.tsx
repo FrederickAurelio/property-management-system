@@ -1,5 +1,5 @@
-/* anchor: Notion media grid / Linear attachments, diverge: dnd-kit sort + preview */
-import { useMemo, useState } from "react";
+/* anchor: Notion media grid / Linear attachments, diverge: dnd-kit sort + Cloudinary upload */
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -17,42 +17,83 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  MEDIA_GALLERY_MAX_ITEMS,
+  MEDIA_IMAGE_MAX_BYTES,
+  MEDIA_IMAGE_MIME_TYPES,
+  MEDIA_VIDEO_MAX_BYTES,
+  MEDIA_VIDEO_MIME_TYPES,
+  MediaKind,
+} from "@cabin/api-contract";
+import {
+  GripVerticalIcon,
+  Loader2Icon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FieldDescription } from "@/components/ui/field";
-import { handleError } from "@/lib/api";
+import { handleError, uploadMediaFile } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { MediaPreviewDialog } from "./media-preview-dialog";
 import { MediaThumb } from "./media-thumb";
-import { mediaKindFromMime, type MediaItem } from "./types";
+import {
+  mediaKindFromMime,
+  revokeIfBlobUrl,
+  type MediaItem,
+} from "./types";
 
-const ACCEPT =
-  "image/*,video/*,.jpg,.jpeg,.png,.gif,.webp,.avif,.svg,.bmp,.heic,.heif,.mp4,.webm,.mov,.m4v,.avi,.mkv";
+const ACCEPT = [
+  ...MEDIA_IMAGE_MIME_TYPES,
+  ...MEDIA_VIDEO_MIME_TYPES,
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".mp4",
+  ".webm",
+].join(",");
 
-function newMediaId(): string {
-  // MOCK — client-generated media id; API upload returns asset id.
-  return `media_${crypto.randomUUID().slice(0, 10)}`;
+const COVER_ACCEPT = [
+  ...MEDIA_IMAGE_MIME_TYPES,
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+].join(",");
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// MOCK — local file pick + blob preview; replace with upload API then store URLs.
-async function filesToMediaItems(fileList: FileList | File[]): Promise<MediaItem[]> {
-  const files = Array.from(fileList);
-  const items: MediaItem[] = [];
-  for (const file of files) {
-    const kind = mediaKindFromMime(file.type);
-    if (!kind) {
-      handleError(new Error(`Unsupported file type: ${file.name || file.type}`));
-      continue;
-    }
-    items.push({
-      id: newMediaId(),
-      kind,
-      url: URL.createObjectURL(file),
-      name: file.name || `${kind.toLowerCase()}-${items.length + 1}`,
-      mimeType: file.type,
-    });
+function assertFileAllowed(file: File, imagesOnly = false): MediaKind | null {
+  const kind = mediaKindFromMime(file.type);
+  if (!kind) {
+    handleError(
+      new Error(
+        `Unsupported file type: ${file.name || file.type}. Allowed: JPEG, PNG, WebP${imagesOnly ? "" : ", MP4, WebM"}`,
+      ),
+    );
+    return null;
   }
-  return items;
+  if (imagesOnly && kind !== MediaKind.IMAGE) {
+    handleError(new Error("Cover must be an image"));
+    return null;
+  }
+  const max =
+    kind === MediaKind.IMAGE ? MEDIA_IMAGE_MAX_BYTES : MEDIA_VIDEO_MAX_BYTES;
+  if (file.size > max) {
+    handleError(
+      new Error(
+        `${file.name || "File"} is too large (${formatBytes(file.size)}). Max ${formatBytes(max)}.`,
+      ),
+    );
+    return null;
+  }
+  return kind;
 }
 
 type SortableTileProps = {
@@ -121,7 +162,9 @@ function SortableTile({
           )
         }
       />
-      <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.name}</p>
+      <p className="mt-1 truncate text-[11px] text-muted-foreground">
+        {item.name}
+      </p>
     </div>
   );
 }
@@ -130,16 +173,24 @@ type SortableMediaFieldProps = {
   value: MediaItem[];
   onChange: (next: MediaItem[]) => void;
   readOnly?: boolean;
+  onUploadingChange?: (uploading: boolean) => void;
 };
 
 export function SortableMediaField({
   value,
   onChange,
   readOnly = false,
+  onUploadingChange,
 }: SortableMediaFieldProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [uploadingCount, setUploadingCount] = useState(0);
   const ids = useMemo(() => value.map((item) => item.id), [value]);
+  const uploading = uploadingCount > 0;
+
+  useEffect(() => {
+    onUploadingChange?.(uploading);
+  }, [uploading, onUploadingChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -165,9 +216,38 @@ export function SortableMediaField({
     if (!files || files.length === 0) {
       return;
     }
-    const added = await filesToMediaItems(files);
-    if (added.length > 0) {
-      onChange([...value, ...added]);
+    let next = value;
+    const remaining = MEDIA_GALLERY_MAX_ITEMS - next.length;
+    if (remaining <= 0) {
+      handleError(
+        new Error(`Gallery is limited to ${MEDIA_GALLERY_MAX_ITEMS} items`),
+      );
+      return;
+    }
+
+    const selected = Array.from(files).slice(0, remaining);
+    if (files.length > remaining) {
+      handleError(
+        new Error(
+          `Only ${remaining} more item${remaining === 1 ? "" : "s"} can be added (max ${MEDIA_GALLERY_MAX_ITEMS})`,
+        ),
+      );
+    }
+
+    for (const file of selected) {
+      if (!assertFileAllowed(file)) {
+        continue;
+      }
+      setUploadingCount((n) => n + 1);
+      try {
+        const item = await uploadMediaFile(file);
+        next = [...next, item];
+        onChange(next);
+      } catch (error) {
+        handleError(error);
+      } finally {
+        setUploadingCount((n) => Math.max(0, n - 1));
+      }
     }
   }
 
@@ -178,7 +258,7 @@ export function SortableMediaField({
         <FieldDescription>
           {readOnly
             ? "Images and videos attached to this unit type."
-            : "Images and videos. Drag to set order — the first image is the card thumbnail. Desktop: hover eye to preview. Mobile: long-press to preview."}
+            : "Images and videos (JPEG/PNG/WebP, MP4/WebM). Drag to set order — the first image is the card thumbnail. Desktop: hover eye to preview. Mobile: long-press to preview."}
         </FieldDescription>
       </div>
 
@@ -221,24 +301,33 @@ export function SortableMediaField({
                     setPreviewOpen(true);
                   }}
                   onRemove={() => {
+                    revokeIfBlobUrl(item.url);
                     onChange(value.filter((m) => m.id !== item.id));
                   }}
                 />
               ))}
-              <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground">
-                <PlusIcon className="size-5" />
-                <span className="text-xs">Add media</span>
-                <input
-                  type="file"
-                  accept={ACCEPT}
-                  multiple
-                  className="sr-only"
-                  onChange={(event) => {
-                    void onPick(event.target.files);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
+              {uploading && (
+                <div className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground">
+                  <Loader2Icon className="size-5 animate-spin" />
+                  <span className="text-xs">Uploading…</span>
+                </div>
+              )}
+              {!uploading && value.length < MEDIA_GALLERY_MAX_ITEMS && (
+                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground">
+                  <PlusIcon className="size-5" />
+                  <span className="text-xs">Add media</span>
+                  <input
+                    type="file"
+                    accept={ACCEPT}
+                    multiple
+                    className="sr-only"
+                    onChange={(event) => {
+                      void onPick(event.target.files);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
             </div>
           </SortableContext>
         </DndContext>
@@ -259,15 +348,22 @@ type CoverImageFieldProps = {
   value: MediaItem | null;
   onChange: (next: MediaItem | null) => void;
   readOnly?: boolean;
+  onUploadingChange?: (uploading: boolean) => void;
 };
 
 export function CoverImageField({
   value,
   onChange,
   readOnly = false,
+  onUploadingChange,
 }: CoverImageFieldProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const items = value ? [value] : [];
+
+  useEffect(() => {
+    onUploadingChange?.(uploading);
+  }, [uploading, onUploadingChange]);
 
   async function onPick(files: FileList | null) {
     if (!files || files.length === 0) {
@@ -277,22 +373,22 @@ export function CoverImageField({
     if (!file) {
       return;
     }
-    if (!file.type.startsWith("image/")) {
-      handleError(new Error("Cover must be an image"));
+    if (!assertFileAllowed(file, true)) {
       return;
     }
-    if (value?.url.startsWith("blob:")) {
-      // MOCK — revoke blob URL from local preview; not needed after API upload.
-      URL.revokeObjectURL(value.url);
+
+    setUploading(true);
+    try {
+      const item = await uploadMediaFile(file);
+      if (value) {
+        revokeIfBlobUrl(value.url);
+      }
+      onChange(item);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setUploading(false);
     }
-    onChange({
-      id: newMediaId(),
-      kind: "IMAGE",
-      // MOCK — blob preview URL; replace with uploaded asset URL from API.
-      url: URL.createObjectURL(file),
-      name: file.name || "cover",
-      mimeType: file.type,
-    });
   }
 
   return (
@@ -300,11 +396,17 @@ export function CoverImageField({
       <div>
         <p className="text-sm font-medium">Cover image</p>
         <FieldDescription>
-          One image used on the properties list for quick recognition.
+          One image used on the properties list for quick recognition
+          (JPEG/PNG/WebP).
         </FieldDescription>
       </div>
 
-      {value ? (
+      {uploading ? (
+        <div className="flex h-28 w-full flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground sm:w-48">
+          <Loader2Icon className="size-5 animate-spin" />
+          <span className="text-xs">Uploading…</span>
+        </div>
+      ) : value ? (
         <div className="flex items-start gap-3">
           <MediaThumb
             item={value}
@@ -320,10 +422,7 @@ export function CoverImageField({
                   size="icon-xs"
                   aria-label="Remove cover"
                   onClick={() => {
-                    if (value.url.startsWith("blob:")) {
-                      // MOCK — revoke blob URL from local preview.
-                      URL.revokeObjectURL(value.url);
-                    }
+                    revokeIfBlobUrl(value.url);
                     onChange(null);
                   }}
                 >
@@ -340,7 +439,7 @@ export function CoverImageField({
                 </span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={COVER_ACCEPT}
                   className="sr-only"
                   onChange={(event) => {
                     void onPick(event.target.files);
@@ -360,7 +459,7 @@ export function CoverImageField({
           <span className="text-xs">Upload cover</span>
           <input
             type="file"
-            accept="image/*"
+            accept={COVER_ACCEPT}
             className="sr-only"
             onChange={(event) => {
               void onPick(event.target.files);
