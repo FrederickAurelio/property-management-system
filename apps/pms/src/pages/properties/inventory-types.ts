@@ -66,6 +66,8 @@ export type UnitType = {
   bedroomCount: number;
   bathroomCount: number;
   maxGuests: number;
+  /** Default rack rate per night in IDR (whole rupiah, no decimals). */
+  defaultPriceIdr: number;
   bedConfig: BedConfigRoom[];
   amenities: Amenities;
   /** Ordered gallery — first IMAGE is the card thumbnail */
@@ -129,6 +131,38 @@ export function formatLayout(layout: UnitLayout): string {
     case "OTHER":
       return "Other";
   }
+}
+
+/** Format whole-rupiah amounts for display (e.g. Rp450.000). */
+export function formatIdr(amount: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+/** Thousand-separated digits for an IDR input (e.g. "450000" → "450.000"). */
+export function formatIdrInput(digits: string): string {
+  if (!digits) {
+    return "";
+  }
+  const n = Number(digits);
+  if (!Number.isFinite(n)) {
+    return "";
+  }
+  return new Intl.NumberFormat("id-ID", {
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+/** Keep only digits from a currency-masked IDR input (no leading zeros). */
+export function digitsFromIdrInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) {
+    return "";
+  }
+  return String(Number(digits));
 }
 
 /** First image in gallery order — used for unit-type cards. */

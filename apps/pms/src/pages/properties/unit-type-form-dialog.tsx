@@ -12,6 +12,12 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -26,6 +32,8 @@ import { AmenitiesField } from "./amenities-field";
 import { BedConfigField } from "./bed-config-field";
 import {
   EMPTY_AMENITIES,
+  digitsFromIdrInput,
+  formatIdrInput,
   type Amenities,
   type BedConfigRoom,
   type MediaItem,
@@ -64,6 +72,7 @@ const schema = z
     sizeSqm: z.string().trim(),
     bathroomCount: z.string().trim(),
     maxGuests: z.string().trim(),
+    defaultPriceIdr: z.string().trim(),
     description: z.string().trim().max(2000),
     smokingAllowed: z.enum(["true", "false"]),
     isActive: z.enum(["true", "false"]),
@@ -136,6 +145,20 @@ const schema = z
         message: "Enter 1–50",
       });
     }
+    const price = Number(values.defaultPriceIdr);
+    if (
+      values.defaultPriceIdr === "" ||
+      Number.isNaN(price) ||
+      !Number.isInteger(price) ||
+      price < 0 ||
+      price > 100_000_000
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["defaultPriceIdr"],
+        message: "Enter a whole IDR amount (0–100.000.000)",
+      });
+    }
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -147,6 +170,7 @@ const emptyDefaults: FormValues = {
   sizeSqm: "",
   bathroomCount: "1",
   maxGuests: "2",
+  defaultPriceIdr: "",
   description: "",
   smokingAllowed: "false",
   isActive: "true",
@@ -190,6 +214,7 @@ export function UnitTypeFormDialog({
             sizeSqm: unitType.sizeSqm != null ? String(unitType.sizeSqm) : "",
             bathroomCount: String(unitType.bathroomCount),
             maxGuests: String(unitType.maxGuests),
+            defaultPriceIdr: String(unitType.defaultPriceIdr),
             description: unitType.description ?? "",
             smokingAllowed: unitType.smokingAllowed ? "true" : "false",
             isActive: unitType.isActive ? "true" : "false",
@@ -213,6 +238,7 @@ export function UnitTypeFormDialog({
         bedroomCount,
         bathroomCount: Number(values.bathroomCount),
         maxGuests: Number(values.maxGuests),
+        defaultPriceIdr: Number(values.defaultPriceIdr),
         description: values.description || null,
         smokingAllowed: values.smokingAllowed === "true",
         isActive: values.isActive === "true",
@@ -404,6 +430,42 @@ export function UnitTypeFormDialog({
               )}
             />
           </div>
+          <Controller
+            control={form.control}
+            name="defaultPriceIdr"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid || undefined}>
+                <FieldLabel htmlFor="type-price">Default price</FieldLabel>
+                <InputGroup>
+                  <InputGroupAddon>
+                    <InputGroupText>Rp</InputGroupText>
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="type-price"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="0"
+                    className="tabular-nums"
+                    aria-invalid={fieldState.invalid || undefined}
+                    value={formatIdrInput(field.value)}
+                    onBlur={field.onBlur}
+                    onChange={(event) => {
+                      field.onChange(digitsFromIdrInput(event.target.value));
+                    }}
+                    name={field.name}
+                    ref={field.ref}
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupText>/ night</InputGroupText>
+                  </InputGroupAddon>
+                </InputGroup>
+                <p className="text-xs text-muted-foreground">
+                  Rack rate — whole rupiah, no decimals
+                </p>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
           <div className="grid grid-cols-2 gap-3">
             <Field>
               <FieldLabel>Bedrooms</FieldLabel>

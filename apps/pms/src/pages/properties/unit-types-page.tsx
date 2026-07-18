@@ -21,7 +21,7 @@ import {
 import { useExplorerSearchParams } from "@/components/explorer/explorer-params";
 import { ExplorerToolbar } from "./explorer-toolbar";
 import { useInventoryAccess } from "./inventory-access";
-import { formatLayout, firstImageUrl, type UnitType } from "./inventory-types";
+import { formatLayout, formatIdr, firstImageUrl, type UnitType } from "./inventory-types";
 import { countAmenities, formatBedSummary } from "./amenity-catalog";
 // MOCK — replace imports with API client + useMutation when backend is wired.
 import {
@@ -148,6 +148,7 @@ export function UnitTypesPage() {
               formatLayout(unitType.layout),
               unitType.sizeSqm != null ? `${unitType.sizeSqm} m²` : null,
               `Max ${unitType.maxGuests}`,
+              `${formatIdr(unitType.defaultPriceIdr)}/night`,
               beds,
               amenityCount > 0
                 ? `${amenityCount} amenit${amenityCount === 1 ? "y" : "ies"}`

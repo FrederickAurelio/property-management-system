@@ -121,6 +121,7 @@ const seed: InventoryState = {
       bedroomCount: 2,
       bathroomCount: 1,
       maxGuests: 3,
+      defaultPriceIdr: 650_000,
       bedConfig: [
         { room: "Bedroom 1", beds: [{ type: "DOUBLE", count: 1 }] },
         { room: "Bedroom 2", beds: [{ type: "SINGLE", count: 1 }] },
@@ -147,6 +148,7 @@ const seed: InventoryState = {
       bedroomCount: 3,
       bathroomCount: 1,
       maxGuests: 3,
+      defaultPriceIdr: 850_000,
       bedConfig: [
         { room: "Bedroom 1", beds: [{ type: "DOUBLE", count: 1 }] },
         { room: "Bedroom 2", beds: [{ type: "SINGLE", count: 1 }] },
@@ -173,6 +175,7 @@ const seed: InventoryState = {
       bedroomCount: 0,
       bathroomCount: 1,
       maxGuests: 2,
+      defaultPriceIdr: 550_000,
       bedConfig: [
         { room: "Studio", beds: [{ type: "LARGE_DOUBLE", count: 1 }] },
       ],
@@ -197,6 +200,7 @@ const seed: InventoryState = {
       bedroomCount: 0,
       bathroomCount: 1,
       maxGuests: 2,
+      defaultPriceIdr: 450_000,
       bedConfig: [
         { room: "Studio", beds: [{ type: "LARGE_DOUBLE", count: 1 }] },
       ],
@@ -221,6 +225,7 @@ const seed: InventoryState = {
       bedroomCount: 0,
       bathroomCount: 1,
       maxGuests: 2,
+      defaultPriceIdr: 400_000,
       bedConfig: [
         { room: "Studio", beds: [{ type: "LARGE_DOUBLE", count: 1 }] },
       ],
@@ -247,6 +252,7 @@ const seed: InventoryState = {
       bedroomCount: 1,
       bathroomCount: 1,
       maxGuests: 2,
+      defaultPriceIdr: 750_000,
       bedConfig: [
         { room: "Bedroom 1", beds: [{ type: "QUEEN", count: 1 }] },
       ],
@@ -467,6 +473,7 @@ export type UnitTypeInput = {
   bedroomCount: number;
   bathroomCount: number;
   maxGuests: number;
+  defaultPriceIdr: number;
   bedConfig?: UnitType["bedConfig"];
   amenities?: UnitType["amenities"];
   media?: UnitType["media"];
@@ -600,6 +607,7 @@ export function createUnitType(
     bedroomCount: input.bedroomCount,
     bathroomCount: input.bathroomCount,
     maxGuests: input.maxGuests,
+    defaultPriceIdr: input.defaultPriceIdr,
     bedConfig: input.bedConfig ?? [],
     amenities: input.amenities
       ? structuredClone(input.amenities)
@@ -642,6 +650,7 @@ export function updateUnitType(id: string, input: UnitTypeInput): UnitType {
     bedroomCount: input.bedroomCount,
     bathroomCount: input.bathroomCount,
     maxGuests: input.maxGuests,
+    defaultPriceIdr: input.defaultPriceIdr,
     bedConfig: input.bedConfig ?? existing.bedConfig,
     amenities: input.amenities
       ? structuredClone(input.amenities)
