@@ -1,5 +1,5 @@
 /* anchor: Linear infinite list footer, diverge: sentinel vs next-page retry */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useInView } from "react-intersection-observer";
 import { QueryRetryButton } from "@/components/query-retry-button";
 import { Spinner } from "@/components/ui/spinner";
@@ -16,6 +16,7 @@ type InfiniteListFooterProps = {
 /**
  * Infinite-scroll footer for offset lists.
  * On next-page error: unmount sentinel and show retry (avoids inView fetch loop).
+ * `fetchNextPage` is read via ref so unstable inline lambdas do not re-trigger fetch.
  */
 export function InfiniteListFooter({
   hasNextPage,
@@ -27,6 +28,11 @@ export function InfiniteListFooter({
   const { ref, inView } = useInView({
     rootMargin: "200px 0px",
   });
+  const fetchNextPageRef = useRef(fetchNextPage);
+
+  useEffect(() => {
+    fetchNextPageRef.current = fetchNextPage;
+  }, [fetchNextPage]);
 
   useEffect(() => {
     if (
@@ -37,14 +43,8 @@ export function InfiniteListFooter({
     ) {
       return;
     }
-    fetchNextPage();
-  }, [
-    inView,
-    hasNextPage,
-    isFetchingNextPage,
-    isFetchNextPageError,
-    fetchNextPage,
-  ]);
+    fetchNextPageRef.current();
+  }, [inView, hasNextPage, isFetchingNextPage, isFetchNextPageError]);
 
   if (isFetchNextPageError) {
     return (

@@ -54,13 +54,19 @@ export function formatLayout(layout: UnitLayout): string {
   }
 }
 
+const idrCurrencyFormat = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0,
+});
+
+const idrDigitsFormat = new Intl.NumberFormat("id-ID", {
+  maximumFractionDigits: 0,
+});
+
 /** Format whole-rupiah amounts for display (e.g. Rp450.000). */
 export function formatIdr(amount: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return idrCurrencyFormat.format(amount);
 }
 
 /** Thousand-separated digits for an IDR input (e.g. "450000" → "450.000"). */
@@ -72,9 +78,7 @@ export function formatIdrInput(digits: string): string {
   if (!Number.isFinite(n)) {
     return "";
   }
-  return new Intl.NumberFormat("id-ID", {
-    maximumFractionDigits: 0,
-  }).format(n);
+  return idrDigitsFormat.format(n);
 }
 
 /** Keep only digits from a currency-masked IDR input (no leading zeros). */
@@ -84,6 +88,21 @@ export function digitsFromIdrInput(raw: string): string {
     return "";
   }
   return String(Number(digits));
+}
+
+/** Cap digit string at `max` (inclusive). Empty stays empty. */
+export function clampDigitsToMax(digits: string, max: number | null): string {
+  if (digits === "" || max == null || !Number.isFinite(max) || max < 0) {
+    return digits;
+  }
+  const n = Number(digits);
+  if (!Number.isFinite(n)) {
+    return digits;
+  }
+  if (n > max) {
+    return String(Math.floor(max));
+  }
+  return digits;
 }
 
 export function hasCoordinates(

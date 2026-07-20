@@ -8,7 +8,7 @@ import {
 import type { StaffProperty } from "@cabin/api-contract";
 import { Building2Icon } from "lucide-react";
 import { InfiniteListFooter } from "@/components/infinite-list-footer";
-import { QueryRetryButton } from "@/components/query-retry-button";
+import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -102,17 +102,13 @@ export function PropertiesPage() {
       {listQuery.isPending && <ExplorerGridSkeleton view={view} />}
 
       {listQuery.isError && !listQuery.data && (
-        <div className="flex flex-col items-start gap-3 rounded-lg border border-border px-4 py-6">
-          <p className="text-sm text-muted-foreground">
-            Couldn’t load properties. Check your connection and try again.
-          </p>
-          <QueryRetryButton
-            onRetry={() => {
-              void listQuery.refetch();
-            }}
-            isRetrying={listQuery.isFetching}
-          />
-        </div>
+        <QueryErrorPanel
+          message="Couldn’t load properties. Check your connection and try again."
+          onRetry={() => {
+            void listQuery.refetch();
+          }}
+          isRetrying={listQuery.isFetching}
+        />
       )}
 
       {listQuery.data && items.length === 0 && (

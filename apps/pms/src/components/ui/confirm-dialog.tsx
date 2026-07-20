@@ -19,6 +19,8 @@ type ConfirmDialogProps = {
   cancelLabel?: string;
   /** Destructive styles the confirm action (revoke, etc.). */
   variant?: "default" | "destructive";
+  /** Extra classes on the confirm button (e.g. ops action colors). */
+  confirmClassName?: string;
   confirmDisabled?: boolean;
   onConfirm: () => void;
 };
@@ -35,6 +37,7 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   variant = "default",
+  confirmClassName,
   confirmDisabled = false,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -61,6 +64,7 @@ export function ConfirmDialog({
           <Button
             type="button"
             variant={isDestructive ? "destructive" : "default"}
+            className={confirmClassName}
             disabled={confirmDisabled}
             onClick={() => {
               onConfirm();

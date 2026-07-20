@@ -1,6 +1,6 @@
 # apps/api
 
-NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, availability, staff auth, and ops. Serves `pms` (Phase 1) and `web` (Phase 2).
+NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, availability, staff auth, and ops. Serves production **staff PMS** now (`pms`) and later **public web** (`/public` — Phase 2 customer FE only).
 
 ## Status
 
@@ -9,7 +9,8 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Staff CRUD:** SUPER_ADMIN-only list / create / change role / revoke-restore — `/staff/admins`
 - **Inventory CRUD:** `Property` / `UnitType` / `Unit` (15 endpoints) — `/staff/properties|unit-types|units`; reads `FRONT_DESK+`; writes `ADMIN+`
 - **Media upload-intent:** Cloudinary signed params — `POST /staff/media/upload-intent` (`ADMIN+`); Nest does not proxy file bytes
-- **Not yet:** reservations / calendar / permission matrix; public/web HTTP (`src/public/` scaffold only)
+- **Not yet:** Prisma `Reservation` / Nest `/staff/reservations` / calendar / iCal (PMS desk UI is fixture-backed against the locked design until then)
+- **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `nights × defaultPriceIdr` (`suggestStayTotalIdr` in `@cabin/api-contract`)
 
 ## Stack (locked)
 
@@ -25,17 +26,17 @@ One API, two HTTP audiences. Folders and URL prefixes must match.
 ```text
 src/staff/     → PMS HTTP only (`/staff/...` + StaffSessionAuthGuard / StaffRoles)
 src/domain/    → Shared services, input DTOs, mappers — no controllers
-src/public/    → Web HTTP only (`/public/...`) — Phase 2; empty module until then
+src/public/    → Web HTTP only (`/public/...`) — Phase 2 customer book; empty until then
 src/common/    → Cross-cutting (http envelope, pagination base, staff mapper helpers)
 ```
 
 | New feature | Put HTTP in | Put logic in |
 |-------------|-------------|--------------|
 | Staff-only (auth, admin users, ops settings) | `staff/<feature>/` | same folder OK |
-| Shared later with web (inventory, availability, bookings core) | `staff/<feature>/` now; `public/<feature>/` when needed | `domain/<feature>/` |
+| Shared with web later (inventory, availability, **reservations/money**) | `staff/<feature>/` now; `public/<feature>/` in Phase 2 | `domain/<feature>/` **from day one** |
 | Web-only | `public/<feature>/` | `domain/` if reusable, else under `public/` |
 
-Future modules (reservations, calendar, reports, ingest, ical) follow the same table — **not** a flat `src/reservations` with an audience-neutral `/reservations` controller.
+Reservations, calendar, reports, iCal follow the same table — **not** a flat audience-neutral `/reservations` controller. Build reservation **schema + domain** for prod staff now (incl. payment summary); public book only adds HTTP later. **No email ingest module.**
 
 Rule: [`.cursor/rules/api-audience.mdc`](../../.cursor/rules/api-audience.mdc).
 
@@ -156,21 +157,22 @@ Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`)
 
 ## Security
 
-**Phase 1 (staff PMS):** CORS allowlist, sessions + Guards. Add helmet + login rate-limit soon.
+**Phase 1 (staff PMS prod):** CORS allowlist, sessions + Guards. Add helmet + login rate-limit soon.
 
-**Later (public `web`):** [Arcjet](https://docs.arcjet.com) on the **API only**.
+**Phase 2 (public `web`):** [Arcjet](https://docs.arcjet.com) on the **API only** — does not change reservation/money domain rules.
 
 ## Phase 1 build order
 
 1. Staff auth + roles ← **done** (auth + SUPER_ADMIN staff CRUD)
 2. Inventory CRUD (property / unit type / unit) ← **done**
-3. Reservations CRUD + availability (overlap enforced in DB)
+3. Reservations CRUD + money/DP summary + availability (overlap in DB) — see `_docs/reservations-design.md`
 4. Check-in / check-out
 5. Basic reports
-6. Email ingest → draft → notify → confirm
-7. iCal import + Sync now
+6. iCal import + Sync now (`UNCONFIRMED` → enrich)
 
-Reservation `source`: `manual` | `website` | `booking_com` | `airbnb` | `agoda`
+Reservation `source`: `manual` | `website` (enum now, public write in Phase 2) | `booking_com` | `airbnb` | `agoda`  
+Ops `status` ≠ money: `CONFIRMED` is not “paid”. Money: `totalAmountIdr` (quote) + append-only `PaymentMovement` cash lines; `paidAmountIdr` = sum(movements); `paymentStatus` (`UNPAID` | `DEPOSIT` | `PAID` | `REFUNDED`). Nest must append movements — do not overwrite Paid alone. Cancel partial takes `refundAmountIdr` (money OUT), not remaining Paid.  
+Statuses: `UNCONFIRMED` | `CONFIRMED` | `CHECKED_IN` | `CHECKED_OUT` | `CANCELLED` | `NO_SHOW` — **no** `DRAFT` / email ingest.
 
 ## Domain model
 
@@ -178,7 +180,7 @@ Reservation `source`: `manual` | `website` | `booking_com` | `airbnb` | `agoda`
 property → unit_type (optional) → unit → reservations / blocks
 ```
 
-One calendar per unit. Confirmed stays must not overlap on the same unit (Postgres exclusion / transactional write).
+One calendar per unit. Occupying stays must not overlap on the same unit (Postgres exclusion / transactional write).
 
 ## Code conventions
 
@@ -193,12 +195,14 @@ One calendar per unit. Confirmed stays must not overlap on the same unit (Postgr
 - Scrape OTAs or remote “Import now”
 - Second database for bookings
 - Trust UI-only overlap checks
+- Defer reservation money/DP to Phase 2 — staff PMS needs it for live walk-in/OTA ops
+- OTA email ingest / parsers — out of scope; iCal + staff enrich
 - Channel Manager in Phase 1
-- Mix guest `User` with `Admin` (guests are Phase 2)
+- Mix guest `User` with `Admin` (guest identity is Phase 2 web)
 - Put Arcjet (or API secrets) in the frontend
 - Audience-neutral app API paths (`/properties`, `/admins`) — use `/staff/...` or `/public/...`
 - Controllers (or guards) under `domain/`
 - Unguard `/staff/*` for the website — add a `public/` controller that calls `domain/` instead
 - Reuse `Staff*` wire types as the public catalog contract without a deliberate public DTO
 
-Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`
+Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md` · Reservations: `_docs/reservations-design.md`

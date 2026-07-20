@@ -1,4 +1,4 @@
-/* anchor: Linear list/grid items, diverge: ⋯ menu for admins, direct View icon for FRONT_DESK */
+/* anchor: Linear list/grid items, diverge: ⋯ menu for admins, select mode for pickers */
 import type { MouseEvent, ReactNode } from "react";
 import { Link } from "react-router";
 import { EyeIcon, ImageIcon, MoreHorizontalIcon } from "lucide-react";
@@ -32,8 +32,12 @@ type ExplorerItemProps = {
   /** Cover / first gallery image */
   imageUrl?: string | null;
   canManage?: boolean;
-  onEdit: () => void;
+  /** Inventory CRUD edit/view. Optional in picker mode. */
+  onEdit?: () => void;
   onDelete?: () => void;
+  /** Picker / select mode — click card without navigating. */
+  onSelect?: () => void;
+  selected?: boolean;
 };
 
 function Thumb({ url, title }: { url?: string | null; title: string }) {
@@ -104,8 +108,12 @@ export function ExplorerItem({
   canManage = true,
   onEdit,
   onDelete,
+  onSelect,
+  selected = false,
 }: ExplorerItemProps) {
-  const actions = canManage ? (
+  const showActions = Boolean(onEdit);
+
+  const actions = !showActions ? null : canManage ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
@@ -125,7 +133,7 @@ export function ExplorerItem({
         <DropdownMenuGroup>
           <DropdownMenuItem
             onSelect={() => {
-              onEdit();
+              onEdit?.();
             }}
           >
             Edit
@@ -153,17 +161,24 @@ export function ExplorerItem({
       label="View"
       onClick={(event) => {
         stopNav(event);
-        onEdit();
+        onEdit?.();
       }}
     >
       <EyeIcon />
     </IconAction>
   );
 
+  const selectedClass = selected
+    ? "border-ring bg-muted/50 ring-1 ring-ring"
+    : undefined;
+  const interactiveClass =
+    href || onSelect ? "hover:bg-muted/40 cursor-pointer" : undefined;
+
   if (view === "grid") {
     const className = cn(
       "flex flex-col overflow-hidden rounded-lg border border-border bg-card text-left transition-colors",
-      href && "hover:bg-muted/40",
+      interactiveClass,
+      selectedClass,
     );
 
     const content = (
@@ -181,9 +196,13 @@ export function ExplorerItem({
               {meta}
             </p>
           </div>
-          <div className={href ? "pointer-events-auto relative z-10" : undefined}>
-            {actions}
-          </div>
+          {actions && (
+            <div
+              className={href || onSelect ? "pointer-events-auto relative z-10" : undefined}
+            >
+              {actions}
+            </div>
+          )}
         </div>
       </>
     );
@@ -202,12 +221,27 @@ export function ExplorerItem({
       );
     }
 
+    if (onSelect) {
+      return (
+        <button
+          type="button"
+          className={cn(className, "w-full")}
+          aria-pressed={selected}
+          aria-label={`Select ${title}`}
+          onClick={onSelect}
+        >
+          {content}
+        </button>
+      );
+    }
+
     return <div className={className}>{content}</div>;
   }
 
   const rowClass = cn(
     "flex min-h-11 items-center gap-3 rounded-lg border border-border px-3 py-2 transition-colors",
-    href && "hover:bg-muted/40",
+    interactiveClass,
+    selectedClass,
   );
 
   const rowBody = (
@@ -249,8 +283,24 @@ export function ExplorerItem({
             </p>
           </div>
         </div>
-        <div className="relative z-10 pointer-events-auto">{actions}</div>
+        {actions && (
+          <div className="relative z-10 pointer-events-auto">{actions}</div>
+        )}
       </div>
+    );
+  }
+
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        className={cn(rowClass, "w-full text-left")}
+        aria-pressed={selected}
+        aria-label={`Select ${title}`}
+        onClick={onSelect}
+      >
+        {rowBody}
+      </button>
     );
   }
 

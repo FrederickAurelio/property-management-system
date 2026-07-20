@@ -30,7 +30,6 @@ import { Input } from "@/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
-  InputGroupInput,
   InputGroupText,
 } from "@/components/ui/input-group";
 import {
@@ -55,7 +54,7 @@ import {
 } from "@/lib/api";
 import { AmenitiesField } from "./amenities-field";
 import { BedConfigField } from "./bed-config-field";
-import { digitsFromIdrInput, formatIdrInput } from "./inventory-types";
+import { IdrAmountInput } from "@/components/form/idr-amount-input";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 import { SortableMediaField } from "@/components/media/sortable-media-field";
 
@@ -475,18 +474,15 @@ export function UnitTypeFormDialog({
                   <InputGroupAddon>
                     <InputGroupText>Rp</InputGroupText>
                   </InputGroupAddon>
-                  <InputGroupInput
+                  <IdrAmountInput
                     id="type-price"
-                    inputMode="numeric"
-                    autoComplete="off"
+                    data-slot="input-group-control"
                     placeholder="0"
-                    className="tabular-nums"
+                    className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent"
                     aria-invalid={fieldState.invalid || undefined}
-                    value={formatIdrInput(field.value)}
+                    value={field.value}
+                    onValueChange={field.onChange}
                     onBlur={field.onBlur}
-                    onChange={(event) => {
-                      field.onChange(digitsFromIdrInput(event.target.value));
-                    }}
                     name={field.name}
                     ref={field.ref}
                   />

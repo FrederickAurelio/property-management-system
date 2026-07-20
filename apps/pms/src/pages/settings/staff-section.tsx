@@ -16,7 +16,7 @@ import {
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { QueryRetryButton } from "@/components/query-retry-button";
+import { QueryErrorPanel } from "@/components/query-error-panel";
 import { ReauthPasswordDialog } from "@/components/reauth-password-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -386,17 +386,13 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
 
   if (listQuery.isError) {
     return (
-      <div className="flex flex-col items-start gap-3 rounded-lg border border-border px-4 py-6">
-        <p className="text-sm text-muted-foreground">
-          Couldn’t load staff. Check your connection and try again.
-        </p>
-        <QueryRetryButton
-          onRetry={() => {
-            void listQuery.refetch();
-          }}
-          isRetrying={listQuery.isFetching}
-        />
-      </div>
+      <QueryErrorPanel
+        message="Couldn’t load staff. Check your connection and try again."
+        onRetry={() => {
+          void listQuery.refetch();
+        }}
+        isRetrying={listQuery.isFetching}
+      />
     );
   }
 

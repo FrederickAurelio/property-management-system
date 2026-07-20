@@ -1,6 +1,6 @@
 # apps/pms
 
-Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to `apps/api`.
+Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for live desk ops (manual + OTA). Talks only to `apps/api`. Phase 2 customer book is `apps/web` — not a reason to skip money/DP or reservation completeness here.
 
 ## Status
 
@@ -12,7 +12,9 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 frontend.** Talks only to
 - Axios API client: `src/lib/api` (session cookies + envelope unwrap + Sonner helpers)
 - RHF + Zod + shadcn `Field` / `Controller` (login + inventory forms wired)
 - Inventory explorer wired to Nest (`/staff/properties|unit-types|units`) — infinite lists + CRUD
-- **Not yet:** reservations / calendar / check-in ops screens
+- Reservations Depth B+C (fixture-backed until Nest): boards · Choose unit · Collect/Cancel as **cash movements** · Paid = sum(movements) · early check-in · Total = `nights × defaultPriceIdr` (Paid unchanged on date change; Refund when Paid > Total)
+- **Not yet:** Nest reservations API · calendar · check-in route · iCal sync UI · stay-date availability blackout · no-show / Accept-iCal actions
+- **Design:** [`_docs/reservations-design.md`](../../_docs/reservations-design.md)
 
 ## Stack (locked)
 
@@ -72,24 +74,25 @@ pnpm --filter @cabin/pms format
 
 Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 
-## Phase 1 screens
+## Phase 1 screens (prod desk)
 
-1. Staff login
-2. Units CRUD
-3. Calendar (busy/free per unit)
-4. Manual reservations
-5. Check-in / check-out + daily arrivals/departures
-6. Basic reports
-7. Quick-confirm (pre-filled draft → Confirm)
-8. Optional: Sync now + “refresh OTA if urgent” checklist
+1. Staff login ← **done**
+2. Inventory CRUD ← **done**
+3. Calendar (busy/free per unit) ← not yet
+4. Manual reservations (Choose unit · rack Total · money/DP · boards) ← **PMS fixture done**; Nest next
+5. Check-in / check-out + Collect/Cancel ← **PMS fixture done** on detail; Nest next
+6. Basic reports ← not yet
+7. iCal Sync now + `UNCONFIRMED` enrich queue ← board/warning UI only; Nest + feeds not yet
+
+Optional: checklist “refresh OTA if urgent” (staff does it in the OTA UI — PMS does not remote-click).
 
 ## UX
 
 - **Responsive web + mobile** — staff use desk and handheld; plan both from the start (`.cursor/rules/pms-ui.mdc`)
 - Optimize for front-desk speed, not marketing
-- Quick-confirm = review draft, minimal typing
 - Honor roles from API (`SUPER_ADMIN` | `ADMIN` | `FRONT_DESK`)
 - Be honest about iCal delay; never promise zero conflicts
+- iCal stubs need human enrich for guest + money — that is expected, not a bug
 
 ### UI skills (PMS only)
 
@@ -106,10 +109,11 @@ Anchor DNA: **Linear-dense / Stripe-data**. No purple gradients, glowing status 
 
 ## Don’t
 
-- Public guest browse/book flows (that’s `apps/web`)
+- Public guest browse/book flows (that’s `apps/web` Phase 2 — same API reservation model)
+- Skip money/DP on staff reservation screens because “web will handle payment later”
 - Call OTAs from the browser
 - Invent local booking truth that bypasses the API
 - Put tokens in `localStorage` (session cookie only)
 - Use `npm i` inside this folder (pnpm from repo root only)
 
-Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`
+Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md` · Reservations: `_docs/reservations-design.md`

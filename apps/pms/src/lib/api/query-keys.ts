@@ -1,7 +1,47 @@
-import type { UnitStatus } from "@cabin/api-contract";
+import type {
+  PaymentStatus,
+  ReservationSource,
+  ReservationStatus,
+  UnitStatus,
+} from "@cabin/api-contract";
 
 export const staffSessionQueryKey = ["staff", "session"] as const;
 export const staffAdminsQueryKey = ["staff", "admins"] as const;
+
+export type ReservationBoard =
+  | "arrivals"
+  | "in-house"
+  | "departures"
+  | "needs-details"
+  | "ical-alerts"
+  | "balance-due"
+  | "all";
+
+/** Prefix — use with `invalidateQueries` to refresh all reservation lists. */
+export const staffReservationsQueryKeyPrefix = ["staff", "reservations"] as const;
+
+export type StaffReservationsListFilters = {
+  propertyId?: string;
+  q?: string;
+  status?: ReservationStatus;
+  source?: ReservationSource;
+  board?: ReservationBoard;
+  checkInDate?: string;
+  checkOutDate?: string;
+  hasIcalWarning?: boolean;
+  paymentStatusIn?: PaymentStatus[];
+  occupyingOnly?: boolean;
+};
+
+export function staffReservationsQueryKey(
+  filters: StaffReservationsListFilters = {},
+) {
+  return [...staffReservationsQueryKeyPrefix, "list", filters] as const;
+}
+
+export function staffReservationQueryKey(id: string) {
+  return [...staffReservationsQueryKeyPrefix, "detail", id] as const;
+}
 
 /** Prefix — use with `invalidateQueries` to refresh all property lists. */
 export const staffPropertiesQueryKeyPrefix = ["staff", "properties"] as const;
@@ -13,6 +53,14 @@ export type StaffPropertiesListFilters = {
 
 export function staffPropertiesQueryKey(filters: StaffPropertiesListFilters = {}) {
   return [...staffPropertiesQueryKeyPrefix, "list", filters] as const;
+}
+
+/**
+ * Lightweight property options (id/name) — not infinite-list `Paginated` pages.
+ * Do not reuse `staffPropertiesQueryKey` here; that key stores `InfiniteData`.
+ */
+export function staffPropertiesOptionsQueryKey() {
+  return [...staffPropertiesQueryKeyPrefix, "options"] as const;
 }
 
 export function staffPropertyQueryKey(id: string) {

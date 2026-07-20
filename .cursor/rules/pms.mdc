@@ -8,8 +8,8 @@ alwaysApply: false
 
 Concern rules layer on via tighter globs (`pms-api`, `pms-query`, `pms-ui`). Map: [`.cursor/rules/README.md`](README.md).
 
-- React + Vite + Tailwind + shadcn. Staff ops only → `apps/api`.
+- React + Vite + Tailwind + shadcn. **Prod staff ops** only → `apps/api` (live manual + OTA; money/DP in Phase 1).
 - UI/UX: always read `shadcn` + `product-ui-design` skills; apply with judgment — `pms-ui.mdc`.
 - Server state (query/mutate/errors): `pms-query.mdc`.
-- Calendar, reservations, check-in/out, quick-confirm first.
-- Read `apps/pms/AGENTS.md`.
+- Reservations desk (boards, Choose unit, Collect/Cancel as cash movements, rack Total, timeline) is fixture-backed until Nest; calendar / iCal / reports next.
+- Read `apps/pms/AGENTS.md` + `_docs/reservations-design.md` (Paid = sum(movements); Total = nights × `defaultPriceIdr`).

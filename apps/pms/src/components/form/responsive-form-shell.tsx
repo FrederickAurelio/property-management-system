@@ -73,7 +73,7 @@ export function ResponsiveFormShell({
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto py-1">{children}</div>
+        <div className="max-h-[70vh] overflow-y-auto px-1 py-1">{children}</div>
         <DialogFooter>{footer}</DialogFooter>
       </DialogContent>
     </Dialog>

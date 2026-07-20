@@ -6,3 +6,4 @@ export * from './staff-credentials.js';
 export * from './field-error.js';
 export * from './pagination.js';
 export * from './inventory.js';
+export * from './reservations.js';

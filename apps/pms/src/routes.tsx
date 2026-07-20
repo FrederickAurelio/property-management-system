@@ -8,6 +8,8 @@ import { PropertiesPage } from "@/pages/properties/properties-page";
 import { PropertyExplorerLayout } from "@/pages/properties/property-explorer-layout";
 import { UnitTypesPage } from "@/pages/properties/unit-types-page";
 import { UnitsPage } from "@/pages/properties/units-page";
+import { ReservationDetailPage } from "@/pages/reservations/reservation-detail-page";
+import { ReservationsPage } from "@/pages/reservations/reservations-page";
 import { SettingsPage } from "@/pages/settings/settings-page";
 
 export function AppRoutes() {
@@ -22,9 +24,10 @@ export function AppRoutes() {
             path="calendar"
             element={<PlaceholderPage title="Calendar" />}
           />
+          <Route path="reservations" element={<ReservationsPage />} />
           <Route
-            path="reservations"
-            element={<PlaceholderPage title="Reservations" />}
+            path="reservations/:reservationId"
+            element={<ReservationDetailPage />}
           />
           <Route
             path="check-in"

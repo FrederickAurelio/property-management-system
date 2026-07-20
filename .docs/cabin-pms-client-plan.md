@@ -10,15 +10,16 @@
 | Item | Decision |
 |------|----------|
 | Product path | **Custom PMS (Approach B)** |
-| OTA strategy (now) | **B2** — keep their iCal; improve ops with ping + PMS |
+| OTA strategy (now) | **B2** — keep their iCal; PMS imports iCal + staff enrich guest/money |
 | OTAs live | **Booking.com · Airbnb · Agoda** |
 | Client sync today | **Confirmed: native iCal** (OTA↔OTA), no paid CM |
 | Channel Manager | **Later (B1)** if volume / double-books / scale needs real-time |
 | Website booking | Planned — triggers **B2b** (PMS as iCal hub) |
+| Email ingest | **Out** — unreliable; not Phase 1 |
 
 ```text
 B) Custom PMS
-   └── B2a (Phase 1)  → ops PMS + email/WhatsApp ping + quick confirm
+   └── B2a (Phase 1)  → ops PMS + iCal import + staff enrich (no email parser)
    └── B2b (Phase 2)  → website booking + PMS iCal hub
    └── B1  (Phase 3+) → optional paid Channel Manager API
 ```
@@ -51,9 +52,9 @@ Even with working OTA iCal:
 
 - Central calendar + reservations for **ops**
 - Check-in / check-out
-- Guests, reports, staff roles
+- Guests, reports, staff roles, money/DP on the reservation
 - Later: **own website booking**
-- Guest details (iCal does not bring reliable guest/payment data) → **email ping + quick confirm**
+- Guest details (iCal does not bring reliable guest/payment data) → **staff enrich** from OTA extranet / guest contact when needed (`UNCONFIRMED` queue)
 
 ---
 
@@ -62,13 +63,14 @@ Even with working OTA iCal:
 ### Phase 1 — B2a (build first)
 
 ```text
-Airbnb ◄──iCal──► Booking.com ◄──iCal──► Agoda     (leave as-is)
+Airbnb ◄──iCal──► Booking.com ◄──iCal──► Agoda     (leave mesh as-is)
          │
-    booking emails
+         │  (PMS also pulls each OTA export .ics)
          ▼
-  Custom PMS  ←── WhatsApp/Telegram ping
-  (ops truth)     quick-confirm draft reservation
-  check-in, reports, staff
+  Custom PMS
+  (ops truth)
+  iCal → UNCONFIRMED stub → staff enrich guest + $
+  check-in, reports, money/DP, staff
 ```
 
 ### Phase 2 — B2b (when website booking ships)
@@ -133,11 +135,12 @@ Staff can speed catch-up: open Airbnb/Agoda → **Refresh / Import now** (no re-
 
 | Capability | Build? | Notes |
 |------------|--------|-------|
-| Import OTA `.ics` on a timer (5–15 min) | **Yes** | Keep PMS calendar fresh |
+| Import OTA `.ics` on a timer (5–15 min) | **Yes** | Keep PMS calendar fresh; create `UNCONFIRMED` |
 | Button **Sync now** (pull into PMS) | **Yes** | |
-| Export PMS `.ics` per unit | **Yes** | For OTAs + website era |
+| Export PMS `.ics` per unit | **Yes** | For OTAs + website era (Phase 2 hub) |
 | Instant update PMS export on website book | **Yes** | OTAs still pull on *their* schedule |
-| Email → WhatsApp ping → quick confirm UI | **Yes** | Core Phase 1 UX |
+| Staff enrich guest + money on iCal stubs | **Yes** | Core ops UX (“Needs details”) |
+| Email → WhatsApp ping → quick confirm UI | **No** | Opted out — fragile / unreliable |
 | Remotely trigger OTA **Import now / Refresh** | **No (official)** | No public API |
 | Browser bot / scrape to click Import now | Hack only | **Do not ship** — fragile, ToS, login risk |
 | Real-time push rates+avail to all OTAs | Needs **CM** | Phase 3 |
@@ -169,22 +172,21 @@ property
 ### Must have
 
 1. **Units** CRUD + calendar view (busy/free).  
-2. **Reservations** — create/edit; sources: `manual`, `website` (later), `booking_com`, `airbnb`, `agoda`.  
+2. **Reservations** — create/edit; sources: `manual`, `website` (later), `booking_com`, `airbnb`, `agoda`; money/DP summary.  
 3. **Check-in / check-out** workflow + statuses.  
 4. **Reports** — occupancy, arrivals/departures, basic revenue by source.  
 5. **Staff auth** + roles (admin / front desk).  
-6. **OTA email ingest** (forward to inbox) → parse best-effort → **WhatsApp/Telegram** notify.  
-7. **Quick confirm** screen (GitHub-PR style): pre-filled draft → human Confirm → save to PMS.  
-8. Optional checklist: “Refresh Airbnb / Agoda if urgent.”
+6. **iCal import** into PMS → `UNCONFIRMED` stubs + **Sync now** + staff enrich queue.  
+7. Optional checklist: “Refresh Airbnb / Agoda if urgent” (manual in OTA UI).
 
 ### Nice soon (still Phase 1.x)
 
-- Import OTA iCal URLs into PMS (read-only blocks / draft bookings).  
-- PMS **Sync now** + cron pull.  
-- Audit log of sync / confirms.
+- Audit log of sync / confirms.  
+- Tighter unpaid / DP boards.
 
 ### Explicitly out of Phase 1
 
+- **OTA email ingest** / WhatsApp ping / quick-confirm parser.  
 - Channel Manager / Channex.  
 - Scraping OTA extranets / remote Import now bots.  
 - Full dynamic pricing.  
@@ -198,18 +200,18 @@ property
 
 ---
 
-## 9. Suggested UX: ping → confirm
+## 9. Suggested UX: iCal → enrich
 
 ```text
-OTA booking email
-    → parser (draft fields)
-    → WhatsApp: "New Booking.com — Open in PMS"
-    → Staff opens pre-filled reservation
-    → Confirm → PMS source of truth
+OTA booking
+    → peer OTA iCal mesh (existing)
+    → PMS pulls .ics (timer / Sync now)
+    → Reservation UNCONFIRMED on unit calendar
+    → Staff “Needs details” → guest + total/paid → Confirm
     → (Optional) Staff refreshes other OTAs if last-minute
 ```
 
-iCal may already block other OTAs on delay; ping is for **ops data + speed**, not replacing iCal.
+iCal owns **availability** in PMS. Staff owns **guest + money** when the OTA feed is blank.
 
 ---
 
@@ -241,8 +243,6 @@ Hotel vs unit billing: unique cabins often billed **per unit** on CM platforms.
 
 - [ ] Exact unit count & naming  
 - [ ] Guest books specific unit vs type only  
-- [ ] Who receives OTA emails today (addresses to forward)  
-- [ ] WhatsApp Business vs Telegram for staff pings  
 - [ ] Website booking timeline  
 - [ ] Double-book history / how often last-minute bookings  
 - [ ] Languages (EN / ID) for staff UI  
@@ -251,19 +251,18 @@ Hotel vs unit billing: unique cabins often billed **per unit** on CM platforms.
 
 ## 13. Build order (start here)
 
-1. Auth + units + calendar + manual reservations  
+1. Auth + units + calendar + manual reservations (+ money/DP)  
 2. Check-in / check-out + daily ops views  
 3. Basic reports  
-4. Email ingest + notify + quick-confirm  
-5. iCal import into PMS + Sync now  
-6. Website booking + iCal export hub (Phase 2)  
-7. Evaluate CM only if needed (Phase 3)
+4. iCal import into PMS + Sync now + enrich queue  
+5. Website booking + iCal export hub (Phase 2)  
+6. Evaluate CM only if needed (Phase 3)
 
 ---
 
 ## 14. One-paragraph pitch (client)
 
-> Kami bangun PMS untuk check-in, kalender, laporan, dan nanti booking di website. Sync Booking / Airbnb / Agoda yang sudah jalan via iCal tetap dipakai. PMS menambah notifikasi + konfirmasi cepat saat ada booking OTA. iCal tidak real-time (delay hitungan jam, risiko double booking kecil tetap ada). Kalau nanti butuh sync harga/real-time, baru pasang Channel Manager.
+> Kami bangun PMS untuk check-in, kalender, laporan, uang/DP, dan nanti booking di website. Sync Booking / Airbnb / Agoda yang sudah jalan via iCal tetap dipakai; PMS juga menarik iCal ke kalender internal (stub → staf lengkapi data tamu). iCal tidak real-time (delay hitungan jam, risiko double booking kecil tetap ada). Tidak ada parser email OTA. Kalau nanti butuh sync harga/real-time, baru pasang Channel Manager.
 
 ---
 

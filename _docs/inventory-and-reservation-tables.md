@@ -110,12 +110,34 @@ ReservationSource
   AGODA
 
 ReservationStatus
-  DRAFT          # quick-confirm / ingest — not on calendar yet (optional Phase 1.x)
+  UNCONFIRMED    # iCal stub — on calendar, needs enrichment
   CONFIRMED
   CHECKED_IN
   CHECKED_OUT
   CANCELLED
   NO_SHOW
+
+PaymentStatus
+  UNPAID
+  DEPOSIT
+  PAID
+  REFUNDED
+
+CollectedVia
+  PROPERTY
+  CHANNEL
+  MIXED
+
+PaymentMovementDirection
+  IN
+  OUT
+
+PaymentMovementKind
+  DEPOSIT
+  TOP_UP
+  REFUND
+  CANCEL_REFUND
+  CHANNEL_SETTLED
 
 CalendarBlockReason
   MAINTENANCE
@@ -123,6 +145,8 @@ CalendarBlockReason
   HOLD
   OTHER
 ```
+
+No `DRAFT` / email ingest — see [`reservations-design.md`](reservations-design.md).
 
 Wire shared enums via `@cabin/api-contract` when FE + API both need them.
 
@@ -186,7 +210,7 @@ Shared product specs for every unit of that kind. Booking room-type detail lives
 | `bedroomCount` | `int` | no | **Derived on write** — see below |
 | `bathroomCount` | `int` | no | default `1` |
 | `maxGuests` | `int` | no | Hard cap for booking validation |
-| `defaultPriceIdr` | `int` | no | Rack rate **per night**, whole rupiah (no decimals). Currency fixed IDR for now — no currency column |
+| `defaultPriceIdr` | `int` | no | Rack rate **per night**, whole rupiah. Desk stay Total suggests `nights ×` this value ([`reservations-design.md`](reservations-design.md) §6). Not live OTA price. |
 | `bedConfig` | `jsonb` | no | See §6.1 — rooms with **one or more** bed rows each |
 | `amenities` | `jsonb` | no | See §6.2 — grouped lists for FE |
 | `media` | `jsonb` | no | Ordered gallery — see §6.3; first `IMAGE` = card thumb |
@@ -277,11 +301,18 @@ Stay on **one unit**. Designed so calendar, check-in, and reports share one row.
 | `guestPhone` | `varchar(32)` | yes | |
 | `guestCount` | `int` | no | Must be `<= UnitType.maxGuests` at confirm |
 | `notes` | `text` | yes | Staff / special requests |
+| `totalAmountIdr` | `bigint` | yes | Stay quote (whole IDR); null until confirm |
+| `paidAmountIdr` | `bigint` | no | default 0; **cache** = sum(`PaymentMovement.signedAmount`) |
+| `paymentStatus` | `PaymentStatus` | no | `UNPAID` \| `DEPOSIT` \| `PAID` \| `REFUNDED` |
+| `collectedVia` | `CollectedVia` | yes | Optional rollup from latest movement |
 | `externalRef` | `varchar(128)` | yes | OTA booking id when known |
+| `icalSyncWarning` | `IcalSyncWarning` | yes | |
+| `icalSyncWarnedAt` | `timestamptz` | yes | |
 | `confirmedAt` | `timestamptz` | yes | |
 | `checkedInAt` | `timestamptz` | yes | |
 | `checkedOutAt` | `timestamptz` | yes | |
 | `cancelledAt` | `timestamptz` | yes | |
+| `noShowAt` | `timestamptz` | yes | |
 | `createdAt` | `timestamptz` | no | |
 | `updatedAt` | `timestamptz` | no | |
 | `createdByAdminId` | FK → `Admin` | yes | Manual creates |
@@ -310,7 +341,7 @@ Example: check-in 2026-07-25, check-out 2026-07-26 → occupies 1 night (25th).
 
 **Overlap (locked — Postgres)**
 
-For statuses that occupy the calendar (`CONFIRMED`, `CHECKED_IN`; optionally `DRAFT` if you show holds):
+For statuses that occupy the calendar (`UNCONFIRMED`, `CONFIRMED`, `CHECKED_IN`):
 
 - No two occupying reservations on the **same `unitId`** with overlapping `[checkInDate, checkOutDate)`.
 - Prefer Postgres **exclusion constraint** with `daterange` + `gist` (or transactional conflict check in Phase 1 if exclusion ships slightly later — product rule: never UI-only).
@@ -320,9 +351,38 @@ Same overlap rule applies vs `CalendarBlock` on that unit.
 **FE shape (calendar event):**  
 `{ id, unitId, checkInDate, checkOutDate, status, source, guestName, guestCount }`
 
-**FE shape (detail):** full row + nested `unit` + `unitType` summary.
+**FE shape (detail):** full row + nested `unit` + `unitType` summary + `movements[]` (cash timeline).
 
-**Not on this table (yet):** line-item pricing, payments, multi-unit group bookings. Add later without changing the unit FK model. (Manual quotes may seed from `UnitType.defaultPriceIdr`.)
+**Not on this table:** line-item pricing, multi-unit group bookings. Cash movements live on **`PaymentMovement`** (below). Stay **Total** on create/edit is suggested from `UnitType.defaultPriceIdr × nights` (`suggestStayTotalIdr`). Paid is **not** auto-changed when nights change; if Paid > Total → `refundDueIdr` — see [`reservations-design.md`](reservations-design.md) §6.
+
+---
+
+### 5.4b `PaymentMovement`
+
+Append-only cash ledger for a reservation. Nest implements with `/staff/reservations`; PMS fixture already models the same shape.
+
+| Column | Type | Null | Notes |
+|--------|------|------|--------|
+| `id` | `cuid` PK | no | |
+| `reservationId` | FK → `Reservation` | no | `ON DELETE CASCADE` |
+| `direction` | `PaymentMovementDirection` | no | `IN` \| `OUT` |
+| `kind` | `PaymentMovementKind` | no | `DEPOSIT` \| `TOP_UP` \| `REFUND` \| `CANCEL_REFUND` \| `CHANNEL_SETTLED` |
+| `amountIdr` | `bigint` | no | always > 0 |
+| `signedAmount` | `bigint` | no | +amount (IN) or −amount (OUT) |
+| `method` | `CollectedVia` | yes | `PROPERTY` \| `CHANNEL` \| `MIXED` |
+| `note` | `varchar(500)` | yes | |
+| `createdAt` | `timestamptz` | no | |
+| `createdByAdminId` | FK → `Admin` | yes | |
+
+**Indexes / constraints**
+
+- `CHECK (amountIdr > 0)`
+- `CHECK (signedAmount = amountIdr OR signedAmount = -amountIdr)` (or enforce in service)
+- `INDEX (reservationId, createdAt)`
+
+**Rule:** `Reservation.paidAmountIdr = sum(signedAmount)` (never negative). Quote (`totalAmountIdr`) is **not** a movement.
+
+**FE shape:** `{ id, reservationId, direction, kind, amountIdr, signedAmount, method, note, createdAt }`
 
 ---
 
@@ -600,7 +660,7 @@ CalendarBlock     non-guest busy on a unit
 
 bedroomCount      derived from bedConfig (studio = 0)
 bedConfig         rooms[]; each room may have multiple bed kinds
-defaultPriceIdr   rack IDR / night (not live OTA)
+defaultPriceIdr   rack IDR / night → stay Total = nights × rack (reservations-design §6)
 maps              lat/lng = our pins; Place ID = Open in Google Maps
 
 N properties  → Property rows

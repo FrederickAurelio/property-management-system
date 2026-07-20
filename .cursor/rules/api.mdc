@@ -9,8 +9,9 @@ alwaysApply: false
 Concern rules layer on via tighter globs (`api-http`, `api-prisma`, `api-auth`, `api-audience`). Map: [`.cursor/rules/README.md`](README.md).
 
 - Nest + PostgreSQL + Prisma 6. Staff identity is `Admin` (not guest `User`).
-- Audience layout: `staff/` + `/staff` (PMS), `domain/` (shared logic), `public/` + `/public` (web) — see [`api-audience.mdc`](api-audience.mdc).
+- Audience layout: `staff/` + `/staff` (PMS), `domain/` (shared logic), `public/` + `/public` (web Phase 2) — see [`api-audience.mdc`](api-audience.mdc).
 - Root `.env` only (`DATABASE_URL`, `SESSION_SECRET`).
 - Overlap checks in DB/transactions. Reservation sources: `manual` | `website` | `booking_com` | `airbnb` | `agoda`.
+- Money is separate from ops status (`CONFIRMED` ≠ paid). Quote = `totalAmountIdr`; cash = `PaymentMovement`; Paid = sum(movements). Stay Total suggests `nights × UnitType.defaultPriceIdr`; if Paid > Total → Refund (`refundDueIdr`) via Collect OUT. Phase 2 web reuses the same domain — `_docs/reservations-design.md`.
 - iCal updates PMS only — does not refresh OTAs.
 - Read `apps/api/AGENTS.md` + `.cursor/rules/monorepo-tooling.mdc`.

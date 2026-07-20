@@ -23,14 +23,17 @@ Same policy for agents: [`.cursor/rules/agents-writing.mdc`](.cursor/rules/agent
 
 ```text
 apps/api   → Nest API (source of truth)     @cabin/api
-apps/pms   → Staff PMS UI (Phase 1)         @cabin/pms
+apps/pms   → Staff PMS UI (Phase 1 prod)    @cabin/pms
 apps/web   → Public browse/book (Phase 2)   @cabin/web (scaffold only)
 packages/  → Shared libs for 2+ apps        @cabin/*
 .docs/     → Product plan
+_docs/     → Locked design notes (inventory, reservations, …)
 docker-compose.yml → local Postgres now; api/pms/web later on cabin-net
 ```
 
 One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (never `npm i` inside an app).
+
+**Phase framing (locked):** business already runs on OTA + manual/walk-in. **Phase 1** = production **staff** PMS for that reality (calendar, reservations, check-in/out, **money/DP**, reports, **iCal import**). **No OTA email ingest.** **Phase 2** = **customer** booking FE only — same `Reservation` + `domain/` model (`source=WEBSITE`). Phase 2 is not “when bookings or payments start.” Design: [`_docs/reservations-design.md`](_docs/reservations-design.md).
 
 **Shared packages:** if two apps need the same types/constants/pure helpers, put them in `packages/` and depend with `workspace:*` — do not copy between apps. How-to: [`packages/README.md`](packages/README.md) · tooling: [`.cursor/rules/monorepo-tooling.mdc`](.cursor/rules/monorepo-tooling.mdc).
 
@@ -40,9 +43,9 @@ One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (nev
 
 | App | Stack | Scaffold |
 |-----|--------|----------|
-| `api` | NestJS · TypeScript · PostgreSQL · Prisma 6 · session cookies + Guards | Auth + Admin roles wired; domain next |
-| `pms` | React · Vite · TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) | Ready to build screens |
-| `web` | **Undecided** (Phase 2) | Placeholder only |
+| `api` | NestJS · TypeScript · PostgreSQL · Prisma 6 · session cookies + Guards | Auth + inventory done; **Nest reservations next** |
+| `pms` | React · Vite · TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) | Auth + inventory done; **reservations desk UI fixture-backed** (swap to Nest when API ships) |
+| `web` | **Undecided** (Phase 2 customer FE) | Placeholder only |
 
 Do not introduce Express+Mongo, a second API, or a second booking database.
 
@@ -69,27 +72,32 @@ Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env`
 
 | Phase | Focus |
 |-------|--------|
-| **1 (now)** | Ops PMS: auth, units, calendar, reservations, check-in/out, reports → then email ping + quick-confirm → iCal import |
-| **2** | `web` booking + PMS iCal export hub |
+| **1 (now)** | **Prod staff PMS** for live manual + OTA: auth, units, calendar, reservations (incl. **total/paid/DP**), check-in/out, reports → **iCal export** (block OTAs) + **iCal import** + Sync now. Schema merge-ready for web. **No email ingest.** |
+| **2** | Customer `web` browse/book FE + public API + PMS iCal **export** hub — **same** reservation/money model |
 | **3** | Paid Channel Manager only if iCal delay/scale hurts |
 
-OTA sync today: native iCal (Booking.com · Airbnb · Agoda). No extranet scraping.
+OTA sync today: native iCal (Booking.com · Airbnb · Agoda). No extranet scraping.  
+`CONFIRMED` = ops-booked, **not** fully paid — money is a separate axis (`paymentStatus`).  
+iCal stubs → `UNCONFIRMED` until staff enrich guest + money.
 
 ## Build order
 
-1. Auth + units + calendar + manual reservations (`api` + `pms`)
-2. Check-in / check-out + daily ops
-3. Basic reports
-4. Email ingest + notify + quick-confirm
-5. iCal import + Sync now
-6. Website booking + iCal export (`web`) — Phase 2
+1. Auth + units ← **done**
+2. Manual reservations + money/DP ← **PMS UI fixture done**; Nest schema + `/staff/reservations` next (then drop fixture)
+3. Calendar (same reservation rows) + check-in / check-out polish
+4. Basic reports
+5. iCal **export** per unit (PMS → OTA) + **import** + Sync now (+ `UNCONFIRMED` enrich / missing-feed warnings)
+6. Customer website booking + iCal export (`web`) — Phase 2
 7. Evaluate CM — Phase 3
+
+Money quote (locked): stay Total suggests `nights × UnitType.defaultPriceIdr`; cash = append-only `PaymentMovement`; Paid = sum — see [`_docs/reservations-design.md`](_docs/reservations-design.md) §6.
 
 ## Navigation
 
 | Work in | Read |
 |---------|------|
 | Repo / architecture | This file + `.docs/cabin-pms-client-plan.md` |
+| Reservations / money / iCal | [`_docs/reservations-design.md`](_docs/reservations-design.md) |
 | Shared libs | `packages/README.md` + that package’s `AGENTS.md` |
 | Backend | `apps/api/AGENTS.md` (audience: `staff` / `domain` / `public`) |
 | Staff UI | `apps/pms/AGENTS.md` |
@@ -103,6 +111,9 @@ Constraints: `.cursor/rules/` — layered entry + concern globs per app (map: [`
 - Remote OTA “Import now” bots / scraping
 - Claim iCal syncs prices
 - Rip OTA↔OTA iCal before PMS is trusted
+- Defer staff reservation **money/DP** until Phase 2 web — Phase 1 PMS must track it for live desk
+- OTA **email ingest** / ping / quick-confirm parsers — out; use iCal + staff enrich
+- Treat Phase 2 as inventing a second booking/payment model — web reuses `domain/reservations`
 - Channel Manager or `web` booking before Phase 1 ops MVP is solid
 - Copy the same types/constants into two apps — use `packages/` instead
 - Flat audience-neutral Nest app routes (`/properties`, `/admins`) — use `/staff/...` or `/public/...` (see `apps/api/AGENTS.md`)

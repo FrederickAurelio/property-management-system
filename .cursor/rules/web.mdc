@@ -6,6 +6,6 @@ alwaysApply: false
 
 # Web
 
-- Phase 2. FE stack undecided. Books via shared `apps/api` only.
-- Prefer `api` + `pms` until Phase 2 starts. Read `apps/web/AGENTS.md`.
+- Phase 2 **customer** FE only. Stack undecided. Books via shared `apps/api` (`source=website`) — same reservation/money model as Phase 1 PMS.
+- Prefer `api` + `pms` until Phase 2 starts. Read `apps/web/AGENTS.md` + `_docs/reservations-design.md`.
 - Customer-facing UI skills: `ui-design-brain` / `ui-craft*` (see `.cursor/skills/README.md`) — not for PMS.
