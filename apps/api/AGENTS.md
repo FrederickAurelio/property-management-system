@@ -7,10 +7,14 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - Nest + **Prisma 6** + local Postgres (`pnpm db:up`)
 - **Staff auth:** cookie sessions (`express-session` + `connect-pg-simple`), `Admin` model, roles below — `/staff/auth`
 - **Staff CRUD:** SUPER_ADMIN-only list / create / change role / revoke-restore — `/staff/admins`
-- **Inventory CRUD:** `Property` / `UnitType` / `Unit` (15 endpoints) — `/staff/properties|unit-types|units`; reads `FRONT_DESK+`; writes `ADMIN+`
+- **Inventory CRUD:** `Property` / `UnitType` / `Unit` — `/staff/properties|unit-types|units`; reads `FRONT_DESK+`; writes `ADMIN+`
 - **Media upload-intent:** Cloudinary signed params — `POST /staff/media/upload-intent` (`ADMIN+`); Nest does not proxy file bytes
-- **Not yet:** Prisma `Reservation` / Nest `/staff/reservations` / calendar / iCal (PMS desk UI is fixture-backed against the locked design until then)
-- **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `nights × defaultPriceIdr` (`suggestStayTotalIdr` in `@cabin/api-contract`)
+- **Reservations + money:** Prisma `Reservation` / `PaymentMovement`; Nest `/staff/reservations` (list/create/detail/patch/confirm/check-in/out/cancel/movements) — `FRONT_DESK+`; Paid = sum(movements); overlap exclusion + transactional 409
+- **Availability:** `GET /staff/properties/:propertyId/units/availability` — all units (optional `unitTypeId`) with `available` + `blockReason`; dates optional (omit = no `DATE_OVERLAP`); optional `excludeReservationId` for edit
+- **Unit occupancy (date picker):** `GET /staff/units/:id/occupancy?yearMonth=YYYY-MM` — occupying blocks for one month; FE caches months as the calendar pages
+- **Bookability:** Property `isActive` (open for ops) · UnitType `isActive` (offered) · Unit `status` only (`ACTIVE` bookable; no separate unit `isActive`)
+- **Not yet:** calendar aggregate UI · iCal export/import · calendar-blocks
+- **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `nights × defaultPriceIdr` (`suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
 
 ## Stack (locked)
 
@@ -165,14 +169,14 @@ Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`)
 
 1. Staff auth + roles ← **done** (auth + SUPER_ADMIN staff CRUD)
 2. Inventory CRUD (property / unit type / unit) ← **done**
-3. Reservations CRUD + money/DP summary + availability (overlap in DB) — see `_docs/reservations-design.md`
-4. Check-in / check-out
+3. Reservations CRUD + money/DP + availability (overlap in DB) ← **done** (`/staff/reservations` + units availability)
+4. Check-in / check-out ← **done** (with `confirmEarly`)
 5. Basic reports
 6. iCal import + Sync now (`UNCONFIRMED` → enrich)
 
 Reservation `source`: `manual` | `website` (enum now, public write in Phase 2) | `booking_com` | `airbnb` | `agoda`  
 Ops `status` ≠ money: `CONFIRMED` is not “paid”. Money: `totalAmountIdr` (quote) + append-only `PaymentMovement` cash lines; `paidAmountIdr` = sum(movements); `paymentStatus` (`UNPAID` | `DEPOSIT` | `PAID` | `REFUNDED`). Nest must append movements — do not overwrite Paid alone. Cancel partial takes `refundAmountIdr` (money OUT), not remaining Paid. Stamp session `createdByAdminId` / `updatedByAdminId` on reservation + movement create (not a full audit log).  
-Statuses: `UNCONFIRMED` | `CONFIRMED` | `CHECKED_IN` | `CHECKED_OUT` | `CANCELLED` | `NO_SHOW` — **no** `DRAFT` / email ingest.
+Statuses: `UNCONFIRMED` | `CONFIRMED` | `CHECKED_IN` | `CHECKED_OUT` | `CANCELLED` — **no** `NO_SHOW` / `DRAFT` / email ingest (never-arrived → Cancel).
 
 ## Domain model
 

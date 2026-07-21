@@ -1,5 +1,5 @@
 /* anchor: Linear-dense / Stripe-data ops list, diverge: board tabs + money columns */
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReservationSource,
   ReservationStatus,
@@ -29,10 +29,6 @@ import {
 } from "@/components/ui/table";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  FIXTURE_PROPERTY_B_ID,
-  FIXTURE_PROPERTY_B_NAME,
-  FIXTURE_PROPERTY_ID,
-  FIXTURE_PROPERTY_NAME,
   getNextPageParamFromPageInfo,
   INFINITE_INITIAL_PAGE,
   listProperties,
@@ -40,9 +36,10 @@ import {
   staffPropertiesOptionsQueryKey,
   staffReservationsQueryKey,
   type StaffReservationsListFilters,
+  ApiError,
 } from "@/lib/api";
 import { ReservationBadge, SourceBadge } from "./reservation-badges";
-import { parseBoard } from "./reservation-boards";
+import { parseBoard, boardFilterLocks } from "./reservation-boards";
 import { ReservationFiltersBar } from "./reservation-filters-bar";
 import { ReservationFormDialog } from "./reservation-form-dialog";
 import { reservationListStateFromSearch } from "./reservation-nav";
@@ -197,10 +194,27 @@ export function ReservationsPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const board = parseBoard(searchParams.get("board"));
+  const filterLocks = boardFilterLocks(board);
   const propertyId = searchParams.get("propertyId") ?? "";
-  const statusFilter = searchParams.get("status") ?? "all";
+  const statusFilter = filterLocks.locksStatus
+    ? "all"
+    : (searchParams.get("status") ?? "all");
   const sourceFilter = searchParams.get("source") ?? "all";
   const q = searchParams.get("q") ?? "";
+
+  useEffect(() => {
+    if (!filterLocks.locksStatus || !searchParams.has("status")) {
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("status");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [filterLocks.locksStatus, searchParams, setSearchParams]);
 
   const patchParams = useCallback(
     (patch: Record<string, string | null>) => {
@@ -215,6 +229,10 @@ export function ReservationsPage() {
                 next.delete(key);
               } else {
                 next.set(key, value);
+              }
+              const nextBoard = parseBoard(value);
+              if (boardFilterLocks(nextBoard).locksStatus) {
+                next.delete("status");
               }
               continue;
             }
@@ -238,14 +256,21 @@ export function ReservationsPage() {
       ...(propertyId ? { propertyId } : {}),
       ...(q ? { q } : {}),
     };
-    if (statusFilter !== "all") {
+    if (!filterLocks.locksStatus && statusFilter !== "all") {
       filters.status = statusFilter as ReservationStatus;
     }
     if (sourceFilter !== "all") {
       filters.source = sourceFilter as ReservationSource;
     }
     return filters;
-  }, [board, propertyId, q, statusFilter, sourceFilter]);
+  }, [
+    board,
+    propertyId,
+    q,
+    statusFilter,
+    sourceFilter,
+    filterLocks.locksStatus,
+  ]);
 
   const propertiesQuery = useQuery({
     queryKey: staffPropertiesOptionsQueryKey(),
@@ -260,17 +285,10 @@ export function ReservationsPage() {
   });
 
   const propertyOptions = useMemo(() => {
-    const live = (propertiesQuery.data ?? []).map((p) => ({
+    return (propertiesQuery.data ?? []).map((p) => ({
       id: p.id,
       name: p.name,
     }));
-    if (live.length > 0) {
-      return live;
-    }
-    return [
-      { id: FIXTURE_PROPERTY_ID, name: FIXTURE_PROPERTY_NAME },
-      { id: FIXTURE_PROPERTY_B_ID, name: FIXTURE_PROPERTY_B_NAME },
-    ];
   }, [propertiesQuery.data]);
 
   const listQuery = useInfiniteQuery({
@@ -315,6 +333,7 @@ export function ReservationsPage() {
         propertyId={propertyId}
         statusFilter={statusFilter}
         sourceFilter={sourceFilter}
+        showStatusFilter={!filterLocks.locksStatus}
         q={q}
         propertyOptions={propertyOptions}
         onPatch={patchParams}
@@ -330,7 +349,16 @@ export function ReservationsPage() {
 
       {listQuery.isError && !listQuery.data && (
         <QueryErrorPanel
-          message="Couldn’t load reservations. Try again."
+          message={
+            listQuery.error instanceof ApiError && listQuery.error.message
+              ? listQuery.error.message.includes(
+                  "does not exist in the current database",
+                )
+                ? "Database is out of date — run prisma migrate, then restart the API."
+                : listQuery.error.message.split("\n")[0] ||
+                  "Couldn’t load reservations. Try again."
+              : "Couldn’t load reservations. Try again."
+          }
           onRetry={() => {
             void listQuery.refetch();
           }}

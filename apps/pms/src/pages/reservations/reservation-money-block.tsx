@@ -23,9 +23,7 @@ export function ReservationMoneyBlock({
   const due = reservationDue(reservation);
   const refund = reservationRefund(reservation);
   const showRefund = refund != null && refund > 0;
-  const moneyClosed =
-    reservation.status === ReservationStatus.CANCELLED ||
-    reservation.status === ReservationStatus.NO_SHOW;
+  const moneyClosed = reservation.status === ReservationStatus.CANCELLED;
 
   return (
     <div
@@ -85,7 +83,7 @@ export function ReservationMoneyBlock({
       </dl>
       {moneyClosed ? (
         <p className="mt-3 text-xs text-muted-foreground">
-          Money was settled when the stay was cancelled / marked no-show.
+          Money was settled when the stay was cancelled.
         </p>
       ) : showRefund ? (
         <p className="mt-3 text-xs text-amber-800 dark:text-amber-200">

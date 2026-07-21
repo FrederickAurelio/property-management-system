@@ -20,6 +20,12 @@ export type ReservationBoard =
 /** Prefix — use with `invalidateQueries` to refresh all reservation lists. */
 export const staffReservationsQueryKeyPrefix = ["staff", "reservations"] as const;
 
+/** List queries only — does not match detail keys (safe with `setQueryData` on detail). */
+export const staffReservationsListQueryKeyPrefix = [
+  ...staffReservationsQueryKeyPrefix,
+  "list",
+] as const;
+
 export type StaffReservationsListFilters = {
   propertyId?: string;
   q?: string;
@@ -36,7 +42,7 @@ export type StaffReservationsListFilters = {
 export function staffReservationsQueryKey(
   filters: StaffReservationsListFilters = {},
 ) {
-  return [...staffReservationsQueryKeyPrefix, "list", filters] as const;
+  return [...staffReservationsListQueryKeyPrefix, filters] as const;
 }
 
 export function staffReservationQueryKey(id: string) {
@@ -46,13 +52,19 @@ export function staffReservationQueryKey(id: string) {
 /** Prefix — use with `invalidateQueries` to refresh all property lists. */
 export const staffPropertiesQueryKeyPrefix = ["staff", "properties"] as const;
 
+/** Infinite list queries only — safe with `setQueryData` on detail. */
+export const staffPropertiesListQueryKeyPrefix = [
+  ...staffPropertiesQueryKeyPrefix,
+  "list",
+] as const;
+
 export type StaffPropertiesListFilters = {
   q?: string;
   isActive?: boolean;
 };
 
 export function staffPropertiesQueryKey(filters: StaffPropertiesListFilters = {}) {
-  return [...staffPropertiesQueryKeyPrefix, "list", filters] as const;
+  return [...staffPropertiesListQueryKeyPrefix, filters] as const;
 }
 
 /**
@@ -69,6 +81,12 @@ export function staffPropertyQueryKey(id: string) {
 
 export const staffUnitTypesQueryKeyPrefix = ["staff", "unit-types"] as const;
 
+/** Infinite list queries only — safe with `setQueryData` on detail. */
+export const staffUnitTypesListQueryKeyPrefix = [
+  ...staffUnitTypesQueryKeyPrefix,
+  "list",
+] as const;
+
 export type StaffUnitTypesListFilters = {
   q?: string;
   isActive?: boolean;
@@ -78,12 +96,7 @@ export function staffUnitTypesQueryKey(
   propertyId: string,
   filters: StaffUnitTypesListFilters = {},
 ) {
-  return [
-    ...staffUnitTypesQueryKeyPrefix,
-    "list",
-    propertyId,
-    filters,
-  ] as const;
+  return [...staffUnitTypesListQueryKeyPrefix, propertyId, filters] as const;
 }
 
 export function staffUnitTypeQueryKey(id: string) {
@@ -92,18 +105,61 @@ export function staffUnitTypeQueryKey(id: string) {
 
 export const staffUnitsQueryKeyPrefix = ["staff", "units"] as const;
 
+/** Infinite list queries only — does not match availability / occupancy / detail. */
+export const staffUnitsListQueryKeyPrefix = [
+  ...staffUnitsQueryKeyPrefix,
+  "list",
+] as const;
+
+/** Choose-unit availability — invalidate when occupying nights may change. */
+export const staffUnitsAvailabilityQueryKeyPrefix = [
+  ...staffUnitsQueryKeyPrefix,
+  "availability",
+] as const;
+
+/** Stay date-picker blocks — invalidate when occupying nights may change. */
+export const staffUnitsOccupancyQueryKeyPrefix = [
+  ...staffUnitsQueryKeyPrefix,
+  "occupancy",
+] as const;
+
 export type StaffUnitsListFilters = {
   q?: string;
   unitTypeId?: string;
   status?: UnitStatus;
-  isActive?: boolean;
 };
 
 export function staffUnitsQueryKey(
   propertyId: string,
   filters: StaffUnitsListFilters = {},
 ) {
-  return [...staffUnitsQueryKeyPrefix, "list", propertyId, filters] as const;
+  return [...staffUnitsListQueryKeyPrefix, propertyId, filters] as const;
+}
+
+export function staffUnitsAvailabilityQueryKey(
+  propertyId: string,
+  filters: {
+    checkInDate?: string;
+    checkOutDate?: string;
+    unitTypeId?: string;
+    excludeReservationId?: string;
+  } = {},
+) {
+  return [
+    ...staffUnitsAvailabilityQueryKeyPrefix,
+    propertyId,
+    filters,
+  ] as const;
+}
+
+export function staffUnitOccupancyQueryKey(
+  unitId: string,
+  filters: {
+    yearMonth: string;
+    excludeReservationId?: string;
+  },
+) {
+  return [...staffUnitsOccupancyQueryKeyPrefix, unitId, filters] as const;
 }
 
 export function staffUnitQueryKey(id: string) {

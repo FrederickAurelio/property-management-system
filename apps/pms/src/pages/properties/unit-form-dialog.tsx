@@ -34,11 +34,7 @@ import {
   applyApiFieldError,
   createUnit,
   handleSuccess,
-  staffPropertiesQueryKeyPrefix,
-  staffPropertyQueryKey,
-  staffUnitsQueryKeyPrefix,
-  staffUnitQueryKey,
-  staffUnitTypeQueryKey,
+  syncUnitCaches,
   updateUnit,
 } from "@/lib/api";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
@@ -58,7 +54,6 @@ const schema = z.object({
     UnitStatus.MAINTENANCE,
   ]),
   notes: z.union([z.literal(""), z.string().trim().max(4000)]),
-  isActive: z.enum(["true", "false"]),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -91,7 +86,6 @@ export function UnitFormDialog({
       floor: "",
       status: UnitStatus.ACTIVE,
       notes: "",
-      isActive: "true",
     },
   });
 
@@ -107,7 +101,6 @@ export function UnitFormDialog({
             floor: unit.floor ?? "",
             status: unit.status,
             notes: unit.notes ?? "",
-            isActive: unit.isActive ? "true" : "false",
           }
         : {
             code: "",
@@ -115,7 +108,6 @@ export function UnitFormDialog({
             floor: "",
             status: UnitStatus.ACTIVE,
             notes: "",
-            isActive: "true",
           },
     );
   }, [open, unit, form]);
@@ -129,7 +121,6 @@ export function UnitFormDialog({
           floor: values.floor || null,
           status: values.status,
           notes: values.notes || null,
-          isActive: values.isActive === "true",
         });
       }
       return createUnit(propertyId, {
@@ -139,24 +130,11 @@ export function UnitFormDialog({
         floor: values.floor || null,
         status: values.status,
         notes: values.notes || null,
-        isActive: values.isActive === "true",
       });
     },
     onSuccess: (saved) => {
-      void queryClient.invalidateQueries({
-        queryKey: staffUnitsQueryKeyPrefix,
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffUnitQueryKey(saved.id),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffUnitTypeQueryKey(unitTypeId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertyQueryKey(propertyId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertiesQueryKeyPrefix,
+      syncUnitCaches(queryClient, saved, {
+        bookabilityChanged: !unit || unit.status !== saved.status,
       });
       handleSuccess(unit ? "Unit updated" : "Unit created");
       onOpenChange(false);
@@ -288,7 +266,7 @@ export function UnitFormDialog({
                       <SelectContent>
                         <SelectGroup>
                           <SelectItem value={UnitStatus.ACTIVE}>
-                            Active
+                            Active (bookable)
                           </SelectItem>
                           <SelectItem value={UnitStatus.INACTIVE}>
                             Inactive
@@ -304,34 +282,6 @@ export function UnitFormDialog({
                 )}
               />
             </div>
-            <Controller
-              control={form.control}
-              name="isActive"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel>Bookable</FieldLabel>
-                  <Select
-                    value={field.value}
-                    disabled={readOnly}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger
-                      className="w-full"
-                      aria-invalid={fieldState.invalid || undefined}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="true">Yes</SelectItem>
-                        <SelectItem value="false">No</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <FieldError errors={[fieldState.error]} />
-                </Field>
-              )}
-            />
             <Controller
               control={form.control}
               name="notes"

@@ -145,7 +145,6 @@ export function toStaffUnit(row: Unit): StaffUnit {
     status: row.status,
     notes: row.notes,
     sortOrder: row.sortOrder,
-    isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

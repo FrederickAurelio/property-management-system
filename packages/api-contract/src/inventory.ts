@@ -180,9 +180,51 @@ export type StaffUnit = {
   status: UnitStatus;
   notes: string | null;
   sortOrder: number;
-  isActive: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+/**
+ * Unit is bookable on status alone (catalog parents checked separately).
+ * ACTIVE = bookable; MAINTENANCE / INACTIVE = not.
+ */
+export function isUnitStatusBookable(status: UnitStatus): boolean {
+  return status === UnitStatus.ACTIVE;
+}
+
+/**
+ * Why a unit row is not selectable in Choose unit for a stay range.
+ * Priority when several apply: property → type → unit status → date overlap.
+ */
+export const UnitAvailabilityBlockReason = {
+  PROPERTY_INACTIVE: 'PROPERTY_INACTIVE',
+  UNIT_TYPE_INACTIVE: 'UNIT_TYPE_INACTIVE',
+  UNIT_NOT_BOOKABLE: 'UNIT_NOT_BOOKABLE',
+  DATE_OVERLAP: 'DATE_OVERLAP',
+} as const;
+
+export type UnitAvailabilityBlockReason =
+  (typeof UnitAvailabilityBlockReason)[keyof typeof UnitAvailabilityBlockReason];
+
+/** Choose unit wire: every matching unit + whether it can be selected. */
+export type StaffUnitAvailability = StaffUnit & {
+  available: boolean;
+  blockReason: UnitAvailabilityBlockReason | null;
+};
+
+/** Occupying stay overlapping a calendar month (may start/end outside). */
+export type UnitOccupancyBlock = {
+  reservationId: string;
+  checkInDate: string;
+  checkOutDate: string;
+};
+
+/** Per-month busy intervals for date-picker blocking (unit POV). */
+export type UnitMonthOccupancy = {
+  unitId: string;
+  /** YYYY-MM */
+  yearMonth: string;
+  blocks: UnitOccupancyBlock[];
 };
 
 /** Derive bedroomCount on write (locked product rule). */

@@ -1,7 +1,12 @@
 /* anchor: Inventory explorer pick, diverge: local layers + Confirm unit (no CRUD/routes) */
 import { useMemo, useState } from "react";
-import type { StaffUnit } from "@cabin/api-contract";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import {
+  UnitAvailabilityBlockReason,
+  type StaffUnit,
+  type StaffUnitAvailability,
+  type UnitAvailabilityBlockReason as BlockReason,
+} from "@cabin/api-contract";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { SearchIcon } from "lucide-react";
 import {
   ExplorerGrid,
@@ -38,14 +43,17 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   getNextPageParamFromPageInfo,
   INFINITE_INITIAL_PAGE,
+  listAvailableUnits,
   listProperties,
-  listUnits,
   listUnitTypes,
   staffPropertiesQueryKey,
-  staffUnitsQueryKey,
+  staffUnitsAvailabilityQueryKey,
   staffUnitTypesQueryKey,
 } from "@/lib/api";
-import { firstImageUrl } from "@/pages/properties/inventory-types";
+import {
+  firstImageUrl,
+  formatUnitStatus,
+} from "@/pages/properties/inventory-types";
 import type { ChosenUnit } from "./chosen-unit";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -56,16 +64,52 @@ type UnitInventoryPickerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (chosen: ChosenUnit) => void;
+  /** Stay range required for free-unit filtering. */
+  checkInDate: string;
+  checkOutDate: string;
   /** Prefill when editing an existing stay (jump to unit layer). */
   initialPropertyId?: string;
   initialPropertyName?: string;
   initialUnitTypeId?: string;
   initialUnitTypeName?: string;
   initialUnitId?: string;
+  /** Editing: ignore this reservation for DATE_OVERLAP. */
+  excludeReservationId?: string;
 };
 
 function unitLabel(unit: Pick<StaffUnit, "code" | "name">): string {
   return unit.name ? `${unit.code} · ${unit.name}` : unit.code;
+}
+
+function blockReasonBadge(
+  unit: StaffUnitAvailability,
+): { label: string; tone: "muted" | "warn" } | null {
+  if (unit.available || !unit.blockReason) {
+    return null;
+  }
+  return {
+    label: blockReasonLabel(unit.blockReason, unit.status),
+    tone:
+      unit.blockReason === UnitAvailabilityBlockReason.DATE_OVERLAP
+        ? "warn"
+        : "muted",
+  };
+}
+
+function blockReasonLabel(
+  reason: BlockReason,
+  status: StaffUnit["status"],
+): string {
+  switch (reason) {
+    case UnitAvailabilityBlockReason.PROPERTY_INACTIVE:
+      return "Property closed";
+    case UnitAvailabilityBlockReason.UNIT_TYPE_INACTIVE:
+      return "Type not offered";
+    case UnitAvailabilityBlockReason.UNIT_NOT_BOOKABLE:
+      return formatUnitStatus(status);
+    case UnitAvailabilityBlockReason.DATE_OVERLAP:
+      return "Booked";
+  }
 }
 
 /** Edit with a known unit → units layer. Create / fresh pick → properties. */
@@ -84,11 +128,14 @@ export function UnitInventoryPicker({
   open,
   onOpenChange,
   onConfirm,
+  checkInDate,
+  checkOutDate,
   initialPropertyId = "",
   initialPropertyName = "",
   initialUnitTypeId = "",
   initialUnitTypeName = "",
   initialUnitId = "",
+  excludeReservationId,
 }: UnitInventoryPickerProps) {
   const view: ExplorerView = "list";
   const jumpToUnits = Boolean(
@@ -115,11 +162,15 @@ export function UnitInventoryPicker({
   const debouncedQ = useDebouncedValue(q, SEARCH_DEBOUNCE_MS);
 
   const propertiesQuery = useInfiniteQuery({
-    queryKey: staffPropertiesQueryKey(debouncedQ ? { q: debouncedQ } : {}),
+    queryKey: staffPropertiesQueryKey({
+      isActive: true,
+      ...(debouncedQ ? { q: debouncedQ } : {}),
+    }),
     queryFn: ({ pageParam }) =>
       listProperties({
         page: pageParam,
         pageSize: 20,
+        isActive: true,
         ...(debouncedQ ? { q: debouncedQ } : {}),
       }),
     initialPageParam: INFINITE_INITIAL_PAGE,
@@ -144,24 +195,30 @@ export function UnitInventoryPicker({
     enabled: open && layer === "types" && Boolean(propertyId),
   });
 
-  const unitsQuery = useInfiniteQuery({
-    queryKey: staffUnitsQueryKey(propertyId, {
+  const datesReady =
+    Boolean(checkInDate) &&
+    Boolean(checkOutDate) &&
+    checkOutDate > checkInDate;
+
+  const unitsQuery = useQuery({
+    queryKey: staffUnitsAvailabilityQueryKey(propertyId, {
+      ...(datesReady
+        ? { checkInDate, checkOutDate }
+        : {}),
       unitTypeId,
-      isActive: true,
-      ...(debouncedQ ? { q: debouncedQ } : {}),
+      ...(excludeReservationId ? { excludeReservationId } : {}),
     }),
-    queryFn: ({ pageParam }) =>
-      listUnits(propertyId, {
-        page: pageParam,
-        pageSize: 20,
+    queryFn: () =>
+      listAvailableUnits(propertyId, {
+        ...(datesReady
+          ? { checkInDate, checkOutDate }
+          : {}),
         unitTypeId,
-        isActive: true,
-        ...(debouncedQ ? { q: debouncedQ } : {}),
+        ...(excludeReservationId ? { excludeReservationId } : {}),
       }),
-    initialPageParam: INFINITE_INITIAL_PAGE,
-    getNextPageParam: getNextPageParamFromPageInfo,
     enabled:
       open && layer === "units" && Boolean(propertyId) && Boolean(unitTypeId),
+    staleTime: 0,
   });
 
   const properties = useMemo(
@@ -172,19 +229,30 @@ export function UnitInventoryPicker({
     () => typesQuery.data?.pages.flatMap((p) => p.items) ?? [],
     [typesQuery.data],
   );
-  const units = useMemo(
-    () => unitsQuery.data?.pages.flatMap((p) => p.items) ?? [],
-    [unitsQuery.data],
-  );
+  const units = useMemo(() => {
+    const items = unitsQuery.data ?? [];
+    if (!debouncedQ.trim()) {
+      return items;
+    }
+    const needle = debouncedQ.trim().toLowerCase();
+    return items.filter(
+      (u) =>
+        u.code.toLowerCase().includes(needle) ||
+        (u.name?.toLowerCase().includes(needle) ?? false),
+    );
+  }, [unitsQuery.data, debouncedQ]);
 
   const selectedUnit = useMemo((): ChosenUnit | null => {
     if (userSelected) {
-      return userSelected;
+      const stillAvailable = units.find(
+        (u) => u.id === userSelected.unitId && u.available,
+      );
+      return stillAvailable ? userSelected : null;
     }
     if (layer !== "units" || !initialUnitId) {
       return null;
     }
-    const match = units.find((u) => u.id === initialUnitId);
+    const match = units.find((u) => u.id === initialUnitId && u.available);
     if (!match) {
       return null;
     }
@@ -227,7 +295,11 @@ export function UnitInventoryPicker({
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      description="Same inventory as Properties — pick a bookable unit."
+      description={
+        datesReady
+          ? "Open properties · offered types · all units for these dates (blocked rows stay visible)."
+          : "Open properties · offered types · all units. Set stay dates later to see date conflicts."
+      }
       size="lg"
       footer={
         <>
@@ -344,7 +416,9 @@ export function UnitInventoryPicker({
           />
         </InputGroup>
 
-        {activeQuery.isLoading && <ExplorerGridSkeleton view={view} count={5} />}
+        {activeQuery.isLoading && (
+          <ExplorerGridSkeleton view={view} count={5} />
+        )}
 
         {activeQuery.isError && !activeQuery.data && (
           <QueryErrorPanel
@@ -368,7 +442,7 @@ export function UnitInventoryPicker({
                 <EmptyTitle>Nothing here</EmptyTitle>
                 <EmptyDescription>
                   {layer === "units"
-                    ? "No active units in this type."
+                    ? "No units in this type."
                     : "Try another search."}
                 </EmptyDescription>
               </EmptyHeader>
@@ -447,42 +521,43 @@ export function UnitInventoryPicker({
         )}
 
         {layer === "units" && units.length > 0 && (
-          <>
-            <ExplorerGrid view={view}>
-              {units.map((unit) => {
-                const chosen: ChosenUnit = {
-                  propertyId,
-                  propertyName,
-                  unitTypeId,
-                  unitTypeName,
-                  unitId: unit.id,
-                  unitCode: unit.code,
-                  unitName: unit.name,
-                };
-                return (
-                  <ExplorerItem
-                    key={unit.id}
-                    view={view}
-                    title={unitLabel(unit)}
-                    meta={unit.floor ? `Floor ${unit.floor}` : "—"}
-                    canManage={false}
-                    selected={selectedUnit?.unitId === unit.id}
-                    onSelect={() => {
-                      setUserSelected(chosen);
-                    }}
-                  />
-                );
-              })}
-            </ExplorerGrid>
-            <InfiniteListFooter
-              hasNextPage={Boolean(unitsQuery.hasNextPage)}
-              isFetchingNextPage={unitsQuery.isFetchingNextPage}
-              isFetchNextPageError={unitsQuery.isFetchNextPageError}
-              fetchNextPage={() => {
-                void unitsQuery.fetchNextPage();
-              }}
-            />
-          </>
+          <ExplorerGrid view={view}>
+            {units.map((unit) => {
+              const chosen: ChosenUnit = {
+                propertyId,
+                propertyName,
+                unitTypeId,
+                unitTypeName,
+                unitId: unit.id,
+                unitCode: unit.code,
+                unitName: unit.name,
+              };
+              const blocked = blockReasonBadge(unit);
+              return (
+                <ExplorerItem
+                  key={unit.id}
+                  view={view}
+                  title={unitLabel(unit)}
+                  meta={unit.floor ? `Floor ${unit.floor}` : "—"}
+                  canManage={false}
+                  disabled={!unit.available}
+                  selected={selectedUnit?.unitId === unit.id}
+                  badge={
+                    blocked ? (
+                      <StatusBadge label={blocked.label} tone={blocked.tone} />
+                    ) : undefined
+                  }
+                  onSelect={
+                    unit.available
+                      ? () => {
+                          setUserSelected(chosen);
+                        }
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </ExplorerGrid>
         )}
       </div>
     </ResponsiveFormShell>

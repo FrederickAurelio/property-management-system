@@ -23,8 +23,21 @@ function messageForApiError(error: ApiError): string {
       return "Network request failed. Check your connection.";
     case ApiErrorCode.SERVER_UNAVAILABLE:
       return "Cannot reach the server. It may be down — try again shortly.";
-    case ApiErrorCode.INTERNAL_ERROR:
+    case ApiErrorCode.INTERNAL_ERROR: {
+      const msg = error.message?.trim() ?? "";
+      if (/does not exist in the current database/i.test(msg)) {
+        return "Database is out of date — run prisma migrate, then restart the API.";
+      }
+      // Prefer short server message; avoid dumping full Prisma stacks in the toast.
+      if (msg && !msg.includes("\nInvalid `")) {
+        return msg;
+      }
+      if (msg.includes("\nInvalid `")) {
+        const first = msg.split("\n").find((line) => line.trim().length > 0);
+        return first?.trim() || "Something went wrong. Please try again.";
+      }
       return "Something went wrong. Please try again.";
+    }
     case ApiErrorCode.AUTH_UNAUTHORIZED:
     case ApiErrorCode.AUTH_FORBIDDEN:
     case ApiErrorCode.NOT_FOUND:

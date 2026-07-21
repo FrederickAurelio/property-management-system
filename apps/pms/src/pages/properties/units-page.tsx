@@ -34,11 +34,10 @@ import {
   handleError,
   handleSuccess,
   INFINITE_INITIAL_PAGE,
+  invalidateInventoryCaches,
   listUnits,
-  staffPropertiesQueryKeyPrefix,
   staffPropertyQueryKey,
   staffUnitsQueryKey,
-  staffUnitsQueryKeyPrefix,
   staffUnitTypeQueryKey,
 } from "@/lib/api";
 import {
@@ -148,18 +147,7 @@ export function UnitsPage() {
   const deleteMutation = useMutation({
     mutationFn: (input: { id: string; code: string }) => deleteUnit(input.id),
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({
-        queryKey: staffUnitsQueryKeyPrefix,
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffUnitTypeQueryKey(unitTypeId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertyQueryKey(propertyId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertiesQueryKeyPrefix,
-      });
+      invalidateInventoryCaches(queryClient);
       handleSuccess(`Deleted ${variables.code}`);
       setDeleteTarget(null);
     },
@@ -303,7 +291,6 @@ export function UnitsPage() {
               const metaParts = [
                 unit.floor ? `Floor ${unit.floor}` : null,
                 formatUnitStatus(unit.status),
-                !unit.isActive ? "Not bookable" : null,
               ].filter(Boolean);
 
               const tone =

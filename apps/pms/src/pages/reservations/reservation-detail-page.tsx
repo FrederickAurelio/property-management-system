@@ -15,8 +15,8 @@ import {
   getReservation,
   handleError,
   handleSuccess,
-  invalidateReservationCaches,
   staffReservationQueryKey,
+  syncReservationCaches,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { CancelSheet } from "./cancel-sheet";
@@ -35,6 +35,7 @@ import {
   formatStayRange,
   canCollectPayment,
   canEditStay,
+  isCheckInWindow,
   isTerminalStatus,
   primaryActionButtonClass,
   primaryActionFor,
@@ -43,7 +44,7 @@ import {
   reservationRefund,
   collectPaymentLabel,
   statusBadgeTone,
-  todayYmd,
+  todayYmdInTimezone,
   type PrimaryAction,
 } from "./reservation-format";
 import type { StaffReservation } from "@cabin/api-contract";
@@ -51,7 +52,7 @@ import type { StaffReservation } from "@cabin/api-contract";
 function primaryActionDialogCopy(
   action: PrimaryAction,
   row: StaffReservation,
-  today: string = todayYmd(),
+  today: string,
 ): {
   title: string;
   description: string;
@@ -66,13 +67,13 @@ function primaryActionDialogCopy(
         confirmLabel: "Confirm stay",
       };
     case "check-in": {
-      const early = row.checkInDate > today;
+      const early = !isCheckInWindow(row, today);
       return {
-        title: early ? "Check in early?" : "Check guest in?",
+        title: early ? "Check in outside stay window?" : "Check guest in?",
         description: early
-          ? `Scheduled arrival is ${row.checkInDate}. Check-in date stays the same unless you edit the stay.`
+          ? `Scheduled stay is ${row.checkInDate} → ${row.checkOutDate} (property local). Check-in date stays the same unless you edit the stay.`
           : "Sets status to In-house. You can still collect a balance due afterward.",
-        confirmLabel: early ? "Check in early" : "Check in",
+        confirmLabel: early ? "Check in anyway" : "Check in",
       };
     }
     case "check-out": {
@@ -81,12 +82,21 @@ function primaryActionDialogCopy(
           ? null
           : Math.max(row.totalAmountIdr - row.paidAmountIdr, 0);
       const unpaid = due != null && due > 0;
+      const offDay = row.checkOutDate !== today;
       return {
-        title: "Check guest out?",
+        title: offDay
+          ? row.checkOutDate > today
+            ? "Check out early?"
+            : "Check out late?"
+          : "Check guest out?",
         description: unpaid
           ? "Ends the stay. Booked dates stay as history — use Collect afterward if they still owe. OTAs pick up availability from the unit’s iCal feed (may lag)."
           : "Ends the stay. Booked dates stay as history unless you edited them first. OTAs pick up availability from the unit’s iCal feed (may lag).",
-        confirmLabel: "Check out",
+        confirmLabel: offDay
+          ? row.checkOutDate > today
+            ? "Check out early"
+            : "Check out late"
+          : "Check out",
       };
     }
   }
@@ -113,23 +123,34 @@ export function ReservationDetailPage() {
     enabled: Boolean(reservationId),
   });
 
-  const invalidate = (id: string) => {
-    invalidateReservationCaches(queryClient, id);
-  };
-
   const primaryMutation = useMutation({
     mutationFn: async (action: PrimaryAction) => {
+      const current = detailQuery.data;
+      if (!current) {
+        throw new Error("Reservation not loaded");
+      }
+      const today = todayYmdInTimezone(current.propertyTimezone);
       switch (action) {
         case "confirm":
           return confirmReservation(reservationId);
-        case "check-in":
-          return checkInReservation(reservationId);
-        case "check-out":
-          return checkOutReservation(reservationId);
+        case "check-in": {
+          const needsConfirm = !isCheckInWindow(current, today);
+          return checkInReservation(reservationId, {
+            confirmEarly: needsConfirm || undefined,
+          });
+        }
+        case "check-out": {
+          const earlyOrLate = current.checkOutDate !== today;
+          return checkOutReservation(reservationId, {
+            confirmEarly: earlyOrLate || undefined,
+          });
+        }
       }
     },
     onSuccess: (saved, action) => {
-      invalidate(saved.id);
+      syncReservationCaches(queryClient, saved, {
+        occupancyChanged: action === "check-out",
+      });
       setPendingPrimary(null);
       handleSuccess(
         action === "confirm"
@@ -157,7 +178,13 @@ export function ReservationDetailPage() {
   if (detailQuery.isError || !detailQuery.data) {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 md:p-6">
-        <Button type="button" variant="ghost" size="sm" asChild className="w-fit">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          asChild
+          className="w-fit"
+        >
           <Link to={backHref}>
             <ArrowLeftIcon data-icon="inline-start" />
             Back
@@ -175,6 +202,7 @@ export function ReservationDetailPage() {
   }
 
   const row = detailQuery.data;
+  const today = todayYmdInTimezone(row.propertyTimezone);
   const primary = primaryActionFor(row);
   const due = reservationDue(row);
   const refund = reservationRefund(row);
@@ -184,7 +212,7 @@ export function ReservationDetailPage() {
   const showRefundWarn = refund != null && refund > 0 && showCollect;
   const showIcalWarn = row.icalSyncWarning != null;
   const pendingCopy = pendingPrimary
-    ? primaryActionDialogCopy(pendingPrimary, row)
+    ? primaryActionDialogCopy(pendingPrimary, row, today)
     : null;
 
   const requestPrimary = (action: PrimaryAction) => {

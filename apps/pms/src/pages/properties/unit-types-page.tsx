@@ -29,11 +29,10 @@ import {
   handleError,
   handleSuccess,
   INFINITE_INITIAL_PAGE,
+  invalidateInventoryCaches,
   listUnitTypes,
-  staffPropertiesQueryKeyPrefix,
   staffPropertyQueryKey,
   staffUnitTypesQueryKey,
-  staffUnitTypesQueryKeyPrefix,
 } from "@/lib/api";
 import {
   ExplorerGrid,
@@ -101,15 +100,7 @@ export function UnitTypesPage() {
     mutationFn: (input: { id: string; name: string }) =>
       deleteUnitType(input.id),
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({
-        queryKey: staffUnitTypesQueryKeyPrefix,
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertyQueryKey(propertyId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertiesQueryKeyPrefix,
-      });
+      invalidateInventoryCaches(queryClient);
       handleSuccess(`Deleted ${variables.name}`);
       setDeleteTarget(null);
     },

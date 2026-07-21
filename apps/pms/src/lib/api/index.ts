@@ -14,9 +14,12 @@ export {
   staffReservationQueryKey,
   staffReservationsQueryKey,
   staffReservationsQueryKeyPrefix,
+  staffReservationsListQueryKeyPrefix,
   staffSessionQueryKey,
   staffUnitQueryKey,
   staffUnitsQueryKey,
+  staffUnitsAvailabilityQueryKey,
+  staffUnitOccupancyQueryKey,
   staffUnitsQueryKeyPrefix,
   staffUnitTypeQueryKey,
   staffUnitTypesQueryKey,
@@ -34,7 +37,7 @@ export {
   confirmReservation,
   createReservation,
   getReservation,
-  invalidateReservationCaches,
+  syncReservationCaches,
   listReservations,
   postPaymentMovement,
   updateReservation,
@@ -46,17 +49,17 @@ export {
   type UpdateReservationInput,
 } from "./reservations";
 export {
-  FIXTURE_PROPERTY_B_ID,
-  FIXTURE_PROPERTY_B_NAME,
-  FIXTURE_PROPERTY_ID,
-  FIXTURE_PROPERTY_NAME,
-  FIXTURE_UNIT_TYPE_ID,
-} from "./reservations-fixture";
+  invalidateInventoryCaches,
+  syncPropertyCaches,
+  syncUnitCaches,
+  syncUnitTypeCaches,
+} from "./inventory-cache";
 export {
   changeAdminRole,
   createAdmin,
   listAdmins,
   setAdminActive,
+  syncStaffAdminCaches,
 } from "./admins";
 export {
   createProperty,
@@ -80,6 +83,8 @@ export {
   createUnit,
   deleteUnit,
   getUnit,
+  getUnitMonthOccupancy,
+  listAvailableUnits,
   listUnits,
   updateUnit,
   type ListUnitsParams,

@@ -62,6 +62,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     const isProd = process.env.NODE_ENV === 'production';
+    if (exception instanceof Error) {
+      const prismaHint = this.prismaSchemaHint(exception.message);
+      if (prismaHint) {
+        return {
+          status: 503,
+          code: ApiErrorCode.INTERNAL_ERROR,
+          message: prismaHint,
+        };
+      }
+    }
     return {
       status: 500,
       code: ApiErrorCode.INTERNAL_ERROR,
@@ -71,6 +81,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
           ? exception.message
           : 'Internal server error',
     };
+  }
+
+  /** Missing tables / columns → tell desk to migrate instead of a Prisma dump. */
+  private prismaSchemaHint(message: string): string | null {
+    if (/does not exist in the current database/i.test(message)) {
+      return 'Database schema is out of date. Run `pnpm --filter @cabin/api prisma:migrate` (or migrate deploy), then restart the API.';
+    }
+    return null;
   }
 
   private parseHttpExceptionResponse(

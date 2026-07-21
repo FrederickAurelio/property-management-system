@@ -20,7 +20,7 @@ import {
   cancelReservation,
   handleError,
   handleSuccess,
-  invalidateReservationCaches,
+  syncReservationCaches,
   type CancelDisposition,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -170,7 +170,7 @@ export function CancelSheet({
       });
     },
     onSuccess: (saved) => {
-      invalidateReservationCaches(queryClient, saved.id);
+      syncReservationCaches(queryClient, saved, { occupancyChanged: true });
       handleSuccess("Reservation cancelled");
       onOpenChange(false);
     },

@@ -38,6 +38,8 @@ type ExplorerItemProps = {
   /** Picker / select mode — click card without navigating. */
   onSelect?: () => void;
   selected?: boolean;
+  /** Shown but not selectable (e.g. booked / not bookable). */
+  disabled?: boolean;
 };
 
 function Thumb({ url, title }: { url?: string | null; title: string }) {
@@ -110,6 +112,7 @@ export function ExplorerItem({
   onDelete,
   onSelect,
   selected = false,
+  disabled = false,
 }: ExplorerItemProps) {
   const showActions = Boolean(onEdit);
 
@@ -172,13 +175,19 @@ export function ExplorerItem({
     ? "border-ring bg-muted/50 ring-1 ring-ring"
     : undefined;
   const interactiveClass =
-    href || onSelect ? "hover:bg-muted/40 cursor-pointer" : undefined;
+    !disabled && (href || onSelect)
+      ? "hover:bg-muted/40 cursor-pointer"
+      : undefined;
+  const disabledClass = disabled
+    ? "cursor-not-allowed opacity-55 bg-muted/20"
+    : undefined;
 
   if (view === "grid") {
     const className = cn(
       "flex flex-col overflow-hidden rounded-lg border border-border bg-card text-left transition-colors",
       interactiveClass,
       selectedClass,
+      disabledClass,
     );
 
     const content = (
@@ -207,7 +216,7 @@ export function ExplorerItem({
       </>
     );
 
-    if (href) {
+    if (href && !disabled) {
       return (
         <div className={cn(className, "relative")}>
           <Link
@@ -221,7 +230,7 @@ export function ExplorerItem({
       );
     }
 
-    if (onSelect) {
+    if (onSelect && !disabled) {
       return (
         <button
           type="button"
@@ -235,13 +244,21 @@ export function ExplorerItem({
       );
     }
 
-    return <div className={className}>{content}</div>;
+    return (
+      <div
+        className={className}
+        aria-disabled={disabled || undefined}
+      >
+        {content}
+      </div>
+    );
   }
 
   const rowClass = cn(
     "flex min-h-11 items-center gap-3 rounded-lg border border-border px-3 py-2 transition-colors",
     interactiveClass,
     selectedClass,
+    disabledClass,
   );
 
   const rowBody = (
@@ -260,7 +277,7 @@ export function ExplorerItem({
     </>
   );
 
-  if (href) {
+  if (href && !disabled) {
     return (
       <div className={cn(rowClass, "relative")}>
         <Link
@@ -290,7 +307,7 @@ export function ExplorerItem({
     );
   }
 
-  if (onSelect) {
+  if (onSelect && !disabled) {
     return (
       <button
         type="button"
@@ -304,7 +321,11 @@ export function ExplorerItem({
     );
   }
 
-  return <div className={rowClass}>{rowBody}</div>;
+  return (
+    <div className={rowClass} aria-disabled={disabled || undefined}>
+      {rowBody}
+    </div>
+  );
 }
 
 export function StatusBadge({

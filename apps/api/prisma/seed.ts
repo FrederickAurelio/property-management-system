@@ -261,7 +261,6 @@ async function seedSkybreeze(): Promise<void> {
         floor: '8',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
-        isActive: true,
       },
       {
         propertyId: property.id,
@@ -270,7 +269,6 @@ async function seedSkybreeze(): Promise<void> {
         floor: '8',
         status: UnitStatus.ACTIVE,
         sortOrder: 2,
-        isActive: true,
       },
       {
         propertyId: property.id,
@@ -280,7 +278,6 @@ async function seedSkybreeze(): Promise<void> {
         status: UnitStatus.MAINTENANCE,
         notes: 'AC servicing',
         sortOrder: 3,
-        isActive: true,
       },
       {
         propertyId: property.id,
@@ -289,7 +286,6 @@ async function seedSkybreeze(): Promise<void> {
         floor: '12',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
-        isActive: true,
       },
       {
         propertyId: property.id,
@@ -298,7 +294,6 @@ async function seedSkybreeze(): Promise<void> {
         floor: '5',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
-        isActive: true,
       },
       {
         propertyId: property.id,
@@ -307,7 +302,6 @@ async function seedSkybreeze(): Promise<void> {
         floor: '7',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
-        isActive: true,
       },
       {
         propertyId: property.id,
@@ -316,7 +310,6 @@ async function seedSkybreeze(): Promise<void> {
         floor: '9',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
-        isActive: true,
       },
       {
         propertyId: property.id,
@@ -326,7 +319,6 @@ async function seedSkybreeze(): Promise<void> {
         status: UnitStatus.INACTIVE,
         notes: 'Offline for renovation',
         sortOrder: 2,
-        isActive: false,
       },
     ],
   });

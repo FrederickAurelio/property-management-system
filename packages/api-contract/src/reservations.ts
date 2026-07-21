@@ -17,7 +17,6 @@ export const ReservationStatus = {
   CHECKED_IN: 'CHECKED_IN',
   CHECKED_OUT: 'CHECKED_OUT',
   CANCELLED: 'CANCELLED',
-  NO_SHOW: 'NO_SHOW',
 } as const;
 
 export type ReservationStatus =
@@ -136,6 +135,20 @@ export const RESERVATION_GUEST_EMAIL_MAX = 254;
 export const RESERVATION_GUEST_PHONE_MAX = 32;
 export const RESERVATION_NOTES_MAX = 4000;
 export const RESERVATION_EXTERNAL_REF_MAX = 256;
+
+/** Property-local calendar date as YYYY-MM-DD (desk boards / check-in window). */
+export function todayYmdInTimezone(timezone: string, now = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}
 
 /**
  * Recompute paymentStatus from amounts (doc §6).
@@ -294,6 +307,98 @@ export function isReadyToConfirm(input: ConfirmReadinessInput): boolean {
   return getConfirmFieldGaps(input).length === 0;
 }
 
+/** Cancel money disposition when paid > 0 (design §6). */
+export const CancelDisposition = {
+  none: 'none',
+  full_refund: 'full_refund',
+  keep: 'keep',
+  partial: 'partial',
+} as const;
+
+export type CancelDisposition =
+  (typeof CancelDisposition)[keyof typeof CancelDisposition];
+
+/** Desk board presets for list filters. */
+export const ReservationBoard = {
+  all: 'all',
+  arrivals: 'arrivals',
+  'in-house': 'in-house',
+  departures: 'departures',
+  'needs-details': 'needs-details',
+  'ical-alerts': 'ical-alerts',
+  'balance-due': 'balance-due',
+} as const;
+
+export type ReservationBoard =
+  (typeof ReservationBoard)[keyof typeof ReservationBoard];
+
+/** Staff list query filters (pagination page/pageSize separate). */
+export type StaffReservationListFilters = {
+  propertyId?: string;
+  q?: string;
+  status?: ReservationStatus;
+  source?: ReservationSource;
+  board?: ReservationBoard;
+  checkInDate?: string;
+  checkOutDate?: string;
+  hasIcalWarning?: boolean;
+  paymentStatusIn?: PaymentStatus[];
+  occupyingOnly?: boolean;
+};
+
+/** POST /staff/reservations — manual create as CONFIRMED. */
+export type CreateStaffReservationInput = {
+  propertyId: string;
+  unitId: string;
+  unitTypeId: string;
+  source: ReservationSource;
+  checkInDate: string;
+  checkOutDate: string;
+  guestName: string;
+  guestEmail?: string | null;
+  guestPhone?: string | null;
+  guestCount: number;
+  notes?: string | null;
+  totalAmountIdr: number;
+  /** Opening IN DEPOSIT when > 0. */
+  depositAmountIdr: number;
+};
+
+/** PATCH /staff/reservations/:id — never absolute Paid. */
+export type UpdateStaffReservationInput = {
+  unitId?: string;
+  unitTypeId?: string;
+  checkInDate?: string;
+  checkOutDate?: string;
+  guestName?: string;
+  guestEmail?: string | null;
+  guestPhone?: string | null;
+  guestCount?: number | null;
+  notes?: string | null;
+  totalAmountIdr?: number | null;
+  source?: ReservationSource;
+};
+
+export type CancelStaffReservationInput = {
+  disposition?: CancelDisposition;
+  /** OUT amount for partial; required when disposition is partial. */
+  refundAmountIdr?: number;
+  notes?: string | null;
+};
+
+export type PostPaymentMovementInput = {
+  direction: PaymentMovementDirection;
+  kind: PaymentMovementKind;
+  amountIdr: number;
+  method?: CollectedVia | null;
+  note?: string | null;
+};
+
+/** POST check-in / check-out — early stays need confirmEarly. */
+export type ConfirmEarlyInput = {
+  confirmEarly?: boolean;
+};
+
 /**
  * Staff/PMS wire shape for a reservation.
  * `unitCode` / `propertyName` are denormalized for list/detail display.
@@ -303,6 +408,8 @@ export type StaffReservation = {
   id: string;
   propertyId: string;
   propertyName: string;
+  /** IANA TZ for property-local “today” (boards, confirmEarly). */
+  propertyTimezone: string;
   unitId: string;
   unitCode: string;
   unitTypeId: string;
@@ -327,7 +434,6 @@ export type StaffReservation = {
   checkedInAt: string | null;
   checkedOutAt: string | null;
   cancelledAt: string | null;
-  noShowAt: string | null;
   createdAt: string;
   updatedAt: string;
   /** Manual / desk create; null for iCal/system stubs. */

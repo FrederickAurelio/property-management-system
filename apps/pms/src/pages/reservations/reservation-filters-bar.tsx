@@ -41,6 +41,8 @@ type ReservationFiltersBarProps = {
   propertyId: string;
   statusFilter: string;
   sourceFilter: string;
+  /** False when the board owns status (Nest overwrites any client status). */
+  showStatusFilter: boolean;
   /** URL `q` — bar owns draft typing; syncs debounced value back. */
   q: string;
   propertyOptions: ReservationPropertyOption[];
@@ -52,6 +54,7 @@ export function ReservationFiltersBar({
   propertyId,
   statusFilter,
   sourceFilter,
+  showStatusFilter,
   q,
   propertyOptions,
   onPatch,
@@ -157,30 +160,32 @@ export function ReservationFiltersBar({
               </SelectGroup>
             </SelectContent>
           </Select>
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => {
-              onPatch({ status: value === "all" ? null : value });
-            }}
-          >
-            <SelectTrigger
-              size="sm"
-              className="w-[8.75rem] shrink-0"
-              aria-label="Status"
+          {showStatusFilter && (
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                onPatch({ status: value === "all" ? null : value });
+              }}
             >
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">Any status</SelectItem>
-                {Object.values(ReservationStatus).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {formatReservationStatus(s)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+              <SelectTrigger
+                size="sm"
+                className="w-[8.75rem] shrink-0"
+                aria-label="Status"
+              >
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="all">Any status</SelectItem>
+                  {Object.values(ReservationStatus).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {formatReservationStatus(s)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
           <Select
             value={sourceFilter}
             onValueChange={(value) => {

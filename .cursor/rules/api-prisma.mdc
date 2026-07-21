@@ -1,9 +1,10 @@
 ---
-description: API data layer — Prisma schema, services, generate
+description: API data layer — Prisma schema, services, filters in the query
 globs:
   - apps/api/prisma/**
   - apps/api/src/prisma/**
   - apps/api/src/**/*.service.ts
+  - apps/api/src/domain/**/*.ts
 alwaysApply: false
 ---
 
@@ -11,3 +12,23 @@ alwaysApply: false
 
 - Prisma client: `src/generated/prisma`. After schema change: `pnpm prisma:generate`.
 - Prisma only inside **services** — not controllers.
+
+## Filters belong in the query (locked)
+
+Default = **Prisma `where`** on `findMany` / `count` / `findFirst` / `updateMany`. Put every list / board / search / “matches X” predicate there. Do **not** load rows then `.filter` / `if` them out in Node.
+
+`$queryRaw` is only the fallback when Prisma cannot express the predicate (e.g. compare two columns). Still in the DB — never “fetch wide, filter in JS.”
+
+| Bad | Why |
+|-----|-----|
+| `findMany({ skip, take })` then `.filter(predicate)`, `pageInfo` from leftover length | Empty pages, wrong totals, infinite scroll dies |
+| Load all candidates, filter in memory for a board | Same bugs + scales poorly |
+| Wide Prisma `where`, then drop rows with `if` for the response | Predicate belongs in `where` |
+
+| OK after fetch | Why |
+|----------------|-----|
+| Map row → wire DTO / enrich fields | Not dropping matches |
+| Tag every unit with `available` / `blockReason` (availability returns all) | Intentional full set, not a filtered page |
+| Single-row guards (`if (!row)`, status transition) | Not a list filter |
+
+`count({ where })` and `findMany({ where, skip, take })` must share the **same** Prisma `where` for paginated lists.

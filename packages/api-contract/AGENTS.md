@@ -17,12 +17,12 @@ scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 
 - Envelope types, error codes, `ApiError`
 - Staff wire types (`AdminRole`, `StaffAdmin`) + credential limits — `Staff*` = staff/PMS wire shapes, **not** the public website catalog
-- Inventory wire types (`StaffProperty`, `StaffUnitType`, `StaffUnit`, enums, `MediaItem`, `Amenities`, `BedConfigRoom`)
-- Reservation wire types (`StaffReservation`, source/status/payment enums) + helpers (`recomputePaymentStatus`, `balanceDueIdr`, `refundDueIdr`, `suggestStayTotalIdr` — Nest must reuse; do not fork)
+- Inventory wire types (`StaffProperty`, `StaffUnitType`, `StaffUnit`, `StaffUnitAvailability`, `UnitMonthOccupancy`, enums, `MediaItem`, `Amenities`, `BedConfigRoom`) + `isUnitStatusBookable` / `UnitAvailabilityBlockReason`
+- Reservation wire types (`StaffReservation`, create/update/cancel/list filters, boards) + helpers (`recomputePaymentStatus`, `balanceDueIdr`, `refundDueIdr`, `suggestStayTotalIdr` — Nest must reuse; do not fork)
 - Payment movement wire (`PaymentMovement`, direction/kind enums) + helpers (`signedAmountFor`, `sumPaidFromMovements`) — Paid on reservation is denormalized sum of movements; Nest must append movements, not overwrite Paid alone; stamp `createdByAdminId` from session
 - Reservation staff wire includes `createdByAdminId` / `updatedByAdminId` (+ denormalized usernames) — light attribution, not a full audit log
 - Pagination: `Paginated<T>`, `PageInfo`, `buildPageInfo`, page size bounds
-- Structured field-error reasons (`ApiFieldReason`: staff + inventory — `CODE_TAKEN`, `LAT_LNG_PAIR_REQUIRED`, `HAS_CHILDREN`, …)
+- Structured field-error reasons (`ApiFieldReason`: staff + inventory + reservations — `OVERLAP_CONFLICT`, `UNIT_NOT_BOOKABLE`, `EARLY_CONFIRM_REQUIRED`, …)
 
 ## Out
 

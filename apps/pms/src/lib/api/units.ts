@@ -1,6 +1,8 @@
 import type {
   Paginated,
   StaffUnit,
+  StaffUnitAvailability,
+  UnitMonthOccupancy,
   UnitStatus,
 } from "@cabin/api-contract";
 import { PAGE_SIZE_DEFAULT } from "@cabin/api-contract";
@@ -12,7 +14,6 @@ export type ListUnitsParams = {
   q?: string;
   unitTypeId?: string;
   status?: UnitStatus;
-  isActive?: boolean;
 };
 
 export type UnitWriteInput = {
@@ -22,7 +23,6 @@ export type UnitWriteInput = {
   floor?: string | null;
   status: UnitStatus;
   notes?: string | null;
-  isActive?: boolean;
 };
 
 export type UnitUpdateInput = {
@@ -31,7 +31,6 @@ export type UnitUpdateInput = {
   floor?: string | null;
   status?: UnitStatus;
   notes?: string | null;
-  isActive?: boolean;
 };
 
 export async function listUnits(
@@ -47,7 +46,53 @@ export async function listUnits(
         ...(params.q ? { q: params.q } : {}),
         ...(params.unitTypeId ? { unitTypeId: params.unitTypeId } : {}),
         ...(params.status ? { status: params.status } : {}),
-        ...(params.isActive !== undefined ? { isActive: params.isActive } : {}),
+      },
+    },
+  );
+  return data;
+}
+
+export async function listAvailableUnits(
+  propertyId: string,
+  params: {
+    checkInDate?: string;
+    checkOutDate?: string;
+    unitTypeId?: string;
+    excludeReservationId?: string;
+  } = {},
+): Promise<StaffUnitAvailability[]> {
+  const { data } = await api.get<StaffUnitAvailability[]>(
+    `/staff/properties/${propertyId}/units/availability`,
+    {
+      params: {
+        ...(params.checkInDate ? { checkInDate: params.checkInDate } : {}),
+        ...(params.checkOutDate ? { checkOutDate: params.checkOutDate } : {}),
+        ...(params.unitTypeId ? { unitTypeId: params.unitTypeId } : {}),
+        ...(params.excludeReservationId
+          ? { excludeReservationId: params.excludeReservationId }
+          : {}),
+      },
+    },
+  );
+  return data;
+}
+
+/** Occupying stays for one calendar month (date-picker blocking). */
+export async function getUnitMonthOccupancy(
+  unitId: string,
+  params: {
+    yearMonth: string;
+    excludeReservationId?: string;
+  },
+): Promise<UnitMonthOccupancy> {
+  const { data } = await api.get<UnitMonthOccupancy>(
+    `/staff/units/${unitId}/occupancy`,
+    {
+      params: {
+        yearMonth: params.yearMonth,
+        ...(params.excludeReservationId
+          ? { excludeReservationId: params.excludeReservationId }
+          : {}),
       },
     },
   );

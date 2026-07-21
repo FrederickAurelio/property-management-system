@@ -35,7 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   handleError,
   handleSuccess,
-  invalidateReservationCaches,
+  syncReservationCaches,
   postPaymentMovement,
 } from "@/lib/api";
 import { formatIdr } from "@/pages/properties/inventory-types";
@@ -215,7 +215,7 @@ export function CollectSheet({
       });
     },
     onSuccess: (saved) => {
-      invalidateReservationCaches(queryClient, saved.id);
+      syncReservationCaches(queryClient, saved);
       handleSuccess(mode === "refund" ? "Refund recorded" : "Payment collected");
       onOpenChange(false);
     },

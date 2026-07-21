@@ -34,11 +34,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  applyApiFieldError,
   createReservation,
   getUnitType,
   handleError,
   handleSuccess,
-  invalidateReservationCaches,
+  syncReservationCaches,
+  listAvailableUnits,
+  staffUnitsAvailabilityQueryKey,
   staffUnitTypeQueryKey,
   updateReservation,
 } from "@/lib/api";
@@ -50,7 +53,6 @@ import {
 import {
   formatReservationSource,
   nightCount,
-  todayYmd,
 } from "./reservation-format";
 import { StayDateRangePicker } from "./stay-date-range-picker";
 import {
@@ -59,16 +61,6 @@ import {
   type ChosenUnit,
 } from "./chosen-unit";
 import { UnitInventoryPicker } from "./unit-inventory-picker";
-
-function addDaysYmd(ymd: string, days: number): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(y!, m! - 1, d!);
-  dt.setDate(dt.getDate() + days);
-  const yy = dt.getFullYear();
-  const mm = String(dt.getMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
-}
 
 const SOURCE_OPTIONS = [
   ReservationSource.MANUAL,
@@ -179,9 +171,16 @@ export function ReservationFormDialog({
   const isConfirmEnrich = intent === "confirm-enrich";
   const queryClient = useQueryClient();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [picked, setPicked] = useState<ChosenUnit | null>(null);
+  /** `undefined` = fall back to reservation; `null` = cleared; else user pick. */
+  const [picked, setPicked] = useState<ChosenUnit | null | undefined>(
+    undefined,
+  );
   const chosen =
-    picked ?? (reservation ? chosenFromReservation(reservation) : null);
+    picked !== undefined
+      ? picked
+      : reservation
+        ? chosenFromReservation(reservation)
+        : null;
   /** Last unitTypeId:nights:rack we applied (or seeded on edit open). */
   const appliedSuggestKeyRef = useRef<string | null>(null);
 
@@ -189,8 +188,8 @@ export function ReservationFormDialog({
     resolver: zodResolver(schema as never),
     defaultValues: {
       unitId: "",
-      checkInDate: todayYmd(),
-      checkOutDate: addDaysYmd(todayYmd(), 1),
+      checkInDate: "",
+      checkOutDate: "",
       guestName: "",
       guestEmail: "",
       guestPhone: "",
@@ -226,11 +225,10 @@ export function ReservationFormDialog({
       });
       return;
     }
-    const checkIn = todayYmd();
     form.reset({
       unitId: "",
-      checkInDate: checkIn,
-      checkOutDate: addDaysYmd(checkIn, 1),
+      checkInDate: "",
+      checkOutDate: "",
       guestName: "",
       guestEmail: "",
       guestPhone: "",
@@ -268,6 +266,73 @@ export function ReservationFormDialog({
     queryFn: () => getUnitType(chosen!.unitTypeId),
     enabled: open && Boolean(chosen?.unitTypeId),
   });
+
+  const datesReady =
+    Boolean(checkInDate) &&
+    Boolean(checkOutDate) &&
+    checkOutDate > checkInDate;
+
+  /** 2a: when stay dates change, re-check the chosen unit against availability. */
+  const unitAvailabilityQuery = useQuery({
+    queryKey: staffUnitsAvailabilityQueryKey(chosen?.propertyId ?? "", {
+      checkInDate,
+      checkOutDate,
+      unitTypeId: chosen?.unitTypeId,
+      ...(reservation?.id
+        ? { excludeReservationId: reservation.id }
+        : {}),
+    }),
+    queryFn: () =>
+      listAvailableUnits(chosen!.propertyId, {
+        checkInDate,
+        checkOutDate,
+        unitTypeId: chosen!.unitTypeId,
+        ...(reservation?.id
+          ? { excludeReservationId: reservation.id }
+          : {}),
+      }),
+    enabled:
+      open &&
+      !pickerOpen &&
+      Boolean(chosen?.propertyId) &&
+      Boolean(chosen?.unitTypeId) &&
+      Boolean(chosen?.unitId) &&
+      datesReady,
+    staleTime: 0,
+  });
+
+  /** Last availability key we already cleared for (avoid toast loops). */
+  const clearedUnitKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !chosen || !unitAvailabilityQuery.isSuccess) {
+      return;
+    }
+    const row = unitAvailabilityQuery.data.find((u) => u.id === chosen.unitId);
+    if (row?.available) {
+      return;
+    }
+    const key = `${chosen.unitId}:${checkInDate}:${checkOutDate}`;
+    if (clearedUnitKeyRef.current === key) {
+      return;
+    }
+    clearedUnitKeyRef.current = key;
+    setPicked(null);
+    form.setValue("unitId", "", { shouldDirty: true, shouldValidate: true });
+    handleError(
+      new Error(
+        "That unit isn’t free for these dates — choose another unit.",
+      ),
+    );
+  }, [
+    open,
+    chosen,
+    checkInDate,
+    checkOutDate,
+    unitAvailabilityQuery.isSuccess,
+    unitAvailabilityQuery.data,
+    form,
+  ]);
   const rackPriceIdr = unitTypeQuery.data?.defaultPriceIdr;
   const suggestedTotal =
     rackPriceIdr != null && nights >= 1
@@ -311,7 +376,7 @@ export function ReservationFormDialog({
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
-      setPicked(null);
+      setPicked(undefined);
       setPickerOpen(false);
     }
     onOpenChange(next);
@@ -328,7 +393,6 @@ export function ReservationFormDialog({
       if (reservation) {
         return updateReservation(reservation.id, {
           unitId: chosen.unitId,
-          unitCode: chosen.unitCode,
           unitTypeId: chosen.unitTypeId,
           checkInDate: values.checkInDate,
           checkOutDate: values.checkOutDate,
@@ -344,9 +408,7 @@ export function ReservationFormDialog({
 
       return createReservation({
         propertyId: chosen.propertyId,
-        propertyName: chosen.propertyName,
         unitId: chosen.unitId,
-        unitCode: chosen.unitCode,
         unitTypeId: chosen.unitTypeId,
         source: values.source,
         checkInDate: values.checkInDate,
@@ -361,7 +423,12 @@ export function ReservationFormDialog({
       });
     },
     onSuccess: (saved) => {
-      invalidateReservationCaches(queryClient, saved.id);
+      const occupancyChanged =
+        reservation == null ||
+        reservation.unitId !== saved.unitId ||
+        reservation.checkInDate !== saved.checkInDate ||
+        reservation.checkOutDate !== saved.checkOutDate;
+      syncReservationCaches(queryClient, saved, { occupancyChanged });
       handleSuccess(
         isConfirmEnrich
           ? "Details saved"
@@ -369,7 +436,7 @@ export function ReservationFormDialog({
             ? "Reservation updated"
             : "Reservation created",
       );
-      setPicked(null);
+      setPicked(undefined);
       setPickerOpen(false);
       onOpenChange(false);
       if (!isEdit) {
@@ -378,6 +445,9 @@ export function ReservationFormDialog({
       onSaved?.(saved);
     },
     onError: (error) => {
+      if (applyApiFieldError(error, form.setError)) {
+        return;
+      }
       handleError(error);
     },
   });
@@ -484,6 +554,8 @@ export function ReservationFormDialog({
               id="stay-dates"
               checkInDate={checkInDate}
               checkOutDate={checkOutDate}
+              unitId={chosen?.unitId}
+              excludeReservationId={reservation?.id}
               invalid={Boolean(
                 form.formState.errors.checkInDate ||
                   form.formState.errors.checkOutDate,
@@ -775,11 +847,14 @@ export function ReservationFormDialog({
       <UnitInventoryPicker
         open
         onOpenChange={setPickerOpen}
+        checkInDate={checkInDate}
+        checkOutDate={checkOutDate}
         initialPropertyId={chosen?.propertyId ?? initialPropertyId}
         initialPropertyName={chosen?.propertyName ?? initialPropertyName}
         initialUnitTypeId={chosen?.unitTypeId ?? ""}
         initialUnitTypeName={chosen?.unitTypeName ?? ""}
         initialUnitId={chosen?.unitId ?? ""}
+        excludeReservationId={reservation?.id}
         onConfirm={(next) => {
           setPicked(next);
           form.setValue("unitId", next.unitId, {

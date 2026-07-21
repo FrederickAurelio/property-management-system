@@ -1,70 +1,70 @@
 /**
- * Staff reservations API helpers.
- * Currently backed by an in-memory fixture — replace bodies with `api.*`
- * when Nest `/staff/reservations` ships.
+ * Staff reservations API — Nest `/staff/reservations`.
  */
 import {
   PAGE_SIZE_DEFAULT,
+  type CancelDisposition,
+  type CancelStaffReservationInput,
+  type ConfirmEarlyInput,
+  type CreateStaffReservationInput,
   type Paginated,
+  type PostPaymentMovementInput,
   type StaffReservation,
+  type StaffReservationListFilters,
+  type UpdateStaffReservationInput,
 } from "@cabin/api-contract";
 import type { QueryClient } from "@tanstack/react-query";
+import { api } from "./client";
 import {
   staffReservationQueryKey,
-  staffReservationsQueryKeyPrefix,
+  staffReservationsListQueryKeyPrefix,
+  staffUnitsAvailabilityQueryKeyPrefix,
+  staffUnitsOccupancyQueryKeyPrefix,
 } from "./query-keys";
-import {
-  fixtureCancelReservation,
-  fixtureCheckInReservation,
-  fixtureCheckOutReservation,
-  fixtureConfirmReservation,
-  fixtureCreateReservation,
-  fixtureGetReservation,
-  fixtureListReservations,
-  fixturePostPaymentMovement,
-  fixtureUpdateReservation,
-  type CancelDisposition,
-  type FixtureActor,
-  type FixtureCancelInput,
-  type FixtureCreateInput,
-  type FixtureListFilters,
-  type FixturePostMovementInput,
-  type FixtureUpdateInput,
-} from "./reservations-fixture";
-import { staffSession } from "./staff-auth";
 
-export type ListReservationsParams = FixtureListFilters & {
+export type ListReservationsParams = StaffReservationListFilters & {
   page?: number;
   pageSize?: number;
 };
 
-export type CreateReservationInput = FixtureCreateInput;
-export type UpdateReservationInput = FixtureUpdateInput;
-export type PostPaymentMovementInput = FixturePostMovementInput;
-export type CancelReservationInput = FixtureCancelInput;
+export type CreateReservationInput = CreateStaffReservationInput;
+export type UpdateReservationInput = UpdateStaffReservationInput;
+export type { PostPaymentMovementInput };
+export type CancelReservationInput = CancelStaffReservationInput;
 export type { CancelDisposition };
 
-/** Stamp mutations with the signed-in admin (Nest will take this from session). */
-async function resolveFixtureActor(): Promise<FixtureActor> {
-  try {
-    const admin = await staffSession();
-    return { id: admin.id, username: admin.username };
-  } catch {
-    return null;
-  }
-}
+export type SyncReservationCachesOptions = {
+  /**
+   * Occupying nights may have changed (create, unit/dates PATCH, checkout, cancel).
+   * Skipped for money-only / confirm / check-in (still occupying).
+   */
+  occupancyChanged?: boolean;
+};
 
-/** Invalidate reservation list (+ optional detail) after a mutation. */
-export function invalidateReservationCaches(
+/**
+ * After a mutation that returns the full reservation row:
+ * - write detail from the response (no detail refetch)
+ * - invalidate list/board queries only
+ * - optionally refresh availability + occupancy (not inventory unit lists)
+ */
+export function syncReservationCaches(
   queryClient: QueryClient,
-  reservationId?: string,
+  reservation: StaffReservation,
+  opts: SyncReservationCachesOptions = {},
 ): void {
+  queryClient.setQueryData(
+    staffReservationQueryKey(reservation.id),
+    reservation,
+  );
   void queryClient.invalidateQueries({
-    queryKey: staffReservationsQueryKeyPrefix,
+    queryKey: staffReservationsListQueryKeyPrefix,
   });
-  if (reservationId) {
+  if (opts.occupancyChanged) {
     void queryClient.invalidateQueries({
-      queryKey: staffReservationQueryKey(reservationId),
+      queryKey: staffUnitsAvailabilityQueryKeyPrefix,
+    });
+    void queryClient.invalidateQueries({
+      queryKey: staffUnitsOccupancyQueryKeyPrefix,
     });
   }
 }
@@ -73,32 +73,57 @@ export async function listReservations(
   params: ListReservationsParams = {},
 ): Promise<Paginated<StaffReservation>> {
   const { page = 1, pageSize = PAGE_SIZE_DEFAULT, ...filters } = params;
-  await Promise.resolve();
-  return fixtureListReservations(filters, page, pageSize);
+  const { data } = await api.get<Paginated<StaffReservation>>(
+    "/staff/reservations",
+    {
+      params: {
+        page,
+        pageSize,
+        ...(filters.propertyId ? { propertyId: filters.propertyId } : {}),
+        ...(filters.q ? { q: filters.q } : {}),
+        ...(filters.status ? { status: filters.status } : {}),
+        ...(filters.source ? { source: filters.source } : {}),
+        ...(filters.board ? { board: filters.board } : {}),
+        ...(filters.checkInDate ? { checkInDate: filters.checkInDate } : {}),
+        ...(filters.checkOutDate ? { checkOutDate: filters.checkOutDate } : {}),
+        ...(filters.hasIcalWarning !== undefined
+          ? { hasIcalWarning: filters.hasIcalWarning }
+          : {}),
+        ...(filters.occupyingOnly !== undefined
+          ? { occupyingOnly: filters.occupyingOnly }
+          : {}),
+      },
+    },
+  );
+  return data;
 }
 
 export async function getReservation(id: string): Promise<StaffReservation> {
-  await Promise.resolve();
-  const row = fixtureGetReservation(id);
-  if (!row) {
-    throw new Error(`Reservation not found: ${id}`);
-  }
-  return row;
+  const { data } = await api.get<StaffReservation>(
+    `/staff/reservations/${id}`,
+  );
+  return data;
 }
 
 export async function createReservation(
   input: CreateReservationInput,
 ): Promise<StaffReservation> {
-  const actor = await resolveFixtureActor();
-  return fixtureCreateReservation(input, actor);
+  const { data } = await api.post<StaffReservation>(
+    "/staff/reservations",
+    input,
+  );
+  return data;
 }
 
 export async function updateReservation(
   id: string,
   input: UpdateReservationInput,
 ): Promise<StaffReservation> {
-  const actor = await resolveFixtureActor();
-  return fixtureUpdateReservation(id, input, actor);
+  const { data } = await api.patch<StaffReservation>(
+    `/staff/reservations/${id}`,
+    input,
+  );
+  return data;
 }
 
 /** Cash goes through postPaymentMovement only — no absolute Paid rewrite API. */
@@ -106,35 +131,51 @@ export async function postPaymentMovement(
   id: string,
   input: PostPaymentMovementInput,
 ): Promise<StaffReservation> {
-  const actor = await resolveFixtureActor();
-  return fixturePostPaymentMovement(id, input, actor);
+  const { data } = await api.post<StaffReservation>(
+    `/staff/reservations/${id}/movements`,
+    input,
+  );
+  return data;
 }
 
 export async function confirmReservation(
   id: string,
 ): Promise<StaffReservation> {
-  const actor = await resolveFixtureActor();
-  return fixtureConfirmReservation(id, actor);
+  const { data } = await api.post<StaffReservation>(
+    `/staff/reservations/${id}/confirm`,
+  );
+  return data;
 }
 
 export async function checkInReservation(
   id: string,
+  input: ConfirmEarlyInput = {},
 ): Promise<StaffReservation> {
-  const actor = await resolveFixtureActor();
-  return fixtureCheckInReservation(id, actor);
+  const { data } = await api.post<StaffReservation>(
+    `/staff/reservations/${id}/check-in`,
+    input,
+  );
+  return data;
 }
 
 export async function checkOutReservation(
   id: string,
+  input: ConfirmEarlyInput = {},
 ): Promise<StaffReservation> {
-  const actor = await resolveFixtureActor();
-  return fixtureCheckOutReservation(id, actor);
+  const { data } = await api.post<StaffReservation>(
+    `/staff/reservations/${id}/check-out`,
+    input,
+  );
+  return data;
 }
 
 export async function cancelReservation(
   id: string,
   input: CancelReservationInput = {},
 ): Promise<StaffReservation> {
-  const actor = await resolveFixtureActor();
-  return fixtureCancelReservation(id, input, actor);
+  const { data } = await api.post<StaffReservation>(
+    `/staff/reservations/${id}/cancel`,
+    input,
+  );
+  return data;
 }

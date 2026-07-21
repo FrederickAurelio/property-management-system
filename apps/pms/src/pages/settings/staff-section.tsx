@@ -67,6 +67,7 @@ import {
   listAdmins,
   setAdminActive,
   staffAdminsQueryKey,
+  syncStaffAdminCaches,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
@@ -185,7 +186,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
   const createMutation = useMutation({
     mutationFn: createAdmin,
     onSuccess: (admin) => {
-      void queryClient.invalidateQueries({ queryKey: staffAdminsQueryKey });
+      syncStaffAdminCaches(queryClient, admin);
       handleSuccess(`Created ${admin.username}`);
       createForm.reset({
         username: "",
@@ -225,7 +226,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       currentPassword: string;
     }) => changeAdminRole(id, { role, currentPassword }),
     onSuccess: (admin) => {
-      void queryClient.invalidateQueries({ queryKey: staffAdminsQueryKey });
+      syncStaffAdminCaches(queryClient, admin);
       handleSuccess(`Updated ${admin.username} to ${formatRole(admin.role)}`);
       setRoleTarget(null);
       closeReauth();
@@ -251,7 +252,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       currentPassword: string;
     }) => setAdminActive(id, { isActive, currentPassword }),
     onSuccess: (admin) => {
-      void queryClient.invalidateQueries({ queryKey: staffAdminsQueryKey });
+      syncStaffAdminCaches(queryClient, admin);
       handleSuccess(
         admin.isActive
           ? `Restored access for ${admin.username}`

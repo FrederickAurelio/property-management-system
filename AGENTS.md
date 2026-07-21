@@ -43,8 +43,8 @@ One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (nev
 
 | App | Stack | Scaffold |
 |-----|--------|----------|
-| `api` | NestJS · TypeScript · PostgreSQL · Prisma 6 · session cookies + Guards | Auth + inventory done; **Nest reservations next** |
-| `pms` | React · Vite · TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) | Auth + inventory done; **reservations desk UI fixture-backed** (swap to Nest when API ships) |
+| `api` | NestJS · TypeScript · PostgreSQL · Prisma 6 · session cookies + Guards | Auth + inventory + **reservations/money** done |
+| `pms` | React · Vite · TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) | Auth + inventory + **reservations desk on Nest** |
 | `web` | **Undecided** (Phase 2 customer FE) | Placeholder only |
 
 Do not introduce Express+Mongo, a second API, or a second booking database.
@@ -83,7 +83,7 @@ iCal stubs → `UNCONFIRMED` until staff enrich guest + money.
 ## Build order
 
 1. Auth + units ← **done**
-2. Manual reservations + money/DP ← **PMS UI fixture done**; Nest schema + `/staff/reservations` next (then drop fixture)
+2. Manual reservations + money/DP ← **done** (Nest `/staff/reservations` + PMS live)
 3. Calendar (same reservation rows) + check-in / check-out polish
 4. Basic reports
 5. iCal **export** per unit (PMS → OTA) + **import** + Sync now (+ `UNCONFIRMED` enrich / missing-feed warnings)

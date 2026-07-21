@@ -7,6 +7,9 @@ globs:
   - apps/pms/src/lib/api/infinite-page.ts
   - apps/pms/src/lib/api/field-error.ts
   - apps/pms/src/lib/api/toast.ts
+  - apps/pms/src/lib/api/reservations.ts
+  - apps/pms/src/lib/api/inventory-cache.ts
+  - apps/pms/src/lib/api/admins.ts
   - apps/pms/src/lib/query-client.ts
 alwaysApply: false
 ---
@@ -50,7 +53,7 @@ useInfiniteQuery({
 | Rule | Detail |
 |------|--------|
 | Page param | 1-based `page`; next = `page < totalPages ? page + 1 : undefined` via `getNextPageParamFromPageInfo` |
-| Query keys | Factories include list filters (`q`, `status`, …). Invalidate with the **prefix** tuple after writes |
+| Query keys | Factories include list filters (`q`, `status`, …). Invalidate with the **list** prefix tuple after writes |
 | Flatten | `data.pages.flatMap((p) => p.items)` |
 | Scroll UX | Shared [`InfiniteListFooter`](../../apps/pms/src/components/infinite-list-footer.tsx) + `react-intersection-observer` (`pms-ui`) |
 
@@ -63,15 +66,37 @@ useInfiniteQuery({
 
 On next-page error: **unmount the in-view sentinel** and show footer + `QueryRetryButton`. Leaving the sentinel `inView` while errored causes an auto-fetch loop.
 
-## Mutations & cache
+## Mutations & cache (locked)
 
-| After success | Cache |
-|---------------|--------|
-| Login / self-profile patch that returns `StaffAdmin` | `setQueryData(staffSessionQueryKey, admin)` |
-| List create / update / delete | `invalidateQueries({ queryKey: …Prefix })` for that resource |
-| Logout | `invalidateQueries(staffSessionQueryKey)` then navigate `/login` |
+### Decision: `setQueryData` vs `invalidateQueries`
 
-Always `handleSuccess` in the mutation `onSuccess` (or screen handler) — never in the axios interceptor.
+| Situation | Do |
+|-----------|-----|
+| Mutation response is **1:1 with a GET detail** (same `Staff*` row) | `setQueryData(detailKey, saved)` — **do not** refetch that detail |
+| Unpaginated list you can patch locally (e.g. `StaffAdmin[]`) | Merge/`setQueryData` the list from `saved` — no list GET |
+| Infinite / filtered / board lists (membership or sort may change) | `invalidateQueries({ queryKey: *List*Prefix })` — server recomputes pages |
+| Related derived data (availability, occupancy, parent counts) | Invalidate **only** those prefixes when the write can change them |
+| Delete / no usable body / logout | Invalidate (or `removeQueries`) — nothing to write |
+| Stale risk matters more than a round-trip (boards, busy nights after cancel) | Prefer invalidate for that slice — correctness over chatter |
+
+**Never** invalidate a broad resource prefix that also matches the detail key you just `setQueryData`’d — use a `…ListQueryKeyPrefix` (or tighter) so detail stays from the mutation.
+
+### Helpers (use these — don’t invent ad-hoc invalidates)
+
+| Write | Helper |
+|-------|--------|
+| Reservation ops returning `StaffReservation` | `syncReservationCaches(qc, saved, { occupancyChanged? })` |
+| Property create/update | `syncPropertyCaches(qc, saved)` |
+| Unit type create/update | `syncUnitTypeCaches(qc, saved)` |
+| Unit create/update | `syncUnitCaches(qc, saved, { bookabilityChanged? })` |
+| Staff admin create/role/active | `syncStaffAdminCaches(qc, saved)` |
+| Inventory **delete** / tree wipe | `invalidateInventoryCaches(qc)` |
+| Login / change username | `setQueryData(staffSessionQueryKey, admin)` |
+| Logout | `invalidateQueries(staffSessionQueryKey)` then `/login` |
+
+`occupancyChanged` / `bookabilityChanged`: only when unit nights or bookability can change (create, date/unit move, checkout, cancel, unit status). Skip for money-only, confirm, check-in, guest/notes edits.
+
+Always `handleSuccess` in mutation `onSuccess` — never in the axios interceptor.
 
 ## Errors — pick one path
 
@@ -98,6 +123,8 @@ Always `handleSuccess` in the mutation `onSuccess` (or screen handler) — never
 - Toast inside axios interceptors
 - Second axios instance / raw `fetch` to Nest
 - Duplicate query-key literals outside `query-keys.ts`
+- Refetch GET detail when the mutation already returned that same row
+- Nuke all inventory prefixes after a single-entity update (use `sync*Caches`)
 - `setError` for operational conflicts (`HAS_CHILDREN`) or login credential failures
-- Optimistic UI unless the screen explicitly needs it (default = invalidate / setQueryData from response)
+- Optimistic UI unless the screen explicitly needs it
 - Keep the infinite-scroll sentinel mounted while `isFetchNextPageError` (error loop)

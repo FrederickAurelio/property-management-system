@@ -1,6 +1,5 @@
 import { Transform } from 'class-transformer';
 import {
-  IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -56,8 +55,4 @@ export class CreateUnitDto {
   @IsString()
   @MaxLength(4000)
   notes?: string | null;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
 }

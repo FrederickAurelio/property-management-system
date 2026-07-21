@@ -9,7 +9,15 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type { Paginated, StaffUnit } from '@cabin/api-contract';
+import type {
+  Paginated,
+  StaffUnit,
+  StaffUnitAvailability,
+  UnitMonthOccupancy,
+} from '@cabin/api-contract';
+import { UnitsAvailabilityQueryDto } from '../../domain/availability/dto/units-availability.query.dto.js';
+import { UnitMonthOccupancyQueryDto } from '../../domain/availability/dto/unit-month-occupancy.query.dto.js';
+import { AvailabilityService } from '../../domain/availability/availability.service.js';
 import { CreateUnitDto } from '../../domain/units/dto/create-unit.dto.js';
 import { ListUnitsQueryDto } from '../../domain/units/dto/list-units.query.dto.js';
 import { UpdateUnitDto } from '../../domain/units/dto/update-unit.dto.js';
@@ -22,7 +30,26 @@ import { StaffSessionAuthGuard } from '../auth/guards/staff-session-auth.guard.j
 @UseGuards(StaffSessionAuthGuard, StaffRolesGuard)
 @StaffRoles('FRONT_DESK')
 export class UnitsController {
-  constructor(private readonly unitsService: UnitsService) {}
+  constructor(
+    private readonly unitsService: UnitsService,
+    private readonly availabilityService: AvailabilityService,
+  ) {}
+
+  @Get('properties/:propertyId/units/availability')
+  availability(
+    @Param('propertyId') propertyId: string,
+    @Query() query: UnitsAvailabilityQueryDto,
+  ): Promise<StaffUnitAvailability[]> {
+    return this.availabilityService.listAvailableUnits(propertyId, query);
+  }
+
+  @Get('units/:id/occupancy')
+  occupancy(
+    @Param('id') id: string,
+    @Query() query: UnitMonthOccupancyQueryDto,
+  ): Promise<UnitMonthOccupancy> {
+    return this.availabilityService.getUnitMonthOccupancy(id, query);
+  }
 
   @Get('properties/:propertyId/units')
   list(

@@ -17,6 +17,19 @@ export const ApiFieldReason = {
   LNG_OUT_OF_RANGE: 'LNG_OUT_OF_RANGE',
   /** Unit create: unitTypeId missing or not under the path property. */
   UNIT_TYPE_INVALID: 'UNIT_TYPE_INVALID',
+  /** Unit/property/type not open for booking (catalog or status). */
+  UNIT_NOT_BOOKABLE: 'UNIT_NOT_BOOKABLE',
+  DATE_RANGE_INVALID: 'DATE_RANGE_INVALID',
+  /** Occupying stay overlaps — see OverlapConflictDetails. */
+  OVERLAP_CONFLICT: 'OVERLAP_CONFLICT',
+  CONFIRM_INCOMPLETE: 'CONFIRM_INCOMPLETE',
+  /** guestCount above UnitType.maxGuests — `field` is guestCount. */
+  GUEST_COUNT_EXCEEDS_MAX: 'GUEST_COUNT_EXCEEDS_MAX',
+  CANCEL_DISPOSITION_REQUIRED: 'CANCEL_DISPOSITION_REQUIRED',
+  REFUND_AMOUNT_INVALID: 'REFUND_AMOUNT_INVALID',
+  MOVEMENT_EXCEEDS_DUE: 'MOVEMENT_EXCEEDS_DUE',
+  EARLY_CONFIRM_REQUIRED: 'EARLY_CONFIRM_REQUIRED',
+  INVALID_STATUS_TRANSITION: 'INVALID_STATUS_TRANSITION',
 } as const;
 
 /** Extra fields allowed on delete-conflict `error.details` alongside `field` / `reason`. */
@@ -24,6 +37,20 @@ export type HasChildrenDetails = ApiFieldError & {
   reason: typeof ApiFieldReason.HAS_CHILDREN;
   typeCount?: number;
   unitCount?: number;
+  reservationCount?: number;
+};
+
+/** 409 overlap payload — toast/dialog, not RHF field highlight. */
+export type OverlapConflictDetails = ApiFieldError & {
+  reason: typeof ApiFieldReason.OVERLAP_CONFLICT;
+  conflictingReservation: {
+    id: string;
+    guestName: string;
+    source: string;
+    checkInDate: string;
+    checkOutDate: string;
+    status: string;
+  };
 };
 
 export type ApiFieldReason =

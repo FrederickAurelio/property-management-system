@@ -34,9 +34,6 @@ export class UnitsService {
     if (query.status) {
       where.status = query.status;
     }
-    if (query.isActive !== undefined) {
-      where.isActive = query.isActive;
-    }
     if (query.q?.trim()) {
       const q = query.q.trim();
       where.OR = [
@@ -100,7 +97,6 @@ export class UnitsService {
           status: dto.status,
           notes: dto.notes?.trim() || null,
           sortOrder,
-          isActive: dto.isActive ?? true,
         },
       });
       return toStaffUnit(created);
@@ -132,7 +128,6 @@ export class UnitsService {
           ...(dto.notes !== undefined
             ? { notes: dto.notes?.trim() || null }
             : {}),
-          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         },
       });
       return toStaffUnit(updated);
@@ -146,6 +141,20 @@ export class UnitsService {
     const existing = await this.prisma.unit.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Unit not found');
+    }
+
+    const reservationCount = await this.prisma.reservation.count({
+      where: { unitId: id },
+    });
+    if (reservationCount > 0) {
+      throw new ConflictException({
+        message: 'Cannot delete unit: reservations still exist',
+        details: {
+          field: 'id',
+          reason: ApiFieldReason.HAS_CHILDREN,
+          reservationCount,
+        },
+      });
     }
 
     try {

@@ -17,3 +17,26 @@ export function parseBoard(raw: string | null): ReservationBoard {
   const hit = RESERVATION_BOARDS.find((b) => b.id === raw);
   return hit?.id ?? "arrivals";
 }
+
+/**
+ * Must match Nest `buildListWhere` board presets.
+ * If the board owns a field, FE must not show or send that filter.
+ */
+export type BoardFilterLocks = {
+  /** Board forces status (or a fixed status set). */
+  locksStatus: boolean;
+};
+
+export function boardFilterLocks(board: ReservationBoard): BoardFilterLocks {
+  switch (board) {
+    case "arrivals":
+    case "in-house":
+    case "departures":
+    case "needs-details":
+    case "balance-due":
+      return { locksStatus: true };
+    case "ical-alerts":
+    case "all":
+      return { locksStatus: false };
+  }
+}

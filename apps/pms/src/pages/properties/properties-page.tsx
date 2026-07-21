@@ -25,9 +25,9 @@ import {
   handleError,
   handleSuccess,
   INFINITE_INITIAL_PAGE,
+  invalidateInventoryCaches,
   listProperties,
   staffPropertiesQueryKey,
-  staffPropertiesQueryKeyPrefix,
 } from "@/lib/api";
 import {
   ExplorerGrid,
@@ -62,9 +62,7 @@ export function PropertiesPage() {
     mutationFn: (input: { id: string; name: string }) =>
       deleteProperty(input.id),
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertiesQueryKeyPrefix,
-      });
+      invalidateInventoryCaches(queryClient);
       handleSuccess(`Deleted ${variables.name}`);
       setDeleteTarget(null);
     },

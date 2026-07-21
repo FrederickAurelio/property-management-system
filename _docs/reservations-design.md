@@ -83,10 +83,10 @@ Only **one primary button** (filled). Everything else secondary. Money block alw
 | Status | Primary | Secondary |
 |--------|---------|-----------|
 | `UNCONFIRMED` | **Confirm** (opens enrich form if incomplete) | Cancel · Edit dates/unit |
-| `CONFIRMED` | **Check in** (if `checkInDate <= today`) | Collect / Refund · Edit · Cancel · No-show (if due) |
+| `CONFIRMED` | **Check in** (if `checkInDate <= today`) | Collect / Refund · Edit · Cancel |
 | `CHECKED_IN` | **Check out** (if `checkOutDate <= today` **or** early OK) | Collect · Edit dates · Cancel (confirm) |
 | `CHECKED_OUT` | — | **Collect** only if Due > 0 · **Refund** only if overpaid · hidden when settled · no Edit / reopen |
-| `CANCELLED` / `NO_SHOW` | — | Money closed at cancel / no-show sheet · no Collect · no Edit / reopen |
+| `CANCELLED` | — | Money closed at Cancel sheet · no Collect · no Edit / reopen |
 
 **Predictability rules**
 
@@ -102,7 +102,7 @@ Only **one primary button** (filled). Everything else secondary. Money block alw
 |--------|--------------|-------------------------|
 | Create / edit / confirm / check-in / out | Yes | Yes |
 | Collect / refund via movements | Yes | Yes |
-| Cancel / no-show | Yes | Yes |
+| Cancel | Yes | Yes |
 | Mid-stay cancel (`CHECKED_IN` → `CANCELLED`) | Yes + confirm dialog | Yes |
 | Delete reservation hard | **No** | **No** (cancel only) |
 | iCal feed URL settings | No | Yes |
@@ -136,8 +136,7 @@ ReservationStatus
   CONFIRMED     # ops-ready (≠ paid)
   CHECKED_IN
   CHECKED_OUT   # terminal
-  CANCELLED     # terminal
-  NO_SHOW       # terminal
+  CANCELLED     # terminal (guest/OTA cancel, walk-away / no-arrival write-off — one Cancel sheet)
 ```
 
 ### Occupies calendar
@@ -148,7 +147,7 @@ ReservationStatus
 
 ```text
 UNCONFIRMED → CONFIRMED | CANCELLED
-CONFIRMED   → CHECKED_IN | CANCELLED | NO_SHOW
+CONFIRMED   → CHECKED_IN | CANCELLED
 CHECKED_IN  → CHECKED_OUT | CANCELLED
 ```
 
@@ -162,9 +161,10 @@ No skip `UNCONFIRMED → CHECKED_IN`. No reopen from terminal in Phase 1.
 | Early check-in (before `checkInDate`) | Allowed with confirm (“early?”) — `FRONT_DESK+` |
 | Check out | `status=CHECKED_IN` and `today <= checkOutDate` **or** early checkout confirm |
 | Late checkout (after `checkOutDate`) | Still allow check out + note; unit already free for overlap from `checkOutDate` |
-| No-show | `status=CONFIRMED` and `checkInDate <= today` (not before arrival day) |
 
-Timestamps: `confirmedAt`, `checkedInAt`, `checkedOutAt`, `cancelledAt`, `noShowAt`.
+Timestamps: `confirmedAt`, `checkedInAt`, `checkedOutAt`, `cancelledAt`.
+
+**No separate `NO_SHOW` status.** Guest never arrived → **Cancel** (same sheet / money disposition); optional notes e.g. “no-show”.
 
 ---
 
@@ -282,7 +282,7 @@ Shrink after full pay → Total falls, Paid stays → Refund → Collect OUT. Do
 
 iCal date change on `UNCONFIRMED`: auto-apply. On `CONFIRMED+`: **warn only** (`DATES_DIFFER`) — staff Accept or Keep.
 
-PMS ships the movement model on fixture first; Nest persists `PaymentMovement` with `/staff/reservations`.
+Nest persists `PaymentMovement` with `/staff/reservations`; PMS uses the live API.
 
 ---
 
@@ -451,7 +451,7 @@ Staff copy once → paste into each OTA’s **import** calendar. Rotate token = 
 | 10 | Move to another unit | PATCH `unitId` if free for range; keep money/guest |
 | 11 | Unit set `MAINTENANCE` with future stays | Allow unit status change with **warning** listing future occupying rows — do not auto-cancel |
 | 12 | Early check-in / early check-out | Allowed with confirm; dates unchanged unless staff edits |
-| 13 | No-show next morning | No-show action → frees unit; money via Cancel-like sheet if paid |
+| 13 | Guest never arrived | Cancel (notes optional) → frees unit; money via Cancel sheet if paid |
 | 14 | Cancel after DP / full pay | Cancel sheet forces refund disposition |
 | 15 | OTA cancel (UID gone) after Confirm | Warning queue → human Cancel + money |
 | 16 | OTA date change after Confirm | `DATES_DIFFER` → Accept/Keep |
@@ -479,7 +479,7 @@ public/ical (+ Phase 2 book)
 | `GET/POST` | `/staff/reservations` | Filters: property, status, source, dates, warning, q |
 | `GET/PATCH` | `/staff/reservations/:id` | |
 | `POST` | `.../confirm` | Matrix §7 |
-| `POST` | `.../check-in` \| `check-out` \| `no-show` | |
+| `POST` | `.../check-in` \| `check-out` | |
 | `POST` | `.../cancel` | Body: `disposition` + optional `refundAmountIdr` (partial) + `notes` — cash = movement OUT, never remaining-Paid rewrite |
 | `POST` | `.../payments` (or `.../movements`) | Body: `direction` · `kind` · `amountIdr` · `method?` · `note?` — Paid = sum |
 | `PATCH` | `.../` (total quote only) | Total on reservation; do not PATCH absolute Paid |
@@ -510,7 +510,7 @@ public/ical (+ Phase 2 book)
 
 Email ingest · payment **gateway** · guest CRM · rate plans · scrape OTA · auto check-in · promise zero double-book · multi-unit group id · reopen terminal stays.
 
-Cash **ledger** (`PaymentMovement`) is **in** — Nest table with reservations; PMS fixture already models it.
+Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservations`; PMS uses the live API.
 
 ---
 
@@ -521,7 +521,7 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table with reservations; 
 | 1 | Schema + overlap + enums + sync warning |
 | 2 | Staff CRUD + field matrix + money |
 | 3 | Calendar read + boards |
-| 4 | Check-in/out/cancel/no-show + date/unit PATCH |
+| 4 | Check-in/out/cancel + date/unit PATCH |
 | 5 | **iCal export** |
 | 6 | Enrich queues |
 | 7 | **iCal import** + Sync now + warnings |
@@ -533,17 +533,17 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table with reservations; 
 
 | Topic | Decision |
 |-------|----------|
-| Cancel / no-show | `FRONT_DESK+` |
+| Cancel | `FRONT_DESK+` |
 | Mid-stay cancel | `FRONT_DESK+` with confirm |
 | `UNCONFIRMED` + missing feed | Warn only (same as confirmed) |
 | `collectedVia` | Optional |
 | Unit vs type-first UX | **Unit required** on write; Choose picker drills Property → Type → Unit |
 | Stay Total suggestion | `nights × UnitType.defaultPriceIdr` (`suggestStayTotalIdr`); Paid = sum(movements), never auto-changed on date/unit change; if Paid > Total → Refund (`refundDueIdr`), settle via Collect OUT |
-| Cash ledger | `PaymentMovement` append-only; Nest with reservations; PMS fixture first |
+| Cash ledger | `PaymentMovement` append-only; Nest `/staff/reservations`; PMS live |
 | Cancel money body | `refundAmountIdr` (OUT amount) for partial — never “remaining Paid” |
 | Check-in if Due > 0 | Warn, allow |
 | Collect after checkout | Only while Due > 0 (IN) or Refund > 0 (OUT); hidden when settled |
-| Collect after cancel / no-show | **No** — disposition is chosen on the Cancel / no-show sheet |
+| Collect after cancel | **No** — disposition is chosen on the Cancel sheet |
 | `total = 0` | Allowed; due 0 counts as settled (`PAID`) |
 
 ---

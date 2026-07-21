@@ -2,7 +2,7 @@
 
 **Status:** locked design for Prisma / API / PMS.  
 **Wire types:** `@cabin/api-contract` (`StaffProperty` / `StaffUnitType` / `StaffUnit`).  
-**FE fixture (demo data only, not runtime):** [`apps/pms/src/pages/properties/seed-inventory.ts`](../apps/pms/src/pages/properties/seed-inventory.ts). Display helpers: [`inventory-types.ts`](../apps/pms/src/pages/properties/inventory-types.ts).  
+**Display helpers:** [`inventory-types.ts`](../apps/pms/src/pages/properties/inventory-types.ts).  
 **Scope:** multi-property inventory + reservation-ready unit calendars.  
 **Product context:** [`.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md)
 
@@ -114,8 +114,7 @@ ReservationStatus
   CONFIRMED
   CHECKED_IN
   CHECKED_OUT
-  CANCELLED
-  NO_SHOW
+  CANCELLED      # terminal — includes walk-away / never-arrived (notes optional)
 
 PaymentStatus
   UNPAID
@@ -259,22 +258,21 @@ Physical bookable apartment. **Source of truth for calendar.**
 | `code` | `varchar(32)` | no | Ops id — e.g. `DS-1208`, `B-0801` |
 | `name` | `varchar(128)` | yes | Optional display override |
 | `floor` | `varchar(16)` | yes | `12` / `G` — string keeps flexibility |
-| `status` | `UnitStatus` | no | default `ACTIVE` |
+| `status` | `UnitStatus` | no | default `ACTIVE` — **only `ACTIVE` is bookable** |
 | `notes` | `text` | yes | Internal only (access, quirks) |
 | `sortOrder` | `int` | no | default `0` |
-| `isActive` | `boolean` | no | default `true` — soft hide from booking |
 | `createdAt` | `timestamptz` | no | |
 | `updatedAt` | `timestamptz` | no | |
 
 **Indexes / constraints**
 
 - `UNIQUE (propertyId, code)`
-- `INDEX (propertyId, status, isActive)`
-- `INDEX (unitTypeId, isActive)`
+- `INDEX (propertyId, status)`
+- `INDEX (unitTypeId)`
 - `INDEX (propertyId, unitTypeId)`
 
 **FE shape (list / calendar row):**  
-`{ id, propertyId, unitTypeId, code, name, floor, status, isActive, unitType: { id, name, code, maxGuests } }`
+`{ id, propertyId, unitTypeId, code, name, floor, status, unitType: { id, name, code, maxGuests } }`
 
 **FE shape (detail):** list + `notes` + full nested `unitType` if needed.
 
@@ -299,7 +297,7 @@ Stay on **one unit**. Designed so calendar, check-in, and reports share one row.
 | `guestName` | `varchar(128)` | no | |
 | `guestEmail` | `varchar(255)` | yes | |
 | `guestPhone` | `varchar(32)` | yes | |
-| `guestCount` | `int` | no | Must be `<= UnitType.maxGuests` at confirm |
+| `guestCount` | `int` | yes | Null OK for iCal stubs; required `>= 1` on confirm / create-CONFIRMED; `<= maxGuests` |
 | `notes` | `text` | yes | Staff / special requests |
 | `totalAmountIdr` | `bigint` | yes | Stay quote (whole IDR); null until confirm |
 | `paidAmountIdr` | `bigint` | no | default 0; **cache** = sum(`PaymentMovement.signedAmount`) |
@@ -312,7 +310,6 @@ Stay on **one unit**. Designed so calendar, check-in, and reports share one row.
 | `checkedInAt` | `timestamptz` | yes | |
 | `checkedOutAt` | `timestamptz` | yes | |
 | `cancelledAt` | `timestamptz` | yes | |
-| `noShowAt` | `timestamptz` | yes | |
 | `createdAt` | `timestamptz` | no | |
 | `updatedAt` | `timestamptz` | no | |
 | `createdByAdminId` | FK → `Admin` | yes | Manual creates |
@@ -331,7 +328,7 @@ Example: check-in 2026-07-25, check-out 2026-07-26 → occupies 1 night (25th).
 **Indexes / constraints**
 
 - `CHECK (checkOutDate > checkInDate)`
-- `CHECK (guestCount >= 1)`
+- `CHECK (guestCount IS NULL OR guestCount >= 1)`
 - `INDEX (unitId, checkInDate, checkOutDate)`
 - `INDEX (propertyId, checkInDate)` — arrivals board
 - `INDEX (propertyId, checkOutDate)` — departures board
@@ -359,7 +356,7 @@ Same overlap rule applies vs `CalendarBlock` on that unit.
 
 ### 5.4b `PaymentMovement`
 
-Append-only cash ledger for a reservation. Nest implements with `/staff/reservations`; PMS fixture already models the same shape.
+Append-only cash ledger for a reservation. Nest `/staff/reservations` + PMS live client.
 
 | Column | Type | Null | Notes |
 |--------|------|------|--------|
@@ -597,11 +594,21 @@ List endpoints may include nested summaries (`unitType: { id, name, code }`) to 
 ## 9. Availability rules (reservation-ready)
 
 ```text
-Unit is free on night D
-  iff no occupying Reservation covers D
-  and no CalendarBlock covers D
-  and unit.status = ACTIVE and unit.isActive = true
+Unit is free for [checkIn, checkOut)
+  iff property.isActive
+  and unitType.isActive
+  and unit.status = ACTIVE
+  and no occupying Reservation overlaps the range
+  and no CalendarBlock overlaps (when blocks ship)
 ```
+
+Staff HTTP: `GET /staff/properties/:propertyId/units/availability?checkInDate&checkOutDate&unitTypeId?&excludeReservationId?`
+
+Returns **all** matching units as `StaffUnitAvailability[]` (`StaffUnit` + `available` + `blockReason`). Blocked rows stay in the list for Choose unit UI; only `available: true` is selectable. Stay dates are **optional** — omit both to skip `DATE_OVERLAP` (catalog bookability only).
+
+`blockReason` priority: `PROPERTY_INACTIVE` → `UNIT_TYPE_INACTIVE` → `UNIT_NOT_BOOKABLE` → `DATE_OVERLAP`.
+
+Unit POV (date picker): `GET /staff/units/:unitId/occupancy?yearMonth=YYYY-MM&excludeReservationId?` → `UnitMonthOccupancy` (occupying `blocks` overlapping that month). PMS loads visible months (1–2), keeps prior months in the query cache as staff pages the calendar, and disables booked nights (exclusive checkout).
 
 Type-level “how many left” for night D:
 

@@ -12,8 +12,9 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Axios API client: `src/lib/api` (session cookies + envelope unwrap + Sonner helpers)
 - RHF + Zod + shadcn `Field` / `Controller` (login + inventory forms wired)
 - Inventory explorer wired to Nest (`/staff/properties|unit-types|units`) — infinite lists + CRUD
-- Reservations Depth B+C (fixture-backed until Nest): boards · Choose unit · Collect/Cancel as **cash movements** · Paid = sum(movements) · early check-in · Total = `nights × defaultPriceIdr` (Paid unchanged on date change; Refund when Paid > Total)
-- **Not yet:** Nest reservations API · calendar · check-in route · iCal sync UI · stay-date availability blackout · no-show / Accept-iCal actions
+- Reservations wired to Nest `/staff/reservations`: boards · Choose unit (all units + blocked rows) · stay dates blocked by unit occupancy · Collect/Cancel as **cash movements** · Paid = sum(movements) · early check-in/out via `confirmEarly` · Total = `nights × defaultPriceIdr`
+- **Bookability UX:** Property “Open for ops” · Type “Offered for booking” · Unit status only (`ACTIVE` = bookable)
+- **Not yet:** calendar · iCal sync UI · Accept-iCal actions
 - **Design:** [`_docs/reservations-design.md`](../../_docs/reservations-design.md)
 
 ## Stack (locked)
@@ -51,14 +52,14 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 
 Locked BE→FE wiring (keys, `useQuery` / `useInfiniteQuery` / `useMutation`, cache, toast vs field highlight): [`.cursor/rules/pms-query.mdc`](../../.cursor/rules/pms-query.mdc).
 
-| Concern | Rule |
-|---------|------|
-| Query keys | `src/lib/api/query-keys.ts` — import from `@/lib/api` |
-| Paginated lists | `useInfiniteQuery` + `getNextPageParamFromPageInfo`; filters in key |
-| List writes | `invalidateQueries` on resource prefix + `handleSuccess` |
-| Login / self-profile | `setQueryData(staffSessionQueryKey, …)` |
-| Form domain errors | `applyApiFieldError` → RHF (BE `details: { field, reason }`) |
-| Everything else | `handleError` toast (or re-auth dialog / GET retry) |
+| Concern              | Rule                                                                |
+| -------------------- | ------------------------------------------------------------------- |
+| Query keys           | `src/lib/api/query-keys.ts` — import from `@/lib/api`               |
+| Paginated lists      | `useInfiniteQuery` + `getNextPageParamFromPageInfo`; filters in key |
+| List writes          | `invalidateQueries` on resource prefix + `handleSuccess`            |
+| Login / self-profile | `setQueryData(staffSessionQueryKey, …)`                             |
+| Form domain errors   | `applyApiFieldError` → RHF (BE `details: { field, reason }`)        |
+| Everything else      | `handleError` toast (or re-auth dialog / GET retry)                 |
 
 ## Forms
 
@@ -79,8 +80,8 @@ Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 1. Staff login ← **done**
 2. Inventory CRUD ← **done**
 3. Calendar (busy/free per unit) ← not yet
-4. Manual reservations (Choose unit · rack Total · money/DP · boards) ← **PMS fixture done**; Nest next
-5. Check-in / check-out + Collect/Cancel ← **PMS fixture done** on detail; Nest next
+4. Manual reservations (Choose unit · rack Total · money/DP · boards) ← **done** (Nest)
+5. Check-in / check-out + Collect/Cancel ← **done** (Nest detail)
 6. Basic reports ← not yet
 7. iCal Sync now + `UNCONFIRMED` enrich queue ← board/warning UI only; Nest + feeds not yet
 

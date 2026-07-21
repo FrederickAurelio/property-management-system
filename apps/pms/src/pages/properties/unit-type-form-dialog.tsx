@@ -46,10 +46,7 @@ import {
   applyApiFieldError,
   createUnitType,
   handleSuccess,
-  staffPropertiesQueryKeyPrefix,
-  staffPropertyQueryKey,
-  staffUnitTypeQueryKey,
-  staffUnitTypesQueryKeyPrefix,
+  syncUnitTypeCaches,
   updateUnitType,
 } from "@/lib/api";
 import { AmenitiesField } from "./amenities-field";
@@ -272,18 +269,7 @@ export function UnitTypeFormDialog({
       return createUnitType(propertyId, payload);
     },
     onSuccess: (saved) => {
-      void queryClient.invalidateQueries({
-        queryKey: staffUnitTypesQueryKeyPrefix,
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffUnitTypeQueryKey(saved.id),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertyQueryKey(propertyId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertiesQueryKeyPrefix,
-      });
+      syncUnitTypeCaches(queryClient, saved);
       handleSuccess(unitType ? "Unit type updated" : "Unit type created");
       onOpenChange(false);
     },
@@ -559,7 +545,7 @@ export function UnitTypeFormDialog({
               name="isActive"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel>Active</FieldLabel>
+                  <FieldLabel>Offered for booking</FieldLabel>
                   <Select
                     value={field.value}
                     disabled={readOnly}

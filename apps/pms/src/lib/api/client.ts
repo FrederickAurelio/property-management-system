@@ -57,6 +57,16 @@ function mapAxiosError(error: AxiosError): ApiError {
     const { status, data } = error.response;
 
     if (GATEWAY_STATUSES.has(status)) {
+      // Prefer Nest's JSON body when present (e.g. migrate hint on 503).
+      if (isApiErrorBody(data)) {
+        return new ApiError({
+          status,
+          code: data.error.code,
+          message: data.error.message,
+          details: data.error.details,
+          requestId: data.meta?.requestId,
+        });
+      }
       return new ApiError({
         status,
         code: ApiErrorCode.SERVER_UNAVAILABLE,

@@ -19,6 +19,7 @@ describe('UnitsService', () => {
       delete: jest.Mock;
       aggregate: jest.Mock;
     };
+    reservation: { count: jest.Mock };
     $transaction: jest.Mock;
   };
 
@@ -32,7 +33,6 @@ describe('UnitsService', () => {
     status: UnitStatus.ACTIVE,
     notes: null,
     sortOrder: 1,
-    isActive: true,
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
   };
@@ -50,6 +50,7 @@ describe('UnitsService', () => {
         delete: jest.fn(),
         aggregate: jest.fn(),
       },
+      reservation: { count: jest.fn().mockResolvedValue(0) },
       $transaction: jest.fn(async (arg: unknown) => {
         if (Array.isArray(arg)) {
           return Promise.all(arg);

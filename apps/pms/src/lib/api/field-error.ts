@@ -18,6 +18,17 @@ const FIELD_REASON_MESSAGE: Partial<Record<ApiFieldReasonType, string>> = {
   [ApiFieldReason.LAT_OUT_OF_RANGE]: "Enter a latitude between -90 and 90",
   [ApiFieldReason.LNG_OUT_OF_RANGE]: "Enter a longitude between -180 and 180",
   [ApiFieldReason.UNIT_TYPE_INVALID]: "Unit type not found on this property",
+  [ApiFieldReason.UNIT_NOT_BOOKABLE]: "This unit is not bookable",
+  [ApiFieldReason.DATE_RANGE_INVALID]: "Check-out must be after check-in",
+  [ApiFieldReason.CONFIRM_INCOMPLETE]: "Guest or money details are incomplete",
+  [ApiFieldReason.GUEST_COUNT_EXCEEDS_MAX]:
+    "Guest count exceeds this unit type's max",
+  [ApiFieldReason.CANCEL_DISPOSITION_REQUIRED]:
+    "Choose how to handle the payment",
+  [ApiFieldReason.REFUND_AMOUNT_INVALID]: "Invalid refund amount",
+  [ApiFieldReason.MOVEMENT_EXCEEDS_DUE]: "Amount exceeds Due or Refund",
+  [ApiFieldReason.EARLY_CONFIRM_REQUIRED]: "Confirm early / late action",
+  [ApiFieldReason.INVALID_STATUS_TRANSITION]: "This action is not allowed now",
 };
 
 /**
@@ -37,7 +48,10 @@ export function applyApiFieldError<TFieldValues extends FieldValues>(
   }
 
   const { field, reason } = error.details;
-  if (reason === ApiFieldReason.HAS_CHILDREN) {
+  if (
+    reason === ApiFieldReason.HAS_CHILDREN ||
+    reason === ApiFieldReason.OVERLAP_CONFLICT
+  ) {
     handleError(error);
     return false;
   }

@@ -1,4 +1,3 @@
-/** Display helpers for reservations — wire types from `@cabin/api-contract`. */
 import {
   CollectedVia,
   IcalSyncWarning,
@@ -11,13 +10,14 @@ import {
   getConfirmFieldGaps,
   isReadyToConfirm,
   refundDueIdr,
+  todayYmdInTimezone,
   type ConfirmFieldGap,
   type PaymentMovement,
   type StaffReservation,
 } from "@cabin/api-contract";
 import { formatIdr } from "@/pages/properties/inventory-types";
 
-export { formatIdr, balanceDueIdr, isReadyToConfirm, refundDueIdr };
+export { formatIdr, balanceDueIdr, isReadyToConfirm, refundDueIdr, todayYmdInTimezone };
 
 const mediumDateFormat = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -49,12 +49,21 @@ export function nightCount(checkInDate: string, checkOutDate: string): number {
   return Math.max(0, Math.round((b - a) / 86_400_000));
 }
 
+/** Browser-local today — prefer `todayYmdInTimezone(propertyTimezone)` for ops. */
 export function todayYmd(): string {
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+/** True when check-in is allowed without confirmEarly (doc §5 window). */
+export function isCheckInWindow(
+  row: Pick<StaffReservation, "checkInDate" | "checkOutDate">,
+  today: string,
+): boolean {
+  return row.checkInDate <= today && today < row.checkOutDate;
 }
 
 export function formatReservationStatus(status: ReservationStatus): string {
@@ -69,8 +78,6 @@ export function formatReservationStatus(status: ReservationStatus): string {
       return "Checked out";
     case ReservationStatus.CANCELLED:
       return "Cancelled";
-    case ReservationStatus.NO_SHOW:
-      return "No-show";
   }
 }
 
@@ -222,7 +229,6 @@ export function statusBadgeTone(status: ReservationStatus): BadgeTone {
     case ReservationStatus.CHECKED_OUT:
       return "muted";
     case ReservationStatus.CANCELLED:
-    case ReservationStatus.NO_SHOW:
       return "muted";
   }
 }
@@ -261,8 +267,7 @@ export function primaryActionFor(row: StaffReservation): PrimaryAction | null {
 export function isTerminalStatus(status: ReservationStatus): boolean {
   return (
     status === ReservationStatus.CHECKED_OUT ||
-    status === ReservationStatus.CANCELLED ||
-    status === ReservationStatus.NO_SHOW
+    status === ReservationStatus.CANCELLED
   );
 }
 
@@ -274,15 +279,12 @@ export function canEditStay(status: ReservationStatus): boolean {
 /**
  * Cash Collect / Refund sheet — only when money is still open.
  *
- * - Cancel / no-show: closed (disposition already chosen).
+ * - Cancelled: closed (disposition already chosen).
  * - Live + checked-out: open only if Due > 0 (collect) or Refund > 0 (return).
  * - Settled (Due = 0 and Refund = 0): no button — nothing to do.
  */
 export function canCollectPayment(row: StaffReservation): boolean {
-  if (
-    row.status === ReservationStatus.CANCELLED ||
-    row.status === ReservationStatus.NO_SHOW
-  ) {
+  if (row.status === ReservationStatus.CANCELLED) {
     return false;
   }
   const due = reservationDue(row);

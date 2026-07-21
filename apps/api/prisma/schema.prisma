@@ -27,6 +27,53 @@ enum UnitLayout {
   OTHER
 }
 
+enum ReservationSource {
+  MANUAL
+  WEBSITE
+  BOOKING_COM
+  AIRBNB
+  AGODA
+}
+
+enum ReservationStatus {
+  UNCONFIRMED
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  DEPOSIT
+  PAID
+  REFUNDED
+}
+
+enum CollectedVia {
+  PROPERTY
+  CHANNEL
+  MIXED
+}
+
+enum PaymentMovementDirection {
+  IN
+  OUT
+}
+
+enum PaymentMovementKind {
+  DEPOSIT
+  TOP_UP
+  REFUND
+  CANCEL_REFUND
+  CHANNEL_SETTLED
+}
+
+enum IcalSyncWarning {
+  MISSING_FROM_FEED
+  DATES_DIFFER
+}
+
 model Admin {
   id           String    @id @default(cuid())
   username     String    @unique @db.VarChar(64)
@@ -35,6 +82,10 @@ model Admin {
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  reservationsCreated Reservation[]     @relation("ReservationCreatedBy")
+  reservationsUpdated Reservation[]     @relation("ReservationUpdatedBy")
+  movementsCreated    PaymentMovement[] @relation("MovementCreatedBy")
 }
 
 /// connect-pg-simple table (exact column names)
@@ -67,8 +118,9 @@ model Property {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  unitTypes UnitType[]
-  units     Unit[]
+  unitTypes    UnitType[]
+  units        Unit[]
+  reservations Reservation[]
 
   @@index([isActive])
   /// DB: Property_lat_lng_pair_check — (latitude IS NULL) = (longitude IS NULL)
@@ -95,8 +147,9 @@ model UnitType {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  units    Unit[]
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  units        Unit[]
+  reservations Reservation[]
 
   @@unique([propertyId, code])
   @@index([propertyId, isActive])
@@ -113,15 +166,80 @@ model Unit {
   status     UnitStatus @default(ACTIVE)
   notes      String?    @db.Text
   sortOrder  Int        @default(0)
-  isActive   Boolean    @default(true)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  unitType UnitType @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unitType     UnitType      @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
+  reservations Reservation[]
 
   @@unique([propertyId, code])
-  @@index([propertyId, status, isActive])
-  @@index([unitTypeId, isActive])
+  @@index([propertyId, status])
+  @@index([unitTypeId])
   @@index([propertyId, unitTypeId])
+}
+
+model Reservation {
+  id                String             @id @default(cuid())
+  propertyId        String
+  unitId            String
+  unitTypeId        String
+  source            ReservationSource
+  status            ReservationStatus
+  checkInDate       DateTime           @db.Date
+  checkOutDate      DateTime           @db.Date
+  guestName         String             @db.VarChar(128)
+  guestEmail        String?            @db.VarChar(255)
+  guestPhone        String?            @db.VarChar(32)
+  guestCount        Int?
+  notes             String?            @db.Text
+  totalAmountIdr    BigInt?
+  paidAmountIdr     BigInt             @default(0)
+  paymentStatus     PaymentStatus
+  collectedVia      CollectedVia?
+  externalRef       String?            @db.VarChar(256)
+  icalSyncWarning   IcalSyncWarning?
+  icalSyncWarnedAt  DateTime?
+  confirmedAt       DateTime?
+  checkedInAt       DateTime?
+  checkedOutAt      DateTime?
+  cancelledAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  createdByAdminId  String?
+  updatedByAdminId  String?
+
+  property        Property          @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit            Unit              @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  unitType        UnitType          @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
+  createdByAdmin  Admin?            @relation("ReservationCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  updatedByAdmin  Admin?            @relation("ReservationUpdatedBy", fields: [updatedByAdminId], references: [id], onDelete: SetNull)
+  movements       PaymentMovement[]
+
+  @@index([unitId, checkInDate, checkOutDate])
+  @@index([propertyId, checkInDate])
+  @@index([propertyId, checkOutDate])
+  @@index([propertyId, status])
+  @@index([source])
+  @@index([createdByAdminId])
+  @@index([updatedByAdminId])
+}
+
+model PaymentMovement {
+  id               String                   @id @default(cuid())
+  reservationId    String
+  direction        PaymentMovementDirection
+  kind             PaymentMovementKind
+  amountIdr        BigInt
+  signedAmount     BigInt
+  method           CollectedVia?
+  note             String?                  @db.VarChar(500)
+  createdAt        DateTime                 @default(now())
+  createdByAdminId String?
+
+  reservation    Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  createdByAdmin Admin?      @relation("MovementCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([reservationId, createdAt])
+  @@index([createdByAdminId])
 }

@@ -45,8 +45,7 @@ import {
   applyApiFieldError,
   createProperty,
   handleSuccess,
-  staffPropertiesQueryKeyPrefix,
-  staffPropertyQueryKey,
+  syncPropertyCaches,
   updateProperty,
 } from "@/lib/api";
 import { googleMapsUrl } from "./inventory-types";
@@ -224,12 +223,7 @@ export function PropertyFormDialog({
       return createProperty(payload);
     },
     onSuccess: (saved) => {
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertiesQueryKeyPrefix,
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffPropertyQueryKey(saved.id),
-      });
+      syncPropertyCaches(queryClient, saved);
       handleSuccess(property ? "Property updated" : "Property created");
       onOpenChange(false);
     },
@@ -615,7 +609,7 @@ export function PropertyFormDialog({
               name="isActive"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel>Active</FieldLabel>
+                  <FieldLabel>Open for ops</FieldLabel>
                   <Select
                     value={field.value}
                     disabled={readOnly}
