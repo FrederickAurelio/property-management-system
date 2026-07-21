@@ -6,12 +6,14 @@ import {
   PaymentMovementDirection,
   PaymentMovementKind,
   PaymentStatus,
+  ReservationBoard,
   ReservationSource,
   ReservationStatus,
   UnitStatus,
   recomputePaymentStatus,
   sumPaidFromMovements,
   signedAmountFor,
+  todayYmdInTimezone,
 } from '@cabin/api-contract';
 import { ReservationsService } from './reservations.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -347,6 +349,66 @@ describe('ReservationsService', () => {
         actor,
       );
       expect(checkedIn.status).toBe(ReservationStatus.CHECKED_IN);
+    });
+  });
+
+  describe('list board=arrivals', () => {
+    it('filters CONFIRMED in check-in window (overdue inclusive)', async () => {
+      const timezone = 'Asia/Jakarta';
+      const today = todayYmdInTimezone(timezone);
+      const todayDate = new Date(`${today}T00:00:00.000Z`);
+
+      prisma.property.findUnique.mockResolvedValue({ timezone });
+      prisma.reservation.count.mockResolvedValue(0);
+      prisma.reservation.findMany.mockResolvedValue([]);
+
+      await service.list({
+        board: ReservationBoard.arrivals,
+        propertyId: 'prop_1',
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(prisma.reservation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            propertyId: 'prop_1',
+            status: ReservationStatus.CONFIRMED,
+            checkInDate: { lte: todayDate },
+            checkOutDate: { gt: todayDate },
+          },
+        }),
+      );
+    });
+  });
+
+  describe('list board=departures', () => {
+    it('filters CHECKED_IN with checkOutDate ≤ today (overdue inclusive)', async () => {
+      const timezone = 'Asia/Jakarta';
+      const today = todayYmdInTimezone(timezone);
+      const todayDate = new Date(`${today}T00:00:00.000Z`);
+
+      prisma.property.findUnique.mockResolvedValue({ timezone });
+      prisma.reservation.count.mockResolvedValue(0);
+      prisma.reservation.findMany.mockResolvedValue([]);
+
+      await service.list({
+        board: ReservationBoard.departures,
+        propertyId: 'prop_1',
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(prisma.reservation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            propertyId: 'prop_1',
+            status: ReservationStatus.CHECKED_IN,
+            checkOutDate: { lte: todayDate },
+          },
+          orderBy: [{ checkOutDate: 'asc' }, { createdAt: 'asc' }],
+        }),
+      );
     });
   });
 });

@@ -48,24 +48,38 @@ import {
   formatIcalWarning,
   formatMoneyOrDash,
   formatPaymentStatus,
+  formatReservationLateCue,
   formatReservationSource,
   formatReservationStatus,
   formatStayRange,
   paymentBadgeTone,
   reservationBalance,
+  reservationLateCue,
   statusBadgeTone,
+  type ReservationLateCue,
 } from "./reservation-format";
 
 const ReservationRowCells = memo(function ReservationRowCells({
   row,
+  lateCue,
 }: {
   row: StaffReservation;
+  lateCue: ReservationLateCue | null;
 }) {
   const balance = reservationBalance(row);
   return (
     <>
       <TableCell className="min-w-0 font-medium">
-        <span className="truncate">{row.guestName}</span>
+        <span className="inline-flex max-w-full items-center gap-1.5">
+          <span className="truncate">{row.guestName}</span>
+          {lateCue ? (
+            <ReservationBadge
+              label={formatReservationLateCue(lateCue)}
+              tone="warn"
+              className="shrink-0"
+            />
+          ) : null}
+        </span>
       </TableCell>
       <TableCell className="tabular-nums">{row.unitCode}</TableCell>
       <TableCell className="whitespace-nowrap text-muted-foreground">
@@ -128,9 +142,11 @@ const ReservationRowCells = memo(function ReservationRowCells({
 const ReservationMobileCard = memo(function ReservationMobileCard({
   row,
   listSearch,
+  lateCue,
 }: {
   row: StaffReservation;
   listSearch: string;
+  lateCue: ReservationLateCue | null;
 }) {
   const balance = reservationBalance(row);
   return (
@@ -141,7 +157,16 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{row.guestName}</p>
+          <p className="inline-flex max-w-full items-center gap-1.5">
+            <span className="truncate text-sm font-medium">{row.guestName}</span>
+            {lateCue ? (
+              <ReservationBadge
+                label={formatReservationLateCue(lateCue)}
+                tone="warn"
+                className="shrink-0"
+              />
+            ) : null}
+          </p>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {row.unitCode}
             <span className="text-border"> · </span>
@@ -389,11 +414,18 @@ export function ReservationsPage() {
         <>
           {isMobile ? (
             <ul className="flex flex-col gap-2">
-              {items.map((row) => (
-                <li key={row.id}>
-                  <ReservationMobileCard row={row} listSearch={listSearch} />
-                </li>
-              ))}
+              {items.map((row) => {
+                const lateCue = reservationLateCue(row);
+                return (
+                  <li key={row.id}>
+                    <ReservationMobileCard
+                      row={row}
+                      listSearch={listSearch}
+                      lateCue={lateCue}
+                    />
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border">
@@ -417,22 +449,25 @@ export function ReservationsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className="relative hover:bg-muted/40"
-                    >
-                      <ReservationRowCells row={row} />
-                      <TableCell className="w-0 p-0">
-                        <Link
-                          to={`/reservations/${row.id}`}
-                          state={reservationListStateFromSearch(listSearch)}
-                          className="absolute inset-0"
-                          aria-label={`Open reservation for ${row.guestName}`}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {items.map((row) => {
+                    const lateCue = reservationLateCue(row);
+                    return (
+                      <TableRow
+                        key={row.id}
+                        className="relative hover:bg-muted/40"
+                      >
+                        <ReservationRowCells row={row} lateCue={lateCue} />
+                        <TableCell className="w-0 p-0">
+                          <Link
+                            to={`/reservations/${row.id}`}
+                            state={reservationListStateFromSearch(listSearch)}
+                            className="absolute inset-0"
+                            aria-label={`Open reservation for ${row.guestName}`}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

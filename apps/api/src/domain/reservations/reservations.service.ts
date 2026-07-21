@@ -66,7 +66,7 @@ export class ReservationsService {
     query: ListReservationsQueryDto,
   ): Promise<Paginated<StaffReservation>> {
     const where = await this.buildListWhere(query);
-    const orderBy = this.listOrderBy(query.sort);
+    const orderBy = this.listOrderBy(query.sort, query.board);
 
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.reservation.count({ where }),
@@ -87,9 +87,13 @@ export class ReservationsService {
 
   private listOrderBy(
     sort: ReservationListSort | undefined,
+    board?: ReservationBoard,
   ): Prisma.ReservationOrderByWithRelationInput[] {
     if (sort === ReservationListSort.createdAt) {
       return [{ createdAt: 'desc' }, { id: 'desc' }];
+    }
+    if (board === ReservationBoard.departures) {
+      return [{ checkOutDate: 'asc' }, { createdAt: 'asc' }];
     }
     return [{ checkInDate: 'asc' }, { createdAt: 'asc' }];
   }
@@ -1064,18 +1068,23 @@ export class ReservationsService {
     if (query.board && query.board !== ReservationBoard.all) {
       switch (query.board) {
         case ReservationBoard.arrivals: {
+          // Same window as check-in: overdue CONFIRMED stays still appear.
           const today = await this.resolveBoardToday(query.propertyId);
-          where.checkInDate = parseYmd(today);
+          const todayDate = parseYmd(today);
           where.status = ReservationStatus.CONFIRMED;
+          where.checkInDate = { lte: todayDate };
+          where.checkOutDate = { gt: todayDate };
           break;
         }
         case ReservationBoard['in-house']:
           where.status = ReservationStatus.CHECKED_IN;
           break;
         case ReservationBoard.departures: {
+          // Due today or overdue still in-house (same idea as Arrivals).
           const today = await this.resolveBoardToday(query.propertyId);
-          where.checkOutDate = parseYmd(today);
+          const todayDate = parseYmd(today);
           where.status = ReservationStatus.CHECKED_IN;
+          where.checkOutDate = { lte: todayDate };
           break;
         }
         case ReservationBoard['needs-details']:

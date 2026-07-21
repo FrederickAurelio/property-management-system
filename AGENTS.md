@@ -83,8 +83,8 @@ iCal stubs → `UNCONFIRMED` until staff enrich guest + money.
 ## Build order
 
 1. Auth + units ← **done**
-2. Manual reservations + money/DP ← **done** (Nest `/staff/reservations` + PMS live)
-3. Calendar (same reservation rows) + check-in / check-out polish
+2. Manual reservations + money/DP ← **done** (Nest `/staff/reservations` + PMS live; desk boards on `/reservations`, Arrivals includes overdue)
+3. Calendar (same reservation rows)
 4. Basic reports
 5. iCal **export** per unit (PMS → OTA) + **import** + Sync now (+ `UNCONFIRMED` enrich / missing-feed warnings)
 6. Customer website booking + iCal export (`web`) — Phase 2

@@ -4,7 +4,6 @@ import {
   Building2,
   CalendarDays,
   ClipboardList,
-  DoorOpen,
   LayoutDashboard,
   Settings,
 } from "lucide-react";
@@ -26,7 +25,6 @@ export const primaryNavItems: NavItem[] = [
     icon: ClipboardList,
     mobile: true,
   },
-  { title: "Check-in", href: "/check-in", icon: DoorOpen, mobile: true },
 ];
 
 /** Property ops — not account/security */

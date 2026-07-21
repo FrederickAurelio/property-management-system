@@ -66,6 +66,36 @@ export function isCheckInWindow(
   return row.checkInDate <= today && today < row.checkOutDate;
 }
 
+/** Overdue desk cues — independent of which board the row appears on. */
+export type ReservationLateCue = "arrival" | "departure";
+
+export function reservationLateCue(
+  row: Pick<
+    StaffReservation,
+    "status" | "checkInDate" | "checkOutDate" | "propertyTimezone"
+  >,
+): ReservationLateCue | null {
+  const today = todayYmdInTimezone(row.propertyTimezone);
+  if (
+    row.status === ReservationStatus.CONFIRMED &&
+    row.checkInDate < today &&
+    today < row.checkOutDate
+  ) {
+    return "arrival";
+  }
+  if (
+    row.status === ReservationStatus.CHECKED_IN &&
+    row.checkOutDate < today
+  ) {
+    return "departure";
+  }
+  return null;
+}
+
+export function formatReservationLateCue(cue: ReservationLateCue): string {
+  return cue === "arrival" ? "Late arrival" : "Late departure";
+}
+
 export function formatReservationStatus(status: ReservationStatus): string {
   switch (status) {
     case ReservationStatus.UNCONFIRMED:

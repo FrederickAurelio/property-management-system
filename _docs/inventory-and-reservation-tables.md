@@ -330,8 +330,8 @@ Example: check-in 2026-07-25, check-out 2026-07-26 → occupies 1 night (25th).
 - `CHECK (checkOutDate > checkInDate)`
 - `CHECK (guestCount IS NULL OR guestCount >= 1)`
 - `INDEX (unitId, checkInDate, checkOutDate)`
-- `INDEX (propertyId, checkInDate)` — arrivals board
-- `INDEX (propertyId, checkOutDate)` — departures board
+- `INDEX (propertyId, checkInDate)` — arrivals board (`checkInDate ≤ today` + status)
+- `INDEX (propertyId, checkOutDate)` — departures board (`checkOutDate ≤ today` + status)
 - `INDEX (propertyId, status)`
 - `INDEX (source)`
 - `UNIQUE (source, externalRef)` where `externalRef IS NOT NULL` — avoid duplicate OTA imports

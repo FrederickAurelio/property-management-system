@@ -31,7 +31,9 @@ export function AppRoutes() {
           />
           <Route
             path="check-in"
-            element={<PlaceholderPage title="Check-in" />}
+            element={
+              <Navigate to="/reservations?board=arrivals" replace />
+            }
           />
           <Route path="properties" element={<PropertyExplorerLayout />}>
             <Route index element={<PropertiesPage />} />

@@ -30,6 +30,7 @@ import {
   confirmReadinessFromReservation,
   formatConfirmGapsMessage,
   formatIcalWarning,
+  formatReservationLateCue,
   formatReservationSource,
   formatReservationStatus,
   formatStayRange,
@@ -41,6 +42,7 @@ import {
   primaryActionFor,
   primaryActionLabel,
   reservationDue,
+  reservationLateCue,
   reservationRefund,
   collectPaymentLabel,
   statusBadgeTone,
@@ -203,6 +205,7 @@ export function ReservationDetailPage() {
 
   const row = detailQuery.data;
   const today = todayYmdInTimezone(row.propertyTimezone);
+  const lateCue = reservationLateCue(row);
   const primary = primaryActionFor(row);
   const due = reservationDue(row);
   const refund = reservationRefund(row);
@@ -261,6 +264,12 @@ export function ReservationDetailPage() {
               source={row.source}
               label={formatReservationSource(row.source)}
             />
+            {lateCue ? (
+              <ReservationBadge
+                label={formatReservationLateCue(lateCue)}
+                tone="warn"
+              />
+            ) : null}
           </div>
           {(row.guestPhone || row.guestEmail) && (
             <p className="mt-3 text-sm text-muted-foreground">

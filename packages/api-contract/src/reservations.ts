@@ -318,7 +318,11 @@ export const CancelDisposition = {
 export type CancelDisposition =
   (typeof CancelDisposition)[keyof typeof CancelDisposition];
 
-/** Desk board presets for list filters. */
+/**
+ * Desk board presets for list filters.
+ * `arrivals` = CONFIRMED + checkInDate ≤ today < checkOutDate (overdue inclusive).
+ * `departures` = CHECKED_IN + checkOutDate ≤ today (overdue inclusive).
+ */
 export const ReservationBoard = {
   all: 'all',
   arrivals: 'arrivals',

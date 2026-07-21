@@ -65,14 +65,18 @@ Unit ── Reservation   (guest stay / iCal stub)
 
 ### 3.1 Daily boards (same filters everywhere)
 
+Phase 1 desk boards live on **Reservations** (`/reservations`) only — **no** separate Check-in page. Check-in / check-out actions run from list → detail (and later calendar).
+
 | Board | Default filter | Primary job |
 |-------|----------------|-------------|
-| **Arrivals** | `checkInDate = today`, `status = CONFIRMED` | Collect due → Check in |
+| **Arrivals** | `status = CONFIRMED` and `checkInDate ≤ today < checkOutDate` (includes overdue) | Collect due → Check in |
 | **In-house** | `status = CHECKED_IN` | Extend / collect / Check out |
 | **Balance due** | Due > 0 **or** Refund > 0 (overpay), status occupying **or** `CHECKED_OUT` | Collect / Refund |
-| **Departures** | `checkOutDate = today`, `status = CHECKED_IN` | Check out |
+| **Departures** | `status = CHECKED_IN` and `checkOutDate ≤ today` (includes overdue) | Check out |
 | **Needs details** | `status = UNCONFIRMED` | Enrich → Confirm |
 | **iCal alerts** | `icalSyncWarning IS NOT NULL` | Verify cancel / date drift |
+
+Arrivals matches the check-in window; Departures matches due/overdue checkout (not “today only”). Sort Arrivals by `checkInDate` asc, Departures by `checkOutDate` asc (oldest overdue first). PMS shows **Late arrival** / **Late departure** badges on list + detail wherever the row appears (not only on those boards). Past `checkOutDate` without ever checking in → find under All → **Cancel** (no-show notes); no separate `NO_SHOW` status.
 
 Calendar is the spatial view of the same rows — same badges, same click-through to detail.
 
@@ -552,7 +556,7 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservati
 
 ```text
 Desk always sees: Status · Source · Total/Paid/Balance (Due|Refund) · warnings · cash timeline
-Boards: Arrivals · In-house · Departures · Needs details · iCal alerts · Balance due (incl. Refund)
+Boards on /reservations only (no Check-in page): Arrivals (incl. late-in-window) · In-house · Departures (incl. overdue checkout) · Needs details · iCal alerts · Balance due
 One primary action per status; Collect sheet (IN/OUT movements) + Cancel sheet everywhere
 Unit via Choose (Property → Type → Unit), not a mega Select
 

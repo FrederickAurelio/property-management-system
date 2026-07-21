@@ -12,7 +12,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Axios API client: `src/lib/api` (session cookies + envelope unwrap + Sonner helpers)
 - RHF + Zod + shadcn `Field` / `Controller` (login + inventory forms wired)
 - Inventory explorer wired to Nest (`/staff/properties|unit-types|units`) — infinite lists + CRUD
-- Reservations wired to Nest `/staff/reservations`: boards · Choose unit (all properties/types/units + inactive/blocked rows) · stay dates blocked by unit occupancy · Collect/Cancel as **cash movements** · Paid = sum(movements) · early check-in/out via `confirmEarly` · Total = `nights × defaultPriceIdr`
+- Reservations wired to Nest `/staff/reservations`: desk boards on `/reservations` (Arrivals/Departures include overdue + Late badge; **no** `/check-in` page) · Choose unit (all properties/types/units + inactive/blocked rows) · stay dates blocked by unit occupancy · Collect/Cancel as **cash movements** · Paid = sum(movements) · early check-in/out via `confirmEarly` · Total = `nights × defaultPriceIdr`
 - **Bookability UX:** Property “Open for ops” · Type “Offered for booking” · Unit status only (`ACTIVE` = bookable)
 - **Not yet:** calendar · iCal sync UI · Accept-iCal actions
 - **Design:** [`_docs/reservations-design.md`](../../_docs/reservations-design.md)
@@ -80,8 +80,8 @@ Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 1. Staff login ← **done**
 2. Inventory CRUD ← **done**
 3. Calendar (busy/free per unit) ← not yet
-4. Manual reservations (Choose unit · rack Total · money/DP · boards) ← **done** (Nest)
-5. Check-in / check-out + Collect/Cancel ← **done** (Nest detail)
+4. Manual reservations (Choose unit · rack Total · money/DP · boards on `/reservations`) ← **done** (Nest)
+5. Check-in / check-out + Collect/Cancel ← **done** (detail + Arrivals/In-house/Departures boards; no `/check-in` route)
 6. Basic reports ← not yet
 7. iCal Sync now + `UNCONFIRMED` enrich queue ← board/warning UI only; Nest + feeds not yet
 
