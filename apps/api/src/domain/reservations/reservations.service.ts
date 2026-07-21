@@ -19,6 +19,7 @@ import {
   recomputePaymentStatus,
   refundDueIdr,
   ReservationBoard,
+  ReservationListSort,
   ReservationStatus,
   signedAmountFor,
   sumPaidFromMovements,
@@ -65,13 +66,14 @@ export class ReservationsService {
     query: ListReservationsQueryDto,
   ): Promise<Paginated<StaffReservation>> {
     const where = await this.buildListWhere(query);
+    const orderBy = this.listOrderBy(query.sort);
 
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.reservation.count({ where }),
       this.prisma.reservation.findMany({
         where,
         include: reservationInclude,
-        orderBy: [{ checkInDate: 'asc' }, { createdAt: 'asc' }],
+        orderBy,
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),
@@ -81,6 +83,15 @@ export class ReservationsService {
       items: rows.map((row) => toStaffReservation(row)),
       pageInfo: buildPageInfo(query.page, query.pageSize, total),
     };
+  }
+
+  private listOrderBy(
+    sort: ReservationListSort | undefined,
+  ): Prisma.ReservationOrderByWithRelationInput[] {
+    if (sort === ReservationListSort.createdAt) {
+      return [{ createdAt: 'desc' }, { id: 'desc' }];
+    }
+    return [{ checkInDate: 'asc' }, { createdAt: 'asc' }];
   }
 
   async getById(id: string): Promise<StaffReservation> {

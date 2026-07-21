@@ -163,14 +163,12 @@ export function UnitInventoryPicker({
 
   const propertiesQuery = useInfiniteQuery({
     queryKey: staffPropertiesQueryKey({
-      isActive: true,
       ...(debouncedQ ? { q: debouncedQ } : {}),
     }),
     queryFn: ({ pageParam }) =>
       listProperties({
         page: pageParam,
         pageSize: 20,
-        isActive: true,
         ...(debouncedQ ? { q: debouncedQ } : {}),
       }),
     initialPageParam: INFINITE_INITIAL_PAGE,
@@ -180,14 +178,12 @@ export function UnitInventoryPicker({
 
   const typesQuery = useInfiniteQuery({
     queryKey: staffUnitTypesQueryKey(propertyId, {
-      isActive: true,
       ...(debouncedQ ? { q: debouncedQ } : {}),
     }),
     queryFn: ({ pageParam }) =>
       listUnitTypes(propertyId, {
         page: pageParam,
         pageSize: 20,
-        isActive: true,
         ...(debouncedQ ? { q: debouncedQ } : {}),
       }),
     initialPageParam: INFINITE_INITIAL_PAGE,
@@ -196,23 +192,17 @@ export function UnitInventoryPicker({
   });
 
   const datesReady =
-    Boolean(checkInDate) &&
-    Boolean(checkOutDate) &&
-    checkOutDate > checkInDate;
+    Boolean(checkInDate) && Boolean(checkOutDate) && checkOutDate > checkInDate;
 
   const unitsQuery = useQuery({
     queryKey: staffUnitsAvailabilityQueryKey(propertyId, {
-      ...(datesReady
-        ? { checkInDate, checkOutDate }
-        : {}),
+      ...(datesReady ? { checkInDate, checkOutDate } : {}),
       unitTypeId,
       ...(excludeReservationId ? { excludeReservationId } : {}),
     }),
     queryFn: () =>
       listAvailableUnits(propertyId, {
-        ...(datesReady
-          ? { checkInDate, checkOutDate }
-          : {}),
+        ...(datesReady ? { checkInDate, checkOutDate } : {}),
         unitTypeId,
         ...(excludeReservationId ? { excludeReservationId } : {}),
       }),
@@ -499,6 +489,11 @@ export function UnitInventoryPicker({
                   meta={`${unitType.unitCount} unit${unitType.unitCount === 1 ? "" : "s"} · ${unitType.code}`}
                   imageUrl={firstImageUrl(unitType.media)}
                   canManage={false}
+                  badge={
+                    !unitType.isActive ? (
+                      <StatusBadge label="Inactive" tone="muted" />
+                    ) : undefined
+                  }
                   onSelect={() => {
                     setUnitTypeId(unitType.id);
                     setUnitTypeName(unitType.name);

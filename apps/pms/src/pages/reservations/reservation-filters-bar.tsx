@@ -1,6 +1,7 @@
 /* anchor: Linear issue list + ExplorerToolbar, diverge: board tabs then compact filter row */
 import { useEffect, useState } from "react";
 import {
+  ReservationListSort,
   ReservationSource,
   ReservationStatus,
 } from "@cabin/api-contract";
@@ -41,6 +42,7 @@ type ReservationFiltersBarProps = {
   propertyId: string;
   statusFilter: string;
   sourceFilter: string;
+  sort: ReservationListSort;
   /** False when the board owns status (Nest overwrites any client status). */
   showStatusFilter: boolean;
   /** URL `q` — bar owns draft typing; syncs debounced value back. */
@@ -54,6 +56,7 @@ export function ReservationFiltersBar({
   propertyId,
   statusFilter,
   sourceFilter,
+  sort,
   showStatusFilter,
   q,
   propertyOptions,
@@ -207,6 +210,32 @@ export function ReservationFiltersBar({
                     {formatReservationSource(s)}
                   </SelectItem>
                 ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Select
+            value={sort}
+            onValueChange={(value) => {
+              onPatch({
+                sort: value === ReservationListSort.checkIn ? null : value,
+              });
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              className="w-[8.75rem] shrink-0"
+              aria-label="Sort"
+            >
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value={ReservationListSort.checkIn}>
+                  Stay date
+                </SelectItem>
+                <SelectItem value={ReservationListSort.createdAt}>
+                  Created
+                </SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>

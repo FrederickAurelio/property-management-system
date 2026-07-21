@@ -9,7 +9,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Staff CRUD:** SUPER_ADMIN-only list / create / change role / revoke-restore — `/staff/admins`
 - **Inventory CRUD:** `Property` / `UnitType` / `Unit` — `/staff/properties|unit-types|units`; reads `FRONT_DESK+`; writes `ADMIN+`
 - **Media upload-intent:** Cloudinary signed params — `POST /staff/media/upload-intent` (`ADMIN+`); Nest does not proxy file bytes
-- **Reservations + money:** Prisma `Reservation` / `PaymentMovement`; Nest `/staff/reservations` (list/create/detail/patch/confirm/check-in/out/cancel/movements) — `FRONT_DESK+`; Paid = sum(movements); overlap exclusion + transactional 409
+- **Reservations + money:** Prisma `Reservation` / `PaymentMovement`; Nest `/staff/reservations` (list/create/detail/patch/confirm/check-in/out/cancel/movements) — `FRONT_DESK+`; list `sort?` = `checkIn` (default) | `createdAt`; Paid = sum(movements); overlap exclusion + transactional 409
 - **Availability:** `GET /staff/properties/:propertyId/units/availability` — all units (optional `unitTypeId`) with `available` + `blockReason`; dates optional (omit = no `DATE_OVERLAP`); optional `excludeReservationId` for edit
 - **Unit occupancy (date picker):** `GET /staff/units/:id/occupancy?yearMonth=YYYY-MM` — occupying blocks for one month; FE caches months as the calendar pages
 - **Bookability:** Property `isActive` (open for ops) · UnitType `isActive` (offered) · Unit `status` only (`ACTIVE` bookable; no separate unit `isActive`)
@@ -92,6 +92,7 @@ Wire types: `StaffProperty` / `StaffUnitType` / `StaffUnit` (staff/PMS shapes �
 | Method | Path | Notes |
 |--------|------|--------|
 | `GET` | `/staff/properties` | Paginated; `isActive?`, `q?`. Full row + `typeCount` / `unitCount` |
+| `GET` | `/staff/properties/options` | All properties as `{ id, name }[]` (filter/select; unpaginated) |
 | `GET` | `/staff/properties/:id` | Full property + counts |
 | `POST` | `/staff/properties` | Create |
 | `PATCH` | `/staff/properties/:id` | Update |

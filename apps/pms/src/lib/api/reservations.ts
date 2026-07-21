@@ -84,6 +84,7 @@ export async function listReservations(
         ...(filters.status ? { status: filters.status } : {}),
         ...(filters.source ? { source: filters.source } : {}),
         ...(filters.board ? { board: filters.board } : {}),
+        ...(filters.sort ? { sort: filters.sort } : {}),
         ...(filters.checkInDate ? { checkInDate: filters.checkInDate } : {}),
         ...(filters.checkOutDate ? { checkOutDate: filters.checkOutDate } : {}),
         ...(filters.hasIcalWarning !== undefined

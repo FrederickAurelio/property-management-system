@@ -332,6 +332,15 @@ export const ReservationBoard = {
 export type ReservationBoard =
   (typeof ReservationBoard)[keyof typeof ReservationBoard];
 
+/** List sort for staff reservation boards (default = checkIn). */
+export const ReservationListSort = {
+  checkIn: 'checkIn',
+  createdAt: 'createdAt',
+} as const;
+
+export type ReservationListSort =
+  (typeof ReservationListSort)[keyof typeof ReservationListSort];
+
 /** Staff list query filters (pagination page/pageSize separate). */
 export type StaffReservationListFilters = {
   propertyId?: string;
@@ -339,6 +348,8 @@ export type StaffReservationListFilters = {
   status?: ReservationStatus;
   source?: ReservationSource;
   board?: ReservationBoard;
+  /** Default `checkIn` (soonest first). `createdAt` = newest booked first. */
+  sort?: ReservationListSort;
   checkInDate?: string;
   checkOutDate?: string;
   hasIcalWarning?: boolean;

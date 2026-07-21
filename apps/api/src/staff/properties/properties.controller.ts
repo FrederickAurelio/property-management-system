@@ -9,7 +9,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type { Paginated, StaffProperty } from '@cabin/api-contract';
+import type {
+  Paginated,
+  StaffProperty,
+  StaffPropertyOption,
+} from '@cabin/api-contract';
 import { CreatePropertyDto } from '../../domain/properties/dto/create-property.dto.js';
 import { ListPropertiesQueryDto } from '../../domain/properties/dto/list-properties.query.dto.js';
 import { UpdatePropertyDto } from '../../domain/properties/dto/update-property.dto.js';
@@ -29,6 +33,12 @@ export class PropertiesController {
     @Query() query: ListPropertiesQueryDto,
   ): Promise<Paginated<StaffProperty>> {
     return this.propertiesService.list(query);
+  }
+
+  /** Declared before `:id` so Nest does not treat `options` as an id. */
+  @Get('options')
+  listOptions(): Promise<StaffPropertyOption[]> {
+    return this.propertiesService.listOptions();
   }
 
   @Get(':id')

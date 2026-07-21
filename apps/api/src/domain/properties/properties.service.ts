@@ -9,6 +9,7 @@ import {
   buildPageInfo,
   type Paginated,
   type StaffProperty,
+  type StaffPropertyOption,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
 import { toStaffProperty } from '../inventory/inventory-mapper.js';
@@ -45,6 +46,15 @@ export class PropertiesService {
       ),
       pageInfo: buildPageInfo(query.page, query.pageSize, total),
     };
+  }
+
+  /** All properties as `{ id, name }` for filter / select UIs (unpaginated). */
+  async listOptions(): Promise<StaffPropertyOption[]> {
+    const rows = await this.prisma.property.findMany({
+      select: { id: true, name: true },
+      orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+    });
+    return rows;
   }
 
   async getById(id: string): Promise<StaffProperty> {

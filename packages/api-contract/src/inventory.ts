@@ -123,6 +123,12 @@ export const INVENTORY_LAT_MAX = 90;
 export const INVENTORY_LNG_MIN = -180;
 export const INVENTORY_LNG_MAX = 180;
 
+/** Lightweight property row for staff filter / select dropdowns (id + label only). */
+export type StaffPropertyOption = {
+  id: string;
+  name: string;
+};
+
 /** Staff/PMS wire shape for a property (full ops row + counts). Not the public website catalog. */
 export type StaffProperty = {
   id: string;

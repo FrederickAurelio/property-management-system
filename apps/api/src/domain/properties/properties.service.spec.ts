@@ -72,6 +72,24 @@ describe('PropertiesService', () => {
     service = module.get(PropertiesService);
   });
 
+  describe('listOptions', () => {
+    it('returns id and name only, ordered by name', async () => {
+      prisma.property.findMany.mockResolvedValue([
+        { id: 'prop_a', name: 'Alpha' },
+        { id: 'prop_b', name: 'Beta' },
+      ]);
+
+      await expect(service.listOptions()).resolves.toEqual([
+        { id: 'prop_a', name: 'Alpha' },
+        { id: 'prop_b', name: 'Beta' },
+      ]);
+      expect(prisma.property.findMany).toHaveBeenCalledWith({
+        select: { id: true, name: true },
+        orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+      });
+    });
+  });
+
   describe('delete', () => {
     it('blocks when children remain', async () => {
       prisma.property.findUnique.mockResolvedValue(propertyRow);

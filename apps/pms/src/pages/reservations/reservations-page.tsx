@@ -1,6 +1,7 @@
 /* anchor: Linear-dense / Stripe-data ops list, diverge: board tabs + money columns */
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ReservationListSort,
   ReservationSource,
   ReservationStatus,
   type StaffReservation,
@@ -31,7 +32,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   getNextPageParamFromPageInfo,
   INFINITE_INITIAL_PAGE,
-  listProperties,
+  listPropertyOptions,
   listReservations,
   staffPropertiesOptionsQueryKey,
   staffReservationsQueryKey,
@@ -200,6 +201,10 @@ export function ReservationsPage() {
     ? "all"
     : (searchParams.get("status") ?? "all");
   const sourceFilter = searchParams.get("source") ?? "all";
+  const sort =
+    searchParams.get("sort") === ReservationListSort.createdAt
+      ? ReservationListSort.createdAt
+      : ReservationListSort.checkIn;
   const q = searchParams.get("q") ?? "";
 
   useEffect(() => {
@@ -255,6 +260,9 @@ export function ReservationsPage() {
       board,
       ...(propertyId ? { propertyId } : {}),
       ...(q ? { q } : {}),
+      ...(sort === ReservationListSort.createdAt
+        ? { sort: ReservationListSort.createdAt }
+        : {}),
     };
     if (!filterLocks.locksStatus && statusFilter !== "all") {
       filters.status = statusFilter as ReservationStatus;
@@ -267,6 +275,7 @@ export function ReservationsPage() {
     board,
     propertyId,
     q,
+    sort,
     statusFilter,
     sourceFilter,
     filterLocks.locksStatus,
@@ -276,20 +285,14 @@ export function ReservationsPage() {
     queryKey: staffPropertiesOptionsQueryKey(),
     queryFn: async () => {
       try {
-        const page = await listProperties({ pageSize: 100 });
-        return page.items;
+        return await listPropertyOptions();
       } catch {
         return [];
       }
     },
   });
 
-  const propertyOptions = useMemo(() => {
-    return (propertiesQuery.data ?? []).map((p) => ({
-      id: p.id,
-      name: p.name,
-    }));
-  }, [propertiesQuery.data]);
+  const propertyOptions = propertiesQuery.data ?? [];
 
   const listQuery = useInfiniteQuery({
     queryKey: staffReservationsQueryKey(listFilters),
@@ -333,6 +336,7 @@ export function ReservationsPage() {
         propertyId={propertyId}
         statusFilter={statusFilter}
         sourceFilter={sourceFilter}
+        sort={sort}
         showStatusFilter={!filterLocks.locksStatus}
         q={q}
         propertyOptions={propertyOptions}

@@ -2,6 +2,7 @@ import type {
   MediaItem,
   Paginated,
   StaffProperty,
+  StaffPropertyOption,
 } from "@cabin/api-contract";
 import { PAGE_SIZE_DEFAULT } from "@cabin/api-contract";
 import { api } from "./client";
@@ -42,6 +43,14 @@ export async function listProperties(
       ...(params.isActive !== undefined ? { isActive: params.isActive } : {}),
     },
   });
+  return data;
+}
+
+/** Unpaginated `{ id, name }[]` for filter / select dropdowns. */
+export async function listPropertyOptions(): Promise<StaffPropertyOption[]> {
+  const { data } = await api.get<StaffPropertyOption[]>(
+    "/staff/properties/options",
+  );
   return data;
 }
 

@@ -2,6 +2,7 @@ import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import {
   ReservationBoard,
+  ReservationListSort,
   ReservationSource,
   ReservationStatus,
 } from '@cabin/api-contract';
@@ -23,6 +24,10 @@ export class ListReservationsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(ReservationBoard)
   board?: ReservationBoard;
+
+  @IsOptional()
+  @IsEnum(ReservationListSort)
+  sort?: ReservationListSort;
 
   @IsOptional()
   @IsString()

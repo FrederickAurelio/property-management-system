@@ -1,5 +1,6 @@
 import type {
   PaymentStatus,
+  ReservationListSort,
   ReservationSource,
   ReservationStatus,
   UnitStatus,
@@ -32,6 +33,7 @@ export type StaffReservationsListFilters = {
   status?: ReservationStatus;
   source?: ReservationSource;
   board?: ReservationBoard;
+  sort?: ReservationListSort;
   checkInDate?: string;
   checkOutDate?: string;
   hasIcalWarning?: boolean;

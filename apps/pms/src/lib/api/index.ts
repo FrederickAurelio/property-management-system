@@ -66,6 +66,7 @@ export {
   deleteProperty,
   getProperty,
   listProperties,
+  listPropertyOptions,
   updateProperty,
   type ListPropertiesParams,
   type PropertyWriteInput,

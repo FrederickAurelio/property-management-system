@@ -30,13 +30,13 @@ Booking.com “Deluxe Studio / 18 m² / amenities” = **UnitType**.
 
 ## 2. Entity map
 
-| Table | Job | FE uses for | BE uses for |
-|-------|-----|-------------|-------------|
-| `Property` | Place / site | Property switcher, settings, maps | Scope all inventory |
-| `UnitType` | Kind of apartment (×5 at Skybreeze) | Type list, filters, type detail | Shared specs; allotment counts |
-| `Unit` | Bookable physical apartment | Unit list, calendar rows | Availability, iCal, ops |
-| `Reservation` | Confirmed stay on a unit | Calendar, arrivals, detail | Overlap, reports, check-in |
-| `CalendarBlock` | Non-guest hold (maintenance, owner use) | Calendar busy slots | Overlap with stays |
+| Table           | Job                                     | FE uses for                       | BE uses for                    |
+| --------------- | --------------------------------------- | --------------------------------- | ------------------------------ |
+| `Property`      | Place / site                            | Property switcher, settings, maps | Scope all inventory            |
+| `UnitType`      | Kind of apartment (×5 at Skybreeze)     | Type list, filters, type detail   | Shared specs; allotment counts |
+| `Unit`          | Bookable physical apartment             | Unit list, calendar rows          | Availability, iCal, ops        |
+| `Reservation`   | Confirmed stay on a unit                | Calendar, arrivals, detail        | Overlap, reports, check-in     |
+| `CalendarBlock` | Non-guest hold (maintenance, owner use) | Calendar busy slots               | Overlap with stays             |
 
 Out of Phase 1 inventory tables: OTA rate plans, live OTA prices, amenity master catalog, allotment-only inventory.
 
@@ -62,14 +62,14 @@ Property
 
 Cardinality:
 
-| From | To | Rule |
-|------|----|------|
-| Property | UnitType | 1 → many |
-| UnitType | Unit | 1 → many |
-| Unit | Reservation | 1 → many |
-| Unit | CalendarBlock | 1 → many |
-| Unit | UnitType | many → 1 |
-| UnitType | Property | many → 1 |
+| From     | To            | Rule     |
+| -------- | ------------- | -------- |
+| Property | UnitType      | 1 → many |
+| UnitType | Unit          | 1 → many |
+| Unit     | Reservation   | 1 → many |
+| Unit     | CalendarBlock | 1 → many |
+| Unit     | UnitType      | many → 1 |
+| UnitType | Property      | many → 1 |
 
 Invariant: `Unit.propertyId` **must equal** `UnitType.propertyId` for that unit’s type (enforce in service on create/update).
 
@@ -155,26 +155,26 @@ Wire shared enums via `@cabin/api-contract` when FE + API both need them.
 
 ### 5.1 `Property`
 
-| Column | Type | Null | Notes |
-|--------|------|------|--------|
-| `id` | `cuid` / `text` PK | no | |
-| `code` | `varchar(32)` | no | Stable slug, unique globally — e.g. `SKYBREEZE_SENTRALAND` |
-| `name` | `varchar(128)` | no | Display name |
-| `timezone` | `varchar(64)` | no | IANA — e.g. `Asia/Jakarta` |
-| `checkInFrom` | `time` or `varchar(5)` | yes | e.g. `15:00` |
-| `checkInUntil` | `time` / `varchar(5)` | yes | e.g. `23:30` |
-| `checkOutFrom` | `time` / `varchar(5)` | yes | |
-| `checkOutUntil` | `time` / `varchar(5)` | yes | e.g. `12:00` |
-| `addressLine` | `varchar(255)` | yes | Street / building line |
-| `city` | `varchar(128)` | yes | |
-| `countryCode` | `char(2)` | yes | `ID` |
-| `latitude` | `decimal(10,7)` | yes | WGS84 — **our** multi-property map pins (web) |
-| `longitude` | `decimal(10,7)` | yes | WGS84 — pair with `latitude` |
-| `googlePlaceId` | `varchar(256)` | yes | Google Place ID (`ChIJ…`) — **Open in Google Maps** (named place). Prefer over share/short links |
-| `coverImage` | `jsonb` | yes | Single `MediaItem` for explorer cards — see §6.3 |
-| `isActive` | `boolean` | no | default `true` |
-| `createdAt` | `timestamptz` | no | |
-| `updatedAt` | `timestamptz` | no | |
+| Column          | Type                   | Null | Notes                                                                                            |
+| --------------- | ---------------------- | ---- | ------------------------------------------------------------------------------------------------ |
+| `id`            | `cuid` / `text` PK     | no   |                                                                                                  |
+| `code`          | `varchar(32)`          | no   | Stable slug, unique globally — e.g. `SKYBREEZE_SENTRALAND`                                       |
+| `name`          | `varchar(128)`         | no   | Display name                                                                                     |
+| `timezone`      | `varchar(64)`          | no   | IANA — e.g. `Asia/Jakarta`                                                                       |
+| `checkInFrom`   | `time` or `varchar(5)` | yes  | e.g. `15:00`                                                                                     |
+| `checkInUntil`  | `time` / `varchar(5)`  | yes  | e.g. `23:30`                                                                                     |
+| `checkOutFrom`  | `time` / `varchar(5)`  | yes  |                                                                                                  |
+| `checkOutUntil` | `time` / `varchar(5)`  | yes  | e.g. `12:00`                                                                                     |
+| `addressLine`   | `varchar(255)`         | yes  | Street / building line                                                                           |
+| `city`          | `varchar(128)`         | yes  |                                                                                                  |
+| `countryCode`   | `char(2)`              | yes  | `ID`                                                                                             |
+| `latitude`      | `decimal(10,7)`        | yes  | WGS84 — **our** multi-property map pins (web)                                                    |
+| `longitude`     | `decimal(10,7)`        | yes  | WGS84 — pair with `latitude`                                                                     |
+| `googlePlaceId` | `varchar(256)`         | yes  | Google Place ID (`ChIJ…`) — **Open in Google Maps** (named place). Prefer over share/short links |
+| `coverImage`    | `jsonb`                | yes  | Single `MediaItem` for explorer cards — see §6.3                                                 |
+| `isActive`      | `boolean`              | no   | default `true`                                                                                   |
+| `createdAt`     | `timestamptz`          | no   |                                                                                                  |
+| `updatedAt`     | `timestamptz`          | no   |                                                                                                  |
 
 **Location rules (locked)**
 
@@ -198,27 +198,27 @@ Wire shared enums via `@cabin/api-contract` when FE + API both need them.
 
 Shared product specs for every unit of that kind. Booking room-type detail lives here.
 
-| Column | Type | Null | Notes |
-|--------|------|------|--------|
-| `id` | `cuid` PK | no | |
-| `propertyId` | FK → `Property` | no | `ON DELETE RESTRICT` |
-| `code` | `varchar(32)` | no | Stable within property — e.g. `DLX_STUDIO` |
-| `name` | `varchar(128)` | no | e.g. `Deluxe Studio` |
-| `layout` | `UnitLayout` | no | `STUDIO` / `APARTMENT` / … |
-| `sizeSqm` | `decimal(6,2)` | yes | e.g. `18.00` |
-| `bedroomCount` | `int` | no | **Derived on write** — see below |
-| `bathroomCount` | `int` | no | default `1` |
-| `maxGuests` | `int` | no | Hard cap for booking validation |
-| `defaultPriceIdr` | `int` | no | Rack rate **per night**, whole rupiah. Desk stay Total suggests `nights ×` this value ([`reservations-design.md`](reservations-design.md) §6). Not live OTA price. |
-| `bedConfig` | `jsonb` | no | See §6.1 — rooms with **one or more** bed rows each |
-| `amenities` | `jsonb` | no | See §6.2 — grouped lists for FE |
-| `media` | `jsonb` | no | Ordered gallery — see §6.3; first `IMAGE` = card thumb |
-| `description` | `text` | yes | Optional marketing / notes |
-| `smokingAllowed` | `boolean` | no | default `false` |
-| `sortOrder` | `int` | no | default `0` — FE type list order |
-| `isActive` | `boolean` | no | default `true` |
-| `createdAt` | `timestamptz` | no | |
-| `updatedAt` | `timestamptz` | no | |
+| Column            | Type            | Null | Notes                                                                                                                                                              |
+| ----------------- | --------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`              | `cuid` PK       | no   |                                                                                                                                                                    |
+| `propertyId`      | FK → `Property` | no   | `ON DELETE RESTRICT`                                                                                                                                               |
+| `code`            | `varchar(32)`   | no   | Stable within property — e.g. `DLX_STUDIO`                                                                                                                         |
+| `name`            | `varchar(128)`  | no   | e.g. `Deluxe Studio`                                                                                                                                               |
+| `layout`          | `UnitLayout`    | no   | `STUDIO` / `APARTMENT` / …                                                                                                                                         |
+| `sizeSqm`         | `decimal(6,2)`  | yes  | e.g. `18.00`                                                                                                                                                       |
+| `bedroomCount`    | `int`           | no   | **Derived on write** — see below                                                                                                                                   |
+| `bathroomCount`   | `int`           | no   | default `1`                                                                                                                                                        |
+| `maxGuests`       | `int`           | no   | Hard cap for booking validation                                                                                                                                    |
+| `defaultPriceIdr` | `int`           | no   | Rack rate **per night**, whole rupiah. Desk stay Total suggests `nights ×` this value ([`reservations-design.md`](reservations-design.md) §6). Not live OTA price. |
+| `bedConfig`       | `jsonb`         | no   | See §6.1 — rooms with **one or more** bed rows each                                                                                                                |
+| `amenities`       | `jsonb`         | no   | See §6.2 — grouped lists for FE                                                                                                                                    |
+| `media`           | `jsonb`         | no   | Ordered gallery — see §6.3; first `IMAGE` = card thumb                                                                                                             |
+| `description`     | `text`          | yes  | Optional marketing / notes                                                                                                                                         |
+| `smokingAllowed`  | `boolean`       | no   | default `false`                                                                                                                                                    |
+| `sortOrder`       | `int`           | no   | default `0` — FE type list order                                                                                                                                   |
+| `isActive`        | `boolean`       | no   | default `true`                                                                                                                                                     |
+| `createdAt`       | `timestamptz`   | no   |                                                                                                                                                                    |
+| `updatedAt`       | `timestamptz`   | no   |                                                                                                                                                                    |
 
 **`bedroomCount` (locked)**
 
@@ -250,19 +250,19 @@ PMS form shows bedrooms as **read-only**; staff edit rooms in `bedConfig`, not a
 
 Physical bookable apartment. **Source of truth for calendar.**
 
-| Column | Type | Null | Notes |
-|--------|------|------|--------|
-| `id` | `cuid` PK | no | |
-| `propertyId` | FK → `Property` | no | Denormalized; must match type’s property |
-| `unitTypeId` | FK → `UnitType` | no | `ON DELETE RESTRICT` |
-| `code` | `varchar(32)` | no | Ops id — e.g. `DS-1208`, `B-0801` |
-| `name` | `varchar(128)` | yes | Optional display override |
-| `floor` | `varchar(16)` | yes | `12` / `G` — string keeps flexibility |
-| `status` | `UnitStatus` | no | default `ACTIVE` — **only `ACTIVE` is bookable** |
-| `notes` | `text` | yes | Internal only (access, quirks) |
-| `sortOrder` | `int` | no | default `0` |
-| `createdAt` | `timestamptz` | no | |
-| `updatedAt` | `timestamptz` | no | |
+| Column       | Type            | Null | Notes                                            |
+| ------------ | --------------- | ---- | ------------------------------------------------ |
+| `id`         | `cuid` PK       | no   |                                                  |
+| `propertyId` | FK → `Property` | no   | Denormalized; must match type’s property         |
+| `unitTypeId` | FK → `UnitType` | no   | `ON DELETE RESTRICT`                             |
+| `code`       | `varchar(32)`   | no   | Ops id — e.g. `DS-1208`, `B-0801`                |
+| `name`       | `varchar(128)`  | yes  | Optional display override                        |
+| `floor`      | `varchar(16)`   | yes  | `12` / `G` — string keeps flexibility            |
+| `status`     | `UnitStatus`    | no   | default `ACTIVE` — **only `ACTIVE` is bookable** |
+| `notes`      | `text`          | yes  | Internal only (access, quirks)                   |
+| `sortOrder`  | `int`           | no   | default `0`                                      |
+| `createdAt`  | `timestamptz`   | no   |                                                  |
+| `updatedAt`  | `timestamptz`   | no   |                                                  |
 
 **Indexes / constraints**
 
@@ -284,36 +284,36 @@ Changing `unitTypeId` is rare; allow only when unit has no overlapping future co
 
 Stay on **one unit**. Designed so calendar, check-in, and reports share one row.
 
-| Column | Type | Null | Notes |
-|--------|------|------|--------|
-| `id` | `cuid` PK | no | |
-| `propertyId` | FK → `Property` | no | Denormalized for scoped queries |
-| `unitId` | FK → `Unit` | no | Calendar key |
-| `unitTypeId` | FK → `UnitType` | no | Snapshot helper — type at booking time (denormalized) |
-| `source` | `ReservationSource` | no | |
-| `status` | `ReservationStatus` | no | |
-| `checkInDate` | `date` | no | **Stay night start** (property local date) |
-| `checkOutDate` | `date` | no | **Exclusive end** — night of checkout not occupied |
-| `guestName` | `varchar(128)` | no | |
-| `guestEmail` | `varchar(255)` | yes | |
-| `guestPhone` | `varchar(32)` | yes | |
-| `guestCount` | `int` | yes | Null OK for iCal stubs; required `>= 1` on confirm / create-CONFIRMED; `<= maxGuests` |
-| `notes` | `text` | yes | Staff / special requests |
-| `totalAmountIdr` | `bigint` | yes | Stay quote (whole IDR); null until confirm |
-| `paidAmountIdr` | `bigint` | no | default 0; **cache** = sum(`PaymentMovement.signedAmount`) |
-| `paymentStatus` | `PaymentStatus` | no | `UNPAID` \| `DEPOSIT` \| `PAID` \| `REFUNDED` |
-| `collectedVia` | `CollectedVia` | yes | Optional rollup from latest movement |
-| `externalRef` | `varchar(128)` | yes | OTA booking id when known |
-| `icalSyncWarning` | `IcalSyncWarning` | yes | |
-| `icalSyncWarnedAt` | `timestamptz` | yes | |
-| `confirmedAt` | `timestamptz` | yes | |
-| `checkedInAt` | `timestamptz` | yes | |
-| `checkedOutAt` | `timestamptz` | yes | |
-| `cancelledAt` | `timestamptz` | yes | |
-| `createdAt` | `timestamptz` | no | |
-| `updatedAt` | `timestamptz` | no | |
-| `createdByAdminId` | FK → `Admin` | yes | Manual creates |
-| `updatedByAdminId` | FK → `Admin` | yes | |
+| Column             | Type                | Null | Notes                                                                                 |
+| ------------------ | ------------------- | ---- | ------------------------------------------------------------------------------------- |
+| `id`               | `cuid` PK           | no   |                                                                                       |
+| `propertyId`       | FK → `Property`     | no   | Denormalized for scoped queries                                                       |
+| `unitId`           | FK → `Unit`         | no   | Calendar key                                                                          |
+| `unitTypeId`       | FK → `UnitType`     | no   | Snapshot helper — type at booking time (denormalized)                                 |
+| `source`           | `ReservationSource` | no   |                                                                                       |
+| `status`           | `ReservationStatus` | no   |                                                                                       |
+| `checkInDate`      | `date`              | no   | **Stay night start** (property local date)                                            |
+| `checkOutDate`     | `date`              | no   | **Exclusive end** — night of checkout not occupied                                    |
+| `guestName`        | `varchar(128)`      | no   |                                                                                       |
+| `guestEmail`       | `varchar(255)`      | yes  |                                                                                       |
+| `guestPhone`       | `varchar(32)`       | yes  |                                                                                       |
+| `guestCount`       | `int`               | yes  | Null OK for iCal stubs; required `>= 1` on confirm / create-CONFIRMED; `<= maxGuests` |
+| `notes`            | `text`              | yes  | Staff / special requests                                                              |
+| `totalAmountIdr`   | `bigint`            | yes  | Stay quote (whole IDR); null until confirm                                            |
+| `paidAmountIdr`    | `bigint`            | no   | default 0; **cache** = sum(`PaymentMovement.signedAmount`)                            |
+| `paymentStatus`    | `PaymentStatus`     | no   | `UNPAID` \| `DEPOSIT` \| `PAID` \| `REFUNDED`                                         |
+| `collectedVia`     | `CollectedVia`      | yes  | Optional rollup from latest movement                                                  |
+| `externalRef`      | `varchar(128)`      | yes  | OTA booking id when known                                                             |
+| `icalSyncWarning`  | `IcalSyncWarning`   | yes  |                                                                                       |
+| `icalSyncWarnedAt` | `timestamptz`       | yes  |                                                                                       |
+| `confirmedAt`      | `timestamptz`       | yes  |                                                                                       |
+| `checkedInAt`      | `timestamptz`       | yes  |                                                                                       |
+| `checkedOutAt`     | `timestamptz`       | yes  |                                                                                       |
+| `cancelledAt`      | `timestamptz`       | yes  |                                                                                       |
+| `createdAt`        | `timestamptz`       | no   |                                                                                       |
+| `updatedAt`        | `timestamptz`       | no   |                                                                                       |
+| `createdByAdminId` | FK → `Admin`        | yes  | Manual creates                                                                        |
+| `updatedByAdminId` | FK → `Admin`        | yes  |                                                                                       |
 
 **Date semantics (locked)**
 
@@ -358,18 +358,18 @@ Same overlap rule applies vs `CalendarBlock` on that unit.
 
 Append-only cash ledger for a reservation. Nest `/staff/reservations` + PMS live client.
 
-| Column | Type | Null | Notes |
-|--------|------|------|--------|
-| `id` | `cuid` PK | no | |
-| `reservationId` | FK → `Reservation` | no | `ON DELETE CASCADE` |
-| `direction` | `PaymentMovementDirection` | no | `IN` \| `OUT` |
-| `kind` | `PaymentMovementKind` | no | `DEPOSIT` \| `TOP_UP` \| `REFUND` \| `CANCEL_REFUND` \| `CHANNEL_SETTLED` |
-| `amountIdr` | `bigint` | no | always > 0 |
-| `signedAmount` | `bigint` | no | +amount (IN) or −amount (OUT) |
-| `method` | `CollectedVia` | yes | `PROPERTY` \| `CHANNEL` \| `MIXED` |
-| `note` | `varchar(500)` | yes | |
-| `createdAt` | `timestamptz` | no | |
-| `createdByAdminId` | FK → `Admin` | yes | |
+| Column             | Type                       | Null | Notes                                                                     |
+| ------------------ | -------------------------- | ---- | ------------------------------------------------------------------------- |
+| `id`               | `cuid` PK                  | no   |                                                                           |
+| `reservationId`    | FK → `Reservation`         | no   | `ON DELETE CASCADE`                                                       |
+| `direction`        | `PaymentMovementDirection` | no   | `IN` \| `OUT`                                                             |
+| `kind`             | `PaymentMovementKind`      | no   | `DEPOSIT` \| `TOP_UP` \| `REFUND` \| `CANCEL_REFUND` \| `CHANNEL_SETTLED` |
+| `amountIdr`        | `bigint`                   | no   | always > 0                                                                |
+| `signedAmount`     | `bigint`                   | no   | +amount (IN) or −amount (OUT)                                             |
+| `method`           | `CollectedVia`             | yes  | `PROPERTY` \| `CHANNEL` \| `MIXED`                                        |
+| `note`             | `varchar(500)`             | yes  |                                                                           |
+| `createdAt`        | `timestamptz`              | no   |                                                                           |
+| `createdByAdminId` | FK → `Admin`               | yes  |                                                                           |
 
 **Indexes / constraints**
 
@@ -389,18 +389,18 @@ Append-only cash ledger for a reservation. Nest `/staff/reservations` + PMS live
 
 Non-guest occupancy (maintenance, owner, soft hold).
 
-| Column | Type | Null | Notes |
-|--------|------|------|--------|
-| `id` | `cuid` PK | no | |
-| `propertyId` | FK → `Property` | no | |
-| `unitId` | FK → `Unit` | no | |
-| `reason` | `CalendarBlockReason` | no | |
-| `startDate` | `date` | no | inclusive |
-| `endDate` | `date` | no | exclusive (same as reservation) |
-| `notes` | `text` | yes | |
-| `createdAt` | `timestamptz` | no | |
-| `updatedAt` | `timestamptz` | no | |
-| `createdByAdminId` | FK → `Admin` | yes | |
+| Column             | Type                  | Null | Notes                           |
+| ------------------ | --------------------- | ---- | ------------------------------- |
+| `id`               | `cuid` PK             | no   |                                 |
+| `propertyId`       | FK → `Property`       | no   |                                 |
+| `unitId`           | FK → `Unit`           | no   |                                 |
+| `reason`           | `CalendarBlockReason` | no   |                                 |
+| `startDate`        | `date`                | no   | inclusive                       |
+| `endDate`          | `date`                | no   | exclusive (same as reservation) |
+| `notes`            | `text`                | yes  |                                 |
+| `createdAt`        | `timestamptz`         | no   |                                 |
+| `updatedAt`        | `timestamptz`         | no   |                                 |
+| `createdByAdminId` | FK → `Admin`          | yes  |                                 |
 
 **Indexes / constraints**
 
@@ -476,12 +476,7 @@ Grouped so FE can render Booking-style sections without parsing prose:
     "TERRACE",
     "FREE_WIFI"
   ],
-  "kitchen": [
-    "REFRIGERATOR",
-    "KITCHENWARE",
-    "ELECTRIC_KETTLE",
-    "STOVETOP"
-  ],
+  "kitchen": ["REFRIGERATOR", "KITCHENWARE", "ELECTRIC_KETTLE", "STOVETOP"],
   "bathroom": ["SHOWER", "BIDET"],
   "view": ["BALCONY", "TERRACE", "CITY_VIEW"],
   "facilities": [
@@ -517,12 +512,12 @@ Empty groups allowed (`[]`). Unknown future codes: ignore on FE, do not fail rea
 }
 ```
 
-| Field | Notes |
-|-------|--------|
-| `kind` | `IMAGE` \| `VIDEO` |
-| `url` | Object URL (mock) or storage URL (prod) |
+| Field                           | Notes                                               |
+| ------------------------------- | --------------------------------------------------- |
+| `kind`                          | `IMAGE` \| `VIDEO`                                  |
+| `url`                           | Object URL (mock) or storage URL (prod)             |
 | Array order on `UnitType.media` | Sortable; **first IMAGE** = explorer card thumbnail |
-| `Property.coverImage` | Single item or `null` |
+| `Property.coverImage`           | Single item or `null`                               |
 
 ---
 
@@ -532,36 +527,36 @@ Aligned with [`mock-inventory.ts`](../apps/pms/src/pages/properties/mock-invento
 
 ### 7.1 Properties
 
-| code | name | city | addressLine (summary) | lat / lng | googlePlaceId |
-|------|------|------|------------------------|-----------|---------------|
-| `SKYBREEZE_SENTRALAND` | Skybreeze Sentraland | Medan | Jl. Nikel, Sukaramai II, Medan Area … 20224 | `3.5858139` / `98.7040167` | `ChIJDQnc_KkxMTAR4tzfa3cP0Yw` |
-| `CABIN_LAKE_HOUSE` | Cabin Lake House | Berastagi | — | `3.1944` / `98.5089` | — |
+| code                   | name                 | city      | addressLine (summary)                       | lat / lng                  | googlePlaceId                 |
+| ---------------------- | -------------------- | --------- | ------------------------------------------- | -------------------------- | ----------------------------- |
+| `SKYBREEZE_SENTRALAND` | Skybreeze Sentraland | Medan     | Jl. Nikel, Sukaramai II, Medan Area … 20224 | `3.5858139` / `98.7040167` | `ChIJDQnc_KkxMTAR4tzfa3cP0Yw` |
+| `CABIN_LAKE_HOUSE`     | Cabin Lake House     | Berastagi | —                                           | `3.1944` / `98.5089`       | —                             |
 
 Skybreeze check-in `15:00`–`23:30`, check-out until `12:00`, timezone `Asia/Jakarta`.
 
 ### 7.2 Unit types (Skybreeze + cabin)
 
-| code | name | layout | sizeSqm | bedrooms | baths | maxGuests | defaultPriceIdr | beds (summary) |
-|------|------|--------|---------|----------|-------|-----------|-----------------|----------------|
-| `TWO_BR_STD` | Two-Bedroom Standard Apartment | `APARTMENT` | 36 | 2 | 1 | 3 | 650000 | Bedroom1 double · Bedroom2 single |
-| `THREE_BR_STD` | Three-Bedroom Standard Apartment | `APARTMENT` | 54 | 3 | 1 | 3 | 850000 | double + 2× single |
-| `DLX_KING_STUDIO` | Deluxe King Studio | `STUDIO` | 21 | 0 | 1 | 2 | 550000 | 1 large double |
-| `DLX_QUEEN_STUDIO` | Deluxe Queen Studio | `STUDIO` | 18 | 0 | 1 | 2 | 450000 | 1 large double |
-| `DLX_STUDIO` | Deluxe Studio | `STUDIO` | 18 | 0 | 1 | 2 | 400000 | 1 large double |
-| `LAKE_CABIN` | Lake Cabin | `CABIN` | 42 | 1 | 1 | 2 | 750000 | 1 queen |
+| code               | name                             | layout      | sizeSqm | bedrooms | baths | maxGuests | defaultPriceIdr | beds (summary)                    |
+| ------------------ | -------------------------------- | ----------- | ------- | -------- | ----- | --------- | --------------- | --------------------------------- |
+| `TWO_BR_STD`       | Two-Bedroom Standard Apartment   | `APARTMENT` | 36      | 2        | 1     | 3         | 650000          | Bedroom1 double · Bedroom2 single |
+| `THREE_BR_STD`     | Three-Bedroom Standard Apartment | `APARTMENT` | 54      | 3        | 1     | 3         | 850000          | double + 2× single                |
+| `DLX_KING_STUDIO`  | Deluxe King Studio               | `STUDIO`    | 21      | 0        | 1     | 2         | 550000          | 1 large double                    |
+| `DLX_QUEEN_STUDIO` | Deluxe Queen Studio              | `STUDIO`    | 18      | 0        | 1     | 2         | 450000          | 1 large double                    |
+| `DLX_STUDIO`       | Deluxe Studio                    | `STUDIO`    | 18      | 0        | 1     | 2         | 400000          | 1 large double                    |
+| `LAKE_CABIN`       | Lake Cabin                       | `CABIN`     | 42      | 1        | 1     | 2         | 750000          | 1 queen                           |
 
 Studios use `bedroomCount = 0` and a single `Studio` room in `bedConfig`. Amenity presets match §6.2 (apartments may omit `POOL_WITH_A_VIEW` in highlights).
 
 ### 7.3 Units (mock sample)
 
-| property | unitType | codes (status) |
-|----------|----------|----------------|
-| Skybreeze | `TWO_BR_STD` | `B-0801`, `B-0802` ACTIVE · `B-0803` MAINTENANCE |
-| Skybreeze | `THREE_BR_STD` | `B-1201` |
-| Skybreeze | `DLX_KING_STUDIO` | `DS-0501` |
-| Skybreeze | `DLX_QUEEN_STUDIO` | `DQ-0701` |
-| Skybreeze | `DLX_STUDIO` | `DS-0901` ACTIVE · `DS-0902` INACTIVE |
-| Cabin Lake | `LAKE_CABIN` | `CABIN-01`, `CABIN-02` |
+| property   | unitType           | codes (status)                                   |
+| ---------- | ------------------ | ------------------------------------------------ |
+| Skybreeze  | `TWO_BR_STD`       | `B-0801`, `B-0802` ACTIVE · `B-0803` MAINTENANCE |
+| Skybreeze  | `THREE_BR_STD`     | `B-1201`                                         |
+| Skybreeze  | `DLX_KING_STUDIO`  | `DS-0501`                                        |
+| Skybreeze  | `DLX_QUEEN_STUDIO` | `DQ-0701`                                        |
+| Skybreeze  | `DLX_STUDIO`       | `DS-0901` ACTIVE · `DS-0902` INACTIVE            |
+| Cabin Lake | `LAKE_CABIN`       | `CABIN-01`, `CABIN-02`                           |
 
 Booking “We have 3 left” = derived availability for that type on a night (`count units where free`), **not** a stored allotment field.
 
@@ -571,15 +566,15 @@ Booking “We have 3 left” = derived availability for that type on a night (`c
 
 Suggested Nest modules: `properties`, `units` (types + units), later `reservations`.
 
-| Method | Path | Notes |
-|--------|------|--------|
-| `GET/POST` | `/staff/properties` | |
-| `GET/PATCH` | `/staff/properties/:id` | |
-| `GET/POST` | `/staff/properties/:propertyId/unit-types` | |
-| `GET/PATCH` | `/staff/unit-types/:id` | |
-| `GET/POST` | `/staff/properties/:propertyId/units` | query: `unitTypeId`, `status` |
-| `GET/PATCH` | `/staff/units/:id` | |
-| `GET` | `/staff/properties/:propertyId/calendar` | units + reservations + blocks in range |
+| Method      | Path                                       | Notes                                  |
+| ----------- | ------------------------------------------ | -------------------------------------- |
+| `GET/POST`  | `/staff/properties`                        |                                        |
+| `GET/PATCH` | `/staff/properties/:id`                    |                                        |
+| `GET/POST`  | `/staff/properties/:propertyId/unit-types` |                                        |
+| `GET/PATCH` | `/staff/unit-types/:id`                    |                                        |
+| `GET/POST`  | `/staff/properties/:propertyId/units`      | query: `unitTypeId`, `status`          |
+| `GET/PATCH` | `/staff/units/:id`                         |                                        |
+| `GET`       | `/staff/properties/:propertyId/calendar`   | units + reservations + blocks in range |
 
 Public website browse/book (Phase 2) uses `/public/...` — not these staff paths.
 | `GET/POST` | `/reservations` | |
@@ -618,7 +613,7 @@ count(units of type T that are free on D)
 
 Staff may:
 
-1. Book a **specific unit**, or  
+1. Book a **specific unit**, or
 2. Book by **type** then assign a free unit (assign still writes `Reservation.unitId` before confirm).
 
 Phase 1 MVP can require choosing a unit up front; type-then-assign is a UX layer on the same tables.
@@ -627,34 +622,34 @@ Phase 1 MVP can require choosing a unit up front; type-then-assign is a UX layer
 
 ## 10. Explicit non-goals (do not add to these tables)
 
-| Temptation | Why not |
-|------------|---------|
-| `roomsLeft` / allotment int on `UnitType` | Lies the moment calendars move; derive it |
-| Live OTA prices / multi-currency / rate plans | OTA prices stay manual until CM; rack rate is `defaultPriceIdr` only |
-| Google Maps **share** URL as primary location key | Prefer `googlePlaceId` + own lat/lng |
-| Guest master table required for Phase 1 | Snapshot columns on reservation enough for ops |
-| Amenity entity + M2M for Phase 1 | `jsonb` codes are enough; normalize later if `web` filters need it |
-| Scraped OTA HTML blobs | Forbidden; staff/seed enters structured fields |
+| Temptation                                        | Why not                                                              |
+| ------------------------------------------------- | -------------------------------------------------------------------- |
+| `roomsLeft` / allotment int on `UnitType`         | Lies the moment calendars move; derive it                            |
+| Live OTA prices / multi-currency / rate plans     | OTA prices stay manual until CM; rack rate is `defaultPriceIdr` only |
+| Google Maps **share** URL as primary location key | Prefer `googlePlaceId` + own lat/lng                                 |
+| Guest master table required for Phase 1           | Snapshot columns on reservation enough for ops                       |
+| Amenity entity + M2M for Phase 1                  | `jsonb` codes are enough; normalize later if `web` filters need it   |
+| Scraped OTA HTML blobs                            | Forbidden; staff/seed enters structured fields                       |
 
 ---
 
 ## 11. Implementation order
 
-1. Prisma models: `Property`, `UnitType`, `Unit` + enums (include location, `defaultPriceIdr`, media)  
-2. Migrate + seed from §7 (Skybreeze + cabin lake)  
-3. CRUD API + PMS screens (explorer mock already prototypes FE)  
-4. `Reservation` + `CalendarBlock` + overlap enforcement  
-5. Calendar read API for PMS  
+1. Prisma models: `Property`, `UnitType`, `Unit` + enums (include location, `defaultPriceIdr`, media)
+2. Migrate + seed from §7 (Skybreeze + cabin lake)
+3. CRUD API + PMS screens (explorer mock already prototypes FE)
+4. `Reservation` + `CalendarBlock` + overlap enforcement
+5. Calendar read API for PMS
 
 ---
 
 ## 12. Open inputs
 
-- [x] Studio `bedroomCount = 0`  
-- [x] `DLX_QUEEN_STUDIO` vs `DLX_STUDIO` stay two types  
-- [x] Multi-property supported (Skybreeze + Cabin Lake in mock)  
-- [ ] Expand unit codes/counts to full ops inventory when known  
-- [ ] Cabin Lake `googlePlaceId` when available  
+- [x] Studio `bedroomCount = 0`
+- [x] `DLX_QUEEN_STUDIO` vs `DLX_STUDIO` stay two types
+- [x] Multi-property supported (Skybreeze + Cabin Lake in mock)
+- [ ] Expand unit codes/counts to full ops inventory when known
+- [ ] Cabin Lake `googlePlaceId` when available
 
 ---
 
