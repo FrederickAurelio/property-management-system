@@ -165,8 +165,8 @@ export function reservationRefund(row: StaffReservation): number | null {
 }
 
 /**
- * Board balance: Due when guest owes, Refund when overpaid, else 0/null.
- * Prefer Refund label when refund > 0.
+ * Open money gap: Due when guest owes, Refund when overpaid, else settled.
+ * Prefer Refund when refund > 0.
  */
 export function reservationBalance(row: StaffReservation): {
   amount: number | null;
@@ -184,6 +184,33 @@ export function reservationBalance(row: StaffReservation): {
     return { amount: null, kind: "settled" };
   }
   return { amount: 0, kind: "settled" };
+}
+
+/** Desk cell copy — Due / Refund for live money; cancelled is closed (no collect). */
+export function formatReservationBalanceCell(row: StaffReservation): {
+  text: string;
+  kind: "due" | "refund" | "settled" | "closed";
+} {
+  if (row.status === ReservationStatus.CANCELLED) {
+    return { text: "—", kind: "closed" };
+  }
+  const balance = reservationBalance(row);
+  if (balance.kind === "refund") {
+    return {
+      text: `Refund ${formatMoneyOrDash(balance.amount)}`,
+      kind: "refund",
+    };
+  }
+  if (balance.kind === "due") {
+    return {
+      text: `Due ${formatMoneyOrDash(balance.amount)}`,
+      kind: "due",
+    };
+  }
+  return {
+    text: formatMoneyOrDash(balance.amount),
+    kind: "settled",
+  };
 }
 
 export function formatPaymentMovementKind(kind: PaymentMovementKind): string {

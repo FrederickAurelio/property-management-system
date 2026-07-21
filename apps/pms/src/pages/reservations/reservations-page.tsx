@@ -39,6 +39,7 @@ import {
   type StaffReservationsListFilters,
   ApiError,
 } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { ReservationBadge, SourceBadge } from "./reservation-badges";
 import { parseBoard, boardFilterLocks } from "./reservation-boards";
 import { ReservationFiltersBar } from "./reservation-filters-bar";
@@ -47,13 +48,11 @@ import { reservationListStateFromSearch } from "./reservation-nav";
 import {
   formatIcalWarning,
   formatMoneyOrDash,
-  formatPaymentStatus,
+  formatReservationBalanceCell,
   formatReservationLateCue,
   formatReservationSource,
   formatReservationStatus,
   formatStayRange,
-  paymentBadgeTone,
-  reservationBalance,
   reservationLateCue,
   statusBadgeTone,
   type ReservationLateCue,
@@ -66,7 +65,7 @@ const ReservationRowCells = memo(function ReservationRowCells({
   row: StaffReservation;
   lateCue: ReservationLateCue | null;
 }) {
-  const balance = reservationBalance(row);
+  const openMoney = formatReservationBalanceCell(row);
   return (
     <>
       <TableCell className="min-w-0 font-medium">
@@ -103,24 +102,16 @@ const ReservationRowCells = memo(function ReservationRowCells({
       <TableCell className="tabular-nums">
         {formatMoneyOrDash(row.paidAmountIdr)}
       </TableCell>
-      <TableCell className="tabular-nums">
-        <span className="inline-flex flex-col gap-1">
-          <span
-            className={
-              balance.kind === "refund"
-                ? "text-amber-800 dark:text-amber-200"
-                : undefined
-            }
-          >
-            {balance.kind === "refund" ? "Refund " : null}
-            {formatMoneyOrDash(balance.amount)}
-          </span>
-          <ReservationBadge
-            label={formatPaymentStatus(row.paymentStatus)}
-            tone={paymentBadgeTone(row.paymentStatus)}
-            className="w-fit"
-          />
-        </span>
+      <TableCell
+        className={cn(
+          "tabular-nums",
+          openMoney.kind === "refund" &&
+            "text-amber-800 dark:text-amber-200",
+          (openMoney.kind === "settled" || openMoney.kind === "closed") &&
+            "text-muted-foreground",
+        )}
+      >
+        {openMoney.text}
       </TableCell>
       <TableCell>
         {row.icalSyncWarning && (
@@ -148,12 +139,16 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
   listSearch: string;
   lateCue: ReservationLateCue | null;
 }) {
-  const balance = reservationBalance(row);
+  const openMoney = formatReservationBalanceCell(row);
+  const cancelled = row.status === ReservationStatus.CANCELLED;
   return (
     <Link
       to={`/reservations/${row.id}`}
       state={reservationListStateFromSearch(listSearch)}
-      className="flex flex-col gap-1.5 rounded-lg border border-border px-3 py-2.5 transition-colors hover:bg-muted/40 active:bg-muted/60"
+      className={cn(
+        "flex flex-col gap-1.5 rounded-lg border border-border px-3 py-2.5 transition-colors hover:bg-muted/40 active:bg-muted/60",
+        cancelled && "opacity-60",
+      )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -187,25 +182,21 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
         </div>
       </div>
       <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-wrap gap-1">
-          <SourceBadge
-            source={row.source}
-            label={formatReservationSource(row.source)}
-          />
-          <ReservationBadge
-            label={formatPaymentStatus(row.paymentStatus)}
-            tone={paymentBadgeTone(row.paymentStatus)}
-          />
-        </div>
+        <SourceBadge
+          source={row.source}
+          label={formatReservationSource(row.source)}
+        />
         <p
-          className={`shrink-0 text-xs tabular-nums ${
-            balance.kind === "refund"
-              ? "text-amber-800 dark:text-amber-200"
-              : "text-muted-foreground"
-          }`}
+          className={cn(
+            "shrink-0 text-xs tabular-nums",
+            openMoney.kind === "refund" &&
+              "text-amber-800 dark:text-amber-200",
+            (openMoney.kind === "settled" || openMoney.kind === "closed") &&
+              "text-muted-foreground",
+            openMoney.kind === "due" && "text-foreground",
+          )}
         >
-          {balance.kind === "refund" ? "Refund " : "Due "}
-          {formatMoneyOrDash(balance.amount)}
+          {openMoney.text}
         </p>
       </div>
     </Link>
@@ -437,9 +428,11 @@ export function ReservationsPage() {
                     <TableHead>Dates</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Source</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Paid</TableHead>
-                    <TableHead>Balance</TableHead>
+                    <TableHead title="Stay quote">Total</TableHead>
+                    <TableHead title="Cash received so far">Paid</TableHead>
+                    <TableHead title="Guest owes, or Refund if overpaid">
+                      Due
+                    </TableHead>
                     <TableHead className="w-10">
                       <span className="sr-only">Warning</span>
                     </TableHead>
@@ -451,10 +444,15 @@ export function ReservationsPage() {
                 <TableBody>
                   {items.map((row) => {
                     const lateCue = reservationLateCue(row);
+                    const cancelled =
+                      row.status === ReservationStatus.CANCELLED;
                     return (
                       <TableRow
                         key={row.id}
-                        className="relative hover:bg-muted/40"
+                        className={cn(
+                          "relative hover:bg-muted/40",
+                          cancelled && "opacity-60",
+                        )}
                       >
                         <ReservationRowCells row={row} lateCue={lateCue} />
                         <TableCell className="w-0 p-0">
