@@ -382,7 +382,9 @@ Append-only cash ledger for a reservation. Nest implements with `/staff/reservat
 
 **Rule:** `Reservation.paidAmountIdr = sum(signedAmount)` (never negative). Quote (`totalAmountIdr`) is **not** a movement.
 
-**FE shape:** `{ id, reservationId, direction, kind, amountIdr, signedAmount, method, note, createdAt }`
+**FE shape:** `{ id, reservationId, direction, kind, amountIdr, signedAmount, method, note, createdAt, createdByAdminId, createdByAdminUsername }`
+
+**Attribution (Phase 1):** movement `createdByAdminId` + reservation `createdByAdminId` / `updatedByAdminId` (with denormalized usernames on staff wire). No full action-history table yet.
 
 ---
 

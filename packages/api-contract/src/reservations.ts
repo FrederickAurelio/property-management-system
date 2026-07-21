@@ -91,7 +91,10 @@ export type PaymentMovement = {
   method: CollectedVia | null;
   note: string | null;
   createdAt: string;
-  createdByStaffId: string | null;
+  /** Session admin who posted the line; null for system/seed. */
+  createdByAdminId: string | null;
+  /** Denormalized for timeline display (same idea as `propertyName`). */
+  createdByAdminUsername: string | null;
 };
 
 export const PAYMENT_MOVEMENT_NOTE_MAX = 500;
@@ -327,6 +330,12 @@ export type StaffReservation = {
   noShowAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Manual / desk create; null for iCal/system stubs. */
+  createdByAdminId: string | null;
+  updatedByAdminId: string | null;
+  /** Denormalized for detail display. */
+  createdByAdminUsername: string | null;
+  updatedByAdminUsername: string | null;
   /**
    * Cash timeline (newest-last in storage; UI sorts newest-first).
    * List endpoints may omit; detail should include.

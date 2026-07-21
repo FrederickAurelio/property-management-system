@@ -36,6 +36,34 @@ export const FIXTURE_PROPERTY_B_NAME = "Harbor View Cabins";
 export const FIXTURE_UNIT_TYPE_ID = "ut_studio";
 export const FIXTURE_UNIT_TYPE_B_ID = "ut_cabin";
 
+/** Seed desk actor for manual fixture rows (iCal stubs leave attribution null). */
+export const FIXTURE_DESK_ADMIN = {
+  id: "adm_fixture_desk",
+  username: "front.desk",
+} as const;
+
+/** Session admin stamped on create / update / cash lines. */
+export type FixtureActor = {
+  id: string;
+  username: string;
+} | null;
+
+function actorCreateFields(actor: FixtureActor) {
+  return {
+    createdByAdminId: actor?.id ?? null,
+    createdByAdminUsername: actor?.username ?? null,
+    updatedByAdminId: actor?.id ?? null,
+    updatedByAdminUsername: actor?.username ?? null,
+  };
+}
+
+function actorUpdateFields(actor: FixtureActor) {
+  return {
+    updatedByAdminId: actor?.id ?? null,
+    updatedByAdminUsername: actor?.username ?? null,
+  };
+}
+
 function todayYmd(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -84,12 +112,13 @@ function makeMovement(input: {
   method: StaffReservation["collectedVia"];
   note?: string | null;
   createdAt?: string;
-  createdByStaffId?: string | null;
+  actor?: FixtureActor;
 }): PaymentMovement {
   const amountIdr = Math.floor(input.amountIdr);
   if (!Number.isFinite(amountIdr) || amountIdr <= 0) {
     throw new Error("Movement amount must be > 0");
   }
+  const actor = input.actor ?? null;
   return {
     id: newMovementId(),
     reservationId: input.reservationId,
@@ -100,7 +129,8 @@ function makeMovement(input: {
     method: input.method,
     note: input.note?.trim() || null,
     createdAt: input.createdAt ?? nowIso(),
-    createdByStaffId: input.createdByStaffId ?? null,
+    createdByAdminId: actor?.id ?? null,
+    createdByAdminUsername: actor?.username ?? null,
   };
 }
 
@@ -157,7 +187,11 @@ function attachMovements(row: StaffReservation): StaffReservation {
 }
 
 /** Seed one (or IN+OUT for REFUNDED) synthetic movement so Paid matches seed. */
-function seedMovementsForRow(row: StaffReservation, ts: string): void {
+function seedMovementsForRow(
+  row: StaffReservation,
+  ts: string,
+  actor: FixtureActor,
+): void {
   if (row.paymentStatus === PaymentStatus.REFUNDED && row.paidAmountIdr === 0) {
     const refundedAmount = Math.max(1, row.totalAmountIdr ?? 1);
     setMovements(row.id, [
@@ -172,6 +206,7 @@ function seedMovementsForRow(row: StaffReservation, ts: string): void {
         method: row.collectedVia,
         note: "Seed: prior collection",
         createdAt: ts,
+        actor,
       }),
       makeMovement({
         reservationId: row.id,
@@ -181,6 +216,7 @@ function seedMovementsForRow(row: StaffReservation, ts: string): void {
         method: row.collectedVia,
         note: "Seed: full refund",
         createdAt: ts,
+        actor,
       }),
     ]);
     return;
@@ -214,14 +250,20 @@ function seedMovementsForRow(row: StaffReservation, ts: string): void {
       method: row.collectedVia,
       note: "Seed: opening balance",
       createdAt: ts,
+      actor,
     }),
   ]);
 }
 
 function rebuildMovementStore(rows: StaffReservation[], ts: string): void {
-  movementStore = new Map();
+  movementStore.clear();
   for (const row of rows) {
-    seedMovementsForRow(row, ts);
+    const actor =
+      row.source === ReservationSource.MANUAL ||
+      row.source === ReservationSource.WEBSITE
+        ? FIXTURE_DESK_ADMIN
+        : null;
+    seedMovementsForRow(row, ts, actor);
   }
 }
 
@@ -295,6 +337,12 @@ function seedRow(partial: SeedPartial, ts: string): StaffReservation {
     noShowAt: status === ReservationStatus.NO_SHOW ? ts : null,
     createdAt: ts,
     updatedAt: ts,
+    ...actorCreateFields(
+      partial.source === ReservationSource.MANUAL ||
+        partial.source === ReservationSource.WEBSITE
+        ? FIXTURE_DESK_ADMIN
+        : null,
+    ),
     ...(partial.paymentStatus
       ? { paymentStatus: partial.paymentStatus }
       : {}),
@@ -947,6 +995,7 @@ export type FixtureCreateInput = {
 
 export function fixtureCreateReservation(
   input: FixtureCreateInput,
+  actor: FixtureActor = null,
 ): StaffReservation {
   const ts = nowIso();
   const id = `res_${Math.random().toString(36).slice(2, 10)}`;
@@ -987,6 +1036,7 @@ export function fixtureCreateReservation(
     noShowAt: null,
     createdAt: ts,
     updatedAt: ts,
+    ...actorCreateFields(actor),
   });
 
   store = [row, ...store];
@@ -1001,6 +1051,7 @@ export function fixtureCreateReservation(
       method: CollectedVia.PROPERTY,
       note: "Opening deposit on create",
       createdAt: ts,
+      actor,
     });
     setMovements(id, [movement]);
   }
@@ -1028,16 +1079,18 @@ export type FixtureUpdateInput = Partial<{
 function patchRow(
   id: string,
   patch: (row: StaffReservation) => StaffReservation,
-  opts?: { forceRefunded?: boolean },
+  opts?: { forceRefunded?: boolean; actor?: FixtureActor },
 ): StaffReservation {
   const idx = store.findIndex((r) => r.id === id);
   if (idx < 0) {
     throw new Error(`Reservation not found: ${id}`);
   }
+  const actor = opts?.actor ?? null;
   const next = withSyncedPaid(
     {
       ...withoutMovementsField(patch(store[idx]!)),
       updatedAt: nowIso(),
+      ...actorUpdateFields(actor),
     },
     opts,
   );
@@ -1048,67 +1101,93 @@ function patchRow(
 export function fixtureUpdateReservation(
   id: string,
   input: FixtureUpdateInput,
+  actor: FixtureActor = null,
 ): StaffReservation {
-  return patchRow(id, (row) => ({
-    ...row,
-    ...input,
-  }));
+  return patchRow(
+    id,
+    (row) => ({
+      ...row,
+      ...input,
+    }),
+    { actor },
+  );
 }
 
-export function fixtureConfirmReservation(id: string): StaffReservation {
-  return patchRow(id, (row) => {
-    if (row.status !== ReservationStatus.UNCONFIRMED) {
-      throw new Error("Only UNCONFIRMED can be confirmed");
-    }
-    const gaps = getConfirmFieldGaps({
-      unitId: row.unitId,
-      checkInDate: row.checkInDate,
-      checkOutDate: row.checkOutDate,
-      guestName: row.guestName,
-      guestEmail: row.guestEmail,
-      guestPhone: row.guestPhone,
-      guestCount: row.guestCount,
-      totalAmountIdr: row.totalAmountIdr,
-      paidAmountIdr: row.paidAmountIdr,
-    });
-    if (gaps.length > 0) {
-      throw new Error(
-        `Reservation is incomplete (${gaps.join(", ")}). Enrich guest and money first.`,
-      );
-    }
-    return {
-      ...row,
-      status: ReservationStatus.CONFIRMED,
-      guestName: row.guestName.trim(),
-      confirmedAt: nowIso(),
-    };
-  });
+export function fixtureConfirmReservation(
+  id: string,
+  actor: FixtureActor = null,
+): StaffReservation {
+  return patchRow(
+    id,
+    (row) => {
+      if (row.status !== ReservationStatus.UNCONFIRMED) {
+        throw new Error("Only UNCONFIRMED can be confirmed");
+      }
+      const gaps = getConfirmFieldGaps({
+        unitId: row.unitId,
+        checkInDate: row.checkInDate,
+        checkOutDate: row.checkOutDate,
+        guestName: row.guestName,
+        guestEmail: row.guestEmail,
+        guestPhone: row.guestPhone,
+        guestCount: row.guestCount,
+        totalAmountIdr: row.totalAmountIdr,
+        paidAmountIdr: row.paidAmountIdr,
+      });
+      if (gaps.length > 0) {
+        throw new Error(
+          `Reservation is incomplete (${gaps.join(", ")}). Enrich guest and money first.`,
+        );
+      }
+      return {
+        ...row,
+        status: ReservationStatus.CONFIRMED,
+        guestName: row.guestName.trim(),
+        confirmedAt: nowIso(),
+      };
+    },
+    { actor },
+  );
 }
 
-export function fixtureCheckInReservation(id: string): StaffReservation {
-  return patchRow(id, (row) => {
-    if (row.status !== ReservationStatus.CONFIRMED) {
-      throw new Error("Only CONFIRMED can check in");
-    }
-    return {
-      ...row,
-      status: ReservationStatus.CHECKED_IN,
-      checkedInAt: nowIso(),
-    };
-  });
+export function fixtureCheckInReservation(
+  id: string,
+  actor: FixtureActor = null,
+): StaffReservation {
+  return patchRow(
+    id,
+    (row) => {
+      if (row.status !== ReservationStatus.CONFIRMED) {
+        throw new Error("Only CONFIRMED can check in");
+      }
+      return {
+        ...row,
+        status: ReservationStatus.CHECKED_IN,
+        checkedInAt: nowIso(),
+      };
+    },
+    { actor },
+  );
 }
 
-export function fixtureCheckOutReservation(id: string): StaffReservation {
-  return patchRow(id, (row) => {
-    if (row.status !== ReservationStatus.CHECKED_IN) {
-      throw new Error("Only CHECKED_IN can check out");
-    }
-    return {
-      ...row,
-      status: ReservationStatus.CHECKED_OUT,
-      checkedOutAt: nowIso(),
-    };
-  });
+export function fixtureCheckOutReservation(
+  id: string,
+  actor: FixtureActor = null,
+): StaffReservation {
+  return patchRow(
+    id,
+    (row) => {
+      if (row.status !== ReservationStatus.CHECKED_IN) {
+        throw new Error("Only CHECKED_IN can check out");
+      }
+      return {
+        ...row,
+        status: ReservationStatus.CHECKED_OUT,
+        checkedOutAt: nowIso(),
+      };
+    },
+    { actor },
+  );
 }
 
 export type FixturePostMovementInput = {
@@ -1126,6 +1205,7 @@ export type FixturePostMovementInput = {
 export function fixturePostPaymentMovement(
   id: string,
   input: FixturePostMovementInput,
+  actor: FixtureActor = null,
 ): StaffReservation {
   const idx = store.findIndex((r) => r.id === id);
   if (idx < 0) {
@@ -1169,12 +1249,14 @@ export function fixturePostPaymentMovement(
     amountIdr,
     method: input.method ?? null,
     note: input.note,
+    actor,
   });
   setMovements(id, [...movementsFor(id), movement]);
 
   const next = withSyncedPaid({
     ...withoutMovementsField(row),
     updatedAt: nowIso(),
+    ...actorUpdateFields(actor),
   });
   store = [...store.slice(0, idx), next, ...store.slice(idx + 1)];
   return attachMovements(next);
@@ -1195,6 +1277,7 @@ export type FixtureCancelInput = {
 export function fixtureCancelReservation(
   id: string,
   input: FixtureCancelInput = {},
+  actor: FixtureActor = null,
 ): StaffReservation {
   const idx = store.findIndex((r) => r.id === id);
   if (idx < 0) {
@@ -1230,6 +1313,7 @@ export function fixtureCancelReservation(
         amountIdr: row.paidAmountIdr,
         method: row.collectedVia,
         note: "Cancel: full refund",
+        actor,
       }),
     );
     forceRefunded = true;
@@ -1254,6 +1338,7 @@ export function fixtureCancelReservation(
         amountIdr: refundAmountIdr,
         method: row.collectedVia,
         note: "Cancel: partial refund",
+        actor,
       }),
     );
   } else if (disposition === "keep" || disposition === "none") {
@@ -1272,6 +1357,7 @@ export function fixtureCancelReservation(
       status: ReservationStatus.CANCELLED,
       cancelledAt: nowIso(),
       updatedAt: nowIso(),
+      ...actorUpdateFields(actor),
     },
     { forceRefunded },
   );

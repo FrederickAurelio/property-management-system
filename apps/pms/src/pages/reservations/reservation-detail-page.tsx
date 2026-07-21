@@ -240,6 +240,16 @@ export function ReservationDetailPage() {
               {row.guestCount != null && ` · ${row.guestCount} guests`}
             </p>
           )}
+          {(row.createdByAdminUsername || row.updatedByAdminUsername) && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {row.createdByAdminUsername
+                ? `Created by ${row.createdByAdminUsername}`
+                : "Created by system"}
+              {row.updatedByAdminUsername
+                ? ` · Last updated by ${row.updatedByAdminUsername}`
+                : null}
+            </p>
+          )}
           {row.notes && (
             <p className="mt-2 text-sm whitespace-pre-wrap">{row.notes}</p>
           )}

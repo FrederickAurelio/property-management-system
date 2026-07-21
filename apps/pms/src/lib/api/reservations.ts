@@ -24,12 +24,14 @@ import {
   fixturePostPaymentMovement,
   fixtureUpdateReservation,
   type CancelDisposition,
+  type FixtureActor,
   type FixtureCancelInput,
   type FixtureCreateInput,
   type FixtureListFilters,
   type FixturePostMovementInput,
   type FixtureUpdateInput,
 } from "./reservations-fixture";
+import { staffSession } from "./staff-auth";
 
 export type ListReservationsParams = FixtureListFilters & {
   page?: number;
@@ -41,6 +43,16 @@ export type UpdateReservationInput = FixtureUpdateInput;
 export type PostPaymentMovementInput = FixturePostMovementInput;
 export type CancelReservationInput = FixtureCancelInput;
 export type { CancelDisposition };
+
+/** Stamp mutations with the signed-in admin (Nest will take this from session). */
+async function resolveFixtureActor(): Promise<FixtureActor> {
+  try {
+    const admin = await staffSession();
+    return { id: admin.id, username: admin.username };
+  } catch {
+    return null;
+  }
+}
 
 /** Invalidate reservation list (+ optional detail) after a mutation. */
 export function invalidateReservationCaches(
@@ -77,16 +89,16 @@ export async function getReservation(id: string): Promise<StaffReservation> {
 export async function createReservation(
   input: CreateReservationInput,
 ): Promise<StaffReservation> {
-  await Promise.resolve();
-  return fixtureCreateReservation(input);
+  const actor = await resolveFixtureActor();
+  return fixtureCreateReservation(input, actor);
 }
 
 export async function updateReservation(
   id: string,
   input: UpdateReservationInput,
 ): Promise<StaffReservation> {
-  await Promise.resolve();
-  return fixtureUpdateReservation(id, input);
+  const actor = await resolveFixtureActor();
+  return fixtureUpdateReservation(id, input, actor);
 }
 
 /** Cash goes through postPaymentMovement only — no absolute Paid rewrite API. */
@@ -94,35 +106,35 @@ export async function postPaymentMovement(
   id: string,
   input: PostPaymentMovementInput,
 ): Promise<StaffReservation> {
-  await Promise.resolve();
-  return fixturePostPaymentMovement(id, input);
+  const actor = await resolveFixtureActor();
+  return fixturePostPaymentMovement(id, input, actor);
 }
 
 export async function confirmReservation(
   id: string,
 ): Promise<StaffReservation> {
-  await Promise.resolve();
-  return fixtureConfirmReservation(id);
+  const actor = await resolveFixtureActor();
+  return fixtureConfirmReservation(id, actor);
 }
 
 export async function checkInReservation(
   id: string,
 ): Promise<StaffReservation> {
-  await Promise.resolve();
-  return fixtureCheckInReservation(id);
+  const actor = await resolveFixtureActor();
+  return fixtureCheckInReservation(id, actor);
 }
 
 export async function checkOutReservation(
   id: string,
 ): Promise<StaffReservation> {
-  await Promise.resolve();
-  return fixtureCheckOutReservation(id);
+  const actor = await resolveFixtureActor();
+  return fixtureCheckOutReservation(id, actor);
 }
 
 export async function cancelReservation(
   id: string,
   input: CancelReservationInput = {},
 ): Promise<StaffReservation> {
-  await Promise.resolve();
-  return fixtureCancelReservation(id, input);
+  const actor = await resolveFixtureActor();
+  return fixtureCancelReservation(id, input, actor);
 }

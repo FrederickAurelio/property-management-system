@@ -52,6 +52,9 @@ export function PaymentMovementsTimeline({
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {formatMovementCreatedAt(m.createdAt)}
+                    {m.createdByAdminUsername
+                      ? ` · ${m.createdByAdminUsername}`
+                      : null}
                     {m.note ? ` · ${m.note}` : null}
                   </p>
                 </div>

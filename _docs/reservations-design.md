@@ -206,7 +206,7 @@ REFUNDED  explicit after cancel full-refund (or paid driven to 0 on cancel path)
 | `signedAmount` | `+amount` (IN) or `−amount` (OUT) |
 | `method` | `PROPERTY` \| `CHANNEL` \| `MIXED` \| null |
 | `note` | optional |
-| `createdAt` / `createdByAdminId` | audit |
+| `createdAt` / `createdByAdminId` | audit — who posted cash; no full edit history table in Phase 1 |
 
 Helpers in `@cabin/api-contract`: `signedAmountFor`, `sumPaidFromMovements`, `balanceDueIdr`, `refundDueIdr`.
 

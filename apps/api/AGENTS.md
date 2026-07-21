@@ -171,7 +171,7 @@ Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`)
 6. iCal import + Sync now (`UNCONFIRMED` → enrich)
 
 Reservation `source`: `manual` | `website` (enum now, public write in Phase 2) | `booking_com` | `airbnb` | `agoda`  
-Ops `status` ≠ money: `CONFIRMED` is not “paid”. Money: `totalAmountIdr` (quote) + append-only `PaymentMovement` cash lines; `paidAmountIdr` = sum(movements); `paymentStatus` (`UNPAID` | `DEPOSIT` | `PAID` | `REFUNDED`). Nest must append movements — do not overwrite Paid alone. Cancel partial takes `refundAmountIdr` (money OUT), not remaining Paid.  
+Ops `status` ≠ money: `CONFIRMED` is not “paid”. Money: `totalAmountIdr` (quote) + append-only `PaymentMovement` cash lines; `paidAmountIdr` = sum(movements); `paymentStatus` (`UNPAID` | `DEPOSIT` | `PAID` | `REFUNDED`). Nest must append movements — do not overwrite Paid alone. Cancel partial takes `refundAmountIdr` (money OUT), not remaining Paid. Stamp session `createdByAdminId` / `updatedByAdminId` on reservation + movement create (not a full audit log).  
 Statuses: `UNCONFIRMED` | `CONFIRMED` | `CHECKED_IN` | `CHECKED_OUT` | `CANCELLED` | `NO_SHOW` — **no** `DRAFT` / email ingest.
 
 ## Domain model
