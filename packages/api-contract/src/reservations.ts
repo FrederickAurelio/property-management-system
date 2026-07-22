@@ -415,8 +415,8 @@ export type ConfirmEarlyInput = {
 };
 
 /**
- * Staff/PMS wire shape for a reservation.
- * `unitCode` / `propertyName` are denormalized for list/detail display.
+ * Staff/PMS wire shape for a reservation (detail + mutations).
+ * `unitCode` / `propertyName` are denormalized for display.
  * Dates are `YYYY-MM-DD` (check-in inclusive, check-out exclusive).
  */
 export type StaffReservation = {
@@ -457,9 +457,26 @@ export type StaffReservation = {
   /** Denormalized for detail display. */
   createdByAdminUsername: string | null;
   updatedByAdminUsername: string | null;
-  /**
-   * Cash timeline (newest-last in storage; UI sorts newest-first).
-   * List endpoints may omit; detail should include.
-   */
+  /** Cash timeline (newest-last in storage; UI sorts newest-first). */
   movements?: PaymentMovement[];
 };
+
+/**
+ * Desk board list row (`GET /staff/reservations`).
+ * Subset of StaffReservation — enough to paint the table; open detail for the rest.
+ * (Unlike inventory lists, reservation edit is a separate detail GET.)
+ */
+export type StaffReservationListItem = Pick<
+  StaffReservation,
+  | 'id'
+  | 'guestName'
+  | 'unitCode'
+  | 'checkInDate'
+  | 'checkOutDate'
+  | 'status'
+  | 'source'
+  | 'totalAmountIdr'
+  | 'paidAmountIdr'
+  | 'icalSyncWarning'
+  | 'propertyTimezone'
+>;

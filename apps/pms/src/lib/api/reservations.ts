@@ -11,6 +11,7 @@ import {
   type PostPaymentMovementInput,
   type StaffReservation,
   type StaffReservationListFilters,
+  type StaffReservationListItem,
   type UpdateStaffReservationInput,
 } from "@cabin/api-contract";
 import type { QueryClient } from "@tanstack/react-query";
@@ -75,9 +76,9 @@ export function syncReservationCaches(
 
 export async function listReservations(
   params: ListReservationsParams = {},
-): Promise<Paginated<StaffReservation>> {
+): Promise<Paginated<StaffReservationListItem>> {
   const { page = 1, pageSize = PAGE_SIZE_DEFAULT, ...filters } = params;
-  const { data } = await api.get<Paginated<StaffReservation>>(
+  const { data } = await api.get<Paginated<StaffReservationListItem>>(
     "/staff/reservations",
     {
       params: {

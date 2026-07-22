@@ -1,6 +1,7 @@
 import type {
   PaymentMovement as WirePaymentMovement,
   StaffReservation,
+  StaffReservationListItem,
 } from '@cabin/api-contract';
 import type {
   Admin,
@@ -33,6 +34,23 @@ type ReservationWithJoins = Reservation & {
   >;
 };
 
+/** Lean Prisma shape for desk list — no admin joins / unused columns. */
+export type ReservationListRow = Pick<
+  Reservation,
+  | 'id'
+  | 'guestName'
+  | 'checkInDate'
+  | 'checkOutDate'
+  | 'status'
+  | 'source'
+  | 'totalAmountIdr'
+  | 'paidAmountIdr'
+  | 'icalSyncWarning'
+> & {
+  property: Pick<Property, 'timezone'>;
+  unit: Pick<Unit, 'code'>;
+};
+
 export function toStaffPaymentMovement(
   row: PaymentMovement & {
     createdByAdmin: Pick<Admin, 'username'> | null;
@@ -50,6 +68,24 @@ export function toStaffPaymentMovement(
     createdAt: row.createdAt.toISOString(),
     createdByAdminId: row.createdByAdminId,
     createdByAdminUsername: row.createdByAdmin?.username ?? null,
+  };
+}
+
+export function toStaffReservationListItem(
+  row: ReservationListRow,
+): StaffReservationListItem {
+  return {
+    id: row.id,
+    guestName: row.guestName,
+    unitCode: row.unit.code,
+    checkInDate: ymd(row.checkInDate),
+    checkOutDate: ymd(row.checkOutDate),
+    status: row.status,
+    source: row.source,
+    totalAmountIdr: bigintToNumber(row.totalAmountIdr),
+    paidAmountIdr: Number(row.paidAmountIdr),
+    icalSyncWarning: row.icalSyncWarning,
+    propertyTimezone: row.property.timezone,
   };
 }
 

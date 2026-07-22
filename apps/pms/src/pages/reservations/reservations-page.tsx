@@ -4,7 +4,7 @@ import {
   ReservationListSort,
   ReservationSource,
   ReservationStatus,
-  type StaffReservation,
+  type StaffReservationListItem,
 } from "@cabin/api-contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, PlusIcon, SearchIcon } from "lucide-react";
@@ -62,7 +62,7 @@ const ReservationRowCells = memo(function ReservationRowCells({
   row,
   lateCue,
 }: {
-  row: StaffReservation;
+  row: StaffReservationListItem;
   lateCue: ReservationLateCue | null;
 }) {
   const openMoney = formatReservationBalanceCell(row);
@@ -135,7 +135,7 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
   listSearch,
   lateCue,
 }: {
-  row: StaffReservation;
+  row: StaffReservationListItem;
   listSearch: string;
   lateCue: ReservationLateCue | null;
 }) {

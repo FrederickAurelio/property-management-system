@@ -155,12 +155,16 @@ export function formatMoneyOrDash(amount: number | null): string {
   return formatIdr(amount);
 }
 
-export function reservationDue(row: StaffReservation): number | null {
+export function reservationDue(
+  row: Pick<StaffReservation, "totalAmountIdr" | "paidAmountIdr">,
+): number | null {
   return balanceDueIdr(row.totalAmountIdr, row.paidAmountIdr);
 }
 
 /** Excess Paid above Total (shrink / overpay) — settle with Refund. */
-export function reservationRefund(row: StaffReservation): number | null {
+export function reservationRefund(
+  row: Pick<StaffReservation, "totalAmountIdr" | "paidAmountIdr">,
+): number | null {
   return refundDueIdr(row.totalAmountIdr, row.paidAmountIdr);
 }
 
@@ -168,7 +172,9 @@ export function reservationRefund(row: StaffReservation): number | null {
  * Open money gap: Due when guest owes, Refund when overpaid, else settled.
  * Prefer Refund when refund > 0.
  */
-export function reservationBalance(row: StaffReservation): {
+export function reservationBalance(
+  row: Pick<StaffReservation, "totalAmountIdr" | "paidAmountIdr">,
+): {
   amount: number | null;
   kind: "due" | "refund" | "settled";
 } {
@@ -187,7 +193,12 @@ export function reservationBalance(row: StaffReservation): {
 }
 
 /** Desk cell copy — Due / Refund for live money; cancelled is closed (no collect). */
-export function formatReservationBalanceCell(row: StaffReservation): {
+export function formatReservationBalanceCell(
+  row: Pick<
+    StaffReservation,
+    "status" | "totalAmountIdr" | "paidAmountIdr"
+  >,
+): {
   text: string;
   kind: "due" | "refund" | "settled" | "closed";
 } {

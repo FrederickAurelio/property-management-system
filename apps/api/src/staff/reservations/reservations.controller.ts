@@ -12,6 +12,7 @@ import type {
   Paginated,
   StaffAdmin,
   StaffReservation,
+  StaffReservationListItem,
 } from '@cabin/api-contract';
 import { CancelReservationDto } from '../../domain/reservations/dto/cancel-reservation.dto.js';
 import { ConfirmEarlyDto } from '../../domain/reservations/dto/confirm-early.dto.js';
@@ -34,7 +35,7 @@ export class ReservationsController {
   @Get()
   list(
     @Query() query: ListReservationsQueryDto,
-  ): Promise<Paginated<StaffReservation>> {
+  ): Promise<Paginated<StaffReservationListItem>> {
     return this.reservationsService.list(query);
   }
 

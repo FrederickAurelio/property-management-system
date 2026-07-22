@@ -27,6 +27,7 @@ import {
   type Paginated,
   type StaffAdmin,
   type StaffReservation,
+  type StaffReservationListItem,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -37,10 +38,30 @@ import type { ListReservationsQueryDto } from './dto/list-reservations.query.dto
 import type { PostPaymentMovementDto } from './dto/post-payment-movement.dto.js';
 import type { UpdateReservationDto } from './dto/update-reservation.dto.js';
 import { findOccupyingOverlap, type OverlapHit } from './overlap.js';
-import { parseYmd, toStaffReservation } from './reservations-mapper.js';
+import {
+  parseYmd,
+  toStaffReservation,
+  toStaffReservationListItem,
+} from './reservations-mapper.js';
 
 /** Fallback when boards list all properties (doc prefers property-scoped boards). */
 const DEFAULT_BOARD_TIMEZONE = 'Asia/Jakarta';
+
+/** Desk list — columns the table paints (no admin / guest-detail joins). */
+const reservationListSelect = {
+  id: true,
+  guestName: true,
+  checkInDate: true,
+  checkOutDate: true,
+  status: true,
+  source: true,
+  totalAmountIdr: true,
+  paidAmountIdr: true,
+  icalSyncWarning: true,
+  property: { select: { timezone: true } },
+  unit: { select: { code: true } },
+} as const;
+
 const reservationInclude = {
   property: { select: { name: true, timezone: true } },
   unit: { select: { code: true } },
@@ -64,7 +85,7 @@ export class ReservationsService {
 
   async list(
     query: ListReservationsQueryDto,
-  ): Promise<Paginated<StaffReservation>> {
+  ): Promise<Paginated<StaffReservationListItem>> {
     const where = await this.buildListWhere(query);
     const orderBy = this.listOrderBy(query.sort, query.board);
 
@@ -72,7 +93,7 @@ export class ReservationsService {
       this.prisma.reservation.count({ where }),
       this.prisma.reservation.findMany({
         where,
-        include: reservationInclude,
+        select: reservationListSelect,
         orderBy,
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
@@ -80,7 +101,7 @@ export class ReservationsService {
     ]);
 
     return {
-      items: rows.map((row) => toStaffReservation(row)),
+      items: rows.map((row) => toStaffReservationListItem(row)),
       pageInfo: buildPageInfo(query.page, query.pageSize, total),
     };
   }
