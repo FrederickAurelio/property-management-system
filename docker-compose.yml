@@ -1,6 +1,6 @@
-# Cabin PMS — local / future full-stack Docker
-# Now: Postgres only (host port for Nest + Prisma on the host).
-# Later: uncomment / add api, pms, web on the same network.
+# VPS / full stack — postgres + api + pms on cabin-net.
+# Only pms publishes a host port (8080→80). api and postgres stay internal.
+# Local Postgres: use docker-compose.dev.yml via `pnpm db:up`.
 
 name: cabin
 
@@ -9,8 +9,6 @@ services:
     image: postgres:16-alpine
     container_name: cabin-postgres
     restart: unless-stopped
-    ports:
-      - '${POSTGRES_PORT:-5432}:5432'
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -30,39 +28,38 @@ services:
     networks:
       - cabin
 
-  # --- future (host apps talk to postgres via localhost for now) ---
-  # api:
-  #   build: ./apps/api
-  #   container_name: cabin-api
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   environment:
-  #     DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cabin_pms}?schema=public
-  #   ports:
-  #     - '${API_PORT:-3000}:3000'
-  #   networks:
-  #     - cabin
-  #
-  # pms:
-  #   build: ./apps/pms
-  #   container_name: cabin-pms
-  #   depends_on:
-  #     - api
-  #   ports:
-  #     - '${PMS_PORT:-5173}:5173'
-  #   networks:
-  #     - cabin
-  #
-  # web:
-  #   build: ./apps/web
-  #   container_name: cabin-web
-  #   depends_on:
-  #     - api
-  #   ports:
-  #     - '${WEB_PORT:-5174}:5174'
-  #   networks:
-  #     - cabin
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: cabin-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cabin_pms}?schema=public
+    expose:
+      - '3000'
+    networks:
+      - cabin
+
+  pms:
+    build:
+      context: .
+      dockerfile: apps/pms/Dockerfile
+    container_name: cabin-pms
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '8080:80'
+    networks:
+      - cabin
 
 volumes:
   postgres_data:

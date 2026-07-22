@@ -23,6 +23,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "dotenv -e ../../.env -- prisma generate",
     "prisma:migrate": "dotenv -e ../../.env -- prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "dotenv -e ../../.env -- prisma studio",
     "prisma:status": "dotenv -e ../../.env -- prisma migrate status",
     "prisma:seed": "dotenv -e ../../.env -- prisma db seed",

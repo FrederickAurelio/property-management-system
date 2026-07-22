@@ -6,7 +6,10 @@ export function sessionCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    // COOKIE_SECURE overrides NODE_ENV (HTTP VPS → false; HTTPS later → true)
+    secure: process.env.COOKIE_SECURE
+      ? process.env.COOKIE_SECURE === 'true'
+      : process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
   };

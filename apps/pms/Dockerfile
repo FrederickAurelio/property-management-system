@@ -1,0 +1,33 @@
+# Cabin PMS — Vite build + nginx (context = repo root)
+# syntax=docker/dockerfile:1
+
+FROM node:20-bookworm-slim AS builder
+
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@11.3.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/api-contract/package.json packages/api-contract/
+COPY apps/api/package.json apps/api/
+COPY apps/pms/package.json apps/pms/
+COPY apps/web/package.json apps/web/
+
+# Skip prepare until api-contract sources are present
+RUN pnpm install --frozen-lockfile --filter @cabin/pms... --ignore-scripts
+
+COPY packages/api-contract packages/api-contract
+COPY apps/pms apps/pms
+
+RUN pnpm --filter @cabin/api-contract build
+RUN pnpm --filter @cabin/pms build
+
+# --- nginx ---
+FROM nginx:1.27-alpine AS runner
+
+COPY apps/pms/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/apps/pms/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -28,10 +28,13 @@ apps/web   → Public browse/book (Phase 2)   @cabin/web (scaffold only)
 packages/  → Shared libs for 2+ apps        @cabin/*
 .docs/     → Product plan
 _docs/     → Locked design notes (inventory, reservations, …)
-docker-compose.yml → local Postgres now; api/pms/web later on cabin-net
+docker-compose.yml     → VPS full stack (postgres + api + pms; only FE :8080 published)
+docker-compose.dev.yml → local Postgres only (host port for Nest/Vite)
 ```
 
 One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (never `npm i` inside an app).
+
+**Deploy:** push to `release` → GitHub Actions SSH → `docker compose up -d --build` + Prisma migrate. VPS root `.env` (not in git): `NODE_ENV=production`, `COOKIE_SECURE=false` until HTTPS, `CORS_ORIGINS=http://VPS_IP:8080`, `DATABASE_URL` host `postgres`. Later HTTPS: set `COOKIE_SECURE=true` and update `CORS_ORIGINS`.
 
 **Phase framing (locked):** business already runs on OTA + manual/walk-in. **Phase 1** = production **staff** PMS for that reality (calendar, reservations, check-in/out, **money/DP**, reports, **iCal import**). **No OTA email ingest.** **Phase 2** = **customer** booking FE only — same `Reservation` + `domain/` model (`source=WEBSITE`). Phase 2 is not “when bookings or payments start.” Design: [`_docs/reservations-design.md`](_docs/reservations-design.md).
 
@@ -58,15 +61,16 @@ From **repo root**:
 | Install | `pnpm install` |
 | Typecheck (husky) | `pnpm typecheck` |
 | Lint (per app) | `pnpm lint` |
-| Postgres up | `pnpm db:up` |
+| Postgres up | `pnpm db:up` (`docker-compose.dev.yml`) |
 | Postgres down | `pnpm db:down` |
 | Prisma generate | `pnpm prisma:generate` |
 | Prisma migrate | `pnpm prisma:migrate` |
+| VPS stack | `docker compose up -d --build` (default `docker-compose.yml`) |
 | API dev | `pnpm --filter @cabin/api dev` |
 | PMS dev | `pnpm --filter @cabin/pms dev` |
 | Add dep to one app | `pnpm --filter @cabin/api add <pkg>` |
 
-Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`).
+Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`). VPS: only host port **8080** (PMS nginx); api/postgres stay on Docker network.
 
 ## Product path
 

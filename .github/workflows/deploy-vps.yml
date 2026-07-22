@@ -1,0 +1,31 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            cd ~/property-management-sys
+            git fetch origin
+            git checkout release
+            git reset --hard origin/release
+            docker compose up -d --build
+            docker compose exec -T api pnpm run prisma:migrate:deploy

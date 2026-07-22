@@ -1,0 +1,38 @@
+# Local Postgres only — Nest + Vite run on the host.
+# Use: pnpm db:up / db:down (see root package.json).
+
+name: cabin
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cabin-postgres
+    restart: unless-stopped
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-cabin_pms}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - cabin
+
+volumes:
+  postgres_data:
+    name: cabin-postgres-data
+
+networks:
+  cabin:
+    name: cabin-net
