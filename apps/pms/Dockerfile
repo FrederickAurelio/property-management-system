@@ -1,12 +1,26 @@
 # Cabin PMS — Vite build + nginx (context = repo root)
 # syntax=docker/dockerfile:1
 
+# Optional mirrors (China demo VPS). Leave empty for Indo/MY/SG / official registries.
+# APT_MIRROR unused here (no apt). NPM_REGISTRY speeds pnpm/corepack in China.
+ARG APT_MIRROR=
+ARG NPM_REGISTRY=
+
 # pnpm 11 needs Node >=22 (node:sqlite)
 FROM node:22-bookworm-slim AS builder
 
+ARG NPM_REGISTRY
+
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.3.0 --activate
+RUN set -eux; \
+  if [ -n "${NPM_REGISTRY}" ]; then \
+    export COREPACK_NPM_REGISTRY="${NPM_REGISTRY}"; \
+  fi; \
+  corepack enable && corepack prepare pnpm@11.3.0 --activate; \
+  if [ -n "${NPM_REGISTRY}" ]; then \
+    pnpm config set registry "${NPM_REGISTRY}"; \
+  fi
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/api-contract/package.json packages/api-contract/

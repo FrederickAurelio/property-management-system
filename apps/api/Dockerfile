@@ -1,15 +1,35 @@
 # Cabin API — monorepo build (context = repo root)
 # syntax=docker/dockerfile:1
 
+# Optional mirrors (China demo VPS). Leave empty for Indo/MY/SG / official registries.
+# APT_MIRROR=mirrors.aliyun.com
+# NPM_REGISTRY=https://registry.npmmirror.com
+ARG APT_MIRROR=
+ARG NPM_REGISTRY=
+
 # pnpm 11 needs Node >=22 (node:sqlite)
 FROM node:22-bookworm-slim AS builder
 
+ARG APT_MIRROR
+ARG NPM_REGISTRY
+
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.3.0 --activate \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+  if [ -n "${APT_MIRROR}" ]; then \
+    sed -i "s/deb.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources; \
+    sed -i "s/security.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources; \
+  fi; \
+  if [ -n "${NPM_REGISTRY}" ]; then \
+    export COREPACK_NPM_REGISTRY="${NPM_REGISTRY}"; \
+  fi; \
+  corepack enable && corepack prepare pnpm@11.3.0 --activate; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends openssl ca-certificates python3 make g++; \
+  rm -rf /var/lib/apt/lists/*; \
+  if [ -n "${NPM_REGISTRY}" ]; then \
+    pnpm config set registry "${NPM_REGISTRY}"; \
+  fi
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/api-contract/package.json packages/api-contract/
@@ -35,12 +55,23 @@ RUN pnpm run build
 # --- runtime ---
 FROM node:22-bookworm-slim AS runner
 
+ARG APT_MIRROR
+ARG NPM_REGISTRY
+
 WORKDIR /app
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
-  && rm -rf /var/lib/apt/lists/* \
-  && corepack enable && corepack prepare pnpm@11.3.0 --activate
+RUN set -eux; \
+  if [ -n "${APT_MIRROR}" ]; then \
+    sed -i "s/deb.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources; \
+    sed -i "s/security.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources; \
+  fi; \
+  if [ -n "${NPM_REGISTRY}" ]; then \
+    export COREPACK_NPM_REGISTRY="${NPM_REGISTRY}"; \
+  fi; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends openssl ca-certificates; \
+  rm -rf /var/lib/apt/lists/*; \
+  corepack enable && corepack prepare pnpm@11.3.0 --activate
 
 ENV NODE_ENV=production
 ENV PORT=3000

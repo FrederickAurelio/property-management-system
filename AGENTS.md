@@ -34,7 +34,7 @@ docker-compose.dev.yml → local Postgres only (host port for Nest/Vite)
 
 One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (never `npm i` inside an app).
 
-**Deploy:** push to `release` → GitHub Actions SSH → `docker compose up -d --build` + Prisma migrate. VPS root `.env` (not in git): `NODE_ENV=production`, `COOKIE_SECURE=false` until HTTPS, `CORS_ORIGINS=http://VPS_IP:8080`, `DATABASE_URL` host `postgres`. Later HTTPS: set `COOKIE_SECURE=true` and update `CORS_ORIGINS`.
+**Deploy:** push to `release` → GitHub Actions SSH → `docker compose up -d --build` + Prisma migrate. VPS root `.env` (not in git): `NODE_ENV=production`, `COOKIE_SECURE=false` until HTTPS, `CORS_ORIGINS=http://VPS_IP:8080`, `DATABASE_URL` host `postgres`. China demo builds: set `APT_MIRROR` + `NPM_REGISTRY` (see `.env.example`); Indo/MY/SG prod: leave empty. Later HTTPS: set `COOKIE_SECURE=true` and update `CORS_ORIGINS`.
 
 **Phase framing (locked):** business already runs on OTA + manual/walk-in. **Phase 1** = production **staff** PMS for that reality (calendar, reservations, check-in/out, **money/DP**, reports, **iCal import**). **No OTA email ingest.** **Phase 2** = **customer** booking FE only — same `Reservation` + `domain/` model (`source=WEBSITE`). Phase 2 is not “when bookings or payments start.” Design: [`_docs/reservations-design.md`](_docs/reservations-design.md).
 

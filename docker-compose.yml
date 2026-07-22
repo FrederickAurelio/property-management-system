@@ -32,6 +32,9 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
     container_name: cabin-api
     restart: unless-stopped
     depends_on:
@@ -52,6 +55,9 @@ services:
     build:
       context: .
       dockerfile: apps/pms/Dockerfile
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
     container_name: cabin-pms
     restart: unless-stopped
     depends_on:
