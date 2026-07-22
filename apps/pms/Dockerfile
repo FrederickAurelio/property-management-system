@@ -1,7 +1,8 @@
 # Cabin PMS — Vite build + nginx (context = repo root)
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim AS builder
+# pnpm 11 needs Node >=22 (node:sqlite)
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 

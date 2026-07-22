@@ -1,7 +1,8 @@
 # Cabin API — monorepo build (context = repo root)
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim AS builder
+# pnpm 11 needs Node >=22 (node:sqlite)
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -32,7 +33,7 @@ RUN pnpm exec prisma generate
 RUN pnpm run build
 
 # --- runtime ---
-FROM node:20-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 
