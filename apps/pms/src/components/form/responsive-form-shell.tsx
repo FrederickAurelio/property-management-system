@@ -50,6 +50,7 @@ export function ResponsiveFormShell({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
+          dismissOnOutsideClick={false}
           className={cn("flex max-h-[90svh] flex-col gap-0 p-0", className)}
         >
           <SheetHeader className="border-b border-border px-4 py-3 text-left">
@@ -69,7 +70,10 @@ export function ResponsiveFormShell({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(dialogWidth, className)}>
+      <DialogContent
+        dismissOnOutsideClick={false}
+        className={cn(dialogWidth, className)}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

@@ -543,7 +543,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
           setCreateOpen(open);
         }}
       >
-        <DialogContent>
+        <DialogContent dismissOnOutsideClick={false}>
           <DialogHeader>
             <DialogTitle>Add staff</DialogTitle>
             <DialogDescription>
@@ -667,7 +667,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
           if (!open) setRoleTarget(null);
         }}
       >
-        <DialogContent>
+        <DialogContent dismissOnOutsideClick={false}>
           <DialogHeader>
             <DialogTitle>Change role</DialogTitle>
             <DialogDescription>

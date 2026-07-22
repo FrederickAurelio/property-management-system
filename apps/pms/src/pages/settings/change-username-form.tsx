@@ -187,7 +187,7 @@ export function ChangeUsernameForm({
           }
         }}
       >
-        <DialogContent showCloseButton={false}>
+        <DialogContent showCloseButton={false} dismissOnOutsideClick={false}>
           <DialogHeader>
             <DialogTitle>Change username?</DialogTitle>
             <DialogDescription>

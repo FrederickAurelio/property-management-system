@@ -89,7 +89,7 @@ export function ReauthPasswordDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent showCloseButton={false}>
+      <DialogContent showCloseButton={false} dismissOnOutsideClick={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
