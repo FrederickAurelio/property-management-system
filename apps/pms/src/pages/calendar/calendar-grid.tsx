@@ -13,6 +13,7 @@ import {
   eachDayYmd,
   formatDayHeader,
   groupUnitsByType,
+  barBoxStyle,
   spanColumns,
 } from "./calendar-layout";
 import {
@@ -257,17 +258,13 @@ export function CalendarGrid({
                         days,
                       );
                       if (!span) return null;
-                      const leftPct = (span.startIndex / days.length) * 100;
-                      const widthPct =
-                        ((span.endIndex - span.startIndex) / days.length) * 100;
                       return (
                         <CalendarStayBar
                           key={stay.id}
                           stay={stay}
-                          style={{
-                            left: `calc(${leftPct}% + 2px)`,
-                            width: `calc(${widthPct}% - 4px)`,
-                          }}
+                          clippedStart={span.clippedStart}
+                          clippedEnd={span.clippedEnd}
+                          style={barBoxStyle(span, days.length)}
                           onClick={() => onStayClick(stay)}
                         />
                       );
@@ -279,17 +276,13 @@ export function CalendarGrid({
                         days,
                       );
                       if (!span) return null;
-                      const leftPct = (span.startIndex / days.length) * 100;
-                      const widthPct =
-                        ((span.endIndex - span.startIndex) / days.length) * 100;
                       return (
                         <CalendarBlockBar
                           key={block.id}
                           block={block}
-                          style={{
-                            left: `calc(${leftPct}% + 2px)`,
-                            width: `calc(${widthPct}% - 4px)`,
-                          }}
+                          clippedStart={span.clippedStart}
+                          clippedEnd={span.clippedEnd}
+                          style={barBoxStyle(span, days.length)}
                           onClick={() => onBlockClick(block)}
                         />
                       );

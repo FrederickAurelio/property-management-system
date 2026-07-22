@@ -9,6 +9,7 @@ describe('AvailabilityService', () => {
     property: { findUnique: jest.Mock };
     unit: { findMany: jest.Mock; findUnique: jest.Mock };
     reservation: { findMany: jest.Mock };
+    calendarBlock: { findMany: jest.Mock };
   };
 
   beforeEach(async () => {
@@ -16,6 +17,7 @@ describe('AvailabilityService', () => {
       property: { findUnique: jest.fn() },
       unit: { findMany: jest.fn(), findUnique: jest.fn() },
       reservation: { findMany: jest.fn() },
+      calendarBlock: { findMany: jest.fn().mockResolvedValue([]) },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -173,13 +175,58 @@ describe('AvailabilityService', () => {
     ]);
   });
 
-  it('returns occupying blocks for a calendar month', async () => {
+  it('marks DATE_OVERLAP when a calendar block occupies the range', async () => {
+    prisma.property.findUnique.mockResolvedValue({
+      id: 'prop_1',
+      isActive: true,
+    });
+    prisma.unit.findMany.mockResolvedValue([
+      {
+        id: 'u1',
+        propertyId: 'prop_1',
+        unitTypeId: 't1',
+        code: 'A-101',
+        name: null,
+        floor: null,
+        status: UnitStatus.ACTIVE,
+        notes: null,
+        sortOrder: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        unitType: { isActive: true },
+      },
+    ]);
+    prisma.reservation.findMany.mockResolvedValue([]);
+    prisma.calendarBlock.findMany.mockResolvedValue([{ unitId: 'u1' }]);
+
+    const rows = await service.listAvailableUnits('prop_1', {
+      checkInDate: '2026-08-01',
+      checkOutDate: '2026-08-03',
+    });
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        id: 'u1',
+        available: false,
+        blockReason: UnitAvailabilityBlockReason.DATE_OVERLAP,
+      }),
+    ]);
+  });
+
+  it('returns occupying stays and calendar blocks for a calendar month', async () => {
     prisma.unit.findUnique.mockResolvedValue({ id: 'u1' });
     prisma.reservation.findMany.mockResolvedValue([
       {
         id: 'r1',
         checkInDate: new Date('2026-07-28T00:00:00.000Z'),
         checkOutDate: new Date('2026-08-03T00:00:00.000Z'),
+      },
+    ]);
+    prisma.calendarBlock.findMany.mockResolvedValue([
+      {
+        id: 'b1',
+        startDate: new Date('2026-08-10T00:00:00.000Z'),
+        endDate: new Date('2026-08-12T00:00:00.000Z'),
       },
     ]);
 
@@ -195,6 +242,11 @@ describe('AvailabilityService', () => {
           reservationId: 'r1',
           checkInDate: '2026-07-28',
           checkOutDate: '2026-08-03',
+        },
+        {
+          reservationId: 'b1',
+          checkInDate: '2026-08-10',
+          checkOutDate: '2026-08-12',
         },
       ],
     });

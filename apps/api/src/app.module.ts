@@ -11,6 +11,7 @@ import { StaffPropertiesModule } from './staff/properties/properties.module.js';
 import { StaffUnitTypesModule } from './staff/unit-types/unit-types.module.js';
 import { StaffUnitsModule } from './staff/units/units.module.js';
 import { StaffReservationsModule } from './staff/reservations/reservations.module.js';
+import { StaffCalendarModule } from './staff/calendar/calendar.module.js';
 import { PublicModule } from './public/public.module.js';
 
 @Module({
@@ -31,6 +32,7 @@ import { PublicModule } from './public/public.module.js';
     StaffUnitTypesModule,
     StaffUnitsModule,
     StaffReservationsModule,
+    StaffCalendarModule,
     PublicModule,
   ],
   controllers: [AppController],

@@ -22,4 +22,9 @@ export class UnitsAvailabilityQueryDto {
   @IsOptional()
   @IsString()
   excludeReservationId?: string;
+
+  /** When editing a calendar block, ignore that block for DATE_OVERLAP. */
+  @IsOptional()
+  @IsString()
+  excludeBlockId?: string;
 }

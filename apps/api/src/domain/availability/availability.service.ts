@@ -80,6 +80,9 @@ export class AvailabilityService {
             ...(query.excludeReservationId
               ? { excludeReservationId: query.excludeReservationId }
               : {}),
+            ...(query.excludeBlockId
+              ? { excludeBlockId: query.excludeBlockId }
+              : {}),
           })
         : new Set<string>();
 
@@ -115,32 +118,56 @@ export class AvailabilityService {
 
     const { monthStart, monthEnd } = monthBounds(query.yearMonth);
 
-    const rows = await this.prisma.reservation.findMany({
-      where: {
-        unitId,
-        status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
-        checkInDate: { lt: monthEnd },
-        checkOutDate: { gt: monthStart },
-        ...(query.excludeReservationId
-          ? { id: { not: query.excludeReservationId } }
-          : {}),
-      },
-      select: {
-        id: true,
-        checkInDate: true,
-        checkOutDate: true,
-      },
-      orderBy: { checkInDate: 'asc' },
-    });
+    const [stayRows, blockRows] = await Promise.all([
+      this.prisma.reservation.findMany({
+        where: {
+          unitId,
+          status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
+          checkInDate: { lt: monthEnd },
+          checkOutDate: { gt: monthStart },
+          ...(query.excludeReservationId
+            ? { id: { not: query.excludeReservationId } }
+            : {}),
+        },
+        select: {
+          id: true,
+          checkInDate: true,
+          checkOutDate: true,
+        },
+        orderBy: { checkInDate: 'asc' },
+      }),
+      this.prisma.calendarBlock.findMany({
+        where: {
+          unitId,
+          startDate: { lt: monthEnd },
+          endDate: { gt: monthStart },
+        },
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+        },
+        orderBy: { startDate: 'asc' },
+      }),
+    ]);
 
-    return {
-      unitId,
-      yearMonth: query.yearMonth,
-      blocks: rows.map((row) => ({
+    const blocks = [
+      ...stayRows.map((row) => ({
         reservationId: row.id,
         checkInDate: toYmd(row.checkInDate),
         checkOutDate: toYmd(row.checkOutDate),
       })),
+      ...blockRows.map((row) => ({
+        reservationId: row.id,
+        checkInDate: toYmd(row.startDate),
+        checkOutDate: toYmd(row.endDate),
+      })),
+    ].sort((a, b) => a.checkInDate.localeCompare(b.checkInDate));
+
+    return {
+      unitId,
+      yearMonth: query.yearMonth,
+      blocks,
     };
   }
 

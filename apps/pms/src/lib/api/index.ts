@@ -35,7 +35,6 @@ export {
   type StaffUnitTypesListFilters,
 } from "./query-keys";
 export {
-  appendLiveStayToCalendarFixture,
   createCalendarBlock,
   deleteCalendarBlock,
   getPropertyCalendar,

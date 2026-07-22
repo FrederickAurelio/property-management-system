@@ -1,23 +1,19 @@
 /**
- * Property calendar API — fixture-backed until Nest aggregate ships.
- * Swap bodies to `api.get/post/patch/delete` without changing call sites.
+ * Property calendar API — Nest aggregate + calendar-block CRUD.
  */
 import type {
   CreateStaffCalendarBlockInput,
   StaffCalendarBlock,
-  StaffCalendarStay,
   StaffPropertyCalendar,
   UpdateStaffCalendarBlockInput,
 } from "@cabin/api-contract";
 import type { QueryClient } from "@tanstack/react-query";
+import { api } from "./client";
 import {
-  fixtureAppendLiveStay,
-  fixtureCreateCalendarBlock,
-  fixtureDeleteCalendarBlock,
-  fixtureGetPropertyCalendar,
-  fixtureUpdateCalendarBlock,
-} from "@/pages/calendar/fixtures/calendar-fixture";
-import { staffPropertyCalendarQueryKeyPrefix } from "./query-keys";
+  staffPropertyCalendarQueryKeyPrefix,
+  staffUnitsAvailabilityQueryKeyPrefix,
+  staffUnitsOccupancyQueryKeyPrefix,
+} from "./query-keys";
 
 export type GetPropertyCalendarParams = {
   propertyId: string;
@@ -28,43 +24,52 @@ export type GetPropertyCalendarParams = {
 export async function getPropertyCalendar(
   params: GetPropertyCalendarParams,
 ): Promise<StaffPropertyCalendar> {
-  return fixtureGetPropertyCalendar(params);
+  const { data } = await api.get<StaffPropertyCalendar>(
+    `/staff/properties/${params.propertyId}/calendar`,
+    { params: { from: params.from, to: params.to } },
+  );
+  return data;
 }
 
 export async function createCalendarBlock(
   input: CreateStaffCalendarBlockInput,
 ): Promise<StaffCalendarBlock> {
-  return fixtureCreateCalendarBlock(input);
+  const { data } = await api.post<StaffCalendarBlock>(
+    "/staff/calendar-blocks",
+    input,
+  );
+  return data;
 }
 
 export async function updateCalendarBlock(
   id: string,
   input: UpdateStaffCalendarBlockInput,
 ): Promise<StaffCalendarBlock> {
-  return fixtureUpdateCalendarBlock(id, input);
+  const { data } = await api.patch<StaffCalendarBlock>(
+    `/staff/calendar-blocks/${id}`,
+    input,
+  );
+  return data;
 }
 
 export async function deleteCalendarBlock(id: string): Promise<void> {
-  return fixtureDeleteCalendarBlock(id);
-}
-
-/** Paint a live-created reservation on the fixture calendar until Nest aggregate exists. */
-export function appendLiveStayToCalendarFixture(
-  propertyId: string,
-  stay: StaffCalendarStay,
-): void {
-  fixtureAppendLiveStay(propertyId, stay);
+  await api.delete(`/staff/calendar-blocks/${id}`);
 }
 
 /**
  * After calendar-block create/update/delete — no per-block detail query key;
- * bust the property calendar aggregate (range keys under this prefix).
- * Prefer `sync*Caches` when a mutation returns a row that maps 1:1 to a GET detail.
+ * bust the property calendar aggregate + busy-night derived queries.
  */
 export function invalidatePropertyCalendarCaches(
   queryClient: QueryClient,
 ): void {
   void queryClient.invalidateQueries({
     queryKey: staffPropertyCalendarQueryKeyPrefix,
+  });
+  void queryClient.invalidateQueries({
+    queryKey: staffUnitsAvailabilityQueryKeyPrefix,
+  });
+  void queryClient.invalidateQueries({
+    queryKey: staffUnitsOccupancyQueryKeyPrefix,
   });
 }

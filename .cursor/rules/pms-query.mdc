@@ -106,7 +106,7 @@ On next-page error: **unmount the in-view sentinel** and show footer + `QueryRet
 
 Do **not** name helpers `*Queries`. Do **not** call `invalidateQueries` with ad-hoc key strings from screens — export a helper and list it in this table.
 
-`occupancyChanged` / `bookabilityChanged`: only when unit nights or bookability can change (create, date/unit move, checkout, cancel, unit status). Skip for money-only, confirm, check-in, guest/notes edits. Reservation `occupancyChanged` also invalidates the property calendar prefix.
+`occupancyChanged` / `bookabilityChanged`: only when unit nights or bookability can change (create, date/unit move, checkout, cancel, unit status). Skip for money-only, confirm, check-in, guest/notes edits. Reservation sync **always** invalidates the property calendar prefix (stay bars paint status / Late / money, not only busy nights).
 
 Always `handleSuccess` in mutation `onSuccess` — never in the axios interceptor.
 

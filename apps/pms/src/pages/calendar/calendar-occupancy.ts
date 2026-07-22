@@ -3,7 +3,7 @@ import type {
   UnitOccupancyBlock,
 } from "@cabin/api-contract";
 
-/** Map calendar fixture/aggregate busy intervals into StayDateRangePicker extras. */
+/** Map calendar aggregate busy intervals into StayDateRangePicker extras. */
 export function occupancyExtrasForUnit(
   calendar: StaffPropertyCalendar | undefined,
   unitId: string | undefined,

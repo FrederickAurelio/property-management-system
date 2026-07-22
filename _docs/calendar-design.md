@@ -46,7 +46,7 @@ Calendar does **not** replace boards. Boards stay on Reservations. Check-in / Co
 | Block bars | `CalendarBlock` spans — visually distinct from stays (e.g. hatched / muted; no guest name). |
 | Empty cells | Free nights — clickable / selectable for create. |
 
-**Default range:** **14 days starting today** (desk “next two weeks”). Prev/next shifts by the same window length (or by week — pick one and keep it consistent). **Today** jumps back to the default window anchored on today.
+**Default range:** **14 days starting today** (desk “next two weeks”). Prev/next **slides by 7 days** (half overlap). **Today** jumps back to the default window anchored on today.
 
 Month toggle is optional later; do not require a full-month grid if 14-day is clearer for desk density.
 
@@ -199,18 +199,12 @@ Existing helpers to lean on:
 | Wire types in `@cabin/api-contract` (`StaffPropertyCalendar`, `StaffCalendarBlock`, …) | **Done** |
 | Property switcher | Live `GET /staff/properties/options` |
 | Create / edit reservation | Live `/staff/reservations` via existing `ReservationFormDialog` |
-| Open stay detail + back to calendar | Live detail; demo fixture stays toast instead of navigating |
-| Calendar aggregate read | **Fixture** until Nest `GET /staff/properties/:propertyId/calendar` |
-| `CalendarBlock` CRUD | **Fixture** until Prisma model + `/staff/calendar-blocks` |
-| Empty-range create unit lock | Fixture unit ids are not Nest units → dates + property prefilled, **Choose unit** opens (when aggregate returns real unit ids, lock `initialChosen` and skip picker) |
+| Open stay detail + back to calendar | Live detail |
+| Calendar aggregate read | Live `GET /staff/properties/:propertyId/calendar` |
+| `CalendarBlock` CRUD | Live Prisma + `/staff/calendar-blocks` |
+| Empty-range create unit lock | Real Nest unit ids → lock `initialChosen`, skip Choose unit |
 
-**BE still needed:**
-
-1. `GET /staff/properties/:propertyId/calendar?from&to` matching `StaffPropertyCalendar`
-2. Prisma `CalendarBlock` + `/staff/calendar-blocks` CRUD (overlap vs stays + blocks → 409)
-3. Swap PMS `src/lib/api/calendar.ts` fixture calls to `api.*` (keys/types already match)
-4. Drop demo stay prefix / live-stay overlay once aggregate includes real occupying stays
-5. Optional later: Sync all, ops popover, month toggle (still out of scope for page MVP)
+**Still optional later:** Sync all, ops popover, month toggle (out of scope for page MVP)
 
 ---
 
@@ -241,18 +235,18 @@ Until iCal ships, calendar still shows manual stays + blocks.
 - [x] Route `/calendar` is real (not placeholder); nav item works
 - [x] Property switcher; default sensible property (last used or first option)
 - [x] Unit rows grouped by unit type; one row per unit
-- [x] Date window default 14 days from today; prev / next / Today
+- [x] Date window default 14 days from today; prev / next step 7 days; Today resets
 - [x] Today column marker
 - [x] Occupying reservation bars with guest/source/status cues
-- [x] Click bar → reservation detail (back to calendar possible) — live stays; demo bars toast
-- [x] Empty cell / range → create reservation (dates prefilled; Choose unit until Nest units on aggregate)
+- [x] Click bar → reservation detail (back to calendar possible) — live stays
+- [x] Empty cell / range → create reservation (dates + unit prefilled when Nest unit on row)
 - [x] Toolbar New reservation → create + Choose unit
-- [ ] CalendarBlock model + CRUD API + bars on grid (kinds above) — **bars + fixture CRUD done; Nest API pending**
-- [x] New / edit / delete block from calendar (fixture)
-- [x] Overlap conflicts surface clearly (stay↔stay, stay↔block) — fixture toasts
+- [x] CalendarBlock model + CRUD API + bars on grid (kinds above)
+- [x] New / edit / delete block from calendar
+- [x] Overlap conflicts surface clearly (stay↔stay, stay↔block)
 - [x] Non-bookable units visible but create respects bookability
 - [x] Mobile usable (scroll + tap detail + create)
-- [ ] Aggregate calendar GET + PMS query sync after writes — **PMS keys/sync ready; Nest GET pending**
+- [x] Aggregate calendar GET + PMS query sync after writes
 - [x] Same action names as list/detail; no calendar-only verbs
 - [x] No boards, no fake maintenance reservations, no second money desk
 

@@ -51,6 +51,12 @@ export type OverlapConflictDetails = ApiFieldError & {
     checkOutDate: string;
     status: string;
   };
+  conflictingBlock?: {
+    id: string;
+    kind: string;
+    startDate: string;
+    endDate: string;
+  };
 };
 
 export type ApiFieldReason =

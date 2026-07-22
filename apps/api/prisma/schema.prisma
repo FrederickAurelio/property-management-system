@@ -74,6 +74,13 @@ enum IcalSyncWarning {
   DATES_DIFFER
 }
 
+enum CalendarBlockKind {
+  MAINTENANCE
+  OWNER
+  HOLD
+  OTHER
+}
+
 model Admin {
   id           String    @id @default(cuid())
   username     String    @unique @db.VarChar(64)
@@ -83,9 +90,10 @@ model Admin {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  reservationsCreated Reservation[]     @relation("ReservationCreatedBy")
-  reservationsUpdated Reservation[]     @relation("ReservationUpdatedBy")
-  movementsCreated    PaymentMovement[] @relation("MovementCreatedBy")
+  reservationsCreated  Reservation[]     @relation("ReservationCreatedBy")
+  reservationsUpdated  Reservation[]     @relation("ReservationUpdatedBy")
+  movementsCreated     PaymentMovement[] @relation("MovementCreatedBy")
+  calendarBlocksCreated CalendarBlock[]  @relation("CalendarBlockCreatedBy")
 }
 
 /// connect-pg-simple table (exact column names)
@@ -118,9 +126,10 @@ model Property {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  unitTypes    UnitType[]
-  units        Unit[]
-  reservations Reservation[]
+  unitTypes      UnitType[]
+  units          Unit[]
+  reservations   Reservation[]
+  calendarBlocks CalendarBlock[]
 
   @@index([isActive])
   /// DB: Property_lat_lng_pair_check — (latitude IS NULL) = (longitude IS NULL)
@@ -169,9 +178,10 @@ model Unit {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  unitType     UnitType      @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
-  reservations Reservation[]
+  property       Property       @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unitType       UnitType       @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
+  reservations   Reservation[]
+  calendarBlocks CalendarBlock[]
 
   @@unique([propertyId, code])
   @@index([propertyId, status])
@@ -242,4 +252,27 @@ model PaymentMovement {
 
   @@index([reservationId, createdAt])
   @@index([createdByAdminId])
+}
+
+model CalendarBlock {
+  id               String            @id @default(cuid())
+  propertyId       String
+  unitId           String
+  kind             CalendarBlockKind
+  startDate        DateTime          @db.Date
+  endDate          DateTime          @db.Date
+  note             String?           @db.VarChar(500)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdByAdminId String?
+
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit           Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  createdByAdmin Admin?   @relation("CalendarBlockCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([unitId, startDate, endDate])
+  @@index([propertyId, startDate])
+  @@index([createdByAdminId])
+  /// DB: CalendarBlock_end_after_start_check — endDate > startDate
+  /// DB: CalendarBlock_unit_excl — gist exclusion on unitId + daterange
 }

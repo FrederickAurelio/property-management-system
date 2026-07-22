@@ -91,9 +91,34 @@ function emptyFormValues(): FormValues {
   };
 }
 
-/** Fixture calendar unit ids are not Nest units — do not lock Choose unit. */
-function isFixtureCalendarUnitId(unitId: string): boolean {
-  return unitId.startsWith("cal_unit_");
+function chosenFromCalendar(
+  calendar: StaffPropertyCalendar | undefined,
+  unitId: string,
+  propertyId: string,
+  propertyName: string,
+): ChosenUnit | null {
+  if (!unitId) return null;
+  const unit = calendar?.units.find((u) => u.id === unitId);
+  if (!unit?.unitType) {
+    return {
+      propertyId,
+      propertyName,
+      unitTypeId: "",
+      unitTypeName: "",
+      unitId,
+      unitCode: unit?.code ?? "Selected unit",
+      unitName: unit?.name ?? null,
+    };
+  }
+  return {
+    propertyId,
+    propertyName,
+    unitTypeId: unit.unitType.id,
+    unitTypeName: unit.unitType.name,
+    unitId: unit.id,
+    unitCode: unit.code,
+    unitName: unit.name,
+  };
 }
 
 type CalendarBlockSheetProps = {
@@ -103,7 +128,7 @@ type CalendarBlockSheetProps = {
   propertyName: string;
   /** Current calendar payload — busy nights for date picker extras. */
   calendar?: StaffPropertyCalendar;
-  /** Prefill dates (and unit only when Nest-real). */
+  /** Prefill dates + unit when creating from a row. */
   initialUnitId?: string;
   initialStartDate?: string;
   initialEndDate?: string;
@@ -125,30 +150,15 @@ export function CalendarBlockSheet({
   const queryClient = useQueryClient();
   const isEdit = Boolean(block);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [picked, setPicked] = useState<ChosenUnit | null>(() => {
-    if (block && !isFixtureCalendarUnitId(block.unitId)) {
-      return {
-        propertyId,
-        propertyName,
-        unitTypeId: "",
-        unitTypeName: "",
-        unitId: block.unitId,
-        unitCode: "Selected unit",
-        unitName: null,
-      };
-    }
-    return null;
-  });
+  const lockedUnitId = block?.unitId ?? initialUnitId;
+  const [picked, setPicked] = useState<ChosenUnit | null>(() =>
+    chosenFromCalendar(calendar, lockedUnitId, propertyId, propertyName),
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
     defaultValues: {
-      unitId:
-        block && !isFixtureCalendarUnitId(block.unitId)
-          ? block.unitId
-          : initialUnitId && !isFixtureCalendarUnitId(initialUnitId)
-            ? initialUnitId
-            : "",
+      unitId: lockedUnitId,
       kind: block?.kind ?? CalendarBlockKind.MAINTENANCE,
       startDate: block?.startDate ?? initialStartDate,
       endDate: block?.endDate ?? initialEndDate,
@@ -170,12 +180,14 @@ export function CalendarBlockSheet({
       checkInDate: startDate,
       checkOutDate: endDate,
       unitTypeId: chosen?.unitTypeId,
+      excludeBlockId: block?.id,
     }),
     queryFn: () =>
       listAvailableUnits(chosen!.propertyId, {
         checkInDate: startDate,
         checkOutDate: endDate,
         unitTypeId: chosen!.unitTypeId,
+        excludeBlockId: block?.id,
       }),
     enabled:
       open &&

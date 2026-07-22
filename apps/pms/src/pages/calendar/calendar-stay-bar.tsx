@@ -53,10 +53,20 @@ function moneyCue(stay: StaffCalendarStay): string | null {
 type CalendarStayBarProps = {
   stay: StaffCalendarStay;
   style: CSSProperties;
+  /** Interval continues before the visible window — sharp flush left. */
+  clippedStart?: boolean;
+  /** Interval continues after the visible window — sharp flush right. */
+  clippedEnd?: boolean;
   onClick: () => void;
 };
 
-export function CalendarStayBar({ stay, style, onClick }: CalendarStayBarProps) {
+export function CalendarStayBar({
+  stay,
+  style,
+  clippedStart = false,
+  clippedEnd = false,
+  onClick,
+}: CalendarStayBarProps) {
   const late = reservationLateCue(stay);
   const money = moneyCue(stay);
   const label = stayPrimaryLabel(stay);
@@ -70,7 +80,11 @@ export function CalendarStayBar({ stay, style, onClick }: CalendarStayBarProps) 
         onClick();
       }}
       className={cn(
-        "absolute top-1 bottom-1 z-10 flex min-w-0 items-center gap-1 overflow-hidden rounded-md border px-1.5 text-left text-[11px] leading-tight shadow-sm transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "absolute top-1 bottom-1 z-10 flex min-w-0 items-center gap-1 overflow-hidden border px-1.5 text-left text-[11px] leading-tight shadow-sm transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        !clippedStart && !clippedEnd && "rounded-md",
+        clippedStart && clippedEnd && "rounded-none border-x-0",
+        clippedStart && !clippedEnd && "rounded-r-md rounded-l-none border-l-0",
+        clippedEnd && !clippedStart && "rounded-l-md rounded-r-none border-r-0",
         sourceBarClass[stay.source],
       )}
       title={[

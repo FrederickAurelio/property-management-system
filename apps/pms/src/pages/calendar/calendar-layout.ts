@@ -1,6 +1,9 @@
 /** Pure calendar window / span math (YYYY-MM-DD, exclusive end). */
 
+/** Visible day columns (desk fortnight). */
 export const CALENDAR_WINDOW_DAYS = 14;
+/** Prev/next step — half window so consecutive views overlap. */
+export const CALENDAR_STEP_DAYS = 7;
 
 export function addDaysYmd(ymd: string, days: number): string {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -41,15 +44,15 @@ export function defaultRangeFromToday(today = todayYmdLocal()): {
   };
 }
 
+/** Slide the visible window by one week (viewport length unchanged). */
 export function shiftRange(
   from: string,
   to: string,
   direction: -1 | 1,
 ): { from: string; to: string } {
-  const days = eachDayYmd(from, to).length || CALENDAR_WINDOW_DAYS;
   return {
-    from: addDaysYmd(from, direction * days),
-    to: addDaysYmd(to, direction * days),
+    from: addDaysYmd(from, direction * CALENDAR_STEP_DAYS),
+    to: addDaysYmd(to, direction * CALENDAR_STEP_DAYS),
   };
 }
 
@@ -81,12 +84,18 @@ export function formatRangeLabel(from: string, to: string): string {
 /**
  * Map an occupying interval onto day columns.
  * Returns null when fully outside the visible window.
+ * `clippedStart` / `clippedEnd` = interval continues past the window edge.
  */
 export function spanColumns(
   startDate: string,
   endDate: string,
   days: readonly string[],
-): { startIndex: number; endIndex: number } | null {
+): {
+  startIndex: number;
+  endIndex: number;
+  clippedStart: boolean;
+  clippedEnd: boolean;
+} | null {
   if (days.length === 0) return null;
   const windowFrom = days[0]!;
   const windowTo = addDaysYmd(days[days.length - 1]!, 1);
@@ -101,7 +110,32 @@ export function spanColumns(
     endIndex -= 1;
   }
   if (startIndex >= endIndex) return null;
-  return { startIndex, endIndex };
+  return {
+    startIndex,
+    endIndex,
+    clippedStart: startDate < windowFrom,
+    clippedEnd: endDate > windowTo,
+  };
+}
+
+/** Absolute bar box — flush + no inset on clipped window edges. */
+export function barBoxStyle(
+  span: {
+    startIndex: number;
+    endIndex: number;
+    clippedStart: boolean;
+    clippedEnd: boolean;
+  },
+  dayCount: number,
+): { left: string; width: string } {
+  const leftPct = (span.startIndex / dayCount) * 100;
+  const widthPct = ((span.endIndex - span.startIndex) / dayCount) * 100;
+  const leftInset = span.clippedStart ? 0 : 2;
+  const rightInset = span.clippedEnd ? 0 : 2;
+  return {
+    left: `calc(${leftPct}% + ${leftInset}px)`,
+    width: `calc(${widthPct}% - ${leftInset + rightInset}px)`,
+  };
 }
 
 export type UnitTypeGroup<TUnit> = {

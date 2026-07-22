@@ -59,6 +59,7 @@ export async function listAvailableUnits(
     checkOutDate?: string;
     unitTypeId?: string;
     excludeReservationId?: string;
+    excludeBlockId?: string;
   } = {},
 ): Promise<StaffUnitAvailability[]> {
   const { data } = await api.get<StaffUnitAvailability[]>(
@@ -70,6 +71,9 @@ export async function listAvailableUnits(
         ...(params.unitTypeId ? { unitTypeId: params.unitTypeId } : {}),
         ...(params.excludeReservationId
           ? { excludeReservationId: params.excludeReservationId }
+          : {}),
+        ...(params.excludeBlockId
+          ? { excludeBlockId: params.excludeBlockId }
           : {}),
       },
     },

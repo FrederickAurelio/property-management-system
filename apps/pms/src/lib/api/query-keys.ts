@@ -149,6 +149,7 @@ export function staffUnitsAvailabilityQueryKey(
     checkOutDate?: string;
     unitTypeId?: string;
     excludeReservationId?: string;
+    excludeBlockId?: string;
   } = {},
 ) {
   return [

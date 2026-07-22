@@ -865,6 +865,21 @@ export class ReservationsService {
   }
 
   private throwOverlap(hit: OverlapHit): never {
+    if (hit.type === 'block') {
+      throw new ConflictException({
+        message: `These dates overlap a ${hit.kind.toLowerCase()} block (${this.ymd(hit.startDate)} → ${this.ymd(hit.endDate)})`,
+        details: {
+          field: 'checkInDate',
+          reason: ApiFieldReason.OVERLAP_CONFLICT,
+          conflictingBlock: {
+            id: hit.id,
+            kind: hit.kind,
+            startDate: this.ymd(hit.startDate),
+            endDate: this.ymd(hit.endDate),
+          },
+        },
+      });
+    }
     throw new ConflictException({
       message: `These dates overlap a stay by ${hit.guestName}`,
       details: {

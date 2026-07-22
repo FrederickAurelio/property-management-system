@@ -163,7 +163,7 @@ type ReservationFormDialogProps = {
   initialCheckInDate?: string;
   initialCheckOutDate?: string;
   /**
-   * When creating without a locked unit (e.g. fixture calendar rows),
+   * When creating without a locked unit,
    * open Choose unit immediately after the dialog mounts.
    */
   autoOpenUnitPicker?: boolean;

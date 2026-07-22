@@ -112,8 +112,8 @@ type StayDateRangePickerProps = {
   unitId?: string;
   excludeReservationId?: string;
   /**
-   * Extra busy intervals merged into blocked nights (e.g. fixture calendar
-   * stays + blocks). `reservationId` is any opaque interval id.
+   * Extra busy intervals merged into blocked nights (e.g. calendar
+   * aggregate stays + blocks). `reservationId` is any opaque interval id.
    */
   extraOccupancyBlocks?: UnitOccupancyBlock[];
   /** Omit this interval id from `extraOccupancyBlocks` (edit self). */
@@ -434,7 +434,7 @@ export function StayDateRangePicker({
                         key={`d-${weekIdx}-${dayIdx}`}
                         className="aspect-square min-w-(--cell-size) flex-1 p-0"
                       >
-                        <Skeleton className="size-full rounded-(--radius-md)" />
+                        <Skeleton className="size-full rounded-md" />
                       </div>
                     ))}
                   </div>

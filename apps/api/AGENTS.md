@@ -10,10 +10,11 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Inventory CRUD:** `Property` / `UnitType` / `Unit` — `/staff/properties|unit-types|units`; reads `FRONT_DESK+`; writes `ADMIN+`
 - **Media upload-intent:** Cloudinary signed params — `POST /staff/media/upload-intent` (`ADMIN+`); Nest does not proxy file bytes
 - **Reservations + money:** Prisma `Reservation` / `PaymentMovement`; Nest `/staff/reservations` (list/create/detail/patch/confirm/check-in/out/cancel/movements) — `FRONT_DESK+`; list returns slim `StaffReservationListItem` (table fields); detail/mutations return full `StaffReservation` (+ movements on GET); list `sort?` = `checkIn` (default) | `createdAt`; board `arrivals` = `CONFIRMED` + `checkInDate ≤ today < checkOutDate`; board `departures` = `CHECKED_IN` + `checkOutDate ≤ today` (both overdue inclusive); Paid = sum(movements); overlap exclusion + transactional 409
-- **Availability:** `GET /staff/properties/:propertyId/units/availability` — all units (optional `unitTypeId`) with `available` + `blockReason`; dates optional (omit = no `DATE_OVERLAP`); optional `excludeReservationId` for edit
-- **Unit occupancy (date picker):** `GET /staff/units/:id/occupancy?yearMonth=YYYY-MM` — occupying blocks for one month; FE caches months as the calendar pages
+- **Availability:** `GET /staff/properties/:propertyId/units/availability` — all units (optional `unitTypeId`) with `available` + `blockReason`; dates optional (omit = no `DATE_OVERLAP`); optional `excludeReservationId` / `excludeBlockId` for edit
+- **Unit occupancy (date picker):** `GET /staff/units/:id/occupancy?yearMonth=YYYY-MM` — occupying stays + calendar blocks for one month; FE caches months as the calendar pages
 - **Bookability:** Property `isActive` (open for ops) · UnitType `isActive` (offered) · Unit `status` only (`ACTIVE` bookable; no separate unit `isActive`)
-- **Not yet:** Nest calendar aggregate GET · Nest `/staff/calendar-blocks` · iCal export/import
+- **Property calendar:** `GET /staff/properties/:propertyId/calendar?from&to` — units + occupying stays + `CalendarBlock` bars; block CRUD `/staff/calendar-blocks` (`FRONT_DESK+`); blocks occupy for overlap (create stay / Choose unit / occupancy)
+- **Not yet:** iCal export/import
 - **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `nights × defaultPriceIdr` (`suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
 
 ## Stack (locked)
@@ -186,7 +187,7 @@ Statuses: `UNCONFIRMED` | `CONFIRMED` | `CHECKED_IN` | `CHECKED_OUT` | `CANCELLE
 property → unit_type (optional) → unit → reservations / blocks
 ```
 
-One calendar per unit. Occupying stays must not overlap on the same unit (Postgres exclusion / transactional write).
+One calendar per unit. Occupying stays and calendar blocks must not overlap on the same unit (Postgres exclusion / transactional write).
 
 ## Code conventions
 

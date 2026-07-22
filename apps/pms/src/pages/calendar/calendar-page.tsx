@@ -2,9 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   StaffCalendarBlock,
-  StaffCalendarStay,
   StaffCalendarUnit,
-  StaffReservation,
 } from "@cabin/api-contract";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,7 +11,6 @@ import {
   PlusIcon,
 } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { toast } from "sonner";
 import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,13 +23,13 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  appendLiveStayToCalendarFixture,
   getPropertyCalendar,
   listPropertyOptions,
   staffPropertiesOptionsQueryKey,
   staffPropertyCalendarQueryKey,
 } from "@/lib/api";
 import { ReservationFormDialog } from "@/pages/reservations/reservation-form-dialog";
+import type { ChosenUnit } from "@/pages/reservations/chosen-unit";
 import { reservationCalendarStateFromSearch } from "@/pages/reservations/reservation-nav";
 import { CalendarBlockSheet } from "./calendar-block-sheet";
 import { CalendarGrid } from "./calendar-grid";
@@ -43,7 +40,6 @@ import {
   todayYmdLocal,
 } from "./calendar-layout";
 import type { CalendarSelection } from "./calendar-selection";
-import { isCalendarDemoStayId } from "./fixtures/calendar-fixture";
 
 const LAST_PROPERTY_KEY = "cabin.pms.calendar.propertyId";
 
@@ -59,21 +55,20 @@ type BlockIntent =
   | { mode: "create"; selection?: CalendarSelection }
   | { mode: "edit"; block: StaffCalendarBlock };
 
-function stayFromReservation(row: StaffReservation): StaffCalendarStay {
+function chosenFromCalendarUnit(
+  unit: StaffCalendarUnit,
+  propertyId: string,
+  propertyName: string,
+): ChosenUnit | null {
+  if (!unit.unitType) return null;
   return {
-    id: row.id,
-    unitId: row.unitId,
-    source: row.source,
-    status: row.status,
-    checkInDate: row.checkInDate,
-    checkOutDate: row.checkOutDate,
-    guestName: row.guestName,
-    totalAmountIdr: row.totalAmountIdr,
-    paidAmountIdr: row.paidAmountIdr,
-    paymentStatus: row.paymentStatus,
-    collectedVia: row.collectedVia,
-    icalSyncWarning: row.icalSyncWarning,
-    propertyTimezone: row.propertyTimezone,
+    propertyId,
+    propertyName,
+    unitTypeId: unit.unitType.id,
+    unitTypeName: unit.unitType.name,
+    unitId: unit.id,
+    unitCode: unit.code,
+    unitName: unit.name,
   };
 }
 
@@ -173,14 +168,7 @@ export function CalendarPage() {
     optionsQuery.data?.find((p) => p.id === propertyId)?.name ?? "";
 
   const onStayClick = useCallback(
-    (stay: StaffCalendarStay) => {
-      if (isCalendarDemoStayId(stay.id)) {
-        toast.message("Demo stay", {
-          description:
-            "Fixture bars are for layout only. Create a reservation to open a real detail, or use Reservations.",
-        });
-        return;
-      }
+    (stay: { id: string }) => {
       void navigate(`/reservations/${stay.id}`, {
         state: reservationCalendarStateFromSearch(location.search),
       });
@@ -194,6 +182,15 @@ export function CalendarPage() {
     },
     [],
   );
+
+  const emptyRangeChosen =
+    createIntent?.mode === "empty-range"
+      ? chosenFromCalendarUnit(
+          createIntent.unit,
+          propertyId,
+          propertyName,
+        )
+      : null;
 
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 p-4 md:p-6">
@@ -347,6 +344,7 @@ export function CalendarPage() {
           intent="create"
           initialPropertyId={propertyId}
           initialPropertyName={propertyName}
+          initialChosen={emptyRangeChosen}
           initialCheckInDate={
             createIntent.mode === "empty-range"
               ? createIntent.selection.checkInDate
@@ -357,12 +355,10 @@ export function CalendarPage() {
               ? createIntent.selection.checkOutDate
               : ""
           }
-          autoOpenUnitPicker={createIntent.mode === "empty-range"}
-          onSaved={(saved) => {
-            appendLiveStayToCalendarFixture(
-              saved.propertyId,
-              stayFromReservation(saved),
-            );
+          autoOpenUnitPicker={
+            createIntent.mode === "empty-range" && !emptyRangeChosen
+          }
+          onSaved={() => {
             void calendarQuery.refetch();
           }}
         />

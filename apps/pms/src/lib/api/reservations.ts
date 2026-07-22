@@ -47,6 +47,7 @@ export type SyncReservationCachesOptions = {
  * After a mutation that returns the full reservation row:
  * - write detail from the response (no detail refetch)
  * - invalidate list/board queries only
+ * - always refresh property calendar (status / Late / money cues on bars)
  * - optionally refresh availability + occupancy (not inventory unit lists)
  */
 export function syncReservationCaches(
@@ -61,15 +62,15 @@ export function syncReservationCaches(
   void queryClient.invalidateQueries({
     queryKey: staffReservationsListQueryKeyPrefix,
   });
+  void queryClient.invalidateQueries({
+    queryKey: staffPropertyCalendarQueryKeyPrefix,
+  });
   if (opts.occupancyChanged) {
     void queryClient.invalidateQueries({
       queryKey: staffUnitsAvailabilityQueryKeyPrefix,
     });
     void queryClient.invalidateQueries({
       queryKey: staffUnitsOccupancyQueryKeyPrefix,
-    });
-    void queryClient.invalidateQueries({
-      queryKey: staffPropertyCalendarQueryKeyPrefix,
     });
   }
 }
