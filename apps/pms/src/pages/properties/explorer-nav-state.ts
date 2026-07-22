@@ -3,11 +3,13 @@ import type {
   Paginated,
   StaffProperty,
   StaffUnitType,
+  StaffUnitTypeRack,
 } from "@cabin/api-contract";
 import {
   staffPropertiesQueryKeyPrefix,
   staffPropertyQueryKey,
   staffUnitTypeQueryKey,
+  staffUnitTypeRackQueryKey,
   staffUnitTypesQueryKeyPrefix,
 } from "@/lib/api";
 
@@ -82,6 +84,38 @@ export function findStaffUnitTypeName(
     const hit = pagesItems(data).find((item) => item.id === unitTypeId);
     if (hit?.name) {
       return hit.name;
+    }
+  }
+  return undefined;
+}
+
+/** Resolve rack rate from rack/detail cache or any cached unit-type list. */
+export function findStaffUnitTypeDefaultPriceIdr(
+  queryClient: QueryClient,
+  unitTypeId: string,
+): number | undefined {
+  const rack = queryClient.getQueryData<StaffUnitTypeRack>(
+    staffUnitTypeRackQueryKey(unitTypeId),
+  );
+  if (rack != null && Number.isFinite(rack.defaultPriceIdr)) {
+    return rack.defaultPriceIdr;
+  }
+
+  const detail = queryClient.getQueryData<StaffUnitType>(
+    staffUnitTypeQueryKey(unitTypeId),
+  );
+  if (detail != null && Number.isFinite(detail.defaultPriceIdr)) {
+    return detail.defaultPriceIdr;
+  }
+
+  const lists = queryClient.getQueriesData<
+    InfiniteData<Paginated<StaffUnitType>>
+  >({ queryKey: staffUnitTypesQueryKeyPrefix });
+
+  for (const [, data] of lists) {
+    const hit = pagesItems(data).find((item) => item.id === unitTypeId);
+    if (hit != null && Number.isFinite(hit.defaultPriceIdr)) {
+      return hit.defaultPriceIdr;
     }
   }
   return undefined;

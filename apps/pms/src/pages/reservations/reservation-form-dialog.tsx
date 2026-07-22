@@ -36,13 +36,13 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   applyApiFieldError,
   createReservation,
-  getUnitType,
+  getUnitTypeRack,
   handleError,
   handleSuccess,
   syncReservationCaches,
   listAvailableUnits,
   staffUnitsAvailabilityQueryKey,
-  staffUnitTypeQueryKey,
+  staffUnitTypeRackQueryKey,
   updateReservation,
 } from "@/lib/api";
 import { IdrAmountInput } from "@/components/form/idr-amount-input";
@@ -61,6 +61,7 @@ import {
   type ChosenUnit,
 } from "./chosen-unit";
 import { UnitInventoryPicker } from "./unit-inventory-picker";
+import { findStaffUnitTypeDefaultPriceIdr } from "@/pages/properties/explorer-nav-state";
 
 const SOURCE_OPTIONS = [
   ReservationSource.MANUAL,
@@ -300,10 +301,21 @@ export function ReservationFormDialog({
       ? Math.max(paidAmount - totalAmount, 0)
       : 0;
 
-  const unitTypeQuery = useQuery({
-    queryKey: staffUnitTypeQueryKey(chosen?.unitTypeId ?? ""),
-    queryFn: () => getUnitType(chosen!.unitTypeId),
-    enabled: open && Boolean(chosen?.unitTypeId),
+  const unitTypeId = chosen?.unitTypeId ?? "";
+  const rackFromChosen = chosen?.defaultPriceIdr;
+  const rackFromCache =
+    rackFromChosen == null && unitTypeId
+      ? findStaffUnitTypeDefaultPriceIdr(queryClient, unitTypeId)
+      : undefined;
+
+  const rackQuery = useQuery({
+    queryKey: staffUnitTypeRackQueryKey(unitTypeId),
+    queryFn: () => getUnitTypeRack(unitTypeId),
+    enabled:
+      open &&
+      Boolean(unitTypeId) &&
+      rackFromChosen == null &&
+      rackFromCache == null,
   });
 
   const datesReady =
@@ -372,7 +384,8 @@ export function ReservationFormDialog({
     unitAvailabilityQuery.data,
     form,
   ]);
-  const rackPriceIdr = unitTypeQuery.data?.defaultPriceIdr;
+  const rackPriceIdr =
+    rackFromChosen ?? rackFromCache ?? rackQuery.data?.defaultPriceIdr;
   const suggestedTotal =
     rackPriceIdr != null && nights >= 1
       ? suggestStayTotalIdr(nights, rackPriceIdr)

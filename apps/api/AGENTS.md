@@ -99,6 +99,7 @@ Wire types: `StaffProperty` / `StaffUnitType` / `StaffUnit` (staff/PMS shapes â€
 | `DELETE` | `/staff/properties/:id` | 409 `HAS_CHILDREN` if any unit types or units (service + FK Restrict) |
 | `GET` | `/staff/properties/:propertyId/unit-types` | Paginated; `isActive?`, `q?`. Full row + `unitCount` |
 | `POST` | `/staff/properties/:propertyId/unit-types` | Create; `bedroomCount` derived; `sortOrder` server-assigned |
+| `GET` | `/staff/unit-types/:id/rack` | Rack rate only (`defaultPriceIdr`) â€” stay Total suggestion |
 | `GET` | `/staff/unit-types/:id` | Full unit type + `unitCount` |
 | `PATCH` | `/staff/unit-types/:id` | Update |
 | `DELETE` | `/staff/unit-types/:id` | 409 if any units |

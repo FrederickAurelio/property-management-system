@@ -5,6 +5,8 @@ export type ChosenUnit = {
   propertyName: string;
   unitTypeId: string;
   unitTypeName: string;
+  /** Rack rate per night — carried from picker or cache to avoid a detail GET. */
+  defaultPriceIdr?: number;
   unitId: string;
   unitCode: string;
   unitName: string | null;

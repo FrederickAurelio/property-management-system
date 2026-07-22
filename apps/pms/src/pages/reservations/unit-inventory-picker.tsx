@@ -157,6 +157,9 @@ export function UnitInventoryPicker({
   const [unitTypeName, setUnitTypeName] = useState(
     jumpToUnits ? initialUnitTypeName : "",
   );
+  const [unitTypeDefaultPriceIdr, setUnitTypeDefaultPriceIdr] = useState<
+    number | undefined
+  >(undefined);
   const [userSelected, setUserSelected] = useState<ChosenUnit | null>(null);
 
   const debouncedQ = useDebouncedValue(q, SEARCH_DEBOUNCE_MS);
@@ -251,6 +254,7 @@ export function UnitInventoryPicker({
       propertyName,
       unitTypeId,
       unitTypeName,
+      defaultPriceIdr: unitTypeDefaultPriceIdr,
       unitId: match.id,
       unitCode: match.code,
       unitName: match.name,
@@ -264,6 +268,7 @@ export function UnitInventoryPicker({
     propertyName,
     unitTypeId,
     unitTypeName,
+    unitTypeDefaultPriceIdr,
   ]);
 
   const title =
@@ -337,6 +342,7 @@ export function UnitInventoryPicker({
                       setPropertyName("");
                       setUnitTypeId("");
                       setUnitTypeName("");
+                      setUnitTypeDefaultPriceIdr(undefined);
                       setUserSelected(null);
                     }}
                   >
@@ -363,6 +369,7 @@ export function UnitInventoryPicker({
                           setQ("");
                           setUnitTypeId("");
                           setUnitTypeName("");
+                          setUnitTypeDefaultPriceIdr(undefined);
                           setUserSelected(null);
                         }}
                       >
@@ -460,6 +467,7 @@ export function UnitInventoryPicker({
                     setPropertyName(property.name);
                     setUnitTypeId("");
                     setUnitTypeName("");
+                    setUnitTypeDefaultPriceIdr(undefined);
                     setUserSelected(null);
                     setQ("");
                     setLayer("types");
@@ -497,6 +505,7 @@ export function UnitInventoryPicker({
                   onSelect={() => {
                     setUnitTypeId(unitType.id);
                     setUnitTypeName(unitType.name);
+                    setUnitTypeDefaultPriceIdr(unitType.defaultPriceIdr);
                     setUserSelected(null);
                     setQ("");
                     setLayer("units");
@@ -523,6 +532,7 @@ export function UnitInventoryPicker({
                 propertyName,
                 unitTypeId,
                 unitTypeName,
+                defaultPriceIdr: unitTypeDefaultPriceIdr,
                 unitId: unit.id,
                 unitCode: unit.code,
                 unitName: unit.name,

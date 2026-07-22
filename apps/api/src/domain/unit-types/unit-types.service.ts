@@ -11,6 +11,7 @@ import {
   type BedConfigRoom,
   type Paginated,
   type StaffUnitType,
+  type StaffUnitTypeRack,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
 import { toStaffUnitType } from '../inventory/inventory-mapper.js';
@@ -67,6 +68,17 @@ export class UnitTypesService {
       throw new NotFoundException('Unit type not found');
     }
     return toStaffUnitType(row, row._count.units);
+  }
+
+  async getRackById(id: string): Promise<StaffUnitTypeRack> {
+    const row = await this.prisma.unitType.findUnique({
+      where: { id },
+      select: { id: true, defaultPriceIdr: true },
+    });
+    if (!row) {
+      throw new NotFoundException('Unit type not found');
+    }
+    return { id: row.id, defaultPriceIdr: row.defaultPriceIdr };
   }
 
   async create(

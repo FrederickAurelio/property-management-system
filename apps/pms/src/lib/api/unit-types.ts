@@ -4,6 +4,7 @@ import type {
   MediaItem,
   Paginated,
   StaffUnitType,
+  StaffUnitTypeRack,
   UnitLayout,
 } from "@cabin/api-contract";
 import { PAGE_SIZE_DEFAULT } from "@cabin/api-contract";
@@ -52,6 +53,13 @@ export async function listUnitTypes(
 
 export async function getUnitType(id: string): Promise<StaffUnitType> {
   const { data } = await api.get<StaffUnitType>(`/staff/unit-types/${id}`);
+  return data;
+}
+
+export async function getUnitTypeRack(id: string): Promise<StaffUnitTypeRack> {
+  const { data } = await api.get<StaffUnitTypeRack>(
+    `/staff/unit-types/${id}/rack`,
+  );
   return data;
 }
 

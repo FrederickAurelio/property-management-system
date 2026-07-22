@@ -9,7 +9,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type { Paginated, StaffUnitType } from '@cabin/api-contract';
+import type {
+  Paginated,
+  StaffUnitType,
+  StaffUnitTypeRack,
+} from '@cabin/api-contract';
 import { CreateUnitTypeDto } from '../../domain/unit-types/dto/create-unit-type.dto.js';
 import { ListUnitTypesQueryDto } from '../../domain/unit-types/dto/list-unit-types.query.dto.js';
 import { UpdateUnitTypeDto } from '../../domain/unit-types/dto/update-unit-type.dto.js';
@@ -39,6 +43,11 @@ export class UnitTypesController {
     @Body() dto: CreateUnitTypeDto,
   ): Promise<StaffUnitType> {
     return this.unitTypesService.create(propertyId, dto);
+  }
+
+  @Get('unit-types/:id/rack')
+  getRackById(@Param('id') id: string): Promise<StaffUnitTypeRack> {
+    return this.unitTypesService.getRackById(id);
   }
 
   @Get('unit-types/:id')

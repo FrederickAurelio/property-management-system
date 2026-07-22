@@ -2,6 +2,7 @@ import type {
   StaffProperty,
   StaffUnit,
   StaffUnitType,
+  StaffUnitTypeRack,
 } from "@cabin/api-contract";
 import type { QueryClient } from "@tanstack/react-query";
 import {
@@ -11,6 +12,7 @@ import {
   staffPropertyQueryKey,
   staffUnitQueryKey,
   staffUnitTypeQueryKey,
+  staffUnitTypeRackQueryKey,
   staffUnitTypesListQueryKeyPrefix,
   staffUnitTypesQueryKeyPrefix,
   staffUnitsAvailabilityQueryKeyPrefix,
@@ -44,6 +46,10 @@ export function syncUnitTypeCaches(
   unitType: StaffUnitType,
 ): void {
   queryClient.setQueryData(staffUnitTypeQueryKey(unitType.id), unitType);
+  queryClient.setQueryData<StaffUnitTypeRack>(
+    staffUnitTypeRackQueryKey(unitType.id),
+    { id: unitType.id, defaultPriceIdr: unitType.defaultPriceIdr },
+  );
   void queryClient.invalidateQueries({
     queryKey: staffUnitTypesListQueryKeyPrefix,
   });

@@ -153,6 +153,12 @@ export type StaffProperty = {
   updatedAt: string;
 };
 
+/** Rack-rate read for stay Total suggestion — not the full ops row. */
+export type StaffUnitTypeRack = {
+  id: string;
+  defaultPriceIdr: number;
+};
+
 export type StaffUnitType = {
   id: string;
   propertyId: string;

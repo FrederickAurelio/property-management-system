@@ -105,6 +105,10 @@ export function staffUnitTypeQueryKey(id: string) {
   return [...staffUnitTypesQueryKeyPrefix, "detail", id] as const;
 }
 
+export function staffUnitTypeRackQueryKey(id: string) {
+  return [...staffUnitTypesQueryKeyPrefix, "rack", id] as const;
+}
+
 export const staffUnitsQueryKeyPrefix = ["staff", "units"] as const;
 
 /** Infinite list queries only — does not match availability / occupancy / detail. */

@@ -136,4 +136,28 @@ describe('UnitTypesService', () => {
       await expect(service.delete('type_1')).resolves.toEqual({ ok: true });
     });
   });
+
+  describe('getRackById', () => {
+    it('returns id and defaultPriceIdr only', async () => {
+      prisma.unitType.findUnique.mockResolvedValue({
+        id: 'type_1',
+        defaultPriceIdr: 400_000,
+      });
+      await expect(service.getRackById('type_1')).resolves.toEqual({
+        id: 'type_1',
+        defaultPriceIdr: 400_000,
+      });
+      expect(prisma.unitType.findUnique).toHaveBeenCalledWith({
+        where: { id: 'type_1' },
+        select: { id: true, defaultPriceIdr: true },
+      });
+    });
+
+    it('404 when missing', async () => {
+      prisma.unitType.findUnique.mockResolvedValue(null);
+      await expect(service.getRackById('missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
 });
