@@ -55,9 +55,9 @@ import {
   nightCount,
 } from "./reservation-format";
 import { StayDateRangePicker } from "./stay-date-range-picker";
+import { ChosenUnitField } from "./chosen-unit-field";
 import {
   chosenFromReservation,
-  formatChosenUnitLabel,
   type ChosenUnit,
 } from "./chosen-unit";
 import { UnitInventoryPicker } from "./unit-inventory-picker";
@@ -149,6 +149,15 @@ type ReservationFormDialogProps = {
   /** Board property filter — picker starts at unit types when creating. */
   initialPropertyId?: string;
   initialPropertyName?: string;
+  /** Create from calendar cell — unit already chosen; skip Choose unit. */
+  initialChosen?: ChosenUnit | null;
+  initialCheckInDate?: string;
+  initialCheckOutDate?: string;
+  /**
+   * When creating without a locked unit (e.g. fixture calendar rows),
+   * open Choose unit immediately after the dialog mounts.
+   */
+  autoOpenUnitPicker?: boolean;
   /** Called after successful create with the new id (for navigate). */
   onCreated?: (id: string) => void;
   /** Opened from Confirm when details are incomplete. */
@@ -163,6 +172,10 @@ export function ReservationFormDialog({
   reservation = null,
   initialPropertyId = "",
   initialPropertyName = "",
+  initialChosen = null,
+  initialCheckInDate = "",
+  initialCheckOutDate = "",
+  autoOpenUnitPicker = false,
   onCreated,
   intent = "edit",
   onSaved,
@@ -170,8 +183,11 @@ export function ReservationFormDialog({
   const isEdit = Boolean(reservation);
   const isConfirmEnrich = intent === "confirm-enrich";
   const queryClient = useQueryClient();
-  const [pickerOpen, setPickerOpen] = useState(false);
-  /** `undefined` = fall back to reservation; `null` = cleared; else user pick. */
+  const [pickerOpen, setPickerOpen] = useState(
+    () =>
+      Boolean(autoOpenUnitPicker && !reservation && !initialChosen),
+  );
+  /** `undefined` = fall back to reservation / initialChosen; `null` = cleared; else user pick. */
   const [picked, setPicked] = useState<ChosenUnit | null | undefined>(
     undefined,
   );
@@ -180,16 +196,16 @@ export function ReservationFormDialog({
       ? picked
       : reservation
         ? chosenFromReservation(reservation)
-        : null;
+        : initialChosen;
   /** Last unitTypeId:nights:rack we applied (or seeded on edit open). */
   const appliedSuggestKeyRef = useRef<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
     defaultValues: {
-      unitId: "",
-      checkInDate: "",
-      checkOutDate: "",
+      unitId: initialChosen?.unitId ?? "",
+      checkInDate: initialCheckInDate,
+      checkOutDate: initialCheckOutDate,
       guestName: "",
       guestEmail: "",
       guestPhone: "",
@@ -225,10 +241,26 @@ export function ReservationFormDialog({
       });
       return;
     }
+    if (initialChosen) {
+      form.reset({
+        unitId: initialChosen.unitId,
+        checkInDate: initialCheckInDate,
+        checkOutDate: initialCheckOutDate,
+        guestName: "",
+        guestEmail: "",
+        guestPhone: "",
+        guestCount: 1,
+        source: ReservationSource.MANUAL,
+        totalDigits: "",
+        paidDigits: "0",
+        notes: "",
+      });
+      return;
+    }
     form.reset({
       unitId: "",
-      checkInDate: "",
-      checkOutDate: "",
+      checkInDate: initialCheckInDate,
+      checkOutDate: initialCheckOutDate,
       guestName: "",
       guestEmail: "",
       guestPhone: "",
@@ -238,7 +270,14 @@ export function ReservationFormDialog({
       paidDigits: "0",
       notes: "",
     });
-  }, [open, reservation, form]);
+  }, [
+    open,
+    reservation,
+    form,
+    initialChosen,
+    initialCheckInDate,
+    initialCheckOutDate,
+  ]);
 
   const checkInDate = useWatch({ control: form.control, name: "checkInDate" });
   const checkOutDate = useWatch({
@@ -512,36 +551,15 @@ export function ReservationFormDialog({
       <form id="reservation-form" className="flex flex-col gap-5" onSubmit={onSubmit}>
         <FieldGroup className="gap-4">
           <p className="text-sm font-medium text-foreground">Stay</p>
-          <Field
-            data-invalid={Boolean(form.formState.errors.unitId)}
-          >
-            <FieldLabel>Unit</FieldLabel>
-            <div className="flex items-center gap-2">
-              <div
-                className={
-                  chosen
-                    ? "bg-muted/40 flex min-h-8 min-w-0 flex-1 items-center rounded-lg border px-2.5 text-sm"
-                    : "bg-muted/40 text-muted-foreground flex min-h-8 min-w-0 flex-1 items-center rounded-lg border border-dashed px-2.5 text-sm"
-                }
-              >
-                <span className="truncate">
-                  {chosen ? formatChosenUnitLabel(chosen) : "No unit chosen"}
-                </span>
-              </div>
-              <Button
-                type="button"
-                variant={chosen ? "outline" : "default"}
-                size="sm"
-                onClick={() => {
-                  setPickerOpen(true);
-                }}
-              >
-                {chosen ? "Change" : "Choose"}
-              </Button>
-            </div>
-            <input type="hidden" {...form.register("unitId")} />
-            <FieldError errors={[form.formState.errors.unitId]} />
-          </Field>
+          <ChosenUnitField
+            chosen={chosen}
+            onChoose={() => {
+              setPickerOpen(true);
+            }}
+            invalid={Boolean(form.formState.errors.unitId)}
+            error={form.formState.errors.unitId}
+            unitIdInputProps={form.register("unitId")}
+          />
 
           <Field
             data-invalid={Boolean(

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router";
 import { PrivateRoute } from "@/components/private-route";
 import { AppLayout } from "@/layouts/app-layout";
+import { CalendarPage } from "@/pages/calendar/calendar-page";
 import { HomePage } from "@/pages/home-page";
 import { LoginPage } from "@/pages/login-page";
 import { PlaceholderPage } from "@/pages/placeholder-page";
@@ -20,10 +21,7 @@ export function AppRoutes() {
       <Route element={<PrivateRoute />}>
         <Route element={<AppLayout />}>
           <Route index element={<HomePage />} />
-          <Route
-            path="calendar"
-            element={<PlaceholderPage title="Calendar" />}
-          />
+          <Route path="calendar" element={<CalendarPage />} />
           <Route path="reservations" element={<ReservationsPage />} />
           <Route
             path="reservations/:reservationId"

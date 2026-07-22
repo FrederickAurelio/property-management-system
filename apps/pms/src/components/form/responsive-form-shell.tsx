@@ -27,7 +27,7 @@ type ResponsiveFormShellProps = {
   children: ReactNode;
   footer: ReactNode;
   className?: string;
-  /** Wider dialog for dense forms (amenities, beds). */
+  /** Wider dialog for dense forms (amenities, beds, stay/block dates). */
   size?: "default" | "lg";
 };
 
@@ -42,7 +42,8 @@ export function ResponsiveFormShell({
   size = "default",
 }: ResponsiveFormShellProps) {
   const isMobile = useIsMobile();
-  const dialogWidth = size === "lg" ? "sm:max-w-xl" : "sm:max-w-md";
+  /** Wide enough for the inline 2-month stay/block date panel. */
+  const dialogWidth = size === "lg" ? "sm:max-w-2xl" : "sm:max-w-md";
 
   if (isMobile) {
     return (

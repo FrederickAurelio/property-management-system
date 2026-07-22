@@ -9,6 +9,7 @@ globs:
   - apps/pms/src/lib/api/toast.ts
   - apps/pms/src/lib/api/reservations.ts
   - apps/pms/src/lib/api/inventory-cache.ts
+  - apps/pms/src/lib/api/calendar.ts
   - apps/pms/src/lib/api/admins.ts
   - apps/pms/src/lib/query-client.ts
 alwaysApply: false
@@ -91,10 +92,21 @@ On next-page error: **unmount the in-view sentinel** and show footer + `QueryRet
 | Unit create/update | `syncUnitCaches(qc, saved, { bookabilityChanged? })` |
 | Staff admin create/role/active | `syncStaffAdminCaches(qc, saved)` |
 | Inventory **delete** / tree wipe | `invalidateInventoryCaches(qc)` |
+| Calendar block create/update/delete | `invalidatePropertyCalendarCaches(qc)` — aggregate has no block detail key |
 | Login / change username | `setQueryData(staffSessionQueryKey, admin)` |
 | Logout | `invalidateQueries(staffSessionQueryKey)` then `/login` |
 
-`occupancyChanged` / `bookabilityChanged`: only when unit nights or bookability can change (create, date/unit move, checkout, cancel, unit status). Skip for money-only, confirm, check-in, guest/notes edits.
+**Where cache helpers live**
+
+| Pattern | Put helper |
+|---------|------------|
+| One resource module (reservations, admins, calendar) | Same file as that resource’s HTTP helpers (`reservations.ts`, `admins.ts`, `calendar.ts`) |
+| Shared across several inventory HTTP files | `inventory-cache.ts` |
+| Naming | `sync*Caches` when mutation body maps 1:1 to a GET detail (`setQueryData` + targeted invalidates); `invalidate*Caches` when there is nothing to write (delete, aggregate-only refresh) |
+
+Do **not** name helpers `*Queries`. Do **not** call `invalidateQueries` with ad-hoc key strings from screens — export a helper and list it in this table.
+
+`occupancyChanged` / `bookabilityChanged`: only when unit nights or bookability can change (create, date/unit move, checkout, cancel, unit status). Skip for money-only, confirm, check-in, guest/notes edits. Reservation `occupancyChanged` also invalidates the property calendar prefix.
 
 Always `handleSuccess` in mutation `onSuccess` — never in the axios interceptor.
 

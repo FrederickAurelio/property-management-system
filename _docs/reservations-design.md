@@ -78,7 +78,7 @@ Phase 1 desk boards live on **Reservations** (`/reservations`) only — **no** s
 
 Arrivals matches the check-in window; Departures matches due/overdue checkout (not “today only”). Sort Arrivals by `checkInDate` asc, Departures by `checkOutDate` asc (oldest overdue first). PMS shows **Late arrival** / **Late departure** badges on list + detail wherever the row appears (not only on those boards). Past `checkOutDate` without ever checking in → find under All → **Cancel** (no-show notes); no separate `NO_SHOW` status.
 
-Calendar is the spatial view of the same rows — same badges, same click-through to detail.
+Calendar is the spatial view of the same rows — same badges, same click-through to detail. Full page spec: [`calendar-design.md`](calendar-design.md).
 
 ### 3.2 One detail page — primary actions by status
 

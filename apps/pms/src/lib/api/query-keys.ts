@@ -167,3 +167,27 @@ export function staffUnitOccupancyQueryKey(
 export function staffUnitQueryKey(id: string) {
   return [...staffUnitsQueryKeyPrefix, "detail", id] as const;
 }
+
+/** Property calendar aggregate (unit × days). */
+export const staffPropertyCalendarQueryKeyPrefix = [
+  "staff",
+  "properties",
+  "calendar",
+] as const;
+
+export type StaffPropertyCalendarParams = {
+  propertyId: string;
+  from: string;
+  to: string;
+};
+
+export function staffPropertyCalendarQueryKey(
+  params: StaffPropertyCalendarParams,
+) {
+  return [
+    ...staffPropertyCalendarQueryKeyPrefix,
+    params.propertyId,
+    params.from,
+    params.to,
+  ] as const;
+}

@@ -1,35 +1,75 @@
-/** Preserve list board/filters when opening a reservation detail. */
-export type ReservationListLocationState = {
-  /** `location.search` from the list page (includes leading `?` or empty). */
+/**
+ * Preserve return context when opening a reservation detail
+ * from boards list or calendar.
+ */
+export type ReservationReturnLocationState = {
+  /** `location.search` from `/reservations` (includes leading `?` or empty). */
   listSearch?: string;
+  /** `location.search` from `/calendar` (includes leading `?` or empty). */
+  calendarSearch?: string;
 };
 
-export function isReservationListLocationState(
+/** @deprecated Use ReservationReturnLocationState */
+export type ReservationListLocationState = ReservationReturnLocationState;
+
+export function isReservationReturnLocationState(
   value: unknown,
-): value is ReservationListLocationState {
+): value is ReservationReturnLocationState {
   if (value == null || typeof value !== "object") {
     return false;
   }
-  const search = (value as ReservationListLocationState).listSearch;
-  return search === undefined || typeof search === "string";
+  const state = value as ReservationReturnLocationState;
+  const listOk =
+    state.listSearch === undefined || typeof state.listSearch === "string";
+  const calOk =
+    state.calendarSearch === undefined ||
+    typeof state.calendarSearch === "string";
+  return listOk && calOk;
 }
 
-/** Back href to `/reservations` with prior query string when available. */
+/** @deprecated Use isReservationReturnLocationState */
+export const isReservationListLocationState = isReservationReturnLocationState;
+
+function withSearch(path: string, raw: string | undefined): string {
+  if (!raw || raw === "" || raw === "?") {
+    return path;
+  }
+  return raw.startsWith("?") ? `${path}${raw}` : `${path}?${raw}`;
+}
+
+/** Back href: calendar return wins over list when both present. */
+export function reservationDetailBackHref(state: unknown): string {
+  if (!isReservationReturnLocationState(state)) {
+    return "/reservations";
+  }
+  if (state.calendarSearch !== undefined) {
+    return withSearch("/calendar", state.calendarSearch);
+  }
+  return withSearch("/reservations", state.listSearch);
+}
+
+/** @deprecated Use reservationDetailBackHref */
 export function reservationsListHref(state: unknown): string {
-  if (!isReservationListLocationState(state) || !state.listSearch) {
+  if (
+    isReservationReturnLocationState(state) &&
+    state.calendarSearch !== undefined
+  ) {
+    return withSearch("/calendar", state.calendarSearch);
+  }
+  if (!isReservationReturnLocationState(state) || !state.listSearch) {
     return "/reservations";
   }
-  const raw = state.listSearch;
-  if (raw === "" || raw === "?") {
-    return "/reservations";
-  }
-  return raw.startsWith("?")
-    ? `/reservations${raw}`
-    : `/reservations?${raw}`;
+  return withSearch("/reservations", state.listSearch);
 }
 
 export function reservationListStateFromSearch(
   search: string,
-): ReservationListLocationState {
+): ReservationReturnLocationState {
   return { listSearch: search };
+}
+
+export function reservationCalendarStateFromSearch(
+  search: string,
+): ReservationReturnLocationState {
+  return { calendarSearch: search };
 }

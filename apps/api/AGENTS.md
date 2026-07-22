@@ -13,7 +13,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Availability:** `GET /staff/properties/:propertyId/units/availability` — all units (optional `unitTypeId`) with `available` + `blockReason`; dates optional (omit = no `DATE_OVERLAP`); optional `excludeReservationId` for edit
 - **Unit occupancy (date picker):** `GET /staff/units/:id/occupancy?yearMonth=YYYY-MM` — occupying blocks for one month; FE caches months as the calendar pages
 - **Bookability:** Property `isActive` (open for ops) · UnitType `isActive` (offered) · Unit `status` only (`ACTIVE` bookable; no separate unit `isActive`)
-- **Not yet:** calendar aggregate UI · iCal export/import · calendar-blocks
+- **Not yet:** Nest calendar aggregate GET · Nest `/staff/calendar-blocks` · iCal export/import
 - **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `nights × defaultPriceIdr` (`suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
 
 ## Stack (locked)

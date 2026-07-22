@@ -11,6 +11,8 @@ export {
   staffPropertiesOptionsQueryKey,
   staffPropertiesQueryKeyPrefix,
   staffPropertyQueryKey,
+  staffPropertyCalendarQueryKey,
+  staffPropertyCalendarQueryKeyPrefix,
   staffReservationQueryKey,
   staffReservationsQueryKey,
   staffReservationsQueryKeyPrefix,
@@ -26,10 +28,20 @@ export {
   staffUnitTypesQueryKeyPrefix,
   type ReservationBoard,
   type StaffPropertiesListFilters,
+  type StaffPropertyCalendarParams,
   type StaffReservationsListFilters,
   type StaffUnitsListFilters,
   type StaffUnitTypesListFilters,
 } from "./query-keys";
+export {
+  appendLiveStayToCalendarFixture,
+  createCalendarBlock,
+  deleteCalendarBlock,
+  getPropertyCalendar,
+  invalidatePropertyCalendarCaches,
+  updateCalendarBlock,
+  type GetPropertyCalendarParams,
+} from "./calendar";
 export {
   cancelReservation,
   checkInReservation,
