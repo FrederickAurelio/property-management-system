@@ -15,20 +15,20 @@ ARG NPM_REGISTRY
 
 WORKDIR /app
 
+# apt mirror first; install pnpm via npm (corepack + npmmirror is unreliable)
 RUN set -eux; \
   if [ -n "${APT_MIRROR}" ]; then \
     sed -i "s/deb.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources; \
     sed -i "s/security.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources; \
   fi; \
-  if [ -n "${NPM_REGISTRY}" ]; then \
-    export COREPACK_NPM_REGISTRY="${NPM_REGISTRY}"; \
-  fi; \
-  corepack enable && corepack prepare pnpm@11.3.0 --activate; \
   apt-get update; \
   apt-get install -y --no-install-recommends openssl ca-certificates python3 make g++; \
   rm -rf /var/lib/apt/lists/*; \
   if [ -n "${NPM_REGISTRY}" ]; then \
+    npm install -g pnpm@11.3.0 --registry="${NPM_REGISTRY}"; \
     pnpm config set registry "${NPM_REGISTRY}"; \
+  else \
+    npm install -g pnpm@11.3.0; \
   fi
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -65,13 +65,14 @@ RUN set -eux; \
     sed -i "s/deb.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources; \
     sed -i "s/security.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources; \
   fi; \
-  if [ -n "${NPM_REGISTRY}" ]; then \
-    export COREPACK_NPM_REGISTRY="${NPM_REGISTRY}"; \
-  fi; \
   apt-get update; \
   apt-get install -y --no-install-recommends openssl ca-certificates; \
   rm -rf /var/lib/apt/lists/*; \
-  corepack enable && corepack prepare pnpm@11.3.0 --activate
+  if [ -n "${NPM_REGISTRY}" ]; then \
+    npm install -g pnpm@11.3.0 --registry="${NPM_REGISTRY}"; \
+  else \
+    npm install -g pnpm@11.3.0; \
+  fi
 
 ENV NODE_ENV=production
 ENV PORT=3000

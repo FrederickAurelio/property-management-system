@@ -2,7 +2,7 @@
 # syntax=docker/dockerfile:1
 
 # Optional mirrors (China demo VPS). Leave empty for Indo/MY/SG / official registries.
-# APT_MIRROR unused here (no apt). NPM_REGISTRY speeds pnpm/corepack in China.
+# NPM_REGISTRY=https://registry.npmmirror.com
 ARG APT_MIRROR=
 ARG NPM_REGISTRY=
 
@@ -13,13 +13,13 @@ ARG NPM_REGISTRY
 
 WORKDIR /app
 
+# Install pnpm via npm (corepack + npmmirror is unreliable)
 RUN set -eux; \
   if [ -n "${NPM_REGISTRY}" ]; then \
-    export COREPACK_NPM_REGISTRY="${NPM_REGISTRY}"; \
-  fi; \
-  corepack enable && corepack prepare pnpm@11.3.0 --activate; \
-  if [ -n "${NPM_REGISTRY}" ]; then \
+    npm install -g pnpm@11.3.0 --registry="${NPM_REGISTRY}"; \
     pnpm config set registry "${NPM_REGISTRY}"; \
+  else \
+    npm install -g pnpm@11.3.0; \
   fi
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
