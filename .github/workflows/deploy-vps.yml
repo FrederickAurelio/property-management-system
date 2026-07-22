@@ -12,7 +12,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # First China VPS build can be very slow (mirrors + 2GiB box)
+    timeout-minutes: 90
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -20,12 +21,15 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 30m
+          command_timeout: 75m
           script: |
             set -euo pipefail
             cd ~/property-management-system
             git fetch origin
             git checkout release
             git reset --hard origin/release
-            docker compose up -d --build
+            # Sequential builds — parallel api+pms OOMs / saturates 2GiB China VPS
+            docker compose build api
+            docker compose build pms
+            docker compose up -d
             docker compose exec -T api pnpm run prisma:migrate:deploy

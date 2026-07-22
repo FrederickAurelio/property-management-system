@@ -29,7 +29,13 @@ RUN set -eux; \
     pnpm config set registry "${NPM_REGISTRY}"; \
   else \
     npm install -g pnpm@11.3.0; \
-  fi
+  fi; \
+  # Weak VPS / China: pnpm default fetchTimeout=60s is too aggressive
+  pnpm config set fetch-timeout 600000; \
+  pnpm config set fetch-retries 5; \
+  pnpm config set fetch-retry-mintimeout 20000; \
+  pnpm config set fetch-retry-maxtimeout 120000; \
+  pnpm config set network-concurrency 3
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/api-contract/package.json packages/api-contract/
