@@ -23,7 +23,7 @@ jobs:
           command_timeout: 30m
           script: |
             set -euo pipefail
-            cd ~/property-management-sys
+            cd ~/property-management-system
             git fetch origin
             git checkout release
             git reset --hard origin/release
