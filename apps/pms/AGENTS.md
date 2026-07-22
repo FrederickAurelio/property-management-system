@@ -58,6 +58,7 @@ Locked BE→FE wiring (keys, `useQuery` / `useInfiniteQuery` / `useMutation`, ca
 | Query keys           | `src/lib/api/query-keys.ts` — import from `@/lib/api`               |
 | Paginated lists      | `useInfiniteQuery` + `getNextPageParamFromPageInfo`; filters in key |
 | List writes          | `invalidateQueries` on resource prefix + `handleSuccess`            |
+| Mutation `onSuccess` | Clear local form/pending/picker state **first**, then cache + toast + close — see `pms-query.mdc` |
 | Login / self-profile | `setQueryData(staffSessionQueryKey, …)`                             |
 | Form domain errors   | `applyApiFieldError` → RHF (BE `details: { field, reason }`)        |
 | Everything else      | `handleError` toast (or re-auth dialog / GET retry)                 |

@@ -407,7 +407,7 @@ export function StayDateRangePicker({
                         key={`d-${weekIdx}-${dayIdx}`}
                         className="aspect-square min-w-(--cell-size) flex-1 p-0"
                       >
-                        <Skeleton className="size-full rounded-[var(--radius-md)]" />
+                        <Skeleton className="size-full rounded-(--radius-md)" />
                       </div>
                     ))}
                   </div>
@@ -507,21 +507,21 @@ export function StayDateRangePicker({
                     !modifiers.range_end &&
                     !modifiers.range_middle &&
                     cn(
-                      "!bg-primary/10 font-semibold !text-primary",
-                      "hover:!bg-primary/15 hover:!text-primary",
+                      "bg-primary/10! font-semibold text-primary!",
+                      "hover:bg-primary/15! hover:text-primary!",
                     ),
                   modifiers.occupied &&
                     cn(
-                      "!bg-destructive/20 !text-destructive !opacity-100",
+                      "bg-destructive/20! text-destructive! opacity-100!",
                       "font-medium line-through shadow-none",
-                      "hover:!bg-destructive/25 hover:!text-destructive",
+                      "hover:bg-destructive/25! hover:text-destructive!",
                     ),
                   modifiers.turnaround &&
                     cn(
-                      "!bg-background !text-foreground !opacity-100",
+                      "bg-background! text-foreground! opacity-100!",
                       "font-semibold shadow-none",
                       "border border-destructive/40",
-                      "hover:!bg-muted/60",
+                      "hover:bg-muted/60!",
                       "cursor-pointer",
                     ),
                 )}

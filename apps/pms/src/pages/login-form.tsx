@@ -78,6 +78,8 @@ export function LoginForm() {
     mutationFn: ({ username, password }: LoginValues) =>
       staffLogin(username, password),
     onSuccess: (admin) => {
+      form.reset({ username: "", password: "" });
+      setShowPassword(false);
       queryClient.setQueryData(staffSessionQueryKey, admin);
       handleSuccess("Signed in");
       void navigate("/", { replace: true });

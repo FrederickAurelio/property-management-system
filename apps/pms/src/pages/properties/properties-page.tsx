@@ -62,9 +62,9 @@ export function PropertiesPage() {
     mutationFn: (input: { id: string; name: string }) =>
       deleteProperty(input.id),
     onSuccess: (_data, variables) => {
+      setDeleteTarget(null);
       invalidateInventoryCaches(queryClient);
       handleSuccess(`Deleted ${variables.name}`);
-      setDeleteTarget(null);
     },
     onError: (error) => {
       handleError(error);
@@ -223,6 +223,7 @@ export function PropertiesPage() {
           }
           confirmLabel={deleteBlocked ? "Got it" : "Delete"}
           variant={deleteBlocked ? "default" : "destructive"}
+          confirmDisabled={deleteMutation.isPending}
           onConfirm={() => {
             if (deleteBlocked) {
               setDeleteTarget(null);

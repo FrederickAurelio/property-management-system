@@ -54,6 +54,14 @@ type FormValues = {
   note: string;
 };
 
+function emptyFormValues(): FormValues {
+  return {
+    amountDigits: "",
+    method: METHOD_NONE,
+    note: "",
+  };
+}
+
 type CollectSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -215,6 +223,7 @@ export function CollectSheet({
       });
     },
     onSuccess: (saved) => {
+      form.reset(emptyFormValues());
       syncReservationCaches(queryClient, saved);
       handleSuccess(mode === "refund" ? "Refund recorded" : "Payment collected");
       onOpenChange(false);

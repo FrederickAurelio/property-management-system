@@ -58,6 +58,14 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const emptyFormValues: FormValues = {
+  code: "",
+  name: "",
+  floor: "",
+  status: UnitStatus.ACTIVE,
+  notes: "",
+};
+
 type UnitFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -133,6 +141,7 @@ export function UnitFormDialog({
       });
     },
     onSuccess: (saved) => {
+      form.reset(emptyFormValues);
       syncUnitCaches(queryClient, saved, {
         bookabilityChanged: !unit || unit.status !== saved.status,
       });

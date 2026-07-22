@@ -150,10 +150,10 @@ export function ReservationDetailPage() {
       }
     },
     onSuccess: (saved, action) => {
+      setPendingPrimary(null);
       syncReservationCaches(queryClient, saved, {
         occupancyChanged: action === "check-out",
       });
-      setPendingPrimary(null);
       handleSuccess(
         action === "confirm"
           ? "Reservation confirmed"

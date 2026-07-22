@@ -186,8 +186,6 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
   const createMutation = useMutation({
     mutationFn: createAdmin,
     onSuccess: (admin) => {
-      syncStaffAdminCaches(queryClient, admin);
-      handleSuccess(`Created ${admin.username}`);
       createForm.reset({
         username: "",
         password: "",
@@ -195,6 +193,8 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       });
       setCreateOpen(false);
       closeReauth();
+      syncStaffAdminCaches(queryClient, admin);
+      handleSuccess(`Created ${admin.username}`);
     },
     onError: (error) => {
       const passwordMsg = currentPasswordMessage(error);
@@ -226,10 +226,10 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       currentPassword: string;
     }) => changeAdminRole(id, { role, currentPassword }),
     onSuccess: (admin) => {
-      syncStaffAdminCaches(queryClient, admin);
-      handleSuccess(`Updated ${admin.username} to ${formatRole(admin.role)}`);
       setRoleTarget(null);
       closeReauth();
+      syncStaffAdminCaches(queryClient, admin);
+      handleSuccess(`Updated ${admin.username} to ${formatRole(admin.role)}`);
     },
     onError: (error) => {
       const passwordMsg = currentPasswordMessage(error);
@@ -252,13 +252,13 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       currentPassword: string;
     }) => setAdminActive(id, { isActive, currentPassword }),
     onSuccess: (admin) => {
+      closeReauth();
       syncStaffAdminCaches(queryClient, admin);
       handleSuccess(
         admin.isActive
           ? `Restored access for ${admin.username}`
           : `Revoked access for ${admin.username}`,
       );
-      closeReauth();
     },
     onError: (error) => {
       const passwordMsg = currentPasswordMessage(error);

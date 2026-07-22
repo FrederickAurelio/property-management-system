@@ -26,7 +26,7 @@ export function CalendarBlockBar({
       }}
       className={cn(
         "absolute top-1 bottom-1 z-10 flex min-w-0 items-center overflow-hidden rounded-md border border-dashed border-muted-foreground/40 bg-muted/70 px-1.5 text-left text-[11px] font-medium text-muted-foreground shadow-sm transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        "[background-image:repeating-linear-gradient(-45deg,transparent,transparent_3px,rgba(0,0,0,0.06)_3px,rgba(0,0,0,0.06)_6px)] dark:[background-image:repeating-linear-gradient(-45deg,transparent,transparent_3px,rgba(255,255,255,0.06)_3px,rgba(255,255,255,0.06)_6px)]",
+        "bg-[repeating-linear-gradient(-45deg,transparent,transparent_3px,rgba(0,0,0,0.06)_3px,rgba(0,0,0,0.06)_6px)] dark:bg-[repeating-linear-gradient(-45deg,transparent,transparent_3px,rgba(255,255,255,0.06)_3px,rgba(255,255,255,0.06)_6px)]",
       )}
       title={[label, block.note].filter(Boolean).join(" · ")}
     >

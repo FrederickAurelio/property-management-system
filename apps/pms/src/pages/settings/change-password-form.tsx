@@ -81,12 +81,12 @@ export function ChangePasswordForm() {
   const mutation = useMutation({
     mutationFn: staffChangePassword,
     onSuccess: () => {
-      handleSuccess("Password updated");
       form.reset();
       setShowCurrent(false);
       setShowNew(false);
       setShowConfirm(false);
       setConfirmOpen(false);
+      handleSuccess("Password updated");
     },
     onError: (error) => {
       setConfirmOpen(false);

@@ -102,12 +102,12 @@ export function ChangeUsernameForm({
   const mutation = useMutation({
     mutationFn: staffChangeUsername,
     onSuccess: (admin) => {
-      queryClient.setQueryData(staffSessionQueryKey, admin);
-      handleSuccess("Username updated");
       form.reset({ username: admin.username, currentPassword: "" });
       setPendingUsername(null);
       setConfirmOpen(false);
       setShowPassword(false);
+      queryClient.setQueryData(staffSessionQueryKey, admin);
+      handleSuccess("Username updated");
     },
     onError: (error) => {
       const handled = applyApiFieldError(error, form.setError);

@@ -100,9 +100,9 @@ export function UnitTypesPage() {
     mutationFn: (input: { id: string; name: string }) =>
       deleteUnitType(input.id),
     onSuccess: (_data, variables) => {
+      setDeleteTarget(null);
       invalidateInventoryCaches(queryClient);
       handleSuccess(`Deleted ${variables.name}`);
-      setDeleteTarget(null);
     },
     onError: (error) => {
       handleError(error);
@@ -316,6 +316,7 @@ export function UnitTypesPage() {
           }
           confirmLabel={deleteBlocked ? "Got it" : "Delete"}
           variant={deleteBlocked ? "default" : "destructive"}
+          confirmDisabled={deleteMutation.isPending}
           onConfirm={() => {
             if (deleteBlocked) {
               setDeleteTarget(null);

@@ -110,6 +110,49 @@ Do **not** name helpers `*Queries`. Do **not** call `invalidateQueries` with ad-
 
 Always `handleSuccess` in mutation `onSuccess` — never in the axios interceptor.
 
+### Success — clear local state first (locked)
+
+TanStack `mutation.isPending` flips **false** when the request settles. `onOpenChange(false)` / dialog unmount runs on the **next** render. In that gap, submit buttons re-enable while the shell is still open — rapid clicks can fire a **second** write.
+
+**Every** `useMutation` `onSuccess` in PMS: **clear local UI state first**, then cache sync, toast, navigate, or close.
+
+| Local state | Clear first (examples) |
+|-------------|-------------------------|
+| RHF form | `form.reset(emptyFormValues())` — reuse a module-level `emptyFormValues` / `emptyDefaults`; not ad-hoc partial clears |
+| Choose-unit / picker | `setPicked(null)` — **`null`**, not `undefined`, when `undefined` falls back to `initialChosen` / reservation |
+| Picker open | `setPickerOpen(false)` |
+| Dialog / sheet open | `onOpenChange(false)` or `setXOpen(false)` **after** reset |
+| Delete confirm | `setDeleteTarget(null)` |
+| Ops confirm (check-in, etc.) | `setPendingPrimary(null)` |
+| Staff re-auth | `closeReauth()` / `setPending(null)` |
+| Media uploading flags | `setMediaUploading(false)` |
+| Login / settings | `form.reset(…)` + hide-password toggles before navigate / close |
+
+```ts
+onSuccess: (saved) => {
+  form.reset(emptyFormValues());
+  setPicked(null);
+  setPickerOpen(false);
+  syncReservationCaches(queryClient, saved, { occupancyChanged });
+  handleSuccess("Reservation created");
+  onOpenChange(false);
+},
+```
+
+**Confirm dialogs** ([`confirm-dialog.tsx`](../../apps/pms/src/components/ui/confirm-dialog.tsx)):
+
+- Confirm button calls `onConfirm()` only — **do not** `onOpenChange(false)` inside the dialog.
+- Parent closes by clearing target state in `onSuccess` (or immediately for blocked “Got it” flows).
+- Pass `confirmDisabled={mutation.isPending}` so confirm stays dead while the request runs.
+
+**Re-auth** ([`reauth-password-dialog.tsx`](../../apps/pms/src/components/reauth-password-dialog.tsx)): reset password field when `open` → `false` (`useEffect`); parent still clears `pending` in `onSuccess` first.
+
+**Don’t**
+
+- Rely on `isPending` alone to block double-submit on dialogs/sheets
+- Add a submit-lock hook/latch as the default fix — clear state on success instead
+- `setPicked(undefined)` on success when create flows fall back to `initialChosen`
+
 ## Errors — pick one path
 
 | Failure | Handler |

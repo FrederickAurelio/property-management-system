@@ -147,9 +147,9 @@ export function UnitsPage() {
   const deleteMutation = useMutation({
     mutationFn: (input: { id: string; code: string }) => deleteUnit(input.id),
     onSuccess: (_data, variables) => {
+      setDeleteTarget(null);
       invalidateInventoryCaches(queryClient);
       handleSuccess(`Deleted ${variables.code}`);
-      setDeleteTarget(null);
     },
     onError: (error) => {
       handleError(error);
@@ -371,6 +371,7 @@ export function UnitsPage() {
           }
           confirmLabel="Delete"
           variant="destructive"
+          confirmDisabled={deleteMutation.isPending}
           onConfirm={() => {
             if (deleteTarget) {
               deleteMutation.mutate({

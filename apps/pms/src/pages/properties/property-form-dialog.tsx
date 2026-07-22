@@ -223,6 +223,8 @@ export function PropertyFormDialog({
       return createProperty(payload);
     },
     onSuccess: (saved) => {
+      form.reset(structuredClone(emptyDefaults));
+      setMediaUploading(false);
       syncPropertyCaches(queryClient, saved);
       handleSuccess(property ? "Property updated" : "Property created");
       onOpenChange(false);

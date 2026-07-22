@@ -68,7 +68,6 @@ export function ConfirmDialog({
             disabled={confirmDisabled}
             onClick={() => {
               onConfirm();
-              onOpenChange(false);
             }}
           >
             {confirmLabel}

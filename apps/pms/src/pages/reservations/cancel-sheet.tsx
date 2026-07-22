@@ -34,6 +34,14 @@ type FormValues = {
   notes: string;
 };
 
+function emptyFormValues(): FormValues {
+  return {
+    disposition: "keep",
+    refundToGuestDigits: "",
+    notes: "",
+  };
+}
+
 type CancelSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -170,6 +178,7 @@ export function CancelSheet({
       });
     },
     onSuccess: (saved) => {
+      form.reset(emptyFormValues());
       syncReservationCaches(queryClient, saved, { occupancyChanged: true });
       handleSuccess("Reservation cancelled");
       onOpenChange(false);

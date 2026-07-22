@@ -269,6 +269,8 @@ export function UnitTypeFormDialog({
       return createUnitType(propertyId, payload);
     },
     onSuccess: (saved) => {
+      form.reset(structuredClone(emptyDefaults));
+      setMediaUploading(false);
       syncUnitTypeCaches(queryClient, saved);
       handleSuccess(unitType ? "Unit type updated" : "Unit type created");
       onOpenChange(false);

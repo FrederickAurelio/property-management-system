@@ -77,6 +77,16 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
+function emptyFormValues(): FormValues {
+  return {
+    unitId: "",
+    kind: CalendarBlockKind.MAINTENANCE,
+    startDate: "",
+    endDate: "",
+    note: "",
+  };
+}
+
 /** Fixture calendar unit ids are not Nest units — do not lock Choose unit. */
 function isFixtureCalendarUnitId(unitId: string): boolean {
   return unitId.startsWith("cal_unit_");
@@ -174,10 +184,11 @@ export function CalendarBlockSheet({
       });
     },
     onSuccess: () => {
-      invalidatePropertyCalendarCaches(queryClient);
-      handleSuccess(isEdit ? "Block updated" : "Block created");
+      form.reset(emptyFormValues());
       setPicked(null);
       setPickerOpen(false);
+      invalidatePropertyCalendarCaches(queryClient);
+      handleSuccess(isEdit ? "Block updated" : "Block created");
       onOpenChange(false);
     },
     onError: (error) => {
@@ -188,6 +199,9 @@ export function CalendarBlockSheet({
   const deleteMutation = useMutation({
     mutationFn: () => deleteCalendarBlock(block!.id),
     onSuccess: () => {
+      form.reset(emptyFormValues());
+      setPicked(null);
+      setPickerOpen(false);
       invalidatePropertyCalendarCaches(queryClient);
       handleSuccess("Block deleted");
       onOpenChange(false);

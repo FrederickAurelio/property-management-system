@@ -143,6 +143,22 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
+function emptyFormValues(): FormValues {
+  return {
+    unitId: "",
+    checkInDate: "",
+    checkOutDate: "",
+    guestName: "",
+    guestEmail: "",
+    guestPhone: "",
+    guestCount: 1,
+    source: ReservationSource.MANUAL,
+    totalDigits: "",
+    paidDigits: "0",
+    notes: "",
+  };
+}
+
 type ReservationFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -475,6 +491,10 @@ export function ReservationFormDialog({
       });
     },
     onSuccess: (saved) => {
+      appliedSuggestKeyRef.current = null;
+      form.reset(emptyFormValues());
+      setPicked(null);
+      setPickerOpen(false);
       const occupancyChanged =
         reservation == null ||
         reservation.unitId !== saved.unitId ||
@@ -488,8 +508,6 @@ export function ReservationFormDialog({
             ? "Reservation updated"
             : "Reservation created",
       );
-      setPicked(undefined);
-      setPickerOpen(false);
       onOpenChange(false);
       if (!isEdit) {
         onCreated?.(saved.id);
