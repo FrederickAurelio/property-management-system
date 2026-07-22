@@ -3,11 +3,12 @@ import { useMemo, useState } from "react";
 import {
   CALENDAR_BLOCK_NOTE_MAX,
   CalendarBlockKind,
+  UnitAvailabilityBlockReason,
   type StaffCalendarBlock,
   type StaffPropertyCalendar,
 } from "@cabin/api-contract";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
@@ -33,7 +34,10 @@ import {
   handleError,
   handleSuccess,
   invalidatePropertyCalendarCaches,
+  listAvailableUnits,
+  staffUnitsAvailabilityQueryKey,
   updateCalendarBlock,
+  applyApiFieldError,
 } from "@/lib/api";
 import { ChosenUnitField } from "@/pages/reservations/chosen-unit-field";
 import type { ChosenUnit } from "@/pages/reservations/chosen-unit";
@@ -158,6 +162,55 @@ export function CalendarBlockSheet({
 
   const chosen = picked;
 
+  const datesReady =
+    Boolean(startDate) && Boolean(endDate) && endDate > startDate;
+
+  const unitAvailabilityQuery = useQuery({
+    queryKey: staffUnitsAvailabilityQueryKey(chosen?.propertyId ?? "", {
+      checkInDate: startDate,
+      checkOutDate: endDate,
+      unitTypeId: chosen?.unitTypeId,
+    }),
+    queryFn: () =>
+      listAvailableUnits(chosen!.propertyId, {
+        checkInDate: startDate,
+        checkOutDate: endDate,
+        unitTypeId: chosen!.unitTypeId,
+      }),
+    enabled:
+      open &&
+      !pickerOpen &&
+      Boolean(chosen?.propertyId) &&
+      Boolean(chosen?.unitTypeId) &&
+      Boolean(chosen?.unitId) &&
+      datesReady,
+    staleTime: 0,
+  });
+
+  const dateOverlapConflict = useMemo(() => {
+    if (!chosen || !datesReady || !unitAvailabilityQuery.isSuccess) {
+      return false;
+    }
+    const row = unitAvailabilityQuery.data.find((u) => u.id === chosen.unitId);
+    return (
+      Boolean(row) &&
+      !row!.available &&
+      row!.blockReason === UnitAvailabilityBlockReason.DATE_OVERLAP
+    );
+  }, [
+    chosen,
+    datesReady,
+    unitAvailabilityQuery.isSuccess,
+    unitAvailabilityQuery.data,
+  ]);
+
+  const dateOverlapError = dateOverlapConflict
+    ? {
+        message:
+          "These dates overlap a booking on this unit — change dates or choose another unit.",
+      }
+    : undefined;
+
   const extraOccupancyBlocks = useMemo(
     () => occupancyExtrasForUnit(calendar, chosen?.unitId ?? unitId),
     [calendar, chosen?.unitId, unitId],
@@ -192,7 +245,7 @@ export function CalendarBlockSheet({
       onOpenChange(false);
     },
     onError: (error) => {
-      handleError(error);
+      applyApiFieldError(error, form.setError);
     },
   });
 
@@ -257,7 +310,8 @@ export function CalendarBlockSheet({
                 disabled={
                   saveMutation.isPending ||
                   deleteMutation.isPending ||
-                  !chosen
+                  !chosen ||
+                  dateOverlapConflict
                 }
               >
                 {isEdit ? "Save" : "Create block"}
@@ -286,7 +340,8 @@ export function CalendarBlockSheet({
             <Field
               data-invalid={Boolean(
                 form.formState.errors.startDate ||
-                  form.formState.errors.endDate,
+                form.formState.errors.endDate ||
+                dateOverlapConflict,
               )}
             >
               <FieldLabel htmlFor="block-dates">Dates</FieldLabel>
@@ -300,7 +355,8 @@ export function CalendarBlockSheet({
                 excludeOccupancyId={block?.id}
                 invalid={Boolean(
                   form.formState.errors.startDate ||
-                    form.formState.errors.endDate,
+                  form.formState.errors.endDate ||
+                  dateOverlapConflict,
                 )}
                 onChange={({ checkInDate, checkOutDate }) => {
                   const complete = Boolean(checkInDate && checkOutDate);
@@ -318,6 +374,7 @@ export function CalendarBlockSheet({
                 errors={[
                   form.formState.errors.startDate,
                   form.formState.errors.endDate,
+                  dateOverlapError,
                 ]}
               />
             </Field>

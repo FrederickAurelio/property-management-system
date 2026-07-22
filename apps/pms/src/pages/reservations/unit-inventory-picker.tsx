@@ -96,6 +96,18 @@ function blockReasonBadge(
   };
 }
 
+/**
+ * Staff may pick a DATE_OVERLAP (“Booked”) unit — stay/block dates can still
+ * be adjusted, and Nest rejects true conflicts on save. Inactive / not-bookable
+ * rows stay visible but not selectable.
+ */
+function canSelectUnit(unit: StaffUnitAvailability): boolean {
+  return (
+    unit.available ||
+    unit.blockReason === UnitAvailabilityBlockReason.DATE_OVERLAP
+  );
+}
+
 function blockReasonLabel(
   reason: BlockReason,
   status: StaffUnit["status"],
@@ -237,15 +249,15 @@ export function UnitInventoryPicker({
 
   const selectedUnit = useMemo((): ChosenUnit | null => {
     if (userSelected) {
-      const stillAvailable = units.find(
-        (u) => u.id === userSelected.unitId && u.available,
+      const stillSelectable = units.find(
+        (u) => u.id === userSelected.unitId && canSelectUnit(u),
       );
-      return stillAvailable ? userSelected : null;
+      return stillSelectable ? userSelected : null;
     }
     if (layer !== "units" || !initialUnitId) {
       return null;
     }
-    const match = units.find((u) => u.id === initialUnitId && u.available);
+    const match = units.find((u) => u.id === initialUnitId && canSelectUnit(u));
     if (!match) {
       return null;
     }
@@ -292,7 +304,7 @@ export function UnitInventoryPicker({
       title={title}
       description={
         datesReady
-          ? "Open properties · offered types · all units for these dates (blocked rows stay visible)."
+          ? "Open properties · offered types · all units for these dates (Booked rows stay selectable; inactive / not bookable stay visible only)."
           : "Open properties · offered types · all units. Set stay dates later to see date conflicts."
       }
       size="lg"
@@ -538,6 +550,7 @@ export function UnitInventoryPicker({
                 unitName: unit.name,
               };
               const blocked = blockReasonBadge(unit);
+              const selectable = canSelectUnit(unit);
               return (
                 <ExplorerItem
                   key={unit.id}
@@ -545,7 +558,7 @@ export function UnitInventoryPicker({
                   title={unitLabel(unit)}
                   meta={unit.floor ? `Floor ${unit.floor}` : "—"}
                   canManage={false}
-                  disabled={!unit.available}
+                  disabled={!selectable}
                   selected={selectedUnit?.unitId === unit.id}
                   badge={
                     blocked ? (
@@ -553,7 +566,7 @@ export function UnitInventoryPicker({
                     ) : undefined
                   }
                   onSelect={
-                    unit.available
+                    selectable
                       ? () => {
                           setUserSelected(chosen);
                         }

@@ -38,7 +38,7 @@ type ExplorerItemProps = {
   /** Picker / select mode — click card without navigating. */
   onSelect?: () => void;
   selected?: boolean;
-  /** Shown but not selectable (e.g. booked / not bookable). */
+  /** Shown but not selectable (e.g. inactive / not bookable). */
   disabled?: boolean;
 };
 

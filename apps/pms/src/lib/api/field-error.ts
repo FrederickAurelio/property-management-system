@@ -20,6 +20,8 @@ const FIELD_REASON_MESSAGE: Partial<Record<ApiFieldReasonType, string>> = {
   [ApiFieldReason.UNIT_TYPE_INVALID]: "Unit type not found on this property",
   [ApiFieldReason.UNIT_NOT_BOOKABLE]: "This unit is not bookable",
   [ApiFieldReason.DATE_RANGE_INVALID]: "Check-out must be after check-in",
+  [ApiFieldReason.OVERLAP_CONFLICT]:
+    "These dates overlap a booking on this unit — change dates or choose another unit.",
   [ApiFieldReason.CONFIRM_INCOMPLETE]: "Guest or money details are incomplete",
   [ApiFieldReason.GUEST_COUNT_EXCEEDS_MAX]:
     "Guest count exceeds this unit type's max",
@@ -48,16 +50,17 @@ export function applyApiFieldError<TFieldValues extends FieldValues>(
   }
 
   const { field, reason } = error.details;
-  if (
-    reason === ApiFieldReason.HAS_CHILDREN ||
-    reason === ApiFieldReason.OVERLAP_CONFLICT
-  ) {
+  if (reason === ApiFieldReason.HAS_CHILDREN) {
     handleError(error);
     return false;
   }
 
+  // Prefer Nest message when it names the conflicting guest / stay.
+  const mapped = FIELD_REASON_MESSAGE[reason as ApiFieldReasonType];
   const message =
-    FIELD_REASON_MESSAGE[reason as ApiFieldReasonType] ?? error.message;
+    reason === ApiFieldReason.OVERLAP_CONFLICT && error.message
+      ? error.message
+      : (mapped ?? error.message);
 
   setError(field as FieldPath<TFieldValues>, {
     type: "server",

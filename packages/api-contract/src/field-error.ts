@@ -40,10 +40,10 @@ export type HasChildrenDetails = ApiFieldError & {
   reservationCount?: number;
 };
 
-/** 409 overlap payload — toast/dialog, not RHF field highlight. */
+/** 409 overlap — highlight stay dates (`checkInDate` / `startDate`), not unit. */
 export type OverlapConflictDetails = ApiFieldError & {
   reason: typeof ApiFieldReason.OVERLAP_CONFLICT;
-  conflictingReservation: {
+  conflictingReservation?: {
     id: string;
     guestName: string;
     source: string;

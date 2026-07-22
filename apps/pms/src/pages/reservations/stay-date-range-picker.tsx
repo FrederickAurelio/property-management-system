@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { addMonths, format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, XIcon } from "lucide-react";
 import type { DateRange, Matcher } from "react-day-picker";
 import type { UnitOccupancyBlock } from "@cabin/api-contract";
 import { QueryErrorPanel } from "@/components/query-error-panel";
@@ -138,6 +138,7 @@ const COPY = {
     pickEnd: "Pick check-out to finish the range",
     exclusive: " · check-out is exclusive",
     busyNoun: "a booked night",
+    clearDates: "Clear dates",
   },
   block: {
     panelLabel: "Block dates",
@@ -151,6 +152,7 @@ const COPY = {
     pickEnd: "Pick end to finish the range",
     exclusive: " · end is exclusive",
     busyNoun: "a busy night",
+    clearDates: "Clear dates",
   },
 } as const;
 
@@ -267,6 +269,14 @@ export function StayDateRangePicker({
     setOpen(false);
   };
 
+  const hasCommittedRange = Boolean(checkInDate || checkOutDate);
+  const hasDraftRange = Boolean(draftFrom);
+
+  const handleClear = () => {
+    setDraft(undefined);
+    onChange({ checkInDate: "", checkOutDate: "" });
+  };
+
   /**
    * Do NOT put booked nights in `disabled` — RDP makes disabled days
    * unclickable, but exclusive checkout may land on the next guest’s
@@ -319,27 +329,44 @@ export function StayDateRangePicker({
   }, [open]);
 
   const triggerButton = (
-    <Button
-      type="button"
-      variant="outline"
-      id={id}
-      aria-invalid={invalid}
-      aria-expanded={open}
-      aria-controls={open ? `${id}-panel` : undefined}
-      data-empty={!checkInDate || !checkOutDate}
-      className={cn(
-        "w-full justify-start px-2.5 font-normal",
-        "data-[empty=true]:text-muted-foreground",
+    <div className="flex w-full gap-1.5">
+      <Button
+        type="button"
+        variant="outline"
+        id={id}
+        aria-invalid={invalid}
+        aria-expanded={open}
+        aria-controls={open ? `${id}-panel` : undefined}
+        data-empty={!checkInDate || !checkOutDate}
+        className={cn(
+          "min-w-0 flex-1 justify-start px-2.5 font-normal",
+          "data-[empty=true]:text-muted-foreground",
+        )}
+        onClick={() => {
+          handleOpenChange(!open);
+        }}
+      >
+        <CalendarIcon data-icon="inline-start" />
+        <span className="truncate">
+          {formatRangeLabel(checkInDate, checkOutDate, labels.emptyTrigger)}
+        </span>
+      </Button>
+      {hasCommittedRange && (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          aria-label={labels.clearDates}
+          onClick={() => {
+            handleClear();
+            setOpen(false);
+          }}
+        >
+          <XIcon />
+        </Button>
       )}
-      onClick={() => {
-        handleOpenChange(!open);
-      }}
-    >
-      <CalendarIcon data-icon="inline-start" />
-      <span className="truncate">
-        {formatRangeLabel(checkInDate, checkOutDate, labels.emptyTrigger)}
-      </span>
-    </Button>
+    </div>
   );
 
   const panel = occupancyError ? (
@@ -578,32 +605,45 @@ export function StayDateRangePicker({
             labels.pickStart
           )}
         </p>
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              handleOpenChange(false);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            disabled={!canConfirm}
-            onClick={handleConfirm}
-          >
-            Confirm dates
-          </Button>
+        <div className="flex items-center justify-between gap-2">
+          {(hasDraftRange || hasCommittedRange) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={handleClear}
+            >
+              {labels.clearDates}
+            </Button>
+          )}
+          <div className="ml-auto flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                handleOpenChange(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={!canConfirm}
+              onClick={handleConfirm}
+            >
+              Confirm dates
+            </Button>
+          </div>
         </div>
       </div>
     </>
   );
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 text-foreground">
       {triggerButton}
       {open && (
         <div
@@ -611,7 +651,7 @@ export function StayDateRangePicker({
           id={`${id}-panel`}
           role="region"
           aria-label={labels.panelLabel}
-          className="overflow-hidden rounded-lg bg-popover ring-1 ring-foreground/10"
+          className="overflow-hidden rounded-lg bg-popover text-foreground ring-1 ring-foreground/10"
         >
           {panel}
         </div>

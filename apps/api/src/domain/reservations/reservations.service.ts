@@ -866,9 +866,9 @@ export class ReservationsService {
 
   private throwOverlap(hit: OverlapHit): never {
     throw new ConflictException({
-      message: `Unit already occupied by ${hit.guestName}`,
+      message: `These dates overlap a stay by ${hit.guestName}`,
       details: {
-        field: 'unitId',
+        field: 'checkInDate',
         reason: ApiFieldReason.OVERLAP_CONFLICT,
         conflictingReservation: {
           id: hit.id,
@@ -896,9 +896,9 @@ export class ReservationsService {
         error.message.includes('Reservation_unit_occupying_excl'))
     ) {
       throw new ConflictException({
-        message: 'Unit already occupied for these dates',
+        message: 'These dates overlap an existing stay on this unit',
         details: {
-          field: 'unitId',
+          field: 'checkInDate',
           reason: ApiFieldReason.OVERLAP_CONFLICT,
         },
       });
@@ -909,9 +909,9 @@ export class ReservationsService {
       /Reservation_unit_occupying_excl|exclusion|23P01/i.test(error.message)
     ) {
       throw new ConflictException({
-        message: 'Unit already occupied for these dates',
+        message: 'These dates overlap an existing stay on this unit',
         details: {
-          field: 'unitId',
+          field: 'checkInDate',
           reason: ApiFieldReason.OVERLAP_CONFLICT,
         },
       });

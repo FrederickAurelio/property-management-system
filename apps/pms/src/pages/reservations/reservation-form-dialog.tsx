@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: reservation create/edit CONFIRMED matrix */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   RESERVATION_GUEST_EMAIL_MAX,
   RESERVATION_GUEST_NAME_MAX,
@@ -7,6 +7,7 @@ import {
   RESERVATION_GUEST_PHONE_MAX,
   RESERVATION_NOTES_MAX,
   ReservationSource,
+  UnitAvailabilityBlockReason,
   isPlaceholderGuestName,
   suggestStayTotalIdr,
   type StaffReservation,
@@ -46,20 +47,11 @@ import {
   updateReservation,
 } from "@/lib/api";
 import { IdrAmountInput } from "@/components/form/idr-amount-input";
-import {
-  formatIdr,
-  formatIdrInput,
-} from "@/pages/properties/inventory-types";
-import {
-  formatReservationSource,
-  nightCount,
-} from "./reservation-format";
+import { formatIdr, formatIdrInput } from "@/pages/properties/inventory-types";
+import { formatReservationSource, nightCount } from "./reservation-format";
 import { StayDateRangePicker } from "./stay-date-range-picker";
 import { ChosenUnitField } from "./chosen-unit-field";
-import {
-  chosenFromReservation,
-  type ChosenUnit,
-} from "./chosen-unit";
+import { chosenFromReservation, type ChosenUnit } from "./chosen-unit";
 import { UnitInventoryPicker } from "./unit-inventory-picker";
 import { findStaffUnitTypeDefaultPriceIdr } from "@/pages/properties/explorer-nav-state";
 
@@ -200,9 +192,8 @@ export function ReservationFormDialog({
   const isEdit = Boolean(reservation);
   const isConfirmEnrich = intent === "confirm-enrich";
   const queryClient = useQueryClient();
-  const [pickerOpen, setPickerOpen] = useState(
-    () =>
-      Boolean(autoOpenUnitPicker && !reservation && !initialChosen),
+  const [pickerOpen, setPickerOpen] = useState(() =>
+    Boolean(autoOpenUnitPicker && !reservation && !initialChosen),
   );
   /** `undefined` = fall back to reservation / initialChosen; `null` = cleared; else user pick. */
   const [picked, setPicked] = useState<ChosenUnit | null | undefined>(
@@ -307,8 +298,7 @@ export function ReservationFormDialog({
     checkInDate && checkOutDate && checkOutDate > checkInDate
       ? nightCount(checkInDate, checkOutDate)
       : 0;
-  const totalAmount =
-    totalDigits === "" ? null : Number(totalDigits || "0");
+  const totalAmount = totalDigits === "" ? null : Number(totalDigits || "0");
   const paidAmount = Number(paidDigits || "0");
   const refundAmount =
     totalAmount != null &&
@@ -335,9 +325,7 @@ export function ReservationFormDialog({
   });
 
   const datesReady =
-    Boolean(checkInDate) &&
-    Boolean(checkOutDate) &&
-    checkOutDate > checkInDate;
+    Boolean(checkInDate) && Boolean(checkOutDate) && checkOutDate > checkInDate;
 
   /** 2a: when stay dates change, re-check the chosen unit against availability. */
   const unitAvailabilityQuery = useQuery({
@@ -345,18 +333,14 @@ export function ReservationFormDialog({
       checkInDate,
       checkOutDate,
       unitTypeId: chosen?.unitTypeId,
-      ...(reservation?.id
-        ? { excludeReservationId: reservation.id }
-        : {}),
+      ...(reservation?.id ? { excludeReservationId: reservation.id } : {}),
     }),
     queryFn: () =>
       listAvailableUnits(chosen!.propertyId, {
         checkInDate,
         checkOutDate,
         unitTypeId: chosen!.unitTypeId,
-        ...(reservation?.id
-          ? { excludeReservationId: reservation.id }
-          : {}),
+        ...(reservation?.id ? { excludeReservationId: reservation.id } : {}),
       }),
     enabled:
       open &&
@@ -368,18 +352,47 @@ export function ReservationFormDialog({
     staleTime: 0,
   });
 
-  /** Last availability key we already cleared for (avoid toast loops). */
+  /** Last hard-block key we already cleared for (avoid toast loops). */
   const clearedUnitKeyRef = useRef<string | null>(null);
+
+  /** Soft conflict: keep unit, highlight stay dates until range is free. */
+  const dateOverlapConflict = useMemo(() => {
+    if (!chosen || !datesReady || !unitAvailabilityQuery.isSuccess) {
+      return false;
+    }
+    const row = unitAvailabilityQuery.data.find((u) => u.id === chosen.unitId);
+    return (
+      Boolean(row) &&
+      !row!.available &&
+      row!.blockReason === UnitAvailabilityBlockReason.DATE_OVERLAP
+    );
+  }, [
+    chosen,
+    datesReady,
+    unitAvailabilityQuery.isSuccess,
+    unitAvailabilityQuery.data,
+  ]);
+
+  const dateOverlapError = dateOverlapConflict
+    ? {
+        message:
+          "These dates overlap a booking on this unit — change dates or choose another unit.",
+      }
+    : undefined;
 
   useEffect(() => {
     if (!open || !chosen || !unitAvailabilityQuery.isSuccess) {
       return;
     }
     const row = unitAvailabilityQuery.data.find((u) => u.id === chosen.unitId);
-    if (row?.available) {
+    if (!row || row.available) {
       return;
     }
-    const key = `${chosen.unitId}:${checkInDate}:${checkOutDate}`;
+    // Soft date conflict — keep unit; field error via dateOverlapConflict.
+    if (row.blockReason === UnitAvailabilityBlockReason.DATE_OVERLAP) {
+      return;
+    }
+    const key = `${chosen.unitId}:${checkInDate}:${checkOutDate}:${row.blockReason}`;
     if (clearedUnitKeyRef.current === key) {
       return;
     }
@@ -387,9 +400,7 @@ export function ReservationFormDialog({
     setPicked(null);
     form.setValue("unitId", "", { shouldDirty: true, shouldValidate: true });
     handleError(
-      new Error(
-        "That unit isn’t free for these dates — choose another unit.",
-      ),
+      new Error("That unit isn’t bookable for these dates — choose another."),
     );
   }, [
     open,
@@ -515,10 +526,7 @@ export function ReservationFormDialog({
       onSaved?.(saved);
     },
     onError: (error) => {
-      if (applyApiFieldError(error, form.setError)) {
-        return;
-      }
-      handleError(error);
+      applyApiFieldError(error, form.setError);
     },
   });
 
@@ -540,132 +548,121 @@ export function ReservationFormDialog({
 
   return (
     <>
-    <ResponsiveFormShell
-      open={open && !pickerOpen}
-      onOpenChange={(next) => {
-        if (pickerOpen) {
-          return;
-        }
-        handleOpenChange(next);
-      }}
-      title={title}
-      description={description}
-      size="lg"
-      footer={
-        <>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              handleOpenChange(false);
-            }}
-            disabled={saveMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="reservation-form"
-            disabled={saveMutation.isPending || (!isEdit && !chosen)}
-          >
-            {saveMutation.isPending
-              ? "Saving…"
-              : isConfirmEnrich
-                ? "Save & confirm"
-                : isEdit
-                  ? "Save changes"
-                  : "Create"}
-          </Button>
-        </>
-      }
-    >
-      <form id="reservation-form" className="flex flex-col gap-5" onSubmit={onSubmit}>
-        <FieldGroup className="gap-4">
-          <p className="text-sm font-medium text-foreground">Stay</p>
-          <ChosenUnitField
-            chosen={chosen}
-            onChoose={() => {
-              setPickerOpen(true);
-            }}
-            invalid={Boolean(form.formState.errors.unitId)}
-            error={form.formState.errors.unitId}
-            unitIdInputProps={form.register("unitId")}
-          />
-
-          <Field
-            data-invalid={Boolean(
-              form.formState.errors.checkInDate ||
-                form.formState.errors.checkOutDate,
-            )}
-          >
-            <FieldLabel htmlFor="stay-dates">Stay dates</FieldLabel>
-            <StayDateRangePicker
-              id="stay-dates"
-              checkInDate={checkInDate}
-              checkOutDate={checkOutDate}
-              unitId={chosen?.unitId}
-              excludeReservationId={reservation?.id}
-              invalid={Boolean(
-                form.formState.errors.checkInDate ||
-                  form.formState.errors.checkOutDate,
-              )}
-              onChange={({ checkInDate, checkOutDate }) => {
-                const complete = Boolean(checkInDate && checkOutDate);
-                form.setValue("checkInDate", checkInDate, {
-                  shouldDirty: true,
-                  shouldValidate: complete,
-                });
-                form.setValue("checkOutDate", checkOutDate, {
-                  shouldDirty: true,
-                  shouldValidate: complete,
-                });
+      <ResponsiveFormShell
+        open={open && !pickerOpen}
+        onOpenChange={(next) => {
+          if (pickerOpen) {
+            return;
+          }
+          handleOpenChange(next);
+        }}
+        title={title}
+        description={description}
+        size="lg"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                handleOpenChange(false);
               }}
+              disabled={saveMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="reservation-form"
+              disabled={
+                saveMutation.isPending ||
+                (!isEdit && !chosen) ||
+                dateOverlapConflict
+              }
+            >
+              {saveMutation.isPending
+                ? "Saving…"
+                : isConfirmEnrich
+                  ? "Save & confirm"
+                  : isEdit
+                    ? "Save changes"
+                    : "Create"}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="reservation-form"
+          className="flex flex-col gap-5"
+          onSubmit={onSubmit}
+        >
+          <FieldGroup className="gap-4">
+            <p className="text-sm font-medium text-foreground">Stay</p>
+            <ChosenUnitField
+              chosen={chosen}
+              onChoose={() => {
+                setPickerOpen(true);
+              }}
+              invalid={Boolean(form.formState.errors.unitId)}
+              error={form.formState.errors.unitId}
+              unitIdInputProps={form.register("unitId")}
             />
-            <FieldError
-              errors={[
-                form.formState.errors.checkInDate,
-                form.formState.errors.checkOutDate,
-              ]}
-            />
-          </Field>
-        </FieldGroup>
 
-        <FieldGroup className="gap-4">
-          <p className="text-sm font-medium text-foreground">Guest</p>
-          <Controller
-            control={form.control}
-            name="guestName"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="guest-name">Guest name</FieldLabel>
-                <Input
-                  id="guest-name"
-                  autoComplete="name"
-                  autoFocus={isConfirmEnrich}
-                  placeholder="Full name"
-                  maxLength={RESERVATION_GUEST_NAME_MAX}
-                  aria-invalid={fieldState.invalid}
-                  {...field}
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
+            <Field
+              data-invalid={Boolean(
+                form.formState.errors.checkInDate ||
+                form.formState.errors.checkOutDate ||
+                dateOverlapConflict,
+              )}
+            >
+              <FieldLabel htmlFor="stay-dates">Stay dates</FieldLabel>
+              <StayDateRangePicker
+                id="stay-dates"
+                checkInDate={checkInDate}
+                checkOutDate={checkOutDate}
+                unitId={chosen?.unitId}
+                excludeReservationId={reservation?.id}
+                invalid={Boolean(
+                  form.formState.errors.checkInDate ||
+                  form.formState.errors.checkOutDate ||
+                  dateOverlapConflict,
+                )}
+                onChange={({ checkInDate, checkOutDate }) => {
+                  const complete = Boolean(checkInDate && checkOutDate);
+                  form.setValue("checkInDate", checkInDate, {
+                    shouldDirty: true,
+                    shouldValidate: complete,
+                  });
+                  form.setValue("checkOutDate", checkOutDate, {
+                    shouldDirty: true,
+                    shouldValidate: complete,
+                  });
+                }}
+              />
+              <FieldError
+                errors={[
+                  form.formState.errors.checkInDate,
+                  form.formState.errors.checkOutDate,
+                  dateOverlapError,
+                ]}
+              />
+            </Field>
+          </FieldGroup>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <FieldGroup className="gap-4">
+            <p className="text-sm font-medium text-foreground">Guest</p>
             <Controller
               control={form.control}
-              name="guestPhone"
+              name="guestName"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="guest-phone">Phone</FieldLabel>
+                  <FieldLabel htmlFor="guest-name">Guest name</FieldLabel>
                   <Input
-                    id="guest-phone"
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    placeholder="08…"
-                    maxLength={RESERVATION_GUEST_PHONE_MAX}
+                    id="guest-name"
+                    autoComplete="name"
+                    autoFocus={isConfirmEnrich}
+                    placeholder="Full name"
+                    maxLength={RESERVATION_GUEST_NAME_MAX}
                     aria-invalid={fieldState.invalid}
                     {...field}
                   />
@@ -673,246 +670,269 @@ export function ReservationFormDialog({
                 </Field>
               )}
             />
-            <Controller
-              control={form.control}
-              name="guestEmail"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="guest-email">Email</FieldLabel>
-                  <Input
-                    id="guest-email"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="Optional if phone set"
-                    maxLength={RESERVATION_GUEST_EMAIL_MAX}
-                    aria-invalid={fieldState.invalid}
-                    {...field}
-                  />
-                  <FieldError errors={[fieldState.error]} />
-                </Field>
-              )}
-            />
-          </div>
-          <p className="-mt-2 text-xs text-muted-foreground">
-            Phone or email required — phone first is fine for walk-ins.
-          </p>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Controller
-              control={form.control}
-              name="guestCount"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="guest-count">Guests</FieldLabel>
-                  <Input
-                    id="guest-count"
-                    type="number"
-                    min={1}
-                    step={1}
-                    inputMode="numeric"
-                    autoComplete="off"
-                    placeholder="1"
-                    aria-invalid={fieldState.invalid}
-                    value={field.value}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (raw === "") {
-                        field.onChange("");
-                        return;
-                      }
-                      const n = Number(raw);
-                      if (!Number.isFinite(n)) {
-                        return;
-                      }
-                      field.onChange(Math.max(1, Math.floor(n)));
-                    }}
-                  />
-                  <FieldError errors={[fieldState.error]} />
-                </Field>
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="source"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel>Source</FieldLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger aria-invalid={fieldState.invalid}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {SOURCE_OPTIONS.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {formatReservationSource(s)}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <FieldError errors={[fieldState.error]} />
-                </Field>
-              )}
-            />
-          </div>
-        </FieldGroup>
-
-        <FieldGroup className="gap-4">
-          <p className="text-sm font-medium text-foreground">Money</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Controller
-              control={form.control}
-              name="totalDigits"
-              render={({ field, fieldState }) => {
-                const currentTotal =
-                  field.value === "" ? null : Number(field.value || "0");
-                const divergedFromSuggest =
-                  suggestedTotal != null &&
-                  currentTotal != null &&
-                  Number.isFinite(currentTotal) &&
-                  currentTotal !== suggestedTotal;
-
-                return (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Controller
+                control={form.control}
+                name="guestPhone"
+                render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="stay-total">Total (IDR)</FieldLabel>
-                    <IdrAmountInput
-                      id="stay-total"
-                      placeholder={
-                        suggestedTotal != null
-                          ? formatIdrInput(String(suggestedTotal))
-                          : "0"
-                      }
+                    <FieldLabel htmlFor="guest-phone">Phone</FieldLabel>
+                    <Input
+                      id="guest-phone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      placeholder="08…"
+                      maxLength={RESERVATION_GUEST_PHONE_MAX}
+                      aria-invalid={fieldState.invalid}
+                      {...field}
+                    />
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="guestEmail"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="guest-email">Email</FieldLabel>
+                    <Input
+                      id="guest-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="Optional if phone set"
+                      maxLength={RESERVATION_GUEST_EMAIL_MAX}
+                      aria-invalid={fieldState.invalid}
+                      {...field}
+                    />
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+            </div>
+            <p className="-mt-2 text-xs text-muted-foreground">
+              Phone or email required — phone first is fine for walk-ins.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Controller
+                control={form.control}
+                name="guestCount"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="guest-count">Guests</FieldLabel>
+                    <Input
+                      id="guest-count"
+                      type="number"
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder="1"
                       aria-invalid={fieldState.invalid}
                       value={field.value}
-                      onValueChange={field.onChange}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === "") {
+                          field.onChange("");
+                          return;
+                        }
+                        const n = Number(raw);
+                        if (!Number.isFinite(n)) {
+                          return;
+                        }
+                        field.onChange(Math.max(1, Math.floor(n)));
+                      }}
+                    />
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="source"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel>Source</FieldLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger aria-invalid={fieldState.invalid}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {SOURCE_OPTIONS.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {formatReservationSource(s)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+            </div>
+          </FieldGroup>
+
+          <FieldGroup className="gap-4">
+            <p className="text-sm font-medium text-foreground">Money</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Controller
+                control={form.control}
+                name="totalDigits"
+                render={({ field, fieldState }) => {
+                  const currentTotal =
+                    field.value === "" ? null : Number(field.value || "0");
+                  const divergedFromSuggest =
+                    suggestedTotal != null &&
+                    currentTotal != null &&
+                    Number.isFinite(currentTotal) &&
+                    currentTotal !== suggestedTotal;
+
+                  return (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="stay-total">Total (IDR)</FieldLabel>
+                      <IdrAmountInput
+                        id="stay-total"
+                        placeholder={
+                          suggestedTotal != null
+                            ? formatIdrInput(String(suggestedTotal))
+                            : "0"
+                        }
+                        aria-invalid={fieldState.invalid}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                      {suggestedTotal != null && rackPriceIdr != null && (
+                        <p className="text-xs text-muted-foreground">
+                          {nights} night{nights === 1 ? "" : "s"} ×{" "}
+                          {formatIdr(rackPriceIdr)}
+                          /night = {formatIdr(suggestedTotal)}
+                          {divergedFromSuggest ? (
+                            <>
+                              {" · "}
+                              <button
+                                type="button"
+                                className="underline underline-offset-2 hover:text-foreground"
+                                onClick={() => {
+                                  form.setValue(
+                                    "totalDigits",
+                                    String(suggestedTotal),
+                                    {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    },
+                                  );
+                                }}
+                              >
+                                Use suggested
+                              </button>
+                            </>
+                          ) : null}
+                        </p>
+                      )}
+                      <FieldError errors={[fieldState.error]} />
+                    </Field>
+                  );
+                }}
+              />
+              <Controller
+                control={form.control}
+                name="paidDigits"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="stay-deposit">
+                      {isEdit ? "Paid (IDR)" : "Deposit now (IDR)"}
+                    </FieldLabel>
+                    <IdrAmountInput
+                      id="stay-deposit"
+                      placeholder="0"
+                      disabled={isEdit}
+                      aria-invalid={fieldState.invalid}
+                      value={field.value}
+                      onValueChange={(digits) => {
+                        if (isEdit) {
+                          return;
+                        }
+                        field.onChange(digits);
+                      }}
                       onBlur={field.onBlur}
                       name={field.name}
                       ref={field.ref}
                     />
-                    {suggestedTotal != null && rackPriceIdr != null && (
+                    {isEdit ? (
                       <p className="text-xs text-muted-foreground">
-                        {nights} night{nights === 1 ? "" : "s"} ×{" "}
-                        {formatIdr(rackPriceIdr)}
-                        /night = {formatIdr(suggestedTotal)}
-                        {divergedFromSuggest ? (
-                          <>
-                            {" · "}
-                            <button
-                              type="button"
-                              className="underline underline-offset-2 hover:text-foreground"
-                              onClick={() => {
-                                form.setValue(
-                                  "totalDigits",
-                                  String(suggestedTotal),
-                                  {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  },
-                                );
-                              }}
-                            >
-                              Use suggested
-                            </button>
-                          </>
-                        ) : null}
+                        Use Collect or Refund on the reservation for money in or
+                        out.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Optional opening deposit. Leave 0 if paying later.
                       </p>
                     )}
+                    {refundAmount > 0 ? (
+                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                        Refund {formatIdr(refundAmount)} — Paid is above Total.
+                        Save the quote, then use Refund to return the excess.
+                      </p>
+                    ) : null}
                     <FieldError errors={[fieldState.error]} />
                   </Field>
-                );
-              }}
-            />
+                )}
+              />
+            </div>
+          </FieldGroup>
+
+          <FieldGroup>
             <Controller
               control={form.control}
-              name="paidDigits"
+              name="notes"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="stay-deposit">
-                    {isEdit ? "Paid (IDR)" : "Deposit now (IDR)"}
-                  </FieldLabel>
-                  <IdrAmountInput
-                    id="stay-deposit"
-                    placeholder="0"
-                    disabled={isEdit}
+                  <FieldLabel htmlFor="stay-notes">Notes</FieldLabel>
+                  <Textarea
+                    id="stay-notes"
+                    rows={2}
+                    maxLength={RESERVATION_NOTES_MAX}
+                    placeholder="Optional — special requests, channel ref…"
                     aria-invalid={fieldState.invalid}
-                    value={field.value}
-                    onValueChange={(digits) => {
-                      if (isEdit) {
-                        return;
-                      }
-                      field.onChange(digits);
-                    }}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                    ref={field.ref}
+                    {...field}
                   />
-                  {isEdit ? (
-                    <p className="text-xs text-muted-foreground">
-                      Use Collect or Refund on the reservation for money in or
-                      out.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Optional opening deposit. Leave 0 if paying later.
-                    </p>
-                  )}
-                  {refundAmount > 0 ? (
-                    <p className="text-xs text-amber-800 dark:text-amber-200">
-                      Refund {formatIdr(refundAmount)} — Paid is above Total.
-                      Save the quote, then use Refund to return the excess.
-                    </p>
-                  ) : null}
                   <FieldError errors={[fieldState.error]} />
                 </Field>
               )}
             />
-          </div>
-        </FieldGroup>
-
-        <FieldGroup>
-          <Controller
-            control={form.control}
-            name="notes"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="stay-notes">Notes</FieldLabel>
-                <Textarea
-                  id="stay-notes"
-                  rows={2}
-                  maxLength={RESERVATION_NOTES_MAX}
-                  placeholder="Optional — special requests, channel ref…"
-                  aria-invalid={fieldState.invalid}
-                  {...field}
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-        </FieldGroup>
-      </form>
-    </ResponsiveFormShell>
-    {pickerOpen ? (
-      <UnitInventoryPicker
-        open
-        onOpenChange={setPickerOpen}
-        checkInDate={checkInDate}
-        checkOutDate={checkOutDate}
-        initialPropertyId={chosen?.propertyId ?? initialPropertyId}
-        initialPropertyName={chosen?.propertyName ?? initialPropertyName}
-        initialUnitTypeId={chosen?.unitTypeId ?? ""}
-        initialUnitTypeName={chosen?.unitTypeName ?? ""}
-        initialUnitId={chosen?.unitId ?? ""}
-        excludeReservationId={reservation?.id}
-        onConfirm={(next) => {
-          setPicked(next);
-          form.setValue("unitId", next.unitId, {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
-        }}
-      />
-    ) : null}
+          </FieldGroup>
+        </form>
+      </ResponsiveFormShell>
+      {pickerOpen ? (
+        <UnitInventoryPicker
+          open
+          onOpenChange={setPickerOpen}
+          checkInDate={checkInDate}
+          checkOutDate={checkOutDate}
+          initialPropertyId={chosen?.propertyId ?? initialPropertyId}
+          initialPropertyName={chosen?.propertyName ?? initialPropertyName}
+          initialUnitTypeId={chosen?.unitTypeId ?? ""}
+          initialUnitTypeName={chosen?.unitTypeName ?? ""}
+          initialUnitId={chosen?.unitId ?? ""}
+          excludeReservationId={reservation?.id}
+          onConfirm={(next) => {
+            clearedUnitKeyRef.current = null;
+            setPicked(next);
+            form.setValue("unitId", next.unitId, {
+              shouldValidate: true,
+              shouldDirty: true,
+            });
+          }}
+        />
+      ) : null}
     </>
   );
 }
