@@ -22,8 +22,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      // PMS only — do not proxy /api/public (Phase 2 web) or /health through this origin
       proxy: {
-        "/api": {
+        "/api/staff": {
           target: apiTarget,
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/api/, ""),

@@ -25,7 +25,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 | UI           | React + Vite + TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) · Lucide     |
 | Routing      | `react-router` declarative (`BrowserRouter` + `Routes`)                           |
 | Server state | `@tanstack/react-query`                                                           |
-| HTTP         | `axios` · `baseURL: "/api"` · Vite/prod reverse-proxy to Nest                     |
+| HTTP         | `axios` · `baseURL: "/api"` · paths `/staff/...` · proxy only `/api/staff` → Nest |
 | Forms        | `react-hook-form` + `zod` + `@hookform/resolvers` · shadcn `Field` + `Controller` |
 | Toasts       | Sonner (`handleSuccess` / `handleError`)                                          |
 | Theme        | `next-themes` (`ThemeProvider` + `ThemeToggle`) · class strategy (`.dark`)        |
@@ -36,7 +36,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Call sites: `api.get` / `api.post` / `api.patch` / `api.delete`. Interceptors handle envelope + errors.
 - Shared HTTP contract types: `@cabin/api-contract` (envelope, codes, `StaffAdmin`, `AdminRole`) — do not duplicate cross-app types here.
 - `withCredentials: true` (cookie `cabin.pms.sid`).
-- `baseURL: "/api"`. Dev: Vite proxies `/api` → Nest (`VITE_API_URL`, default `http://localhost:3000`) and strips the prefix. Prod: reverse-proxy `/api` the same way.
+- `baseURL: "/api"` + Nest paths `/staff/...` → browser `/api/staff/...`. Dev: Vite proxies **only** `/api/staff` → Nest (`VITE_API_URL`, default `http://localhost:3000`) and strips `/api`. Prod nginx: same (`location /api/staff/`). Do **not** proxy `/api/public` or `/health` through PMS — Phase 2 `web` owns `/api/public`.
 - Success `{ data, meta? }` → interceptor sets `response.data` to unwrapped `data` → `(await api.get<T>(…)).data`.
 - Errors `{ error: { code, message, details? } }` → throws `ApiError`. Also maps timeout / network / 502–504 to FE-only codes (`TIMEOUT`, `NETWORK_ERROR`, `SERVER_UNAVAILABLE`).
 - Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers) — paths `/staff/auth/*`.

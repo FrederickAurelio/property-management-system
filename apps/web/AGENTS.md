@@ -8,7 +8,7 @@ Phase 2 is **not** “when reservations or payments begin.” Phase 1 staff PMS 
 
 **Undecided.** Choose when Phase 2 starts. Do not assume the same stack as `pms`.
 
-Whatever the FE is, bookings write to shared `apps/api` via `/public/...` → `domain/reservations` (same columns: status, source, total/paid/`paymentStatus`).
+Whatever the FE is, bookings write to shared `apps/api` via `/public/...` → `domain/reservations` (same columns: status, source, total/paid/`paymentStatus`). Dev/prod reverse-proxy should expose **only** `/api/public` → Nest `/public` (PMS already scopes its proxy to `/api/staff` only).
 
 ## Phase 2 scope
 

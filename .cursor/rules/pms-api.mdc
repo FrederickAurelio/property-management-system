@@ -9,6 +9,7 @@ alwaysApply: false
 - Import `api` from `src/lib/api` only — no second axios instance or raw `fetch` to Nest.
 - Shared wire types from `@cabin/api-contract` (`StaffAdmin`, `StaffProperty`, `Paginated`, …) — do not duplicate cross-app contracts here.
 - Nest paths are under `/staff/...` (auth, admins, inventory). Do not invent audience-neutral API paths.
+- Browser URL is `/api` + `/staff/...`. Vite/nginx proxy **only** `/api/staff` → Nest (not `/api/public`).
 - Inventory helpers: `properties.ts` / `unit-types.ts` / `units.ts` — lists return `Paginated<T>`; detail GETs exist for chrome (breadcrumbs).
 - `withCredentials: true` (cookie `cabin.pms.sid`). Interceptors own envelope unwrap + `ApiError`.
 - Toasts (`handleSuccess` / `handleError`) in screens/mutations — not inside the interceptor.

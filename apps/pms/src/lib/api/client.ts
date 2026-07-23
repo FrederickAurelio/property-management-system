@@ -138,7 +138,11 @@ function mapAxiosError(error: AxiosError): ApiError {
   });
 }
 
-/** Shared axios instance — use `api.get` / `api.post` / … */
+/**
+ * Shared axios instance — use `api.get` / `api.post` / …
+ * Paths are Nest `/staff/...`; with baseURL that is browser `/api/staff/...`.
+ * Vite + prod nginx proxy only `/api/staff` (not `/api/public`).
+ */
 export const api: AxiosInstance = axios.create({
   baseURL: "/api",
   withCredentials: true,
