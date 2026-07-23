@@ -56,6 +56,7 @@ jobs:
             docker compose build --progress=plain pms
             docker compose up -d
             docker compose exec -T api npx prisma migrate deploy
+            docker compose exec -T api node dist/scripts/seed.js
 
             for img in cabin-api cabin-pms; do
               docker images --format '{{.Repository}}:{{.Tag}}' "$img" | while read -r ref; do

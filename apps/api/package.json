@@ -27,10 +27,11 @@
     "prisma:studio": "dotenv -e ../../.env -- prisma studio",
     "prisma:status": "dotenv -e ../../.env -- prisma migrate status",
     "prisma:seed": "dotenv -e ../../.env -- prisma db seed",
+    "prisma:seed:prod": "node dist/scripts/seed.js",
     "postinstall": "dotenv -e ../../.env -- prisma generate"
   },
   "prisma": {
-    "seed": "dotenv -e ../../.env -- ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+    "seed": "dotenv -e ../../.env -- ts-node --compiler-options {\"module\":\"CommonJS\"} src/scripts/seed.ts"
   },
   "dependencies": {
     "@cabin/api-contract": "workspace:*",
