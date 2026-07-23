@@ -58,11 +58,22 @@ WORKDIR /app/apps/api
 RUN pnpm exec prisma generate
 RUN pnpm run build
 
+# Prod-only deploy bundle (~300MB vs copying full monorepo node_modules ~1.2GB+).
+# --legacy: pnpm v10+ workspace deploy without inject-workspace-packages.
+WORKDIR /app
+ENV CI=true
+RUN set -eux; \
+  pnpm deploy --filter=@cabin/api --prod --legacy /prod/api; \
+  rm -rf /prod/api/src /prod/api/test; \
+  prisma_pkg="$(ls -d /app/node_modules/.pnpm/prisma@6.19.3*/node_modules/prisma | head -1)"; \
+  cp -a "${prisma_pkg}" /prod/api/node_modules/; \
+  mkdir -p /prod/api/node_modules/.bin; \
+  ln -sf ../prisma/build/index.js /prod/api/node_modules/.bin/prisma
+
 # --- runtime ---
 FROM node:22-bookworm-slim AS runner
 
 ARG APT_MIRROR
-ARG NPM_REGISTRY
 
 WORKDIR /app
 
@@ -73,26 +84,13 @@ RUN set -eux; \
   fi; \
   apt-get update; \
   apt-get install -y --no-install-recommends openssl ca-certificates; \
-  rm -rf /var/lib/apt/lists/*; \
-  if [ -n "${NPM_REGISTRY}" ]; then \
-    npm install -g pnpm@11.3.0 --registry="${NPM_REGISTRY}"; \
-  else \
-    npm install -g pnpm@11.3.0; \
-  fi
+  rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
-COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/api-contract ./packages/api-contract
-COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
-COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
-
-WORKDIR /app/apps/api
+COPY --from=builder /prod/api ./
 
 EXPOSE 3000
 
-CMD ["node", "dist/main"]
+CMD ["node", "dist/main.js"]
