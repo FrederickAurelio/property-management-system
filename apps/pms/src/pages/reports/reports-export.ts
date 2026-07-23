@@ -84,30 +84,46 @@ export function buildReportsCsv(
     ),
   );
   sections.push("");
-  sections.push("# cash-by-method");
-  sections.push(
-    rowsToCsv(
-      ["method", "inIdr", "outIdr", "netIdr", "pctOfIn"],
-      summary.cash.byMethod.map((r) => [
-        methodLabel(r.method),
-        r.inIdr,
-        r.outIdr,
-        r.netIdr,
-        pctOfTotal(r.inIdr, summary.cash.inIdr),
-      ]),
-    ),
-  );
-  sections.push("");
   sections.push("# cash-by-source");
   sections.push(
     rowsToCsv(
-      ["source", "inIdr", "outIdr", "netIdr", "pctOfIn"],
+      ["source", "inIdr", "outIdr", "netIdr", "pctOfNet"],
       summary.cash.bySource.map((r) => [
         formatReservationSource(r.source),
         r.inIdr,
         r.outIdr,
         r.netIdr,
-        pctOfTotal(r.inIdr, summary.cash.inIdr),
+        pctOfTotal(r.netIdr, cashNetAbs),
+      ]),
+    ),
+  );
+  sections.push("");
+  sections.push("# cash-by-unit-type");
+  sections.push(
+    rowsToCsv(
+      ["unitType", "inIdr", "outIdr", "netIdr", "pctOfNet"],
+      [...summary.cash.byUnitType]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((r) => [
+          r.name,
+          r.inIdr,
+          r.outIdr,
+          r.netIdr,
+          pctOfTotal(r.netIdr, cashNetAbs),
+        ]),
+    ),
+  );
+  sections.push("");
+  sections.push("# cash-by-method");
+  sections.push(
+    rowsToCsv(
+      ["method", "inIdr", "outIdr", "netIdr", "pctOfNet"],
+      summary.cash.byMethod.map((r) => [
+        methodLabel(r.method),
+        r.inIdr,
+        r.outIdr,
+        r.netIdr,
+        pctOfTotal(r.netIdr, cashNetAbs),
       ]),
     ),
   );
@@ -118,7 +134,8 @@ export function buildReportsCsv(
     rowsToCsv(
       compareOn
         ? [
-            "scope",
+            "unitType",
+            "unit",
             "occupiedNights",
             "availableNights",
             "occupancyPct",
@@ -127,11 +144,18 @@ export function buildReportsCsv(
             "prevPct",
             "pctDelta",
           ]
-        : ["scope", "occupiedNights", "availableNights", "occupancyPct"],
+        : [
+            "unitType",
+            "unit",
+            "occupiedNights",
+            "availableNights",
+            "occupancyPct",
+          ],
       [
         compareOn && summary.occupancy.compare
           ? [
               "property",
+              "",
               summary.occupancy.occupiedNights,
               summary.occupancy.availableNights,
               summary.occupancy.occupancyPct,
@@ -142,29 +166,57 @@ export function buildReportsCsv(
             ]
           : [
               "property",
+              "",
               summary.occupancy.occupiedNights,
               summary.occupancy.availableNights,
               summary.occupancy.occupancyPct,
             ],
-        ...summary.occupancyByUnitType.map((row) =>
-          compareOn && row.compare
-            ? [
-                row.name,
-                row.occupiedNights,
-                row.availableNights,
-                row.occupancyPct,
-                row.compare.occupiedNights,
-                row.compare.availableNights,
-                row.compare.occupancyPct,
-                row.compare.occupancyPctDelta,
-              ]
-            : [
-                row.name,
-                row.occupiedNights,
-                row.availableNights,
-                row.occupancyPct,
-              ],
-        ),
+        ...summary.occupancyByUnitType.flatMap((row) => {
+          const typeRow =
+            compareOn && row.compare
+              ? [
+                  row.name,
+                  "",
+                  row.occupiedNights,
+                  row.availableNights,
+                  row.occupancyPct,
+                  row.compare.occupiedNights,
+                  row.compare.availableNights,
+                  row.compare.occupancyPct,
+                  row.compare.occupancyPctDelta,
+                ]
+              : [
+                  row.name,
+                  "",
+                  row.occupiedNights,
+                  row.availableNights,
+                  row.occupancyPct,
+                ];
+          const unitRows = [...row.units]
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((unit) =>
+              compareOn && unit.compare
+                ? [
+                    row.name,
+                    unit.name,
+                    unit.occupiedNights,
+                    unit.availableNights,
+                    unit.occupancyPct,
+                    unit.compare.occupiedNights,
+                    unit.compare.availableNights,
+                    unit.compare.occupancyPct,
+                    unit.compare.occupancyPctDelta,
+                  ]
+                : [
+                    row.name,
+                    unit.name,
+                    unit.occupiedNights,
+                    unit.availableNights,
+                    unit.occupancyPct,
+                  ],
+            );
+          return [typeRow, ...unitRows];
+        }),
       ],
     ),
   );
@@ -180,7 +232,7 @@ export function buildReportsCsv(
             "nights",
             "pctOfNights",
             "cashNetIdr",
-            "pctOfCashNet",
+            "pctOfNet",
             "prevNights",
             "prevPctOfNights",
             "shareDeltaPp",
@@ -192,7 +244,7 @@ export function buildReportsCsv(
             "nights",
             "pctOfNights",
             "cashNetIdr",
-            "pctOfCashNet",
+            "pctOfNet",
           ],
       summary.sourceMix.map((r) => {
         const cash = summary.cash.bySource.find((c) => c.source === r.source);

@@ -72,7 +72,7 @@ export function ReportsSourceMixSection({
                   <TableHead className="text-right">Nights</TableHead>
                   <TableHead className="text-right">% nights</TableHead>
                   <TableHead className="text-right">Cash net</TableHead>
-                  <TableHead className="text-right">% cash</TableHead>
+                  <TableHead className="text-right">% of net</TableHead>
                   {compare && (
                     <>
                       <TableHead className="text-right">Prev nights</TableHead>

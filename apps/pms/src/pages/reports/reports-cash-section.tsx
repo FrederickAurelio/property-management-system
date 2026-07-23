@@ -1,4 +1,5 @@
-/* anchor: Stripe-data cash hero, diverge: Net protagonist; In/Out/Net breakdowns */
+/* anchor: Stripe-data cash hero, diverge: Net protagonist; source→type→method */
+import type { ReactNode } from "react";
 import type { StaffReportsCash } from "@cabin/api-contract";
 import {
   Table,
@@ -26,9 +27,68 @@ type ReportsCashSectionProps = {
   compare: boolean;
 };
 
+function CashBreakdownTable({
+  labelColumn,
+  rows,
+  periodNetAbs,
+}: {
+  labelColumn: string;
+  rows: {
+    key: string;
+    label: ReactNode;
+    inIdr: number;
+    outIdr: number;
+    netIdr: number;
+  }[];
+  /** Absolute period net — share denominator (0 → all shares 0). */
+  periodNetAbs: number;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-lg border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="sticky left-0 z-10 bg-background">
+              {labelColumn}
+            </TableHead>
+            <TableHead className="text-right">In</TableHead>
+            <TableHead className="text-right">Out</TableHead>
+            <TableHead className="text-right">Net</TableHead>
+            <TableHead className="text-right">% of net</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.key}>
+              <TableCell className="sticky left-0 z-10 bg-background">
+                {row.label}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatIdr(row.inIdr)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatIdr(row.outIdr)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatIdr(row.netIdr)}
+              </TableCell>
+              <TableCell className="text-right text-muted-foreground tabular-nums">
+                {formatPct(pctOfTotal(row.netIdr, periodNetAbs))}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export function ReportsCashSection({ cash, compare }: ReportsCashSectionProps) {
   const empty = cash.inIdr === 0 && cash.outIdr === 0;
   const showCompare = compare && cash.compare != null;
+  const byUnitType = [...cash.byUnitType].sort(
+    (a, b) => a.sortOrder - b.sortOrder,
+  );
 
   return (
     <section className="flex flex-col gap-3 border-b border-border pb-6 md:gap-3.5 md:pb-5">
@@ -99,82 +159,46 @@ export function ReportsCashSection({ cash, compare }: ReportsCashSectionProps) {
 
       {!empty && (
         <div className="flex flex-col gap-3">
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="sticky left-0 z-10 bg-background">
-                    By method
-                  </TableHead>
-                  <TableHead className="text-right">In</TableHead>
-                  <TableHead className="text-right">Out</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
-                  <TableHead className="text-right">% of in</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cash.byMethod.map((row) => (
-                  <TableRow key={row.method ?? "unspecified"}>
-                    <TableCell className="sticky left-0 z-10 bg-background">
-                      {formatCollectedVia(row.method) ?? "Unspecified"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatIdr(row.inIdr)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatIdr(row.outIdr)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatIdr(row.netIdr)}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground tabular-nums">
-                      {formatPct(pctOfTotal(row.inIdr, cash.inIdr))}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <CashBreakdownTable
+            labelColumn="By source"
+            periodNetAbs={Math.abs(cash.netIdr) || 0}
+            rows={cash.bySource.map((row) => ({
+              key: row.source,
+              label: (
+                <SourceBadge
+                  source={row.source}
+                  label={formatReservationSource(row.source)}
+                />
+              ),
+              inIdr: row.inIdr,
+              outIdr: row.outIdr,
+              netIdr: row.netIdr,
+            }))}
+          />
 
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="sticky left-0 z-10 bg-background">
-                    By source
-                  </TableHead>
-                  <TableHead className="text-right">In</TableHead>
-                  <TableHead className="text-right">Out</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
-                  <TableHead className="text-right">% of in</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cash.bySource.map((row) => (
-                  <TableRow key={row.source}>
-                    <TableCell className="sticky left-0 z-10 bg-background">
-                      <SourceBadge
-                        source={row.source}
-                        label={formatReservationSource(row.source)}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatIdr(row.inIdr)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatIdr(row.outIdr)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatIdr(row.netIdr)}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground tabular-nums">
-                      {formatPct(pctOfTotal(row.inIdr, cash.inIdr))}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <CashBreakdownTable
+            labelColumn="By unit type"
+            periodNetAbs={Math.abs(cash.netIdr) || 0}
+            rows={byUnitType.map((row) => ({
+              key: row.unitTypeId ?? "ungrouped",
+              label: row.name,
+              inIdr: row.inIdr,
+              outIdr: row.outIdr,
+              netIdr: row.netIdr,
+            }))}
+          />
+
+          <CashBreakdownTable
+            labelColumn="By method"
+            periodNetAbs={Math.abs(cash.netIdr) || 0}
+            rows={cash.byMethod.map((row) => ({
+              key: row.method ?? "unspecified",
+              label: formatCollectedVia(row.method) ?? "Unspecified",
+              inIdr: row.inIdr,
+              outIdr: row.outIdr,
+              netIdr: row.netIdr,
+            }))}
+          />
         </div>
       )}
     </section>

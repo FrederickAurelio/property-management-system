@@ -27,6 +27,16 @@ export type StaffReportsCashSourceRow = {
   netIdr: number;
 };
 
+export type StaffReportsCashUnitTypeRow = {
+  /** `null` = Untyped (unit has no unit type). */
+  unitTypeId: string | null;
+  name: string;
+  sortOrder: number;
+  inIdr: number;
+  outIdr: number;
+  netIdr: number;
+};
+
 export type StaffReportsCashCompare = {
   inIdr: number;
   outIdr: number;
@@ -41,8 +51,10 @@ export type StaffReportsCash = {
   inIdr: number;
   outIdr: number;
   netIdr: number;
-  byMethod: StaffReportsCashMethodRow[];
+  /** Breakdown order on UI/export: source → unit type → method. */
   bySource: StaffReportsCashSourceRow[];
+  byUnitType: StaffReportsCashUnitTypeRow[];
+  byMethod: StaffReportsCashMethodRow[];
   compare?: StaffReportsCashCompare;
 };
 
@@ -63,6 +75,22 @@ export type StaffReportsOccupancy = {
   compare?: StaffReportsOccupancyCompare;
 };
 
+export type StaffReportsOccupancyByUnit = {
+  unitId: string;
+  name: string;
+  /** Stable order within the type (unit sort / name). */
+  sortOrder: number;
+  occupiedNights: number;
+  availableNights: number;
+  occupancyPct: number | null;
+  compare?: {
+    occupiedNights: number;
+    availableNights: number;
+    occupancyPct: number | null;
+    occupancyPctDelta: number | null;
+  };
+};
+
 export type StaffReportsOccupancyByUnitType = {
   unitTypeId: string | null;
   name: string;
@@ -70,6 +98,8 @@ export type StaffReportsOccupancyByUnitType = {
   occupiedNights: number;
   availableNights: number;
   occupancyPct: number | null;
+  /** Per-unit drill-down; UI expands type rows to show these. */
+  units: StaffReportsOccupancyByUnit[];
   compare?: {
     occupiedNights: number;
     availableNights: number;

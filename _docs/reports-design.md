@@ -68,13 +68,13 @@ Owner opens the page top → bottom. **One screen composition**, not a dashboard
 ├─ Header: property name · primary range ─────────────────────────────┤
 ├─ 1. Cash statement (hero) ──────────────────────────────────────────┤
 │     Net (+ prev · Δ · %Δ)  ·  In / Out (+ prev muted)               │
-│     Breakdown tables: method / source · In · Out · Net · % of in    │
+│     Breakdown tables: source → unit type → method · In · Out · Net · % of net │
 ├─ 2. Occupancy (property) ───────────────────────────────────────────┤
 │     %  ·  occupied / available (+ prev nights)  ·  Δ pts            │
 ├─ 3. Occupancy by unit type ─────────────────────────────────────────┤
-│     Table: type · occupied · available · % · prev % · Δ%            │
+│     Table: type (expand → units) · occupied · available · % · Δ%    │
 ├─ 4. Source mix ─────────────────────────────────────────────────────┤
-│     Table: source · stays · nights · % · cash net · % cash          │
+│     Table: source · stays · nights · % · cash net · % of net        │
 │            (+ prev nights · prev % · Δ share · Δ nights)            │
 │     Rollup: Direct vs OTA nights + cash net share                   │
 └─────────────────────────────────────────────────────────────────────┘
@@ -110,14 +110,15 @@ Honest footer (always visible once):
 
 **What matters**
 
-| Metric        | Definition                                                                                                                                                                               |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cash in**   | Sum of `PaymentMovement` with `direction=IN` where `createdAt` (date in property TZ / local business date) falls in `[From, To]` and reservation’s unit belongs to the selected property |
-| **Cash out**  | Same for `direction=OUT`                                                                                                                                                                 |
-| **Net**       | In − Out                                                                                                                                                                                 |
-| **By method** | Group by movement `method` (`PROPERTY` · `CHANNEL` · `MIXED` · null as “Unspecified”)                                                                                                    |
-| **By source** | Group by parent reservation `source`                                                                                                                                                     |
-| **Compare**   | Same metrics for previous period; show absolute delta and optional % delta on Net                                                                                                        |
+| Metric            | Definition                                                                                                                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Cash in**       | Sum of `PaymentMovement` with `direction=IN` where `createdAt` (date in property TZ / local business date) falls in `[From, To]` and reservation’s unit belongs to the selected property                     |
+| **Cash out**      | Same for `direction=OUT`                                                                                                                                                                                     |
+| **Net**           | In − Out                                                                                                                                                                                                     |
+| **By source**     | Group by parent reservation `source`                                                                                                                                                                         |
+| **By unit type**  | Group by reservation unit’s `unitType` (`unitTypeId` null → Ungrouped / Untyped, same language as occupancy-by-type)                                                                                          |
+| **By method**     | Group by movement `method` (`PROPERTY` · `CHANNEL` · `MIXED` · null as “Unspecified”)                                                                                                                        |
+| **Compare**       | Same metrics for previous period; show absolute delta and optional % delta on Net                                                                                                                            |
 
 **Why**
 
@@ -129,8 +130,9 @@ Honest footer (always visible once):
 
 - Large **Net** (IDR). Secondary: In · Out; when compare on, muted prev In/Out under that pair.
 - Compare on Net: muted previous Net + absolute Δ + % Δ when previous net ≠ 0 (not a second hero).
-- Breakdown tables (method · source): columns **In · Out · Net · % of period In** — enough to reconcile without Excel first.
+- Breakdown tables in order **source → unit type → method**: columns **In · Out · Net · % of period Net** (row net ÷ |period net|; same share math as source-mix % of net).
 - Same source labels/colors as Reservations list on source breakdown.
+- Unit type rows sorted by inventory `sortOrder` (Ungrouped last).
 
 ---
 
@@ -179,7 +181,7 @@ Locked rule (simple and honest):
 
 ---
 
-### 5.3 Occupancy by unit type
+### 5.3 Occupancy by unit type (expand → units)
 
 **Use cases**
 
@@ -187,20 +189,26 @@ Locked rule (simple and honest):
 | -------- | --------------------- | --------------------------------------------------- |
 | Owner    | One type always empty | Know which product to discount or stop selling hard |
 | Owner    | Deluxe always full    | Justify rate or add inventory talk                  |
+| Owner    | Type % soft, unclear which room | Expand type → see each unit’s nights / %   |
 | Ops lead | Assign promo by type  | Same numbers owner sees                             |
 
 **What matters**
 
-Same formulas as §5.2, **per unit type** (units with no type → one “Ungrouped” row). Columns: type name · occupied · available · % · when compare: **prev %** · **Δ%**.
+Same formulas as §5.2, **per unit type** (units with no type → one “Ungrouped” row), then **per unit** under that type. Columns: type/unit name · occupied · available · % · when compare: **prev %** · **Δ%**.
+
+Wire: each `StaffReportsOccupancyByUnitType` includes `units: StaffReportsOccupancyByUnit[]` (nested in the summary payload — no second fetch).
 
 **Why**
 
 - Property % hides product mix. Type breakdown is the actionable layer under the hero occupancy.
+- Unit drill-down answers “which room is soft?” without a flat wall of every unit by default.
 
 **UI**
 
 - Table directly under property occupancy (not a separate page). Sorted by type `sortOrder` / name.
+- Type rows **collapsed by default**; chevron expands indented unit rows (same columns). Expand one or many types independently.
 - No charts required; table columns carry compare — not mini progress bars per row.
+- CSV: property + type aggregates + unit rows (`unitType`, `unit` columns; empty `unit` = type or property rollup).
 
 ---
 
@@ -223,16 +231,16 @@ Same formulas as §5.2, **per unit type** (units with no type → one “Ungroup
 | **% of nights**    | nights ÷ property occupied nights                                                                                                                                                                                                                                             |
 | **Sources**        | All `ReservationSource` values: `MANUAL` · `WEBSITE` · `BOOKING_COM` · `AIRBNB` · `AGODA` — show row even if 0 in period so mix is stable                                                                                                                                     |
 | **Compare**        | Previous period nights and % per source; show **Δ share (pp)** and Δ nights                                                                                                                                                                                                   |
-| **Cash net share** | Same period’s cash-by-source net ÷ period cash net — nights share vs money share side by side                                                                                                                                                                                 |
+| **Cash net share** | Same period’s cash-by-source net ÷ |period cash net| — same **% of net** as Cash breakdown tables |
 
 **Why**
 
 - Source is already on every reservation — mix is free and permanent.
-- Owner decision is dependency and marketing push; cash-by-source also appears under Cash, but % cash on this table makes OTA vs Direct actionable in one place.
+- Owner decision is dependency and marketing push; cash-by-source also appears under Cash — **% of net** must match that table.
 
 **UI**
 
-- Table sorted by nights desc (zeros still listed): Source · Stays (check-in in period) · Nights · % nights · Cash net · % cash · when compare: Prev nights · Prev % · Δ share · Δ nights.
+- Table sorted by nights desc (zeros still listed): Source · Stays (check-in in period) · Nights · % nights · Cash net · **% of net** · when compare: Prev nights · Prev % · Δ share · Δ nights.
 - Same source labels/colors as Reservations list.
 - One rollup line under the table: **Direct (Manual+Website)** vs **OTA** nights % and cash net %.
 
@@ -293,8 +301,8 @@ Export **matches on-screen filters** (property + primary period + compare column
 | File / sheet                        | Contents                                                    |
 | ----------------------------------- | ----------------------------------------------------------- |
 | `cash-summary`                      | Net, in, out; prev + deltas when compare                    |
-| `cash-by-method` / `cash-by-source` | In, out, net, % of in                                       |
-| `occupancy`                         | Property % + by unit type + prev cols when compare          |
+| `cash-by-source` / `cash-by-unit-type` / `cash-by-method` | In, out, net, % of net (sheet order matches UI) |
+| `occupancy`                         | Property + by type + per-unit rows (`unitType`/`unit`) + compare cols |
 | `source-mix`                        | Stays / nights / % / cash net share + compare share columns |
 
 **UI**
@@ -380,9 +388,9 @@ Wire types in `@cabin/api-contract` (e.g. `StaffReportsSummary`). Do not fork mo
 
 - [ ] One property + date range drives all sections
 - [ ] `@StaffRoles('ADMIN')` + PMS hides Reports for `FRONT_DESK`
-- [ ] Cash hero = movements in period (in / out / net + method + source)
+- [ ] Cash hero = movements in period (in / out / net + source → unit type → method)
 - [ ] Occupancy % uses locked night rules; blocks reduce available
-- [ ] Occupancy by unit type under property occupancy
+- [ ] Occupancy by unit type under property occupancy (expand → units)
 - [ ] Source mix includes all `ReservationSource` values (incl. `WEBSITE`)
 - [ ] No open-balances section — chase stays on Reservations
 - [ ] Compare = previous equal-length period on cash / occupancy / type / source

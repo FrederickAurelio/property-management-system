@@ -71,6 +71,26 @@ export function buildReportsFixture(
       availableNights: Math.round(18 * scale),
       prevOcc: Math.round(13 * scale),
       prevAvail: Math.round(18 * scale),
+      units: [
+        {
+          unitId: "u-deluxe-1",
+          name: "Deluxe 1",
+          sortOrder: 1,
+          occupiedNights: Math.round(9 * scale),
+          availableNights: Math.round(9 * scale),
+          prevOcc: Math.round(8 * scale),
+          prevAvail: Math.round(9 * scale),
+        },
+        {
+          unitId: "u-deluxe-2",
+          name: "Deluxe 2",
+          sortOrder: 2,
+          occupiedNights: Math.round(7 * scale),
+          availableNights: Math.round(9 * scale),
+          prevOcc: Math.round(5 * scale),
+          prevAvail: Math.round(9 * scale),
+        },
+      ],
     },
     {
       unitTypeId: "ut-garden",
@@ -80,6 +100,26 @@ export function buildReportsFixture(
       availableNights: Math.round(16 * scale),
       prevOcc: Math.round(14 * scale),
       prevAvail: Math.round(16 * scale),
+      units: [
+        {
+          unitId: "u-garden-a",
+          name: "Garden A",
+          sortOrder: 1,
+          occupiedNights: Math.round(8 * scale),
+          availableNights: Math.round(8 * scale),
+          prevOcc: Math.round(8 * scale),
+          prevAvail: Math.round(8 * scale),
+        },
+        {
+          unitId: "u-garden-b",
+          name: "Garden B",
+          sortOrder: 2,
+          occupiedNights: Math.round(4 * scale),
+          availableNights: Math.round(8 * scale),
+          prevOcc: Math.round(6 * scale),
+          prevAvail: Math.round(8 * scale),
+        },
+      ],
     },
     {
       unitTypeId: "ut-family",
@@ -90,6 +130,26 @@ export function buildReportsFixture(
       availableNights: Math.round(14 * scale),
       prevOcc: Math.round(5 * scale),
       prevAvail: Math.round(12 * scale),
+      units: [
+        {
+          unitId: "u-family-1",
+          name: "Family 1",
+          sortOrder: 1,
+          occupiedNights: Math.round(3 * scale),
+          availableNights: Math.round(7 * scale),
+          prevOcc: Math.round(4 * scale),
+          prevAvail: Math.round(6 * scale),
+        },
+        {
+          unitId: "u-family-2",
+          name: "Family 2",
+          sortOrder: 2,
+          occupiedNights: 0,
+          availableNights: Math.round(7 * scale),
+          prevOcc: Math.round(1 * scale),
+          prevAvail: Math.round(6 * scale),
+        },
+      ],
     },
     {
       unitTypeId: null,
@@ -99,6 +159,17 @@ export function buildReportsFixture(
       availableNights: Math.max(0, available - Math.round(48 * scale)),
       prevOcc: Math.max(0, prevOccupied - Math.round(32 * scale)),
       prevAvail: Math.max(0, prevAvailable - Math.round(46 * scale)),
+      units: [
+        {
+          unitId: "u-ungrouped-1",
+          name: "Unit X",
+          sortOrder: 1,
+          occupiedNights: Math.max(0, occupied - Math.round(31 * scale)),
+          availableNights: Math.max(0, available - Math.round(48 * scale)),
+          prevOcc: Math.max(0, prevOccupied - Math.round(32 * scale)),
+          prevAvail: Math.max(0, prevAvailable - Math.round(46 * scale)),
+        },
+      ],
     },
   ].map((row) => {
     const pct =
@@ -116,6 +187,35 @@ export function buildReportsFixture(
       occupiedNights: row.occupiedNights,
       availableNights: row.availableNights,
       occupancyPct: pct,
+      units: row.units.map((u) => {
+        const uPct =
+          u.availableNights === 0
+            ? null
+            : Math.round((u.occupiedNights / u.availableNights) * 1000) / 10;
+        const uPrevPct =
+          u.prevAvail === 0
+            ? null
+            : Math.round((u.prevOcc / u.prevAvail) * 1000) / 10;
+        return {
+          unitId: u.unitId,
+          name: u.name,
+          sortOrder: u.sortOrder,
+          occupiedNights: u.occupiedNights,
+          availableNights: u.availableNights,
+          occupancyPct: uPct,
+          compare: compare
+            ? {
+                occupiedNights: u.prevOcc,
+                availableNights: u.prevAvail,
+                occupancyPct: uPrevPct,
+                occupancyPctDelta:
+                  uPct == null || uPrevPct == null
+                    ? null
+                    : Math.round((uPct - uPrevPct) * 10) / 10,
+              }
+            : undefined,
+        };
+      }),
       compare: compare
         ? {
             occupiedNights: row.prevOcc,
@@ -220,32 +320,6 @@ export function buildReportsFixture(
       inIdr: cashIn,
       outIdr: cashOut,
       netIdr: cashNet,
-      byMethod: [
-        {
-          method: CollectedVia.PROPERTY,
-          inIdr: Math.round(cashIn * 0.52),
-          outIdr: Math.round(cashOut * 0.7),
-          netIdr: Math.round(cashIn * 0.52) - Math.round(cashOut * 0.7),
-        },
-        {
-          method: CollectedVia.CHANNEL,
-          inIdr: Math.round(cashIn * 0.35),
-          outIdr: Math.round(cashOut * 0.15),
-          netIdr: Math.round(cashIn * 0.35) - Math.round(cashOut * 0.15),
-        },
-        {
-          method: CollectedVia.MIXED,
-          inIdr: Math.round(cashIn * 0.1),
-          outIdr: Math.round(cashOut * 0.1),
-          netIdr: Math.round(cashIn * 0.1) - Math.round(cashOut * 0.1),
-        },
-        {
-          method: null,
-          inIdr: Math.round(cashIn * 0.03),
-          outIdr: Math.round(cashOut * 0.05),
-          netIdr: Math.round(cashIn * 0.03) - Math.round(cashOut * 0.05),
-        },
-      ],
       bySource: [
         {
           source: ReservationSource.AIRBNB,
@@ -276,6 +350,66 @@ export function buildReportsFixture(
           inIdr: Math.round(cashIn * 0.04),
           outIdr: Math.round(cashOut * 0.1),
           netIdr: Math.round(cashIn * 0.04) - Math.round(cashOut * 0.1),
+        },
+      ],
+      byUnitType: [
+        {
+          unitTypeId: "ut-deluxe",
+          name: "Deluxe Villa",
+          sortOrder: 1,
+          inIdr: Math.round(cashIn * 0.48),
+          outIdr: Math.round(cashOut * 0.35),
+          netIdr: Math.round(cashIn * 0.48) - Math.round(cashOut * 0.35),
+        },
+        {
+          unitTypeId: "ut-garden",
+          name: "Garden Suite",
+          sortOrder: 2,
+          inIdr: Math.round(cashIn * 0.32),
+          outIdr: Math.round(cashOut * 0.3),
+          netIdr: Math.round(cashIn * 0.32) - Math.round(cashOut * 0.3),
+        },
+        {
+          unitTypeId: "ut-family",
+          name: "Family Bungalow",
+          sortOrder: 3,
+          inIdr: Math.round(cashIn * 0.12),
+          outIdr: Math.round(cashOut * 0.2),
+          netIdr: Math.round(cashIn * 0.12) - Math.round(cashOut * 0.2),
+        },
+        {
+          unitTypeId: null,
+          name: "Ungrouped",
+          sortOrder: 99,
+          inIdr: Math.round(cashIn * 0.08),
+          outIdr: Math.round(cashOut * 0.15),
+          netIdr: Math.round(cashIn * 0.08) - Math.round(cashOut * 0.15),
+        },
+      ],
+      byMethod: [
+        {
+          method: CollectedVia.PROPERTY,
+          inIdr: Math.round(cashIn * 0.52),
+          outIdr: Math.round(cashOut * 0.7),
+          netIdr: Math.round(cashIn * 0.52) - Math.round(cashOut * 0.7),
+        },
+        {
+          method: CollectedVia.CHANNEL,
+          inIdr: Math.round(cashIn * 0.35),
+          outIdr: Math.round(cashOut * 0.15),
+          netIdr: Math.round(cashIn * 0.35) - Math.round(cashOut * 0.15),
+        },
+        {
+          method: CollectedVia.MIXED,
+          inIdr: Math.round(cashIn * 0.1),
+          outIdr: Math.round(cashOut * 0.1),
+          netIdr: Math.round(cashIn * 0.1) - Math.round(cashOut * 0.1),
+        },
+        {
+          method: null,
+          inIdr: Math.round(cashIn * 0.03),
+          outIdr: Math.round(cashOut * 0.05),
+          netIdr: Math.round(cashIn * 0.03) - Math.round(cashOut * 0.05),
         },
       ],
       compare: compare
