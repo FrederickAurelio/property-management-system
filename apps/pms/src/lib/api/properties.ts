@@ -35,7 +35,7 @@ export type PropertyWriteInput = {
 export async function listProperties(
   params: ListPropertiesParams = {},
 ): Promise<Paginated<StaffProperty>> {
-  const { data } = await api.get<Paginated<StaffProperty>>("/staff/properties", {
+  const { data } = await api.get<Paginated<StaffProperty>>("/properties", {
     params: {
       page: params.page ?? 1,
       pageSize: params.pageSize ?? PAGE_SIZE_DEFAULT,
@@ -49,20 +49,20 @@ export async function listProperties(
 /** Unpaginated `{ id, name }[]` for filter / select dropdowns. */
 export async function listPropertyOptions(): Promise<StaffPropertyOption[]> {
   const { data } = await api.get<StaffPropertyOption[]>(
-    "/staff/properties/options",
+    "/properties/options",
   );
   return data;
 }
 
 export async function getProperty(id: string): Promise<StaffProperty> {
-  const { data } = await api.get<StaffProperty>(`/staff/properties/${id}`);
+  const { data } = await api.get<StaffProperty>(`/properties/${id}`);
   return data;
 }
 
 export async function createProperty(
   input: PropertyWriteInput,
 ): Promise<StaffProperty> {
-  const { data } = await api.post<StaffProperty>("/staff/properties", input);
+  const { data } = await api.post<StaffProperty>("/properties", input);
   return data;
 }
 
@@ -71,13 +71,13 @@ export async function updateProperty(
   input: Partial<PropertyWriteInput>,
 ): Promise<StaffProperty> {
   const { data } = await api.patch<StaffProperty>(
-    `/staff/properties/${id}`,
+    `/properties/${id}`,
     input,
   );
   return data;
 }
 
 export async function deleteProperty(id: string): Promise<{ ok: true }> {
-  const { data } = await api.delete<{ ok: true }>(`/staff/properties/${id}`);
+  const { data } = await api.delete<{ ok: true }>(`/properties/${id}`);
   return data;
 }

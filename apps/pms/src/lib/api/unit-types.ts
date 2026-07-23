@@ -38,7 +38,7 @@ export async function listUnitTypes(
   params: ListUnitTypesParams = {},
 ): Promise<Paginated<StaffUnitType>> {
   const { data } = await api.get<Paginated<StaffUnitType>>(
-    `/staff/properties/${propertyId}/unit-types`,
+    `/properties/${propertyId}/unit-types`,
     {
       params: {
         page: params.page ?? 1,
@@ -52,13 +52,13 @@ export async function listUnitTypes(
 }
 
 export async function getUnitType(id: string): Promise<StaffUnitType> {
-  const { data } = await api.get<StaffUnitType>(`/staff/unit-types/${id}`);
+  const { data } = await api.get<StaffUnitType>(`/unit-types/${id}`);
   return data;
 }
 
 export async function getUnitTypeRack(id: string): Promise<StaffUnitTypeRack> {
   const { data } = await api.get<StaffUnitTypeRack>(
-    `/staff/unit-types/${id}/rack`,
+    `/unit-types/${id}/rack`,
   );
   return data;
 }
@@ -68,7 +68,7 @@ export async function createUnitType(
   input: UnitTypeWriteInput,
 ): Promise<StaffUnitType> {
   const { data } = await api.post<StaffUnitType>(
-    `/staff/properties/${propertyId}/unit-types`,
+    `/properties/${propertyId}/unit-types`,
     input,
   );
   return data;
@@ -79,13 +79,13 @@ export async function updateUnitType(
   input: Partial<UnitTypeWriteInput>,
 ): Promise<StaffUnitType> {
   const { data } = await api.patch<StaffUnitType>(
-    `/staff/unit-types/${id}`,
+    `/unit-types/${id}`,
     input,
   );
   return data;
 }
 
 export async function deleteUnitType(id: string): Promise<{ ok: true }> {
-  const { data } = await api.delete<{ ok: true }>(`/staff/unit-types/${id}`);
+  const { data } = await api.delete<{ ok: true }>(`/unit-types/${id}`);
   return data;
 }

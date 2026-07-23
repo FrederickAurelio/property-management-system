@@ -1,5 +1,5 @@
 /**
- * Staff reservations API — Nest `/staff/reservations`.
+ * Staff reservations API — browser `/api/reservations` → Nest `/staff/reservations`.
  */
 import {
   PAGE_SIZE_DEFAULT,
@@ -80,7 +80,7 @@ export async function listReservations(
 ): Promise<Paginated<StaffReservationListItem>> {
   const { page = 1, pageSize = PAGE_SIZE_DEFAULT, ...filters } = params;
   const { data } = await api.get<Paginated<StaffReservationListItem>>(
-    "/staff/reservations",
+    "/reservations",
     {
       params: {
         page,
@@ -107,7 +107,7 @@ export async function listReservations(
 
 export async function getReservation(id: string): Promise<StaffReservation> {
   const { data } = await api.get<StaffReservation>(
-    `/staff/reservations/${id}`,
+    `/reservations/${id}`,
   );
   return data;
 }
@@ -116,7 +116,7 @@ export async function createReservation(
   input: CreateReservationInput,
 ): Promise<StaffReservation> {
   const { data } = await api.post<StaffReservation>(
-    "/staff/reservations",
+    "/reservations",
     input,
   );
   return data;
@@ -127,7 +127,7 @@ export async function updateReservation(
   input: UpdateReservationInput,
 ): Promise<StaffReservation> {
   const { data } = await api.patch<StaffReservation>(
-    `/staff/reservations/${id}`,
+    `/reservations/${id}`,
     input,
   );
   return data;
@@ -139,7 +139,7 @@ export async function postPaymentMovement(
   input: PostPaymentMovementInput,
 ): Promise<StaffReservation> {
   const { data } = await api.post<StaffReservation>(
-    `/staff/reservations/${id}/movements`,
+    `/reservations/${id}/movements`,
     input,
   );
   return data;
@@ -149,7 +149,7 @@ export async function confirmReservation(
   id: string,
 ): Promise<StaffReservation> {
   const { data } = await api.post<StaffReservation>(
-    `/staff/reservations/${id}/confirm`,
+    `/reservations/${id}/confirm`,
   );
   return data;
 }
@@ -159,7 +159,7 @@ export async function checkInReservation(
   input: ConfirmEarlyInput = {},
 ): Promise<StaffReservation> {
   const { data } = await api.post<StaffReservation>(
-    `/staff/reservations/${id}/check-in`,
+    `/reservations/${id}/check-in`,
     input,
   );
   return data;
@@ -170,7 +170,7 @@ export async function checkOutReservation(
   input: ConfirmEarlyInput = {},
 ): Promise<StaffReservation> {
   const { data } = await api.post<StaffReservation>(
-    `/staff/reservations/${id}/check-out`,
+    `/reservations/${id}/check-out`,
     input,
   );
   return data;
@@ -181,7 +181,7 @@ export async function cancelReservation(
   input: CancelReservationInput = {},
 ): Promise<StaffReservation> {
   const { data } = await api.post<StaffReservation>(
-    `/staff/reservations/${id}/cancel`,
+    `/reservations/${id}/cancel`,
     input,
   );
   return data;

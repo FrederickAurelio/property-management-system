@@ -25,7 +25,7 @@ export async function createUploadIntent(
   input: CreateUploadIntentInput,
 ): Promise<MediaUploadIntent> {
   const { data } = await api.post<MediaUploadIntent>(
-    "/staff/media/upload-intent",
+    "/media/upload-intent",
     input,
   );
   return data;

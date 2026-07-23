@@ -7,7 +7,7 @@ import { buildReportsFixture } from "@/pages/reports/reports-fixture";
 
 /**
  * Flip to `true` only for offline UI review without Nest.
- * Live path: `GET /staff/reports/summary`.
+ * Live path: browser `GET /api/reports/summary` → Nest `/staff/reports/summary`.
  */
 export const REPORTS_USE_FIXTURE = false;
 
@@ -30,7 +30,7 @@ export async function getStaffReportsSummary(
   }
 
   const { data } = await api.get<StaffReportsSummary>(
-    "/staff/reports/summary",
+    "/reports/summary",
     {
       params: {
         propertyId: params.propertyId,

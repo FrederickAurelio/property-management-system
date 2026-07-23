@@ -21,7 +21,7 @@ Wire Nest → PMS in three layers. Do not collapse them.
 
 | Layer | Owns |
 |-------|------|
-| `src/lib/api` helpers | Thin `api.*` wrappers; return unwrapped `T`; Nest paths under `/staff/...` |
+| `src/lib/api` helpers | Thin `api.*` wrappers; return unwrapped `T`; browser paths without `/staff` (proxy injects it) |
 | Query keys | `src/lib/api/query-keys.ts` — `as const` tuples; one key (or factory) per resource |
 | Screens / forms | `useQuery` / `useInfiniteQuery` / `useMutation`, cache updates, toasts, RHF `setError` |
 

@@ -26,7 +26,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 | UI           | React + Vite + TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) · Lucide     |
 | Routing      | `react-router` declarative (`BrowserRouter` + `Routes`)                           |
 | Server state | `@tanstack/react-query`                                                           |
-| HTTP         | `axios` · `baseURL: "/api"` · paths `/staff/...` · proxy only `/api/staff` → Nest |
+| HTTP         | `axios` · `baseURL: "/api"` · paths without `/staff` · proxy `/api` → Nest `/staff` |
 | Forms        | `react-hook-form` + `zod` + `@hookform/resolvers` · shadcn `Field` + `Controller` |
 | Toasts       | Sonner (`handleSuccess` / `handleError`)                                          |
 | Theme        | `next-themes` (`ThemeProvider` + `ThemeToggle`) · class strategy (`.dark`)        |
@@ -37,12 +37,12 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Call sites: `api.get` / `api.post` / `api.patch` / `api.delete`. Interceptors handle envelope + errors.
 - Shared HTTP contract types: `@cabin/api-contract` (envelope, codes, `StaffAdmin`, `AdminRole`) — do not duplicate cross-app types here.
 - `withCredentials: true` (cookie `cabin.pms.sid`).
-- `baseURL: "/api"` + Nest paths `/staff/...` → browser `/api/staff/...`. Dev: Vite proxies **only** `/api/staff` → Nest (`VITE_API_URL`, default `http://localhost:3000`) and strips `/api`. Prod nginx: same (`location /api/staff/`). Do **not** proxy `/api/public` or `/health` through PMS — Phase 2 `web` owns `/api/public`.
+- `baseURL: "/api"` + audience-free paths (`/auth/...`, `/reservations/...`) → browser `/api/...`. Dev: Vite rewrites `/api` → Nest `/staff` (`VITE_API_URL`, default `http://localhost:3000`). Prod nginx: same (`location /api/` → `http://api:3000/staff/`). Nest still uses `/staff/...`; the audience prefix is not on the wire. Do **not** proxy Nest `/public` or `/health` through PMS — Phase 2 `web` rewrites `/api` → `/public` on its own origin.
 - Success `{ data, meta? }` → interceptor sets `response.data` to unwrapped `data` → `(await api.get<T>(…)).data`.
 - Errors `{ error: { code, message, details? } }` → throws `ApiError`. Also maps timeout / network / 502–504 to FE-only codes (`TIMEOUT`, `NETWORK_ERROR`, `SERVER_UNAVAILABLE`).
-- Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers) — paths `/staff/auth/*`.
-- Staff admin helpers: `listAdmins` / `createAdmin` / `changeAdminRole` / `setAdminActive` (`/staff/admins`, SUPER_ADMIN). Query key: `staffAdminsQueryKey`.
-- Inventory helpers: `listProperties` / `listPropertyOptions` / `listUnitTypes` / `listUnits` (+ create/update/delete + detail GETs) under `/staff/properties|unit-types|units`. Wire types `StaffProperty` / `StaffPropertyOption` / `StaffUnitType` / `StaffUnit`; lists are `Paginated<T>` (options = unpaginated `{ id, name }[]`).
+- Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers) — paths `/auth/*`.
+- Staff admin helpers: `listAdmins` / `createAdmin` / `changeAdminRole` / `setAdminActive` (`/admins`, SUPER_ADMIN). Query key: `staffAdminsQueryKey`.
+- Inventory helpers: `listProperties` / `listPropertyOptions` / `listUnitTypes` / `listUnits` (+ create/update/delete + detail GETs) under `/properties|unit-types|units`. Wire types `StaffProperty` / `StaffPropertyOption` / `StaffUnitType` / `StaffUnit`; lists are `Paginated<T>` (options = unpaginated `{ id, name }[]`).
 - Media helpers: `createUploadIntent` / `uploadMediaFile` (`src/lib/api/media.ts`) — Nest signs Cloudinary upload; browser POSTs bytes to Cloudinary; never put `CLOUDINARY_API_SECRET` in Vite.
 - SPA routes like `/properties` are UI-only — never invent unprefixed Nest paths.
 - 401 hook: `setUnauthorizedHandler` (wired to `/login` via `UnauthorizedRedirect`). Session probe on login uses `{ skipUnauthorizedRedirect: true }`.

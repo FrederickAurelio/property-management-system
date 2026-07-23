@@ -25,7 +25,7 @@ export async function getPropertyCalendar(
   params: GetPropertyCalendarParams,
 ): Promise<StaffPropertyCalendar> {
   const { data } = await api.get<StaffPropertyCalendar>(
-    `/staff/properties/${params.propertyId}/calendar`,
+    `/properties/${params.propertyId}/calendar`,
     { params: { from: params.from, to: params.to } },
   );
   return data;
@@ -35,7 +35,7 @@ export async function createCalendarBlock(
   input: CreateStaffCalendarBlockInput,
 ): Promise<StaffCalendarBlock> {
   const { data } = await api.post<StaffCalendarBlock>(
-    "/staff/calendar-blocks",
+    "/calendar-blocks",
     input,
   );
   return data;
@@ -46,14 +46,14 @@ export async function updateCalendarBlock(
   input: UpdateStaffCalendarBlockInput,
 ): Promise<StaffCalendarBlock> {
   const { data } = await api.patch<StaffCalendarBlock>(
-    `/staff/calendar-blocks/${id}`,
+    `/calendar-blocks/${id}`,
     input,
   );
   return data;
 }
 
 export async function deleteCalendarBlock(id: string): Promise<void> {
-  await api.delete(`/staff/calendar-blocks/${id}`);
+  await api.delete(`/calendar-blocks/${id}`);
 }
 
 /**

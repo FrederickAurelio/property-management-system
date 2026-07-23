@@ -22,12 +22,13 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      // PMS only — do not proxy /api/public (Phase 2 web) or /health through this origin
+      // Browser `/api/...` → Nest `/staff/...` (audience prefix stays off the wire).
+      // Do not proxy Nest `/public` or `/health` through this origin — Phase 2 web owns that.
       proxy: {
-        "/api/staff": {
+        "/api": {
           target: apiTarget,
           changeOrigin: true,
-          rewrite: (p) => p.replace(/^\/api/, ""),
+          rewrite: (p) => p.replace(/^\/api/, "/staff"),
         },
       },
     },

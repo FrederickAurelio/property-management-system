@@ -2,7 +2,7 @@
 import { Spinner } from "@/components/ui/spinner";
 
 /**
- * Full-viewport pending state while resolving the staff session (`/staff/auth/session`).
+ * Full-viewport pending state while resolving the staff session (`/api/auth/session`).
  */
 export function AuthLoading() {
   return (

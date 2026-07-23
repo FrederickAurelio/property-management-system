@@ -9,7 +9,7 @@ export async function staffLogin(
   password: string,
 ): Promise<StaffAdmin> {
   const { data } = await api.post<StaffAdmin>(
-    "/staff/auth/login",
+    "/auth/login",
     { username, password },
     { skipUnauthorizedRedirect: true },
   );
@@ -17,7 +17,7 @@ export async function staffLogin(
 }
 
 export async function staffLogout(): Promise<{ ok: true }> {
-  const { data } = await api.post<{ ok: true }>("/staff/auth/logout");
+  const { data } = await api.post<{ ok: true }>("/auth/logout");
   return data;
 }
 
@@ -25,7 +25,7 @@ export async function staffLogout(): Promise<{ ok: true }> {
 export async function staffSession(
   config?: AxiosRequestConfig,
 ): Promise<StaffAdmin> {
-  const { data } = await api.get<StaffAdmin>("/staff/auth/session", config);
+  const { data } = await api.get<StaffAdmin>("/auth/session", config);
   return data;
 }
 
@@ -34,7 +34,7 @@ export async function staffChangeUsername(input: {
   currentPassword: string;
 }): Promise<StaffAdmin> {
   const { data } = await api.patch<StaffAdmin>(
-    "/staff/auth/username",
+    "/auth/username",
     input,
   );
   return data;
@@ -45,7 +45,7 @@ export async function staffChangePassword(input: {
   newPassword: string;
 }): Promise<{ ok: true }> {
   const { data } = await api.patch<{ ok: true }>(
-    "/staff/auth/password",
+    "/auth/password",
     input,
   );
   return data;

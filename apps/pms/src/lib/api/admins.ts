@@ -26,7 +26,7 @@ export function syncStaffAdminCaches(
 }
 
 export async function listAdmins(): Promise<StaffAdmin[]> {
-  const { data } = await api.get<StaffAdmin[]>("/staff/admins");
+  const { data } = await api.get<StaffAdmin[]>("/admins");
   return data;
 }
 
@@ -36,7 +36,7 @@ export async function createAdmin(input: {
   role: AdminRole;
   currentPassword: string;
 }): Promise<StaffAdmin> {
-  const { data } = await api.post<StaffAdmin>("/staff/admins", input);
+  const { data } = await api.post<StaffAdmin>("/admins", input);
   return data;
 }
 
@@ -45,7 +45,7 @@ export async function changeAdminRole(
   input: { role: AdminRole; currentPassword: string },
 ): Promise<StaffAdmin> {
   const { data } = await api.patch<StaffAdmin>(
-    `/staff/admins/${id}/role`,
+    `/admins/${id}/role`,
     input,
   );
   return data;
@@ -56,7 +56,7 @@ export async function setAdminActive(
   input: { isActive: boolean; currentPassword: string },
 ): Promise<StaffAdmin> {
   const { data } = await api.patch<StaffAdmin>(
-    `/staff/admins/${id}/active`,
+    `/admins/${id}/active`,
     input,
   );
   return data;

@@ -38,7 +38,7 @@ export async function listUnits(
   params: ListUnitsParams = {},
 ): Promise<Paginated<StaffUnit>> {
   const { data } = await api.get<Paginated<StaffUnit>>(
-    `/staff/properties/${propertyId}/units`,
+    `/properties/${propertyId}/units`,
     {
       params: {
         page: params.page ?? 1,
@@ -63,7 +63,7 @@ export async function listAvailableUnits(
   } = {},
 ): Promise<StaffUnitAvailability[]> {
   const { data } = await api.get<StaffUnitAvailability[]>(
-    `/staff/properties/${propertyId}/units/availability`,
+    `/properties/${propertyId}/units/availability`,
     {
       params: {
         ...(params.checkInDate ? { checkInDate: params.checkInDate } : {}),
@@ -90,7 +90,7 @@ export async function getUnitMonthOccupancy(
   },
 ): Promise<UnitMonthOccupancy> {
   const { data } = await api.get<UnitMonthOccupancy>(
-    `/staff/units/${unitId}/occupancy`,
+    `/units/${unitId}/occupancy`,
     {
       params: {
         yearMonth: params.yearMonth,
@@ -104,7 +104,7 @@ export async function getUnitMonthOccupancy(
 }
 
 export async function getUnit(id: string): Promise<StaffUnit> {
-  const { data } = await api.get<StaffUnit>(`/staff/units/${id}`);
+  const { data } = await api.get<StaffUnit>(`/units/${id}`);
   return data;
 }
 
@@ -113,7 +113,7 @@ export async function createUnit(
   input: UnitWriteInput,
 ): Promise<StaffUnit> {
   const { data } = await api.post<StaffUnit>(
-    `/staff/properties/${propertyId}/units`,
+    `/properties/${propertyId}/units`,
     input,
   );
   return data;
@@ -123,11 +123,11 @@ export async function updateUnit(
   id: string,
   input: UnitUpdateInput,
 ): Promise<StaffUnit> {
-  const { data } = await api.patch<StaffUnit>(`/staff/units/${id}`, input);
+  const { data } = await api.patch<StaffUnit>(`/units/${id}`, input);
   return data;
 }
 
 export async function deleteUnit(id: string): Promise<{ ok: true }> {
-  const { data } = await api.delete<{ ok: true }>(`/staff/units/${id}`);
+  const { data } = await api.delete<{ ok: true }>(`/units/${id}`);
   return data;
 }
