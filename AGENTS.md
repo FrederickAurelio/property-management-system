@@ -34,7 +34,7 @@ docker-compose.dev.yml → local Postgres only (host port for Nest/Vite)
 
 One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (never `npm i` inside an app).
 
-**Deploy:** push to `release` → GitHub Actions SSH → VPS `docker compose build` + migrate. Path `~/property-management-system`. VPS `.env`: runtime secrets + optional `APT_MIRROR`/`NPM_REGISTRY` for China mirrors (build-time). GHCR backup: `.github/workflows/deploy-vps.ghcr.backup.yml`. Later HTTPS: set `COOKIE_SECURE=true` and update `CORS_ORIGINS`.
+**Deploy:** push to `release` → GitHub Actions builds images (official apt/npm on GH runners) → push GHCR → VPS pulls + migrate. Path `~/property-management-system`. VPS `.env`: runtime secrets + optional `APT_MIRROR`/`NPM_REGISTRY` (only for emergency **direct** rebuild; unused by GHCR pull). Direct-on-VPS backup: `.github/workflows/deploy-vps.direct.backup.yml`. Later HTTPS: set `COOKIE_SECURE=true` and update `CORS_ORIGINS`.
 
 **Phase framing (locked):** business already runs on OTA + manual/walk-in. **Phase 1** = production **staff** PMS for that reality (calendar, reservations, check-in/out, **money/DP**, reports, **iCal import**). **No OTA email ingest.** **Phase 2** = **customer** booking FE only — same `Reservation` + `domain/` model (`source=WEBSITE`). Phase 2 is not “when bookings or payments start.” Design: [`_docs/reservations-design.md`](_docs/reservations-design.md).
 

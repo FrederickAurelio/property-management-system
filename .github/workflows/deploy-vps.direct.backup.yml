@@ -1,0 +1,69 @@
+# BACKUP — direct build-on-VPS deploy.
+# Active workflow is deploy-vps.yml (GHCR build on GitHub, pull on VPS).
+# To swap back: rename this to deploy-vps.yml and move the GHCR file aside.
+# Secrets: VPS_HOST, SSH_USER, SSH_PRIVATE_KEY
+# China VPS: set APT_MIRROR / NPM_REGISTRY in root .env (build-args).
+# Path: ~/property-management-system · branch: release
+
+name: Deploy to VPS (direct build — backup)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 150m
+          script: |
+            set -euo pipefail
+            cd ~/property-management-system
+            git fetch origin
+            git checkout release
+            git reset --hard origin/release
+
+            echo "=== disk before build ==="
+            df -h /
+            docker system df || true
+
+            docker image prune -f || true
+            docker builder prune -f --keep-storage 1GB || true
+
+            for img in cabin-api cabin-pms; do
+              if docker image inspect "${img}:latest" >/dev/null 2>&1; then
+                docker tag "${img}:latest" "${img}:previous"
+              fi
+            done
+
+            export DOCKER_BUILDKIT=1
+            export BUILDKIT_PROGRESS=plain
+            export COMPOSE_HTTP_TIMEOUT=3600
+            export DOCKER_CLIENT_TIMEOUT=3600
+
+            docker compose build --progress=plain api
+            docker compose build --progress=plain pms
+            docker compose up -d
+            docker compose exec -T api npx prisma migrate deploy
+
+            for img in cabin-api cabin-pms; do
+              docker images --format '{{.Repository}}:{{.Tag}}' "$img" | while read -r ref; do
+                case "$ref" in
+                  *:latest|*:previous) ;;
+                  *) docker rmi "$ref" || true ;;
+                esac
+              done
+            done
+            docker image prune -f
+            docker container prune -f
+            docker builder prune -f --keep-storage 2GB
