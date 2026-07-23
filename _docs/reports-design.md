@@ -2,21 +2,21 @@
 
 Locked product + UX for `/reports`. Money and stay rules: [`reservations-design.md`](reservations-design.md). Calendar occupancy nights: [`calendar-design.md`](calendar-design.md).
 
-**Job:** period answers for the **business owner** (and accountant) — cash, fullness, channel mix, open money, compare. Same underlying reservations and movements as the desk; different question (“how did we do?” vs “what do I do next?”).
+**Job:** period answers for the **business owner** (and accountant) — cash, fullness, channel mix, compare. Same underlying reservations and movements as the desk; different question (“how did we do?” vs “what do I do next?”).
 
-Reports does **not** replace Reservations boards, Calendar, or Dashboard. Those stay daily ops.
+Reports does **not** replace Reservations boards, Calendar, or Dashboard. Those stay daily ops. Open Due / Refund chase stays on **Reservations** (Balance due board + detail) — not duplicated here.
 
 ---
 
 ## 1. Page purpose
 
-| | Reservations / Calendar / Dashboard | Reports (`/reports`) |
-|---|---|---|
-| Mental model | Today’s work | Period performance |
-| Default question | Who arrives / what’s free / who’s due? | How much cash, how full, which source, vs last period? |
-| Shape | Boards, grid, today strip | Filters + ranked sections + export |
-| Money | Per stay Total / Paid / Due · Collect | Cash posted in range · open balances snapshot |
-| Audience | Front desk + owner walking the floor | Owner review · month-end · Excel |
+|                  | Reservations / Calendar / Dashboard                       | Reports (`/reports`)                                   |
+| ---------------- | --------------------------------------------------------- | ------------------------------------------------------ |
+| Mental model     | Today’s work                                              | Period performance                                     |
+| Default question | Who arrives / what’s free / who’s due?                    | How much cash, how full, which source, vs last period? |
+| Shape            | Boards, grid, today strip                                 | Filters + ranked sections + export                     |
+| Money            | Per stay Total / Paid / Due · Collect · Balance due board | Cash posted in range (not open-Due chase)              |
+| Audience         | Front desk + owner walking the floor                      | Owner review · month-end · Excel                       |
 
 ---
 
@@ -24,17 +24,16 @@ Reports does **not** replace Reservations boards, Calendar, or Dashboard. Those 
 
 All of these ship on `/reports`. No “later” carve-outs in this list — data already exists on `Reservation` / `PaymentMovement` / inventory.
 
-| # | Capability | One-line |
-|---|------------|----------|
-| **1** | Cash statement | Cash in / out / net for the period |
-| **2** | Occupancy | Property occupied ÷ available unit-nights |
-| **3** | Source mix | Stays and nights by `Reservation.source` (incl. `WEBSITE`) |
-| **4** | Open balances | Snapshot of stays with Due or Refund still open |
-| **5** | Spreadsheet export (CSV) | Download the same numbers / rows for Excel / Sheets / accountant — **not** PDF as primary (see §5.7) |
-| **6** | Occupancy by unit type | Same occupancy math, grouped by type |
-| **7** | Period compare | Primary period vs previous equal-length period |
+| #     | Capability               | One-line                                                                                             |
+| ----- | ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| **1** | Cash statement           | Cash in / out / net for the period                                                                   |
+| **2** | Occupancy                | Property occupied ÷ available unit-nights                                                            |
+| **3** | Source mix               | Stays and nights by `Reservation.source` (incl. `WEBSITE`)                                           |
+| **4** | Spreadsheet export (CSV) | Download the same numbers / rows for Excel / Sheets / accountant — **not** PDF as primary (see §5.6) |
+| **5** | Occupancy by unit type   | Same occupancy math, grouped by type                                                                 |
+| **6** | Period compare           | Primary period vs previous equal-length period                                                       |
 
-**Out of this page (wrong job):** daily arrivals/departures lists, Collect/Check-in actions, ADR/RevPAR from rack Total, OTA bank payout / commission (not in schema), guest demographics.
+**Out of this page (wrong job):** daily arrivals/departures lists, open Due/Refund chase lists (Reservations owns that), Collect/Check-in actions, ADR/RevPAR from rack Total, OTA bank payout / commission (not in schema), guest demographics.
 
 ---
 
@@ -43,17 +42,20 @@ All of these ship on `/reports`. No “later” carve-outs in this list — data
 Every section uses the **same** filter bar. Changing filters recomputes all sections together.
 
 ```text
-[ Property ▼ ]   [ From date ]  [ To date ]   [ Compare: previous period ▾ ]   [ Export CSV ]
+[ Presets: This month | Last month | Last 7 | Last 30 ]
+[ Property ▼ ]   [ From ]  [ To ]   [ Compare switch ]   [ Export Excel ]
+[ N days · vs previous range ]
 ```
 
-| Control | Rule |
-|---------|------|
-| **Property** | Required. One property at a time (same language as Calendar). Options from existing property options. |
-| **From / To** | Inclusive calendar dates for the **primary** period. Default: **current month to today** (or full previous calendar month if viewing after month-end — pick one default and stick to it in UI copy). |
-| **Compare** | On by default for section 7. Previous period = same length immediately before `From` (e.g. 1–23 Jul → 8–30 Jun). Optional: “previous calendar month” preset later without changing math of equal-length default. |
-| **Export** | Spreadsheet/CSV of what the page shows for this property + primary period (and compare columns where applicable). See §5.7. **Not** PDF-first. |
+| Control       | Rule                                                                                                                                   |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Presets**   | Quick ranges: month-to-date · last full calendar month · last 7 days · last 30 days (inclusive). Selecting a preset sets From/To.      |
+| **Property**  | Required. One property at a time (same language as Calendar). Options from existing property options.                                  |
+| **From / To** | Inclusive calendar dates for the **primary** period. Default: **current month to today**.                                              |
+| **Compare**   | On by default. Previous period = same length immediately before `From` (e.g. 1–23 Jul → 8–30 Jun). Chrome shows day count + vs window. |
+| **Export**    | Spreadsheet/CSV of what the page shows (incl. denser columns + compare). See §5.6. **Not** PDF-first.                                  |
 
-Optional thin filter (not required for v1 layout): **Source** — when set, cash / occupancy / balances narrow to that source; source-mix section still shows all sources (or hide mix when filtered — prefer still show all so mix stays honest).
+Optional thin filter (not required for v1 layout): **Source** — when set, cash / occupancy narrow to that source; source-mix section still shows all sources (or hide mix when filtered — prefer still show all so mix stays honest).
 
 ---
 
@@ -62,29 +64,28 @@ Optional thin filter (not required for v1 layout): **Source** — when set, cash
 Owner opens the page top → bottom. **One screen composition**, not a dashboard of equal cards.
 
 ```text
-┌─ Filters (property · dates · compare · export) ─────────────────────┐
+┌─ Filters (presets · property · dates · compare · export) ───────────┐
+├─ Header: property name · primary range ─────────────────────────────┤
 ├─ 1. Cash statement (hero) ──────────────────────────────────────────┤
-│     Net  ·  In  ·  Out                                              │
-│     Breakdown: by method  ·  by source                              │
-│     Compare deltas when compare on                                  │
+│     Net (+ prev · Δ · %Δ)  ·  In / Out (+ prev muted)               │
+│     Breakdown tables: method / source · In · Out · Net · % of in    │
 ├─ 2. Occupancy (property) ───────────────────────────────────────────┤
-│     %  ·  occupied / available nights  ·  compare                   │
+│     %  ·  occupied / available (+ prev nights)  ·  Δ pts            │
 ├─ 3. Occupancy by unit type ─────────────────────────────────────────┤
-│     Table: type · % · nights · compare                              │
+│     Table: type · occupied · available · % · prev % · Δ%            │
 ├─ 4. Source mix ─────────────────────────────────────────────────────┤
-│     Table: source · stays · nights · % of nights · compare          │
-├─ 5. Open balances ──────────────────────────────────────────────────┤
-│     Totals Due / Refund  ·  list of stays                           │
+│     Table: source · stays · nights · % · cash net · % cash          │
+│            (+ prev nights · prev % · Δ share · Δ nights)            │
+│     Rollup: Direct vs OTA nights + cash net share                   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-| Priority | Section | Why this height |
-|----------|---------|-----------------|
-| **1 — Hero** | Cash | Owner’s first question: money that hit the property ledger |
-| **2** | Occupancy (property) | Second question: were we empty or full? |
-| **3** | Occupancy by unit type | Same story, product-level — under overall % so hierarchy stays clear |
-| **4** | Source mix | Channel / website / manual dependency |
-| **5** | Open balances | Risk / chase list — after performance, before leaving the page |
+| Priority     | Section                | Why this height                                                      |
+| ------------ | ---------------------- | -------------------------------------------------------------------- |
+| **1 — Hero** | Cash                   | Owner’s first question: money that hit the property ledger           |
+| **2**        | Occupancy (property)   | Second question: were we empty or full?                              |
+| **3**        | Occupancy by unit type | Same story, product-level — under overall % so hierarchy stays clear |
+| **4**        | Source mix             | Channel / website / manual dependency                                |
 
 **Do not** put six equal KPI tiles above the fold. Cash net is the only hero number; everything else supports it or answers the next question.
 
@@ -100,23 +101,23 @@ Honest footer (always visible once):
 
 **Use cases**
 
-| Actor | Situation | They need |
-|-------|-----------|-----------|
-| Owner | End of week / month | “Berapa uang masuk / keluar di properti?” |
-| Owner + accountant | Reconcile to cash / transfer notes | Net + breakdown they can export |
-| Owner | Staff said they collected DP | Proof via posted movements, not memory |
-| Owner | Guest got refund / cancel refund | See OUT in the same period view |
+| Actor              | Situation                          | They need                                 |
+| ------------------ | ---------------------------------- | ----------------------------------------- |
+| Owner              | End of week / month                | “Berapa uang masuk / keluar di properti?” |
+| Owner + accountant | Reconcile to cash / transfer notes | Net + breakdown they can export           |
+| Owner              | Staff said they collected DP       | Proof via posted movements, not memory    |
+| Owner              | Guest got refund / cancel refund   | See OUT in the same period view           |
 
 **What matters**
 
-| Metric | Definition |
-|--------|------------|
-| **Cash in** | Sum of `PaymentMovement` with `direction=IN` where `createdAt` (date in property TZ / local business date) falls in `[From, To]` and reservation’s unit belongs to the selected property |
-| **Cash out** | Same for `direction=OUT` |
-| **Net** | In − Out |
-| **By method** | Group by movement `method` (`PROPERTY` · `CHANNEL` · `MIXED` · null as “Unspecified”) |
-| **By source** | Group by parent reservation `source` |
-| **Compare** | Same metrics for previous period; show absolute delta and optional % delta on Net |
+| Metric        | Definition                                                                                                                                                                               |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cash in**   | Sum of `PaymentMovement` with `direction=IN` where `createdAt` (date in property TZ / local business date) falls in `[From, To]` and reservation’s unit belongs to the selected property |
+| **Cash out**  | Same for `direction=OUT`                                                                                                                                                                 |
+| **Net**       | In − Out                                                                                                                                                                                 |
+| **By method** | Group by movement `method` (`PROPERTY` · `CHANNEL` · `MIXED` · null as “Unspecified”)                                                                                                    |
+| **By source** | Group by parent reservation `source`                                                                                                                                                     |
+| **Compare**   | Same metrics for previous period; show absolute delta and optional % delta on Net                                                                                                        |
 
 **Why**
 
@@ -126,9 +127,10 @@ Honest footer (always visible once):
 
 **UI**
 
-- Large **Net** (IDR). Secondary: In · Out.
-- Two compact breakdown tables or stacked rows: method · source.
-- Compare: muted previous Net + `+`/`−` delta next to hero (not a second competing hero).
+- Large **Net** (IDR). Secondary: In · Out; when compare on, muted prev In/Out under that pair.
+- Compare on Net: muted previous Net + absolute Δ + % Δ when previous net ≠ 0 (not a second hero).
+- Breakdown tables (method · source): columns **In · Out · Net · % of period In** — enough to reconcile without Excel first.
+- Same source labels/colors as Reservations list on source breakdown.
 
 ---
 
@@ -136,20 +138,20 @@ Honest footer (always visible once):
 
 **Use cases**
 
-| Actor | Situation | They need |
-|-------|-----------|-----------|
-| Owner | Month review | “Bulan ini sepi atau penuh?” |
-| Owner | Pricing / promo talk | One % to argue from, not gut feel |
+| Actor | Situation              | They need                            |
+| ----- | ---------------------- | ------------------------------------ |
+| Owner | Month review           | “Bulan ini sepi atau penuh?”         |
+| Owner | Pricing / promo talk   | One % to argue from, not gut feel    |
 | Owner | Compare to last period | “Better or worse than last stretch?” |
 
 **What matters**
 
-| Metric | Definition |
-|--------|------------|
-| **Occupied unit-nights** | Count of unit×night slots overlapping the period for stays in statuses that **count as business occupancy** (locked below) |
+| Metric                    | Definition                                                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Occupied unit-nights**  | Count of unit×night slots overlapping the period for stays in statuses that **count as business occupancy** (locked below)                              |
 | **Available unit-nights** | Active bookable units × nights in period, minus nights closed by `CalendarBlock` (maintenance / owner / hold / other) — so blocks don’t inflate “empty” |
-| **Occupancy %** | occupied ÷ available × 100 (0 if available = 0) |
-| **Compare** | Previous period % and night counts |
+| **Occupancy %**           | occupied ÷ available × 100 (0 if available = 0)                                                                                                         |
+| **Compare**               | Previous period % and night counts                                                                                                                      |
 
 **Which stays count as occupied nights**
 
@@ -171,8 +173,9 @@ Locked rule (simple and honest):
 
 **UI**
 
-- One % large enough to scan; subline `34 / 50 nights`.
-- Compare delta on %.
+- One % large enough to scan; subline `occupied / available nights`.
+- Compare: previous % + pts Δ; show previous occupied/available on the subline.
+- One mute occupancy track under property % is enough — no per-type decorative bars.
 
 ---
 
@@ -180,15 +183,15 @@ Locked rule (simple and honest):
 
 **Use cases**
 
-| Actor | Situation | They need |
-|-------|-----------|-----------|
-| Owner | One type always empty | Know which product to discount or stop selling hard |
-| Owner | Deluxe always full | Justify rate or add inventory talk |
-| Ops lead | Assign promo by type | Same numbers owner sees |
+| Actor    | Situation             | They need                                           |
+| -------- | --------------------- | --------------------------------------------------- |
+| Owner    | One type always empty | Know which product to discount or stop selling hard |
+| Owner    | Deluxe always full    | Justify rate or add inventory talk                  |
+| Ops lead | Assign promo by type  | Same numbers owner sees                             |
 
 **What matters**
 
-Same formulas as §5.2, **per unit type** (units with no type → one “Ungrouped” row). Columns: type name · occupied · available · % · compare %.
+Same formulas as §5.2, **per unit type** (units with no type → one “Ungrouped” row). Columns: type name · occupied · available · % · when compare: **prev %** · **Δ%**.
 
 **Why**
 
@@ -197,7 +200,7 @@ Same formulas as §5.2, **per unit type** (units with no type → one “Ungroup
 **UI**
 
 - Table directly under property occupancy (not a separate page). Sorted by type `sortOrder` / name.
-- No charts required; table is enough.
+- No charts required; table columns carry compare — not mini progress bars per row.
 
 ---
 
@@ -205,79 +208,44 @@ Same formulas as §5.2, **per unit type** (units with no type → one “Ungroup
 
 **Use cases**
 
-| Actor | Situation | They need |
-|-------|-----------|-----------|
-| Owner | Channel strategy | “Terlalu bergantung ke Airbnb?” |
-| Owner | Website vs OTA | Share of `WEBSITE` vs OTAs vs `MANUAL` once website books exist |
-| Owner | Walk-in vs online | How much desk / WhatsApp (`MANUAL`) still carries |
+| Actor | Situation         | They need                                                       |
+| ----- | ----------------- | --------------------------------------------------------------- |
+| Owner | Channel strategy  | “Terlalu bergantung ke Airbnb?”                                 |
+| Owner | Website vs OTA    | Share of `WEBSITE` vs OTAs vs `MANUAL` once website books exist |
+| Owner | Walk-in vs online | How much desk / WhatsApp (`MANUAL`) still carries               |
 
 **What matters**
 
-| Metric | Definition |
-|--------|------------|
-| **Stays** | Count of reservations with `checkIn` in period **or** nights overlapping period — **lock one**. Prefer **nights overlapping period** for mix % (aligns with occupancy); also show **stay count** where `checkIn` in period as a second column for “how many bookings landed.” |
-| **Nights** | Occupied unit-nights in period attributed to that reservation’s `source` (same occupancy night rules as §5.2) |
-| **% of nights** | nights ÷ property occupied nights |
-| **Sources** | All `ReservationSource` values: `MANUAL` · `WEBSITE` · `BOOKING_COM` · `AIRBNB` · `AGODA` — show row even if 0 in period so mix is stable |
-| **Compare** | Previous period nights (and %) per source |
+| Metric             | Definition                                                                                                                                                                                                                                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Stays**          | Count of reservations with `checkIn` in period **or** nights overlapping period — **lock one**. Prefer **nights overlapping period** for mix % (aligns with occupancy); also show **stay count** where `checkIn` in period as a second column for “how many bookings landed.” |
+| **Nights**         | Occupied unit-nights in period attributed to that reservation’s `source` (same occupancy night rules as §5.2)                                                                                                                                                                 |
+| **% of nights**    | nights ÷ property occupied nights                                                                                                                                                                                                                                             |
+| **Sources**        | All `ReservationSource` values: `MANUAL` · `WEBSITE` · `BOOKING_COM` · `AIRBNB` · `AGODA` — show row even if 0 in period so mix is stable                                                                                                                                     |
+| **Compare**        | Previous period nights and % per source; show **Δ share (pp)** and Δ nights                                                                                                                                                                                                   |
+| **Cash net share** | Same period’s cash-by-source net ÷ period cash net — nights share vs money share side by side                                                                                                                                                                                 |
 
 **Why**
 
 - Source is already on every reservation — mix is free and permanent.
-- Owner decision is dependency and marketing push, not cash (cash-by-source lives under Cash).
+- Owner decision is dependency and marketing push; cash-by-source also appears under Cash, but % cash on this table makes OTA vs Direct actionable in one place.
 
 **UI**
 
-- Table: Source · Stays (check-in in period) · Nights · % nights · Δ nights vs compare.
+- Table sorted by nights desc (zeros still listed): Source · Stays (check-in in period) · Nights · % nights · Cash net · % cash · when compare: Prev nights · Prev % · Δ share · Δ nights.
 - Same source labels/colors as Reservations list.
+- One rollup line under the table: **Direct (Manual+Website)** vs **OTA** nights % and cash net %.
 
 ---
 
-### 5.5 Open balances
+### 5.5 Period compare
 
 **Use cases**
 
-| Actor | Situation | They need |
-|-------|-----------|-----------|
-| Owner | Month-end | “Siapa masih nunggak? Siapa perlu refund?” |
-| Owner | After busy weekend | Chase list without scrolling all boards |
-| Accountant | Outstanding at property | Totals + guest/unit list via CSV |
-
-**What matters**
-
-| Metric | Definition |
-|--------|------------|
-| **Due total** | Sum of `balanceDueIdr` for open stays in scope |
-| **Refund total** | Sum of `refundDueIdr` for open stays in scope |
-| **Row** | Stay with Due > 0 or Refund > 0 |
-
-**Scope (snapshot, not “posted in period”)**
-
-- Property filter required.
-- Include reservations for that property where money is unsettled (`balanceDueIdr > 0` or `refundDueIdr > 0`), and status is not a closed dead end: exclude `CANCELLED` with both due and refund 0; include active ops statuses with open money (`UNCONFIRMED` · `CONFIRMED` · `CHECKED_IN` · `CHECKED_OUT` if still unbalanced).
-- Date filter: **primary period applies as “stay touches period”** (overlap of stay with `[From, To)`) so the snapshot is “open money for stays relevant to this review window,” not “movements created in range” (that’s Cash).
-
-**Why**
-
-- Boards answer “today.” Owner review needs a **period-relevant outstanding list** + export.
-- Same Due/Refund helpers as detail — never invent a second money language.
-
-**UI**
-
-- Totals strip: Due · Refund.
-- Table: guest · unit · source · status · Due · Refund · link to `/reservations/:id`.
-- No Collect on this page — open detail to act (same as Calendar → detail).
-
----
-
-### 5.6 Period compare
-
-**Use cases**
-
-| Actor | Situation | They need |
-|-------|-----------|-----------|
+| Actor | Situation           | They need                                    |
+| ----- | ------------------- | -------------------------------------------- |
 | Owner | “Are we improving?” | Net cash and occupancy vs last equal stretch |
-| Owner | Seasonal chat | Quick Δ without two browser tabs |
+| Owner | Seasonal chat       | Quick Δ without two browser tabs             |
 
 **What matters**
 
@@ -291,43 +259,43 @@ Same formulas as §5.2, **per unit type** (units with no type → one “Ungroup
 
 ---
 
-### 5.7 Export — Excel/CSV vs PDF (locked)
+### 5.6 Export — Excel/CSV vs PDF (locked)
 
 **Verdict: spreadsheet (CSV → Excel / Google Sheets) is the primary export. PDF is not the primary product.**
 
-| Job | Better format | Why |
-|-----|---------------|-----|
-| Reconcile cash to bank / kas | **Excel/CSV** | Sort, filter, add columns, match rows to transfers |
-| Accountant / bookkeeper | **Excel/CSV** | They already work in sheets; PDF becomes re-typed |
-| Open balances chase list | **Excel/CSV** | Working list — annotate, mark done, re-sort |
-| Source / occupancy tables | **Excel/CSV** | Pivot / chart in their own tool if they want |
-| “Pretty pack for WhatsApp / print once” | PDF *or* browser Print | Read-only snapshot; nice, not how money work happens |
-| Legal / tax filing packet | Often PDF *from* their accountant’s process | Not something PMS must generate first |
+| Job                                     | Better format                                        | Why                                                  |
+| --------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| Reconcile cash to bank / kas            | **Excel/CSV**                                        | Sort, filter, add columns, match rows to transfers   |
+| Accountant / bookkeeper                 | **Excel/CSV**                                        | They already work in sheets; PDF becomes re-typed    |
+| Source / occupancy tables               | **Excel/CSV**                                        | Pivot / chart in their own tool if they want         |
+| Open Due / Refund chase                 | Reservations board (+ optional list CSV later there) | Ops chase — not period performance                   |
+| “Pretty pack for WhatsApp / print once” | PDF _or_ browser Print                               | Read-only snapshot; nice, not how money work happens |
+| Legal / tax filing packet               | Often PDF _from_ their accountant’s process          | Not something PMS must generate first                |
 
 **Why PDF loses as the main export for this PMS**
 
-- Reports here are **working numbers** (cash lines, open Due rows), not a finished annual brochure.
+- Reports here are **working numbers** (cash lines, occupancy / source tables), not a finished annual brochure.
 - PDF locks layout; owners then screenshot or re-type into Excel anyway.
 - Good multi-section PDF (IDR, tables, compare, page breaks) costs more to build and maintain than CSV for the same data.
 - On-screen `/reports` already is the readable “report.” Export’s job is **take the data elsewhere**.
 
 **Optional (not instead of CSV)**
 
-| Affordance | Role |
-|------------|------|
+| Affordance                                  | Role                                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------- |
 | Browser **Print** / print CSS on `/reports` | Cheap “PDF” when someone wants a fixed snapshot — no server PDF engine required |
-| True **Download PDF** button | Only if owners repeatedly ask after CSV ships; still secondary to spreadsheet |
+| True **Download PDF** button                | Only if owners repeatedly ask after CSV ships; still secondary to spreadsheet   |
 
 **What ships (locked)**
 
 Export **matches on-screen filters** (property + primary period + compare columns where shown). Deliver as **CSV** (one zip of named files, or one multi-section download set) that opens cleanly in Excel / Sheets:
 
-| File / sheet | Contents |
-|--------------|----------|
-| `cash-summary` | Net, in, out; by method; by source; compare columns |
-| `occupancy` | Property % + by unit type + compare |
-| `source-mix` | Per source stays / nights / % + compare |
-| `open-balances` | One row per stay in the open-balances table |
+| File / sheet                        | Contents                                                    |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `cash-summary`                      | Net, in, out; prev + deltas when compare                    |
+| `cash-by-method` / `cash-by-source` | In, out, net, % of in                                       |
+| `occupancy`                         | Property % + by unit type + prev cols when compare          |
+| `source-mix`                        | Stays / nights / % / cash net share + compare share columns |
 
 **UI**
 
@@ -338,14 +306,14 @@ Export **matches on-screen filters** (property + primary period + compare column
 
 ## 6. What not to show (and why)
 
-| Temptation | Why not on Reports |
-|------------|--------------------|
-| Arrivals / departures tables | Duplicate boards; daily ops |
-| Total quote as “Revenue” | Quote ≠ cash; misleads owner |
-| ADR / RevPAR | Needs trustworthy sold rate; rack suggestion ≠ OTA price |
-| OTA payout / commission | Not stored; don’t invent |
-| Collect / check-in buttons | Act on reservation detail |
-| Equal-weight KPI wall | Breaks hierarchy; cash must lead |
+| Temptation                   | Why not on Reports                                       |
+| ---------------------------- | -------------------------------------------------------- |
+| Arrivals / departures tables | Duplicate boards; daily ops                              |
+| Total quote as “Revenue”     | Quote ≠ cash; misleads owner                             |
+| ADR / RevPAR                 | Needs trustworthy sold rate; rack suggestion ≠ OTA price |
+| OTA payout / commission      | Not stored; don’t invent                                 |
+| Collect / check-in buttons   | Act on reservation detail                                |
+| Equal-weight KPI wall        | Breaks hierarchy; cash must lead                         |
 
 ---
 
@@ -357,11 +325,11 @@ There is no separate “Owner” role. Map owner/manager to the existing hierarc
 SUPER_ADMIN  >  ADMIN  >  FRONT_DESK
 ```
 
-| Role | Reports? | Why |
-|------|----------|-----|
-| `SUPER_ADMIN` | **Yes** | Full system; includes business oversight |
-| `ADMIN` | **Yes** | Property / ops manager — month-end cash, occupancy, channel mix, export |
-| `FRONT_DESK` | **No** | Daily ops only (check-in, Collect, calendar). They already see per-stay Due on the desk; they do not need property-wide cash/export |
+| Role          | Reports? | Why                                                                                                                                 |
+| ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPER_ADMIN` | **Yes**  | Full system; includes business oversight                                                                                            |
+| `ADMIN`       | **Yes**  | Property / ops manager — month-end cash, occupancy, channel mix, export                                                             |
+| `FRONT_DESK`  | **No**   | Daily ops only (check-in, Collect, calendar). They already see per-stay Due on the desk; they do not need property-wide cash/export |
 
 **API:** `@StaffRoles('ADMIN')` on `/staff/reports/*` (ADMIN + SUPER_ADMIN).  
 **PMS:** hide `/reports` nav (and block route) unless session role is `ADMIN` or `SUPER_ADMIN`. Deep link → same 403 / redirect pattern as other admin-only surfaces.
@@ -376,36 +344,35 @@ Staff-only aggregate reads — logic in `domain/reports/`, HTTP under `staff/rep
 
 Suggested:
 
-| Method | Path | Returns |
-|--------|------|---------|
-| `GET` | `/staff/reports/summary?propertyId&from&to&compare=1` | One payload: cash · occupancy · occupancyByUnitType · sourceMix · openBalances · compare bundle |
+| Method | Path                                                  | Returns                                                                          |
+| ------ | ----------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `GET`  | `/staff/reports/summary?propertyId&from&to&compare=1` | One payload: cash · occupancy · occupancyByUnitType · sourceMix · compare bundle |
 
 Prefer **one summary** so the page loads once and hierarchy stays one composition. CSV can be `GET .../export` with same query (attachment) or client-built from summary — server export preferred for accountant consistency.
 
-Wire types in `@cabin/api-contract` (e.g. `StaffReportsSummary`). Do not fork money helpers — reuse `balanceDueIdr` / `refundDueIdr` / movement sums.
+Wire types in `@cabin/api-contract` (e.g. `StaffReportsSummary`). Do not fork money helpers for cash aggregates — reuse movement sums.
 
 ---
 
 ## 9. Empty / edge states
 
-| Case | UI |
-|------|-----|
-| No property selected | Prompt to pick property (same as Calendar) |
-| No movements in period | Cash zeros + short “No cash posted in this period” |
-| No stays / nights | Occupancy 0% with available nights still shown; source mix all zeros |
-| No open balances | “No open balances” — still show Due/Refund totals as 0 |
-| Available nights = 0 | Occupancy em dash / “n/a”, not divide-by-zero |
+| Case                   | UI                                                                   |
+| ---------------------- | -------------------------------------------------------------------- |
+| No property selected   | Prompt to pick property (same as Calendar)                           |
+| No movements in period | Cash zeros + short “No cash posted in this period”                   |
+| No stays / nights      | Occupancy 0% with available nights still shown; source mix all zeros |
+| Available nights = 0   | Occupancy em dash / “n/a”, not divide-by-zero                        |
 
 ---
 
 ## 10. Relationship to other surfaces
 
-| Surface | Owns |
-|---------|------|
-| `/reservations` boards | Today’s tasks, Due column, Collect |
-| `/calendar` | Spatial busy/free |
-| `/` Dashboard | Today strip (arrivals / in-house / due) — optional; not this doc |
-| `/reports` | Period cash · occupancy · source · open balances · compare · CSV |
+| Surface                | Owns                                                             |
+| ---------------------- | ---------------------------------------------------------------- |
+| `/reservations` boards | Today’s tasks, Due column, Collect, Balance due chase            |
+| `/calendar`            | Spatial busy/free                                                |
+| `/` Dashboard          | Today strip (arrivals / in-house / due) — optional; not this doc |
+| `/reports`             | Period cash · occupancy · source · compare · CSV                 |
 
 ---
 
@@ -417,7 +384,7 @@ Wire types in `@cabin/api-contract` (e.g. `StaffReportsSummary`). Do not fork mo
 - [ ] Occupancy % uses locked night rules; blocks reduce available
 - [ ] Occupancy by unit type under property occupancy
 - [ ] Source mix includes all `ReservationSource` values (incl. `WEBSITE`)
-- [ ] Open balances use same Due/Refund as detail; rows link to reservation
+- [ ] No open-balances section — chase stays on Reservations
 - [ ] Compare = previous equal-length period on cash / occupancy / type / source
 - [ ] Spreadsheet/CSV export matches filters (PDF not required; browser Print optional)
 - [ ] Footer honesty: cash ≠ OTA payout
@@ -427,9 +394,9 @@ Wire types in `@cabin/api-contract` (e.g. `StaffReportsSummary`). Do not fork mo
 
 ## 12. References
 
-| Doc | Role |
-|-----|------|
-| [`reservations-design.md`](reservations-design.md) | Statuses, money, source, Due/Refund |
-| [`calendar-design.md`](calendar-design.md) | Occupying nights, blocks, property scope |
-| [`inventory-and-reservation-tables.md`](inventory-and-reservation-tables.md) | Tables |
-| [`.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md) | Product brief |
+| Doc                                                                          | Role                                     |
+| ---------------------------------------------------------------------------- | ---------------------------------------- |
+| [`reservations-design.md`](reservations-design.md)                           | Statuses, money, source, Due/Refund      |
+| [`calendar-design.md`](calendar-design.md)                                   | Occupying nights, blocks, property scope |
+| [`inventory-and-reservation-tables.md`](inventory-and-reservation-tables.md) | Tables                                   |
+| [`.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md)        | Product brief                            |

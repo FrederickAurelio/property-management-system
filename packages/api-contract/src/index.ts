@@ -8,3 +8,4 @@ export * from './pagination.js';
 export * from './inventory.js';
 export * from './reservations.js';
 export * from './calendar.js';
+export * from './reports.js';

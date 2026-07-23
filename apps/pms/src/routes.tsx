@@ -1,14 +1,15 @@
 import { Navigate, Route, Routes } from "react-router";
 import { PrivateRoute } from "@/components/private-route";
+import { ReportsRoute } from "@/components/reports-route";
 import { AppLayout } from "@/layouts/app-layout";
 import { CalendarPage } from "@/pages/calendar/calendar-page";
 import { HomePage } from "@/pages/home-page";
 import { LoginPage } from "@/pages/login-page";
-import { PlaceholderPage } from "@/pages/placeholder-page";
 import { PropertiesPage } from "@/pages/properties/properties-page";
 import { PropertyExplorerLayout } from "@/pages/properties/property-explorer-layout";
 import { UnitTypesPage } from "@/pages/properties/unit-types-page";
 import { UnitsPage } from "@/pages/properties/units-page";
+import { ReportsPage } from "@/pages/reports/reports-page";
 import { ReservationDetailPage } from "@/pages/reservations/reservation-detail-page";
 import { ReservationsPage } from "@/pages/reservations/reservations-page";
 import { SettingsPage } from "@/pages/settings/settings-page";
@@ -42,7 +43,9 @@ export function AppRoutes() {
             />
           </Route>
           <Route path="units" element={<Navigate to="/properties" replace />} />
-          <Route path="reports" element={<PlaceholderPage title="Reports" />} />
+          <Route element={<ReportsRoute />}>
+            <Route path="reports" element={<ReportsPage />} />
+          </Route>
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>

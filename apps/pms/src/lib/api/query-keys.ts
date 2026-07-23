@@ -196,3 +196,19 @@ export function staffPropertyCalendarQueryKey(
     params.to,
   ] as const;
 }
+
+/** Staff period reports summary (cash · occupancy · source · open balances). */
+export const staffReportsQueryKeyPrefix = ["staff", "reports"] as const;
+
+export type StaffReportsSummaryQueryParams = {
+  propertyId: string;
+  from: string;
+  to: string;
+  compare: boolean;
+};
+
+export function staffReportsSummaryQueryKey(
+  params: StaffReportsSummaryQueryParams,
+) {
+  return [...staffReportsQueryKeyPrefix, "summary", params] as const;
+}

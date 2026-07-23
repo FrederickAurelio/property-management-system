@@ -20,6 +20,7 @@ import {
 } from "@/config/nav";
 import { staffSession } from "@/lib/api";
 import { staffSessionQueryKey } from "@/lib/api/query-keys";
+import { canViewReports } from "@/lib/staff-permissions";
 
 function NavSidebarItem({ item }: { item: NavItem }) {
   const location = useLocation();
@@ -57,6 +58,13 @@ export function AppSidebar() {
     queryFn: () => staffSession(),
   });
 
+  const manageItems = secondaryNavItems.filter((item) => {
+    if (item.href === "/reports") {
+      return staff ? canViewReports(staff.role) : false;
+    }
+    return true;
+  });
+
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
@@ -70,7 +78,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Manage</SidebarGroupLabel>
           <SidebarGroupContent>
-            <NavMenu items={secondaryNavItems} />
+            <NavMenu items={manageItems} />
           </SidebarGroupContent>
         </SidebarGroup>
 

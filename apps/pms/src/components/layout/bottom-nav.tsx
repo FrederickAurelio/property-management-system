@@ -1,7 +1,8 @@
 /* anchor: Linear mobile tab bar, diverge: More sheet → Manage + Settings only */
 import type { LucideIcon } from "lucide-react";
 import { MoreHorizontalIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router";
 import {
   Sheet,
@@ -15,6 +16,9 @@ import {
   mobileNavItems,
   secondaryNavItems,
 } from "@/config/nav";
+import { staffSession } from "@/lib/api";
+import { staffSessionQueryKey } from "@/lib/api/query-keys";
+import { canViewReports } from "@/lib/staff-permissions";
 import { cn } from "@/lib/utils";
 
 const bottomNavItemClass =
@@ -65,10 +69,22 @@ function BottomNavLink({
   );
 }
 
-const moreLinks = [...secondaryNavItems, ...accountNavItems];
-
 export function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
+  const { data: staff } = useQuery({
+    queryKey: staffSessionQueryKey,
+    queryFn: () => staffSession(),
+  });
+
+  const moreLinks = useMemo(() => {
+    const manage = secondaryNavItems.filter((item) => {
+      if (item.href === "/reports") {
+        return staff ? canViewReports(staff.role) : false;
+      }
+      return true;
+    });
+    return [...manage, ...accountNavItems];
+  }, [staff]);
 
   return (
     <>
