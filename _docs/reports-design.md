@@ -377,7 +377,7 @@ Wire types in `@cabin/api-contract`. Do not fork money helpers for cash aggregat
 | ---------------------- | ---------------------------------------------------------------- |
 | `/reservations` boards | Today’s tasks, Due column, Collect, Balance due chase            |
 | `/calendar`            | Spatial busy/free                                                |
-| `/` Dashboard          | Today strip (arrivals / in-house / due) — optional; not this doc |
+| `/` Dashboard          | Today arrivals/departures + Needs attention · Sync all — [`dashboard-design.md`](dashboard-design.md) |
 | `/reports`             | Period cash · occupancy · source · compare · CSV                 |
 
 ---

@@ -78,7 +78,7 @@ Phase 1 desk boards live on **Reservations** (`/reservations`) only — **no** s
 
 Arrivals matches the check-in window; Departures matches due/overdue checkout (not “today only”). Sort Arrivals by `checkInDate` asc, Departures by `checkOutDate` asc (oldest overdue first). PMS shows **Late arrival** / **Late departure** badges on list + detail wherever the row appears (not only on those boards). Past `checkOutDate` without ever checking in → find under All → **Cancel** (no-show notes); no separate `NO_SHOW` status.
 
-Calendar is the spatial view of the same rows — same badges, same click-through to detail. Full page spec: [`calendar-design.md`](calendar-design.md).
+Calendar is the spatial view of the same rows — same badges, same click-through to detail. Full page spec: [`calendar-design.md`](calendar-design.md). Desk home triage (today in/out + exceptions, not full boards): [`dashboard-design.md`](dashboard-design.md).
 
 ### 3.2 One detail page — primary actions by status
 
@@ -370,7 +370,7 @@ Background worker (cron)
   → pulls all active UnitIcalFeed URLs on a timer
   → no Sync button on the unit form
 
-Optional: one “Sync all” (dashboard / calendar page)
+Optional: one “Sync all” (Dashboard `/`; Calendar optional later)
   → FRONT_DESK+ can force a full pull now
 ```
 
@@ -411,7 +411,7 @@ Optional later: move the block to a “Calendars” tab if the form feels crowde
 ### Automatic sync (worker)
 
 - Cron (e.g. every 5–15 min) pulls every `isActive` feed.  
-- **Sync all** (one button on `/calendar` or dashboard): enqueue the same pull job now.  
+- **Sync all** (one button on Dashboard `/`; Calendar optional later): enqueue the same pull job now.  
 - Failures → `lastError` on that feed; UI can show a small status under the URL on edit.
 
 ### Import pull behavior

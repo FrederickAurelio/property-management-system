@@ -103,6 +103,7 @@ Money quote (locked): stay Total suggests `nights × UnitType.defaultPriceIdr`; 
 | Repo / architecture | This file + `.docs/cabin-pms-client-plan.md` |
 | Reservations / money / iCal | [`_docs/reservations-design.md`](_docs/reservations-design.md) |
 | Calendar page (unit × days) | [`_docs/calendar-design.md`](_docs/calendar-design.md) |
+| Dashboard (desk today) | [`_docs/dashboard-design.md`](_docs/dashboard-design.md) |
 | Reports (owner period) | [`_docs/reports-design.md`](_docs/reports-design.md) |
 | Shared libs | `packages/README.md` + that package’s `AGENTS.md` |
 | Backend | `apps/api/AGENTS.md` (audience: `staff` / `domain` / `public`) |
