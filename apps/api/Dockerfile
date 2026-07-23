@@ -60,15 +60,12 @@ RUN pnpm run build
 
 # Prod-only deploy bundle (~300MB vs copying full monorepo node_modules ~1.2GB+).
 # --legacy: pnpm v10+ workspace deploy without inject-workspace-packages.
+# prisma is a runtime dependency so migrate deploy has @prisma/engines + CLI.
 WORKDIR /app
 ENV CI=true
 RUN set -eux; \
   pnpm deploy --filter=@cabin/api --prod --legacy /prod/api; \
-  rm -rf /prod/api/src /prod/api/test; \
-  prisma_pkg="$(ls -d /app/node_modules/.pnpm/prisma@6.19.3*/node_modules/prisma | head -1)"; \
-  cp -a "${prisma_pkg}" /prod/api/node_modules/; \
-  mkdir -p /prod/api/node_modules/.bin; \
-  ln -sf ../prisma/build/index.js /prod/api/node_modules/.bin/prisma
+  rm -rf /prod/api/src /prod/api/test
 
 # --- runtime ---
 FROM node:22-bookworm-slim AS runner
