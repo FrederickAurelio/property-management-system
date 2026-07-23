@@ -12,6 +12,6 @@ alwaysApply: true
 - **Phase 1** = prod staff PMS (`api` + `pms`) for live manual + OTA — incl. reservations + money/DP (`Total` quote + `PaymentMovement` cash ledger; Paid = sum). **Phase 2** = public `web` book FE only (same reservation domain). No CM or OTA scraping in Phase 1.
 - Unique-unit calendars. Overlap safety in Postgres. `CONFIRMED` ≠ paid.
 - Tooling pitfalls (pnpm builds, Prisma output, single `.env`, ESLint per app, shared packages): `.cursor/rules/monorepo-tooling.mdc`.
-- Docker: `docker-compose.yml` = VPS full stack (postgres+api+pms; only FE `:8080`); `docker-compose.dev.yml` = local Postgres for `pnpm db:up`. Deploy on push to `release`.
+- Docker: `docker-compose.yml` = VPS stack (postgres+api+pms; only FE `:8080`); `docker-compose.dev.yml` = local Postgres for `pnpm db:up`. Deploy on push to `release` via **GHCR** (build on GitHub, pull on VPS); direct-on-VPS backup workflow available.
 - When editing `AGENTS.md` or `.cursor/rules/*.mdc`: **general patterns, not one-off cases** — see root `AGENTS.md` → “How to write…” and `.cursor/rules/agents-writing.mdc`. App rules scale via layered globs — map: `.cursor/rules/README.md`.
 - Open the repo via `cabin.code-workspace` when IDE diagnostics look wrong.

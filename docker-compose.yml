@@ -1,8 +1,15 @@
 # VPS / full stack — postgres + api + pms on cabin-net.
 # Only pms publishes a host port (8080→80). api and postgres stay internal.
 # Local Postgres: use docker-compose.dev.yml via `pnpm db:up`.
+# GHCR deploy: also use docker-compose.ci.yml with IMAGE_API / IMAGE_PMS.
 
 name: cabin
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
 
 services:
   postgres:
@@ -25,14 +32,17 @@ services:
       timeout: 5s
       retries: 10
       start_period: 5s
+    logging: *default-logging
     networks:
       - cabin
 
   api:
+    image: cabin-api:latest
     build:
       context: .
       dockerfile: apps/api/Dockerfile
       args:
+        # Empty on GHCR / SEA. China direct rebuild: set in .env
         APT_MIRROR: ${APT_MIRROR:-}
         NPM_REGISTRY: ${NPM_REGISTRY:-}
     container_name: cabin-api
@@ -48,10 +58,24 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cabin_pms}?schema=public
     expose:
       - '3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
     networks:
       - cabin
 
   pms:
+    image: cabin-pms:latest
     build:
       context: .
       dockerfile: apps/pms/Dockerfile
@@ -64,6 +88,7 @@ services:
       - api
     ports:
       - '8080:80'
+    logging: *default-logging
     networks:
       - cabin
 
