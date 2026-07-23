@@ -212,3 +212,14 @@ export function staffReportsSummaryQueryKey(
 ) {
   return [...staffReportsQueryKeyPrefix, "summary", params] as const;
 }
+
+/** Staff desk dashboard triage (today arrivals/departures + needs attention). */
+export const staffDashboardQueryKeyPrefix = ["staff", "dashboard"] as const;
+
+export type StaffDashboardQueryParams = {
+  propertyId: string;
+};
+
+export function staffDashboardQueryKey(params: StaffDashboardQueryParams) {
+  return [...staffDashboardQueryKeyPrefix, params] as const;
+}

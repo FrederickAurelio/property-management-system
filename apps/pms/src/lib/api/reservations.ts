@@ -17,6 +17,7 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import {
+  staffDashboardQueryKeyPrefix,
   staffPropertyCalendarQueryKeyPrefix,
   staffReservationQueryKey,
   staffReservationsListQueryKeyPrefix,
@@ -64,6 +65,9 @@ export function syncReservationCaches(
   });
   void queryClient.invalidateQueries({
     queryKey: staffPropertyCalendarQueryKeyPrefix,
+  });
+  void queryClient.invalidateQueries({
+    queryKey: staffDashboardQueryKeyPrefix,
   });
   if (opts.occupancyChanged) {
     void queryClient.invalidateQueries({

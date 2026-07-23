@@ -477,6 +477,7 @@ export type StaffReservationListItem = Pick<
   | 'source'
   | 'totalAmountIdr'
   | 'paidAmountIdr'
+  | 'paymentStatus'
   | 'icalSyncWarning'
   | 'propertyTimezone'
 >;

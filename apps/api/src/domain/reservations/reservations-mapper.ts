@@ -45,6 +45,7 @@ export type ReservationListRow = Pick<
   | 'source'
   | 'totalAmountIdr'
   | 'paidAmountIdr'
+  | 'paymentStatus'
   | 'icalSyncWarning'
 > & {
   property: Pick<Property, 'timezone'>;
@@ -84,6 +85,7 @@ export function toStaffReservationListItem(
     source: row.source,
     totalAmountIdr: bigintToNumber(row.totalAmountIdr),
     paidAmountIdr: Number(row.paidAmountIdr),
+    paymentStatus: row.paymentStatus,
     icalSyncWarning: row.icalSyncWarning,
     propertyTimezone: row.property.timezone,
   };

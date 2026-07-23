@@ -21,6 +21,7 @@ scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 - Reservation wire types (`StaffReservation` detail/mutations, `StaffReservationListItem` desk list, create/update/cancel/list filters, boards, `ReservationListSort`) + helpers (`recomputePaymentStatus`, `balanceDueIdr`, `refundDueIdr`, `suggestStayTotalIdr` — Nest must reuse; do not fork)
 - Calendar wire types (`StaffPropertyCalendar`, `StaffCalendarStay`, `StaffCalendarBlock`, `CalendarBlockKind`, create/update block inputs) — property aggregate for unit×days grid
 - Reports wire types (`StaffReportsSummary`, cash / occupancy / source mix) + period helpers (`previousEqualPeriod`, `ymdInclusiveToUtcHalfOpen`) — Nest `GET /staff/reports/summary`. Open balances stay on Reservations boards.
+- Dashboard wire types (`StaffDashboard`, `StaffDashboardListItem`, `StaffDashboardAttentionKind`) — Nest `GET /staff/dashboard` (today arrivals/departures + needs attention; not period KPIs)
 - Payment movement wire (`PaymentMovement`, direction/kind enums) + helpers (`signedAmountFor`, `sumPaidFromMovements`) — Paid on reservation is denormalized sum of movements; Nest must append movements, not overwrite Paid alone; stamp `createdByAdminId` from session
 - Reservation staff wire includes `createdByAdminId` / `updatedByAdminId` (+ denormalized usernames) — light attribution, not a full audit log
 - Pagination: `Paginated<T>`, `PageInfo`, `buildPageInfo`, page size bounds

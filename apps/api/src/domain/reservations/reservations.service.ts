@@ -39,6 +39,13 @@ import type { PostPaymentMovementDto } from './dto/post-payment-movement.dto.js'
 import type { UpdateReservationDto } from './dto/update-reservation.dto.js';
 import { findOccupyingOverlap, type OverlapHit } from './overlap.js';
 import {
+  arrivalsWindow,
+  departuresWindow,
+  findOverpaidReservationIds,
+  reservationListSelect,
+  withOpenBalanceMoney,
+} from './reservation-board-where.js';
+import {
   parseYmd,
   toStaffReservation,
   toStaffReservationListItem,
@@ -46,21 +53,6 @@ import {
 
 /** Fallback when boards list all properties (doc prefers property-scoped boards). */
 const DEFAULT_BOARD_TIMEZONE = 'Asia/Jakarta';
-
-/** Desk list — columns the table paints (no admin / guest-detail joins). */
-const reservationListSelect = {
-  id: true,
-  guestName: true,
-  checkInDate: true,
-  checkOutDate: true,
-  status: true,
-  source: true,
-  totalAmountIdr: true,
-  paidAmountIdr: true,
-  icalSyncWarning: true,
-  property: { select: { timezone: true } },
-  unit: { select: { code: true } },
-} as const;
 
 const reservationInclude = {
   property: { select: { name: true, timezone: true } },
@@ -980,83 +972,21 @@ export class ReservationsService {
   /**
    * Balance-due board: Due > 0 or Refund > 0 (doc §3.1).
    * Money predicates stay in the DB — never page-then-filter in memory.
-   * Overpay needs column compare (`paid > total`); Prisma where cannot express that → raw ids.
    */
   private async balanceDueMoneyFilter(
     base: Prisma.ReservationWhereInput,
     query: ListReservationsQueryDto,
   ): Promise<Prisma.ReservationWhereInput> {
-    const overpaidIds = await this.findOverpaidReservationIds(query);
-
-    const moneyOpen: Prisma.ReservationWhereInput = {
-      OR: [
-        {
-          paymentStatus: PaymentStatus.UNPAID,
-          totalAmountIdr: { gt: 0 },
-        },
-        { paymentStatus: PaymentStatus.DEPOSIT },
-        ...(overpaidIds.length > 0 ? [{ id: { in: overpaidIds } }] : []),
-      ],
-    };
-
-    return { AND: [base, moneyOpen] };
-  }
-
-  /** Refund > 0 rows — `paidAmountIdr > totalAmountIdr` in SQL. */
-  private async findOverpaidReservationIds(
-    query: ListReservationsQueryDto,
-  ): Promise<string[]> {
-    const parts: Prisma.Sql[] = [
-      Prisma.sql`r."totalAmountIdr" IS NOT NULL`,
-      Prisma.sql`r."paidAmountIdr" > r."totalAmountIdr"`,
-      Prisma.sql`r.status IN (
-        'UNCONFIRMED'::"ReservationStatus",
-        'CONFIRMED'::"ReservationStatus",
-        'CHECKED_IN'::"ReservationStatus",
-        'CHECKED_OUT'::"ReservationStatus"
-      )`,
-    ];
-
-    if (query.propertyId) {
-      parts.push(Prisma.sql`r."propertyId" = ${query.propertyId}`);
-    }
-    if (query.source) {
-      parts.push(Prisma.sql`r.source = ${query.source}::"ReservationSource"`);
-    }
-    if (query.status) {
-      parts.push(Prisma.sql`r.status = ${query.status}::"ReservationStatus"`);
-    }
-    if (query.checkInDate) {
-      parts.push(Prisma.sql`r."checkInDate" = ${parseYmd(query.checkInDate)}`);
-    }
-    if (query.checkOutDate) {
-      parts.push(
-        Prisma.sql`r."checkOutDate" = ${parseYmd(query.checkOutDate)}`,
-      );
-    }
-    if (query.hasIcalWarning) {
-      parts.push(Prisma.sql`r."icalSyncWarning" IS NOT NULL`);
-    }
-    if (query.q?.trim()) {
-      const q = `%${query.q.trim()}%`;
-      parts.push(Prisma.sql`(
-        r."guestName" ILIKE ${q}
-        OR r."guestEmail" ILIKE ${q}
-        OR r."guestPhone" ILIKE ${q}
-        OR r."externalRef" ILIKE ${q}
-        OR u.code ILIKE ${q}
-        OR p.name ILIKE ${q}
-      )`);
-    }
-
-    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
-      SELECT r.id
-      FROM "Reservation" r
-      LEFT JOIN "Unit" u ON u.id = r."unitId"
-      LEFT JOIN "Property" p ON p.id = r."propertyId"
-      WHERE ${Prisma.join(parts, ' AND ')}
-    `;
-    return rows.map((row) => row.id);
+    const overpaidIds = await findOverpaidReservationIds(this.prisma, {
+      propertyId: query.propertyId,
+      source: query.source,
+      status: query.status,
+      checkInDate: query.checkInDate,
+      checkOutDate: query.checkOutDate,
+      hasIcalWarning: query.hasIcalWarning,
+      q: query.q,
+    });
+    return withOpenBalanceMoney(base, overpaidIds);
   }
 
   private async resolveBoardToday(
@@ -1104,23 +1034,16 @@ export class ReservationsService {
     if (query.board && query.board !== ReservationBoard.all) {
       switch (query.board) {
         case ReservationBoard.arrivals: {
-          // Same window as check-in: overdue CONFIRMED stays still appear.
           const today = await this.resolveBoardToday(query.propertyId);
-          const todayDate = parseYmd(today);
-          where.status = ReservationStatus.CONFIRMED;
-          where.checkInDate = { lte: todayDate };
-          where.checkOutDate = { gt: todayDate };
+          Object.assign(where, arrivalsWindow(parseYmd(today)));
           break;
         }
         case ReservationBoard['in-house']:
           where.status = ReservationStatus.CHECKED_IN;
           break;
         case ReservationBoard.departures: {
-          // Due today or overdue still in-house (same idea as Arrivals).
           const today = await this.resolveBoardToday(query.propertyId);
-          const todayDate = parseYmd(today);
-          where.status = ReservationStatus.CHECKED_IN;
-          where.checkOutDate = { lte: todayDate };
+          Object.assign(where, departuresWindow(parseYmd(today)));
           break;
         }
         case ReservationBoard['needs-details']:

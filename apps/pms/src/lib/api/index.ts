@@ -7,6 +7,8 @@ export {
 } from "./infinite-page";
 export {
   staffAdminsQueryKey,
+  staffDashboardQueryKey,
+  staffDashboardQueryKeyPrefix,
   staffPropertiesQueryKey,
   staffPropertiesOptionsQueryKey,
   staffPropertiesQueryKeyPrefix,
@@ -30,6 +32,7 @@ export {
   staffUnitTypesQueryKey,
   staffUnitTypesQueryKeyPrefix,
   type ReservationBoard,
+  type StaffDashboardQueryParams,
   type StaffPropertiesListFilters,
   type StaffPropertyCalendarParams,
   type StaffReportsSummaryQueryParams,
@@ -113,6 +116,10 @@ export {
   REPORTS_USE_FIXTURE,
   type GetStaffReportsSummaryParams,
 } from "./reports";
+export {
+  getStaffDashboard,
+  type GetStaffDashboardParams,
+} from "./dashboard";
 export {
   cloudinaryDeliveryUrl,
   createUploadIntent,

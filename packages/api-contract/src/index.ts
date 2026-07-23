@@ -10,3 +10,4 @@ export * from './reservations.js';
 export * from './calendar.js';
 export * from './reports.js';
 export * from './reports-period.js';
+export * from './dashboard.js';

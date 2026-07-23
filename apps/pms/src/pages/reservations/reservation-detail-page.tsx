@@ -25,7 +25,7 @@ import { PaymentMovementsTimeline } from "./payment-movements-timeline";
 import { ReservationBadge, SourceBadge } from "./reservation-badges";
 import { ReservationFormDialog } from "./reservation-form-dialog";
 import { ReservationMoneyBlock } from "./reservation-money-block";
-import { reservationsListHref } from "./reservation-nav";
+import { reservationDetailBackHref } from "./reservation-nav";
 import {
   confirmReadinessFromReservation,
   formatConfirmGapsMessage,
@@ -107,7 +107,7 @@ function primaryActionDialogCopy(
 export function ReservationDetailPage() {
   const { reservationId = "" } = useParams();
   const location = useLocation();
-  const backHref = reservationsListHref(location.state);
+  const backHref = reservationDetailBackHref(location.state);
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [editIntent, setEditIntent] = useState<"edit" | "confirm-enrich">(

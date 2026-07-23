@@ -16,7 +16,8 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - **Bookability UX:** Property “Open for ops” · Type “Offered for booking” · Unit status only (`ACTIVE` = bookable)
 - **Calendar** (`/calendar`): unit × days grid on Nest `GET /staff/properties/:id/calendar` + `/staff/calendar-blocks` CRUD; live property options + create reservation + detail
 - **Reports** (`/reports`): period summary (cash · occupancy · source mix · compare · CSV) via `GET /staff/reports/summary`; ADMIN/SUPER_ADMIN only
-- **Not yet:** iCal sync UI · Accept-iCal actions
+- **Dashboard** (`/`): today arrivals/departures + needs attention via `GET /staff/dashboard`; Sync all → toast only; FRONT_DESK+
+- **Not yet:** iCal sync enqueue · Accept-iCal actions
 - **Design:** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) · [`_docs/calendar-design.md`](../../_docs/calendar-design.md) · [`_docs/dashboard-design.md`](../../_docs/dashboard-design.md) · [`_docs/reports-design.md`](../../_docs/reports-design.md)
 
 ## Stack (locked)

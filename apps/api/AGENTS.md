@@ -15,6 +15,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Bookability:** Property `isActive` (open for ops) · UnitType `isActive` (offered) · Unit `status` only (`ACTIVE` bookable; no separate unit `isActive`)
 - **Property calendar:** `GET /staff/properties/:propertyId/calendar?from&to` — units + occupying stays + `CalendarBlock` bars; block CRUD `/staff/calendar-blocks` (`FRONT_DESK+`); blocks occupy for overlap (create stay / Choose unit / occupancy)
 - **Reports:** `GET /staff/reports/summary?propertyId&from&to&compare=` — cash (movements by property-TZ business date) · occupancy (clip nights, expand units) · source mix · equal-length compare (`ADMIN+`); wire `StaffReportsSummary`
+- **Dashboard:** `GET /staff/dashboard?propertyId&date?` — today arrivals/departures + needs attention (`FRONT_DESK+`); real board-predicate assemble (cap 8 + honest totals); wire `StaffDashboard`
 - **Not yet:** iCal export/import
 - **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `nights × defaultPriceIdr` (`suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
 
