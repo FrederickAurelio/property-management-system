@@ -59,10 +59,10 @@ jobs:
 
             for img in cabin-api cabin-pms; do
               docker images --format '{{.Repository}}:{{.Tag}}' "$img" | while read -r ref; do
-                case "$ref" in
-                  *:latest|*:previous) ;;
-                  *) docker rmi "$ref" || true ;;
-                esac
+                if [ "$ref" = "${img}:latest" ] || [ "$ref" = "${img}:previous" ]; then
+                  continue
+                fi
+                docker rmi "$ref" || true
               done
             done
             docker image prune -f

@@ -151,12 +151,16 @@ jobs:
             docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
             docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T api npx prisma migrate deploy
 
+            # Avoid `case … ;;` — appleboy/ssh-action can mangle `;;` into a bash syntax error.
             for img in "${API}" "${PMS}"; do
               docker images --format '{{.Repository}}:{{.Tag}}' | while read -r ref; do
-                case "$ref" in
-                  ${img}:latest|${img}:previous) ;;
-                  ${img}:*) docker rmi "$ref" || true ;;
-                esac
+                if [ "$ref" = "${img}:latest" ] || [ "$ref" = "${img}:previous" ]; then
+                  continue
+                fi
+                prefix="${img}:"
+                if [ "${ref#"$prefix"}" != "$ref" ]; then
+                  docker rmi "$ref" || true
+                fi
               done
             done
             docker image prune -f
