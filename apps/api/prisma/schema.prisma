@@ -251,6 +251,7 @@ model PaymentMovement {
   createdByAdmin Admin?      @relation("MovementCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
 
   @@index([reservationId, createdAt])
+  @@index([createdAt])
   @@index([createdByAdminId])
 }
 

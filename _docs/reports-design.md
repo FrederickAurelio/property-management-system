@@ -346,19 +346,17 @@ SUPER_ADMIN  >  ADMIN  >  FRONT_DESK
 
 ---
 
-## 8. API shape (intent)
+## 8. API shape
 
 Staff-only aggregate reads — logic in `domain/reports/`, HTTP under `staff/reports/`.
 
-Suggested:
+| Method | Path | Returns |
+| ------ | ---- | ------- |
+| `GET` | `/staff/reports/summary?propertyId&from&to&compare=1` | `StaffReportsSummary`: cash · occupancy · occupancyByUnitType (+ nested units) · sourceMix · compare bundle |
 
-| Method | Path                                                  | Returns                                                                          |
-| ------ | ----------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `GET`  | `/staff/reports/summary?propertyId&from&to&compare=1` | One payload: cash · occupancy · occupancyByUnitType · sourceMix · compare bundle |
+**Implemented.** Cash filters `PaymentMovement.createdAt` via property-TZ → UTC half-open Instant bounds (index on `createdAt`). Occupancy / source nights use clip-length SQL (`LEAST/GREATEST` on stay/block dates), not per-night loops. One summary payload for the page; CSV is client-built from summary.
 
-Prefer **one summary** so the page loads once and hierarchy stays one composition. CSV can be `GET .../export` with same query (attachment) or client-built from summary — server export preferred for accountant consistency.
-
-Wire types in `@cabin/api-contract` (e.g. `StaffReportsSummary`). Do not fork money helpers for cash aggregates — reuse movement sums.
+Wire types in `@cabin/api-contract`. Do not fork money helpers for cash aggregates — sum movement amounts.
 
 ---
 

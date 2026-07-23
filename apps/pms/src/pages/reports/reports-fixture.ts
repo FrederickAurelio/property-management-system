@@ -1,28 +1,13 @@
 import {
   CollectedVia,
   ReservationSource,
+  inclusiveDayCount,
+  previousEqualPeriod,
   type StaffReportsSummary,
   type StaffReportsSummaryParams,
 } from "@cabin/api-contract";
-import { inclusiveDayCount } from "./reports-format";
 
-function addDaysYmd(ymd: string, days: number): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y!, m! - 1, d!));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
-}
-
-/** Previous equal-length inclusive period ending the day before `from`. */
-export function previousEqualPeriod(
-  from: string,
-  to: string,
-): { from: string; to: string } {
-  const days = inclusiveDayCount(from, to);
-  const prevTo = addDaysYmd(from, -1);
-  const prevFrom = addDaysYmd(prevTo, -(days - 1));
-  return { from: prevFrom, to: prevTo };
-}
+export { previousEqualPeriod } from "@cabin/api-contract";
 
 /**
  * Rich month-end-style fixture for `/reports` UI review.

@@ -15,7 +15,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Reservations wired to Nest `/staff/reservations`: desk boards on `/reservations` (Arrivals/Departures include overdue + Late badge; **no** `/check-in` page) · Choose unit (all properties/types/units + inactive/blocked rows) · stay dates blocked by unit occupancy · Collect/Cancel as **cash movements** · Paid = sum(movements) · early check-in/out via `confirmEarly` · Total = `nights × defaultPriceIdr`
 - **Bookability UX:** Property “Open for ops” · Type “Offered for booking” · Unit status only (`ACTIVE` = bookable)
 - **Calendar** (`/calendar`): unit × days grid on Nest `GET /staff/properties/:id/calendar` + `/staff/calendar-blocks` CRUD; live property options + create reservation + detail
-- **Reports** (`/reports`): FE mock of period summary (cash · occupancy · source mix · compare · CSV) via fixture; ADMIN/SUPER_ADMIN only; Nest aggregate not yet
+- **Reports** (`/reports`): period summary (cash · occupancy · source mix · compare · CSV) via `GET /staff/reports/summary`; ADMIN/SUPER_ADMIN only
 - **Not yet:** iCal sync UI · Accept-iCal actions
 - **Design:** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) · [`_docs/calendar-design.md`](../../_docs/calendar-design.md) · [`_docs/reports-design.md`](../../_docs/reports-design.md)
 
@@ -85,7 +85,7 @@ Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 3. Calendar (busy/free per unit) ← **done** (Nest aggregate + blocks)
 4. Manual reservations (Choose unit · rack Total · money/DP · boards on `/reservations`) ← **done** (Nest)
 5. Check-in / check-out + Collect/Cancel ← **done** (detail + Arrivals/In-house/Departures boards; no `/check-in` route)
-6. Basic reports ← **FE mock** (fixture summary; Nest later)
+6. Basic reports ← **done** (Nest summary + PMS `/reports`)
 7. iCal Sync now + `UNCONFIRMED` enrich queue ← board/warning UI only; Nest + feeds not yet
 
 Optional: checklist “refresh OTA if urgent” (staff does it in the OTA UI — PMS does not remote-click).

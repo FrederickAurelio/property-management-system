@@ -6,10 +6,10 @@ import { api } from "./client";
 import { buildReportsFixture } from "@/pages/reports/reports-fixture";
 
 /**
- * Flip to `false` when Nest `GET /staff/reports/summary` ships.
- * Fixture keeps the page reviewable without backend work.
+ * Flip to `true` only for offline UI review without Nest.
+ * Live path: `GET /staff/reports/summary`.
  */
-export const REPORTS_USE_FIXTURE = true;
+export const REPORTS_USE_FIXTURE = false;
 
 const FIXTURE_DELAY_MS = 320;
 

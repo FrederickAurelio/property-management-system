@@ -1,6 +1,10 @@
 import { format } from "date-fns";
-import { previousEqualPeriod } from "./reports-fixture";
-import { inclusiveDayCount } from "./reports-format";
+import {
+  inclusiveDayCount,
+  previousEqualPeriod,
+} from "@cabin/api-contract";
+
+export { inclusiveDayCount, previousEqualPeriod };
 
 export function todayYmdLocal(): string {
   const d = new Date();
@@ -124,5 +128,3 @@ export function formatPeriodChrome(
   if (!compareWindow) return dayLabel;
   return `${dayLabel} · vs ${formatInclusiveRangeLabel(compareWindow.from, compareWindow.to)}`;
 }
-
-export { previousEqualPeriod, inclusiveDayCount };

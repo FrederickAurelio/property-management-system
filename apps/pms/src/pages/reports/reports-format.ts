@@ -6,14 +6,7 @@ import {
 import { formatIdr } from "@/pages/properties/inventory-types";
 import { cn } from "@/lib/utils";
 
-/** Inclusive day count for [from, to]. */
-export function inclusiveDayCount(from: string, to: string): number {
-  const [fy, fm, fd] = from.split("-").map(Number);
-  const [ty, tm, td] = to.split("-").map(Number);
-  const a = Date.UTC(fy!, fm! - 1, fd!);
-  const b = Date.UTC(ty!, tm! - 1, td!);
-  return Math.floor((b - a) / 86_400_000) + 1;
-}
+export { inclusiveDayCount } from "@cabin/api-contract";
 
 export function formatPct(pct: number | null | undefined): string {
   if (pct == null || Number.isNaN(pct)) return "n/a";

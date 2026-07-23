@@ -14,6 +14,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Unit occupancy (date picker):** `GET /staff/units/:id/occupancy?yearMonth=YYYY-MM` — occupying stays + calendar blocks for one month; FE caches months as the calendar pages
 - **Bookability:** Property `isActive` (open for ops) · UnitType `isActive` (offered) · Unit `status` only (`ACTIVE` bookable; no separate unit `isActive`)
 - **Property calendar:** `GET /staff/properties/:propertyId/calendar?from&to` — units + occupying stays + `CalendarBlock` bars; block CRUD `/staff/calendar-blocks` (`FRONT_DESK+`); blocks occupy for overlap (create stay / Choose unit / occupancy)
+- **Reports:** `GET /staff/reports/summary?propertyId&from&to&compare=` — cash (movements by property-TZ business date) · occupancy (clip nights, expand units) · source mix · equal-length compare (`ADMIN+`); wire `StaffReportsSummary`
 - **Not yet:** iCal export/import
 - **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `nights × defaultPriceIdr` (`suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
 
@@ -174,7 +175,7 @@ Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`)
 2. Inventory CRUD (property / unit type / unit) ← **done**
 3. Reservations CRUD + money/DP + availability (overlap in DB) ← **done** (`/staff/reservations` + units availability)
 4. Check-in / check-out ← **done** (with `confirmEarly`)
-5. Basic reports
+5. Basic reports ← **done** (`GET /staff/reports/summary`)
 6. iCal import + Sync now (`UNCONFIRMED` → enrich)
 
 Reservation `source`: `manual` | `website` (enum now, public write in Phase 2) | `booking_com` | `airbnb` | `agoda`  
