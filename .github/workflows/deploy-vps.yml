@@ -63,6 +63,9 @@ jobs:
           context: .
           file: apps/api/Dockerfile
           push: true
+          # Avoid attestation digests that break GHCR when untagged versions are pruned
+          provenance: false
+          sbom: false
           # Official registries on GitHub runners — do not pass China mirrors
           build-args: |
             APT_MIRROR=
@@ -78,6 +81,8 @@ jobs:
           context: .
           file: apps/pms/Dockerfile
           push: true
+          provenance: false
+          sbom: false
           build-args: |
             APT_MIRROR=
             NPM_REGISTRY=
@@ -85,24 +90,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/cabin-pms:latest
           cache-from: type=gha,scope=cabin-pms
           cache-to: type=gha,mode=max,scope=cabin-pms
-
-      - name: Delete untagged cabin-api versions
-        uses: actions/delete-package-versions@v5
-        continue-on-error: true
-        with:
-          package-name: cabin-api
-          package-type: container
-          delete-only-untagged-versions: true
-          min-versions-to-keep: 0
-
-      - name: Delete untagged cabin-pms versions
-        uses: actions/delete-package-versions@v5
-        continue-on-error: true
-        with:
-          package-name: cabin-pms
-          package-type: container
-          delete-only-untagged-versions: true
-          min-versions-to-keep: 0
 
   deploy:
     needs: build-and-push
