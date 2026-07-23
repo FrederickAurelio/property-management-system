@@ -133,7 +133,21 @@ jobs:
             export IMAGE_API="${API}:latest"
             export IMAGE_PMS="${PMS}:latest"
 
-            docker compose -f docker-compose.yml -f docker-compose.ci.yml pull
+            # Mainland China routes to GHCR can reset long layer downloads.
+            # Docker keeps completed layers, so retries resume remaining work.
+            for attempt in 1 2 3 4 5; do
+              if docker compose -f docker-compose.yml -f docker-compose.ci.yml pull; then
+                break
+              fi
+              if [ "$attempt" -eq 5 ]; then
+                echo "GHCR pull failed after 5 attempts"
+                exit 1
+              fi
+              delay=$((attempt * 30))
+              echo "GHCR pull attempt ${attempt} failed; retrying in ${delay}s"
+              sleep "$delay"
+            done
+
             docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
             docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T api npx prisma migrate deploy
 
