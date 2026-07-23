@@ -29,7 +29,7 @@ jobs:
           script: |
             set -euo pipefail
             cd ~/property-management-system
-            rm -f .git/HEAD.lock .git/index.lock .git/shallow.lock
+            find .git -type f -name '*.lock' -delete 2>/dev/null || true
             git fetch origin
             git checkout release
             git reset --hard origin/release

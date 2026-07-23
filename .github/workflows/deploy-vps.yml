@@ -110,8 +110,8 @@ jobs:
           script: |
             set -euo pipefail
             cd ~/property-management-system
-            # Stale lock from crashed/interrupted git (common after VPS hard reboot)
-            rm -f .git/HEAD.lock .git/index.lock .git/shallow.lock
+            # Stale locks from crashed/interrupted git (common after VPS hard reboot)
+            find .git -type f -name '*.lock' -delete 2>/dev/null || true
             git fetch origin
             git checkout release
             git reset --hard origin/release
