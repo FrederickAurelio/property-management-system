@@ -48,14 +48,7 @@ const amenitiesApartment = {
 };
 
 async function seedSkybreeze(): Promise<void> {
-  const existing = await prisma.property.findUnique({
-    where: { code: 'SKYBREEZE_SENTRALAND' },
-  });
-  if (existing) {
-    console.log(`Skybreeze already seeded: ${existing.id}`);
-    return;
-  }
-
+  // Caller already checked Property table is empty.
   const property = await prisma.property.create({
     data: {
       code: 'SKYBREEZE_SENTRALAND',
@@ -329,17 +322,12 @@ async function seedSkybreeze(): Promise<void> {
 async function main() {
   const username = process.env.SEED_ADMIN_USERNAME ?? 'superadmin';
   const password = process.env.SEED_ADMIN_PASSWORD ?? 'changeme123';
+  const seedDemoInventory = ['1', 'true', 'yes'].includes(
+    (process.env.SEED_DEMO_INVENTORY ?? '').trim().toLowerCase(),
+  );
 
-  const existing = await prisma.admin.findUnique({ where: { username } });
-  if (existing) {
-    if (!existing.isActive || existing.role !== AdminRole.SUPER_ADMIN) {
-      await prisma.admin.update({
-        where: { username },
-        data: { role: AdminRole.SUPER_ADMIN, isActive: true },
-      });
-    }
-    console.log(`SUPER_ADMIN already exists: ${username} (${existing.id})`);
-  } else {
+  const adminCount = await prisma.admin.count();
+  if (adminCount === 0) {
     const passwordHash = await bcrypt.hash(password, 12);
     const admin = await prisma.admin.create({
       data: {
@@ -350,9 +338,21 @@ async function main() {
       },
     });
     console.log(`Seeded SUPER_ADMIN: ${admin.username} (${admin.id})`);
+  } else {
+    console.log(`Admin table not empty (${adminCount}); skip admin seed`);
   }
 
-  await seedSkybreeze();
+  if (!seedDemoInventory) {
+    console.log('SEED_DEMO_INVENTORY off; skip inventory seed');
+    return;
+  }
+
+  const propertyCount = await prisma.property.count();
+  if (propertyCount === 0) {
+    await seedSkybreeze();
+  } else {
+    console.log(`Property table not empty (${propertyCount}); skip inventory seed`);
+  }
 }
 
 main()
