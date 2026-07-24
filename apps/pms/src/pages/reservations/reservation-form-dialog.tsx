@@ -7,8 +7,12 @@ import {
   RESERVATION_GUEST_PHONE_MAX,
   RESERVATION_NOTES_MAX,
   ReservationSource,
+  StayBillingPeriod,
   UnitAvailabilityBlockReason,
   isPlaceholderGuestName,
+  isValidStayPeriodRange,
+  periodCountFromRange,
+  rackPriceForPeriod,
   suggestStayTotalIdr,
   type StaffReservation,
 } from "@cabin/api-contract";
@@ -53,7 +57,7 @@ import { StayDateRangePicker } from "./stay-date-range-picker";
 import { ChosenUnitField } from "./chosen-unit-field";
 import { chosenFromReservation, type ChosenUnit } from "./chosen-unit";
 import { UnitInventoryPicker } from "./unit-inventory-picker";
-import { findStaffUnitTypeDefaultPriceIdr } from "@/pages/properties/explorer-nav-state";
+import { findStaffUnitTypeRack } from "@/pages/properties/explorer-nav-state";
 
 const SOURCE_OPTIONS = [
   ReservationSource.MANUAL,
@@ -66,6 +70,11 @@ const SOURCE_OPTIONS = [
 const schema = z
   .object({
     unitId: z.string().min(1, "Unit is required"),
+    billingPeriod: z.enum([
+      StayBillingPeriod.DAILY,
+      StayBillingPeriod.MONTHLY,
+      StayBillingPeriod.YEARLY,
+    ]),
     checkInDate: z.string().min(1, "Check-in is required"),
     checkOutDate: z.string().min(1, "Check-out is required"),
     guestName: z
@@ -106,6 +115,19 @@ const schema = z
         path: ["checkOutDate"],
         message: "Check-out must be after check-in",
       });
+    } else if (
+      !isValidStayPeriodRange(
+        values.billingPeriod,
+        values.checkInDate,
+        values.checkOutDate,
+      )
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["checkOutDate"],
+        message:
+          "Check-out must match a full daily, monthly, or yearly period from check-in",
+      });
     }
     if (!values.guestEmail && !values.guestPhone) {
       ctx.addIssue({
@@ -138,6 +160,7 @@ type FormValues = z.infer<typeof schema>;
 function emptyFormValues(): FormValues {
   return {
     unitId: "",
+    billingPeriod: StayBillingPeriod.DAILY,
     checkInDate: "",
     checkOutDate: "",
     guestName: "",
@@ -205,13 +228,19 @@ export function ReservationFormDialog({
       : reservation
         ? chosenFromReservation(reservation)
         : initialChosen;
-  /** Last unitTypeId:nights:rack we applied (or seeded on edit open). */
+  /** Last full suggest key we applied (or seeded on edit when stay unchanged). */
   const appliedSuggestKeyRef = useRef<string | null>(null);
+  /**
+   * Edit open: stay fingerprint at reset (`unitTypeId:billingPeriod:periodCount`).
+   * Used so a late rack load does not lock Total after staff already changed stay.
+   */
+  const editOpenStayKeyRef = useRef<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
     defaultValues: {
       unitId: initialChosen?.unitId ?? "",
+      billingPeriod: StayBillingPeriod.DAILY,
       checkInDate: initialCheckInDate,
       checkOutDate: initialCheckOutDate,
       guestName: "",
@@ -228,11 +257,21 @@ export function ReservationFormDialog({
   useEffect(() => {
     if (!open) {
       appliedSuggestKeyRef.current = null;
+      editOpenStayKeyRef.current = null;
       return;
     }
     if (reservation) {
+      const openCount =
+        periodCountFromRange(
+          reservation.billingPeriod,
+          reservation.checkInDate,
+          reservation.checkOutDate,
+        ) ?? 0;
+      editOpenStayKeyRef.current = `${reservation.unitTypeId}:${reservation.billingPeriod}:${openCount}`;
+      appliedSuggestKeyRef.current = null;
       form.reset({
         unitId: reservation.unitId,
+        billingPeriod: reservation.billingPeriod,
         checkInDate: reservation.checkInDate,
         checkOutDate: reservation.checkOutDate,
         guestName: reservation.guestName,
@@ -249,9 +288,12 @@ export function ReservationFormDialog({
       });
       return;
     }
+    editOpenStayKeyRef.current = null;
+    appliedSuggestKeyRef.current = null;
     if (initialChosen) {
       form.reset({
         unitId: initialChosen.unitId,
+        billingPeriod: StayBillingPeriod.DAILY,
         checkInDate: initialCheckInDate,
         checkOutDate: initialCheckOutDate,
         guestName: "",
@@ -267,6 +309,7 @@ export function ReservationFormDialog({
     }
     form.reset({
       unitId: "",
+      billingPeriod: StayBillingPeriod.DAILY,
       checkInDate: initialCheckInDate,
       checkOutDate: initialCheckOutDate,
       guestName: "",
@@ -292,8 +335,16 @@ export function ReservationFormDialog({
     control: form.control,
     name: "checkOutDate",
   });
+  const billingPeriod = useWatch({
+    control: form.control,
+    name: "billingPeriod",
+  });
   const totalDigits = useWatch({ control: form.control, name: "totalDigits" });
   const paidDigits = useWatch({ control: form.control, name: "paidDigits" });
+  const periodCount =
+    checkInDate && checkOutDate && checkOutDate > checkInDate
+      ? (periodCountFromRange(billingPeriod, checkInDate, checkOutDate) ?? 0)
+      : 0;
   const nights =
     checkInDate && checkOutDate && checkOutDate > checkInDate
       ? nightCount(checkInDate, checkOutDate)
@@ -308,10 +359,20 @@ export function ReservationFormDialog({
       : 0;
 
   const unitTypeId = chosen?.unitTypeId ?? "";
-  const rackFromChosen = chosen?.defaultPriceIdr;
+  const rackFromChosen =
+    chosen?.defaultPriceIdr != null &&
+    chosen.monthlyPriceIdr != null &&
+    chosen.yearlyPriceIdr != null
+      ? {
+          id: unitTypeId,
+          defaultPriceIdr: chosen.defaultPriceIdr,
+          monthlyPriceIdr: chosen.monthlyPriceIdr,
+          yearlyPriceIdr: chosen.yearlyPriceIdr,
+        }
+      : undefined;
   const rackFromCache =
     rackFromChosen == null && unitTypeId
-      ? findStaffUnitTypeDefaultPriceIdr(queryClient, unitTypeId)
+      ? findStaffUnitTypeRack(queryClient, unitTypeId)
       : undefined;
 
   const rackQuery = useQuery({
@@ -411,15 +472,17 @@ export function ReservationFormDialog({
     unitAvailabilityQuery.data,
     form,
   ]);
+  const rack =
+    rackFromChosen ?? rackFromCache ?? rackQuery.data ?? undefined;
   const rackPriceIdr =
-    rackFromChosen ?? rackFromCache ?? rackQuery.data?.defaultPriceIdr;
+    rack != null ? rackPriceForPeriod(billingPeriod, rack) : undefined;
   const suggestedTotal =
-    rackPriceIdr != null && nights >= 1
-      ? suggestStayTotalIdr(nights, rackPriceIdr)
+    rackPriceIdr != null && periodCount >= 1
+      ? suggestStayTotalIdr(periodCount, rackPriceIdr)
       : null;
   const suggestKey =
     chosen && suggestedTotal != null && rackPriceIdr != null
-      ? `${chosen.unitTypeId}:${nights}:${rackPriceIdr}`
+      ? `${chosen.unitTypeId}:${billingPeriod}:${periodCount}:${rackPriceIdr}`
       : null;
 
   useEffect(() => {
@@ -435,12 +498,30 @@ export function ReservationFormDialog({
       });
     };
 
-    // Edit open: keep saved Total until nights / unit type change.
-    if (appliedSuggestKeyRef.current === null) {
-      if (reservation) {
+    const stayKey =
+      chosen != null && periodCount >= 1
+        ? `${chosen.unitTypeId}:${billingPeriod}:${periodCount}`
+        : null;
+
+    // Edit: first rack/suggest after open — keep saved Total only if stay
+    // still matches the reservation; otherwise staff changed stay while rack
+    // was loading and Total must catch up.
+    if (
+      reservation &&
+      appliedSuggestKeyRef.current === null &&
+      editOpenStayKeyRef.current != null &&
+      stayKey != null
+    ) {
+      if (stayKey === editOpenStayKeyRef.current) {
         appliedSuggestKeyRef.current = suggestKey;
         return;
       }
+      applySuggested();
+      appliedSuggestKeyRef.current = suggestKey;
+      return;
+    }
+
+    if (appliedSuggestKeyRef.current === null) {
       applySuggested();
       appliedSuggestKeyRef.current = suggestKey;
       return;
@@ -451,7 +532,16 @@ export function ReservationFormDialog({
     }
     applySuggested();
     appliedSuggestKeyRef.current = suggestKey;
-  }, [open, suggestKey, suggestedTotal, reservation, form]);
+  }, [
+    open,
+    suggestKey,
+    suggestedTotal,
+    reservation,
+    form,
+    chosen,
+    billingPeriod,
+    periodCount,
+  ]);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -473,6 +563,7 @@ export function ReservationFormDialog({
         return updateReservation(reservation.id, {
           unitId: chosen.unitId,
           unitTypeId: chosen.unitTypeId,
+          billingPeriod: values.billingPeriod,
           checkInDate: values.checkInDate,
           checkOutDate: values.checkOutDate,
           guestName: values.guestName,
@@ -490,6 +581,7 @@ export function ReservationFormDialog({
         unitId: chosen.unitId,
         unitTypeId: chosen.unitTypeId,
         source: values.source,
+        billingPeriod: values.billingPeriod,
         checkInDate: values.checkInDate,
         checkOutDate: values.checkOutDate,
         guestName: values.guestName,
@@ -503,6 +595,7 @@ export function ReservationFormDialog({
     },
     onSuccess: (saved) => {
       appliedSuggestKeyRef.current = null;
+      editOpenStayKeyRef.current = null;
       form.reset(emptyFormValues());
       setPicked(null);
       setPickerOpen(false);
@@ -615,11 +708,18 @@ export function ReservationFormDialog({
                 dateOverlapConflict,
               )}
             >
-              <FieldLabel htmlFor="stay-dates">Stay dates</FieldLabel>
+              <FieldLabel htmlFor="stay-dates">Stay</FieldLabel>
               <StayDateRangePicker
                 id="stay-dates"
                 checkInDate={checkInDate}
                 checkOutDate={checkOutDate}
+                billingPeriod={billingPeriod}
+                onBillingPeriodChange={(next) => {
+                  form.setValue("billingPeriod", next, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
                 unitId={chosen?.unitId}
                 excludeReservationId={reservation?.id}
                 invalid={Boolean(
@@ -809,11 +909,33 @@ export function ReservationFormDialog({
                         name={field.name}
                         ref={field.ref}
                       />
-                      {suggestedTotal != null && rackPriceIdr != null && (
+                      {suggestedTotal != null &&
+                        rackPriceIdr != null &&
+                        periodCount >= 1 && (
                         <p className="text-xs text-muted-foreground">
-                          {nights} night{nights === 1 ? "" : "s"} ×{" "}
-                          {formatIdr(rackPriceIdr)}
-                          /night = {formatIdr(suggestedTotal)}
+                          {periodCount}{" "}
+                          {billingPeriod === StayBillingPeriod.MONTHLY
+                            ? periodCount === 1
+                              ? "month"
+                              : "months"
+                            : billingPeriod === StayBillingPeriod.YEARLY
+                              ? periodCount === 1
+                                ? "year"
+                                : "years"
+                              : periodCount === 1
+                                ? "night"
+                                : "nights"}{" "}
+                          × {formatIdr(rackPriceIdr)}/
+                          {billingPeriod === StayBillingPeriod.MONTHLY
+                            ? "month"
+                            : billingPeriod === StayBillingPeriod.YEARLY
+                              ? "year"
+                              : "night"}{" "}
+                          = {formatIdr(suggestedTotal)}
+                          {nights > 0 &&
+                          billingPeriod !== StayBillingPeriod.DAILY
+                            ? ` · ${nights} nights`
+                            : null}
                           {divergedFromSuggest ? (
                             <>
                               {" · "}

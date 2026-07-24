@@ -123,6 +123,14 @@ export const INVENTORY_LAT_MAX = 90;
 export const INVENTORY_LNG_MIN = -180;
 export const INVENTORY_LNG_MAX = 180;
 
+/**
+ * Unit-type rack price caps (whole IDR, Prisma `Int` ≤ 2_147_483_647).
+ * Daily 100M is plenty per night; monthly/yearly need headroom for IDR (seed yearly already >100M).
+ */
+export const UNIT_TYPE_DAILY_PRICE_IDR_MAX = 100_000_000;
+export const UNIT_TYPE_MONTHLY_PRICE_IDR_MAX = 500_000_000;
+export const UNIT_TYPE_YEARLY_PRICE_IDR_MAX = 2_000_000_000;
+
 /** Lightweight property row for staff filter / select dropdowns (id + label only). */
 export type StaffPropertyOption = {
   id: string;
@@ -157,6 +165,8 @@ export type StaffProperty = {
 export type StaffUnitTypeRack = {
   id: string;
   defaultPriceIdr: number;
+  monthlyPriceIdr: number;
+  yearlyPriceIdr: number;
 };
 
 export type StaffUnitType = {
@@ -170,6 +180,8 @@ export type StaffUnitType = {
   bathroomCount: number;
   maxGuests: number;
   defaultPriceIdr: number;
+  monthlyPriceIdr: number;
+  yearlyPriceIdr: number;
   bedConfig: BedConfigRoom[];
   amenities: Amenities;
   media: MediaItem[];

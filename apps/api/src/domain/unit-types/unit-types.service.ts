@@ -73,12 +73,22 @@ export class UnitTypesService {
   async getRackById(id: string): Promise<StaffUnitTypeRack> {
     const row = await this.prisma.unitType.findUnique({
       where: { id },
-      select: { id: true, defaultPriceIdr: true },
+      select: {
+        id: true,
+        defaultPriceIdr: true,
+        monthlyPriceIdr: true,
+        yearlyPriceIdr: true,
+      },
     });
     if (!row) {
       throw new NotFoundException('Unit type not found');
     }
-    return { id: row.id, defaultPriceIdr: row.defaultPriceIdr };
+    return {
+      id: row.id,
+      defaultPriceIdr: row.defaultPriceIdr,
+      monthlyPriceIdr: row.monthlyPriceIdr,
+      yearlyPriceIdr: row.yearlyPriceIdr,
+    };
   }
 
   async create(
@@ -104,6 +114,8 @@ export class UnitTypesService {
           bathroomCount: dto.bathroomCount,
           maxGuests: dto.maxGuests,
           defaultPriceIdr: dto.defaultPriceIdr,
+          monthlyPriceIdr: dto.monthlyPriceIdr,
+          yearlyPriceIdr: dto.yearlyPriceIdr,
           bedConfig: bedConfig,
           amenities: (dto.amenities ??
             EMPTY_AMENITIES) as unknown as Prisma.InputJsonValue,
@@ -152,6 +164,12 @@ export class UnitTypesService {
           ...(dto.maxGuests !== undefined ? { maxGuests: dto.maxGuests } : {}),
           ...(dto.defaultPriceIdr !== undefined
             ? { defaultPriceIdr: dto.defaultPriceIdr }
+            : {}),
+          ...(dto.monthlyPriceIdr !== undefined
+            ? { monthlyPriceIdr: dto.monthlyPriceIdr }
+            : {}),
+          ...(dto.yearlyPriceIdr !== undefined
+            ? { yearlyPriceIdr: dto.yearlyPriceIdr }
             : {}),
           ...(dto.amenities !== undefined
             ? {

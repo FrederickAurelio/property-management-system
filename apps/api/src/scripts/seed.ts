@@ -87,6 +87,8 @@ async function seedSkybreeze(): Promise<void> {
       bathroomCount: 1,
       maxGuests: 3,
       defaultPriceIdr: 650_000,
+      monthlyPriceIdr: 16_900_000,
+      yearlyPriceIdr: 195_000_000,
       bedConfig: [
         { room: 'Bedroom 1', beds: [{ type: 'DOUBLE', count: 1 }] },
         { room: 'Bedroom 2', beds: [{ type: 'SINGLE', count: 1 }] },
@@ -125,6 +127,8 @@ async function seedSkybreeze(): Promise<void> {
       bathroomCount: 1,
       maxGuests: 3,
       defaultPriceIdr: 850_000,
+      monthlyPriceIdr: 22_100_000,
+      yearlyPriceIdr: 255_000_000,
       bedConfig: [
         { room: 'Bedroom 1', beds: [{ type: 'DOUBLE', count: 1 }] },
         { room: 'Bedroom 2', beds: [{ type: 'SINGLE', count: 1 }] },
@@ -157,6 +161,8 @@ async function seedSkybreeze(): Promise<void> {
       bathroomCount: 1,
       maxGuests: 2,
       defaultPriceIdr: 550_000,
+      monthlyPriceIdr: 14_300_000,
+      yearlyPriceIdr: 165_000_000,
       bedConfig: [
         { room: 'Studio', beds: [{ type: 'LARGE_DOUBLE', count: 1 }] },
       ],
@@ -187,6 +193,8 @@ async function seedSkybreeze(): Promise<void> {
       bathroomCount: 1,
       maxGuests: 2,
       defaultPriceIdr: 450_000,
+      monthlyPriceIdr: 11_700_000,
+      yearlyPriceIdr: 135_000_000,
       bedConfig: [
         { room: 'Studio', beds: [{ type: 'LARGE_DOUBLE', count: 1 }] },
       ],
@@ -217,6 +225,8 @@ async function seedSkybreeze(): Promise<void> {
       bathroomCount: 1,
       maxGuests: 2,
       defaultPriceIdr: 400_000,
+      monthlyPriceIdr: 10_400_000,
+      yearlyPriceIdr: 120_000_000,
       bedConfig: [
         { room: 'Studio', beds: [{ type: 'LARGE_DOUBLE', count: 1 }] },
       ],
@@ -351,7 +361,9 @@ async function main() {
   if (propertyCount === 0) {
     await seedSkybreeze();
   } else {
-    console.log(`Property table not empty (${propertyCount}); skip inventory seed`);
+    console.log(
+      `Property table not empty (${propertyCount}); skip inventory seed`,
+    );
   }
 }
 

@@ -225,7 +225,7 @@ export function UnitTypesPage() {
                 formatLayout(unitType.layout),
                 unitType.sizeSqm != null ? `${unitType.sizeSqm} m²` : null,
                 `Max ${unitType.maxGuests}`,
-                `${formatIdr(unitType.defaultPriceIdr)}/night`,
+                `${formatIdr(unitType.defaultPriceIdr)}/night · ${formatIdr(unitType.monthlyPriceIdr)}/mo`,
                 beds,
                 amenityCount > 0
                   ? `${amenityCount} amenit${amenityCount === 1 ? "y" : "ies"}`

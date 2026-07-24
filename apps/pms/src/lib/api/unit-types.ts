@@ -25,6 +25,8 @@ export type UnitTypeWriteInput = {
   bathroomCount: number;
   maxGuests: number;
   defaultPriceIdr: number;
+  monthlyPriceIdr: number;
+  yearlyPriceIdr: number;
   bedConfig?: BedConfigRoom[];
   amenities?: Amenities;
   media?: MediaItem[];

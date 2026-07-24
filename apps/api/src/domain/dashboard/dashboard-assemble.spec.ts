@@ -3,6 +3,7 @@ import {
   ReservationSource,
   ReservationStatus,
   StaffDashboardAttentionKind,
+  StayBillingPeriod,
   type StaffReservationListItem,
 } from '@cabin/api-contract';
 import {
@@ -23,6 +24,7 @@ function item(
 ): StaffReservationListItem {
   return {
     unitCode: 'A-01',
+    billingPeriod: StayBillingPeriod.DAILY,
     checkInDate: TODAY,
     checkOutDate: TOMORROW,
     source: ReservationSource.MANUAL,

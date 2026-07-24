@@ -22,12 +22,15 @@ import {
   ReservationListSort,
   ReservationStatus,
   signedAmountFor,
+  StayBillingPeriod,
   sumPaidFromMovements,
   todayYmdInTimezone,
+  isValidStayPeriodRange,
   type Paginated,
   type StaffAdmin,
   type StaffReservation,
   type StaffReservationListItem,
+  type StayBillingPeriod as StayBillingPeriodType,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -127,6 +130,11 @@ export class ReservationsService {
     actor: Actor,
   ): Promise<StaffReservation> {
     this.assertDateRange(dto.checkInDate, dto.checkOutDate);
+    this.assertStayPeriodRange(
+      dto.billingPeriod,
+      dto.checkInDate,
+      dto.checkOutDate,
+    );
 
     const unit = await this.loadBookableUnit({
       propertyId: dto.propertyId,
@@ -191,6 +199,7 @@ export class ReservationsService {
             unitTypeId: dto.unitTypeId,
             source: dto.source,
             status: ReservationStatus.CONFIRMED,
+            billingPeriod: dto.billingPeriod,
             checkInDate: parseYmd(dto.checkInDate),
             checkOutDate: parseYmd(dto.checkOutDate),
             guestName: dto.guestName.trim(),
@@ -269,7 +278,10 @@ export class ReservationsService {
 
     const checkInDate = dto.checkInDate ?? this.ymd(existing.checkInDate);
     const checkOutDate = dto.checkOutDate ?? this.ymd(existing.checkOutDate);
+    const billingPeriod: StayBillingPeriodType =
+      dto.billingPeriod ?? existing.billingPeriod;
     this.assertDateRange(checkInDate, checkOutDate);
+    this.assertStayPeriodRange(billingPeriod, checkInDate, checkOutDate);
 
     const unitId = dto.unitId ?? existing.unitId;
     const unitTypeId = dto.unitTypeId ?? existing.unitTypeId;
@@ -326,6 +338,9 @@ export class ReservationsService {
             ...(dto.unitId !== undefined ? { unitId: dto.unitId } : {}),
             ...(dto.unitTypeId !== undefined
               ? { unitTypeId: dto.unitTypeId }
+              : {}),
+            ...(dto.billingPeriod !== undefined
+              ? { billingPeriod: dto.billingPeriod }
               : {}),
             ...(dto.checkInDate !== undefined
               ? { checkInDate: parseYmd(dto.checkInDate) }
@@ -953,6 +968,29 @@ export class ReservationsService {
         },
       });
     }
+  }
+
+  private assertStayPeriodRange(
+    billingPeriod: StayBillingPeriodType,
+    checkInDate: string,
+    checkOutDate: string,
+  ): void {
+    if (isValidStayPeriodRange(billingPeriod, checkInDate, checkOutDate)) {
+      return;
+    }
+    const label =
+      billingPeriod === StayBillingPeriod.MONTHLY
+        ? 'monthly'
+        : billingPeriod === StayBillingPeriod.YEARLY
+          ? 'yearly'
+          : 'daily';
+    throw new BadRequestException({
+      message: `Check-out does not match a valid ${label} stay from check-in`,
+      details: {
+        field: 'checkOutDate',
+        reason: ApiFieldReason.STAY_PERIOD_MISMATCH,
+      },
+    });
   }
 
   private ymd(date: Date): string {

@@ -17,7 +17,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Reports:** `GET /staff/reports/summary?propertyId&from&to&compare=` — cash (movements by property-TZ business date) · occupancy (clip nights, expand units) · source mix · equal-length compare (`ADMIN+`); wire `StaffReportsSummary`
 - **Dashboard:** `GET /staff/dashboard?propertyId&date?` — today arrivals/departures + needs attention (`FRONT_DESK+`); real board-predicate assemble (cap 8 + honest totals); wire `StaffDashboard`
 - **Not yet:** iCal export/import
-- **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `nights × defaultPriceIdr` (`suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
+- **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `periodCount ×` matching rack (`billingPeriod` + `defaultPriceIdr` / `monthlyPriceIdr` / `yearlyPriceIdr`; `suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
 
 ## Stack (locked)
 
@@ -102,7 +102,7 @@ Wire types: `StaffProperty` / `StaffUnitType` / `StaffUnit` (staff/PMS shapes �
 | `DELETE` | `/staff/properties/:id` | 409 `HAS_CHILDREN` if any unit types or units (service + FK Restrict) |
 | `GET` | `/staff/properties/:propertyId/unit-types` | Paginated; `isActive?`, `q?`. Full row + `unitCount` |
 | `POST` | `/staff/properties/:propertyId/unit-types` | Create; `bedroomCount` derived; `sortOrder` server-assigned |
-| `GET` | `/staff/unit-types/:id/rack` | Rack rate only (`defaultPriceIdr`) — stay Total suggestion |
+| `GET` | `/staff/unit-types/:id/rack` | Rack rates (`defaultPriceIdr` / `monthlyPriceIdr` / `yearlyPriceIdr`) — stay Total suggestion |
 | `GET` | `/staff/unit-types/:id` | Full unit type + `unitCount` |
 | `PATCH` | `/staff/unit-types/:id` | Update |
 | `DELETE` | `/staff/unit-types/:id` | 409 if any units |

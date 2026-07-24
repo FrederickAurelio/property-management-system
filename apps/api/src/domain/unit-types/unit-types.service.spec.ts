@@ -32,6 +32,8 @@ describe('UnitTypesService', () => {
     bathroomCount: 1,
     maxGuests: 2,
     defaultPriceIdr: 400_000,
+    monthlyPriceIdr: 10_400_000,
+    yearlyPriceIdr: 120_000_000,
     bedConfig: [],
     amenities: {},
     media: [],
@@ -93,6 +95,8 @@ describe('UnitTypesService', () => {
         bathroomCount: 1,
         maxGuests: 2,
         defaultPriceIdr: 400_000,
+        monthlyPriceIdr: 10_400_000,
+        yearlyPriceIdr: 120_000_000,
         bedConfig: [
           { room: 'Studio', beds: [{ type: 'LARGE_DOUBLE', count: 1 }] },
         ],
@@ -138,18 +142,27 @@ describe('UnitTypesService', () => {
   });
 
   describe('getRackById', () => {
-    it('returns id and defaultPriceIdr only', async () => {
+    it('returns id and all rack prices', async () => {
       prisma.unitType.findUnique.mockResolvedValue({
         id: 'type_1',
         defaultPriceIdr: 400_000,
+        monthlyPriceIdr: 10_400_000,
+        yearlyPriceIdr: 120_000_000,
       });
       await expect(service.getRackById('type_1')).resolves.toEqual({
         id: 'type_1',
         defaultPriceIdr: 400_000,
+        monthlyPriceIdr: 10_400_000,
+        yearlyPriceIdr: 120_000_000,
       });
       expect(prisma.unitType.findUnique).toHaveBeenCalledWith({
         where: { id: 'type_1' },
-        select: { id: true, defaultPriceIdr: true },
+        select: {
+          id: true,
+          defaultPriceIdr: true,
+          monthlyPriceIdr: true,
+          yearlyPriceIdr: true,
+        },
       });
     });
 

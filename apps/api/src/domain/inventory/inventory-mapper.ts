@@ -121,6 +121,8 @@ export function toStaffUnitType(
     bathroomCount: row.bathroomCount,
     maxGuests: row.maxGuests,
     defaultPriceIdr: row.defaultPriceIdr,
+    monthlyPriceIdr: row.monthlyPriceIdr,
+    yearlyPriceIdr: row.yearlyPriceIdr,
     bedConfig: asBedConfig(row.bedConfig),
     amenities: asAmenities(row.amenities),
     media: asMediaList(row.media),

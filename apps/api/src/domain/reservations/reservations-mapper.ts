@@ -39,6 +39,7 @@ export type ReservationListRow = Pick<
   Reservation,
   | 'id'
   | 'guestName'
+  | 'billingPeriod'
   | 'checkInDate'
   | 'checkOutDate'
   | 'status'
@@ -79,6 +80,7 @@ export function toStaffReservationListItem(
     id: row.id,
     guestName: row.guestName,
     unitCode: row.unit.code,
+    billingPeriod: row.billingPeriod,
     checkInDate: ymd(row.checkInDate),
     checkOutDate: ymd(row.checkOutDate),
     status: row.status,
@@ -106,6 +108,7 @@ export function toStaffReservation(
     unitTypeId: row.unitTypeId,
     source: row.source,
     status: row.status,
+    billingPeriod: row.billingPeriod,
     checkInDate: ymd(row.checkInDate),
     checkOutDate: ymd(row.checkOutDate),
     guestName: row.guestName,

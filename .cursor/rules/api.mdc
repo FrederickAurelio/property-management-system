@@ -12,7 +12,7 @@ Concern rules layer on via tighter globs (`api-http`, `api-prisma`, `api-auth`, 
 - Audience layout: `staff/` + `/staff` (PMS), `domain/` (shared logic), `public/` + `/public` (web Phase 2) — see [`api-audience.mdc`](api-audience.mdc).
 - Root `.env` only (`DATABASE_URL`, `SESSION_SECRET`).
 - Overlap checks in DB/transactions. Reservation sources: `manual` | `website` | `booking_com` | `airbnb` | `agoda`.
-- Money is separate from ops status (`CONFIRMED` ≠ paid). Quote = `totalAmountIdr`; cash = `PaymentMovement`; Paid = sum(movements). Stay Total suggests `nights × UnitType.defaultPriceIdr`; if Paid > Total → Refund (`refundDueIdr`) via Collect OUT. Phase 2 web reuses the same domain — `_docs/reservations-design.md`.
+- Money is separate from ops status (`CONFIRMED` ≠ paid). Quote = `totalAmountIdr`; cash = `PaymentMovement`; Paid = sum(movements). Stay Total suggests `periodCount ×` matching rack (`billingPeriod` + daily/monthly/yearly); if Paid > Total → Refund (`refundDueIdr`) via Collect OUT. Phase 2 web reuses the same domain — `_docs/reservations-design.md`.
 - List/board/search predicates → Prisma `where` (or `$queryRaw` only if Prisma cannot express it) — not page-then-filter in JS — [`api-prisma.mdc`](api-prisma.mdc).
 - iCal updates PMS only — does not refresh OTAs.
 - Read `apps/api/AGENTS.md` + `.cursor/rules/monorepo-tooling.mdc`.

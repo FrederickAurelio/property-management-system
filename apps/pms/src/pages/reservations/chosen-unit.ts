@@ -5,8 +5,10 @@ export type ChosenUnit = {
   propertyName: string;
   unitTypeId: string;
   unitTypeName: string;
-  /** Rack rate per night — carried from picker or cache to avoid a detail GET. */
+  /** Daily rack — carried from picker or cache to avoid a detail GET. */
   defaultPriceIdr?: number;
+  monthlyPriceIdr?: number;
+  yearlyPriceIdr?: number;
   unitId: string;
   unitCode: string;
   unitName: string | null;

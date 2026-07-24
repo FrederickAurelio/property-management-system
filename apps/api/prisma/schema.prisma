@@ -81,6 +81,12 @@ enum CalendarBlockKind {
   OTHER
 }
 
+enum StayBillingPeriod {
+  DAILY
+  MONTHLY
+  YEARLY
+}
+
 model Admin {
   id           String    @id @default(cuid())
   username     String    @unique @db.VarChar(64)
@@ -144,9 +150,11 @@ model UnitType {
   sizeSqm         Decimal?   @db.Decimal(6, 2)
   bedroomCount    Int
   bathroomCount   Int        @default(1)
-  maxGuests       Int
-  defaultPriceIdr Int
-  bedConfig       Json
+  maxGuests        Int
+  defaultPriceIdr  Int
+  monthlyPriceIdr  Int
+  yearlyPriceIdr   Int
+  bedConfig        Json
   amenities       Json
   media           Json
   description     String?    @db.Text
@@ -196,6 +204,7 @@ model Reservation {
   unitTypeId        String
   source            ReservationSource
   status            ReservationStatus
+  billingPeriod     StayBillingPeriod  @default(DAILY)
   checkInDate       DateTime           @db.Date
   checkOutDate      DateTime           @db.Date
   guestName         String             @db.VarChar(128)

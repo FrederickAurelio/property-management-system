@@ -48,7 +48,12 @@ export function syncUnitTypeCaches(
   queryClient.setQueryData(staffUnitTypeQueryKey(unitType.id), unitType);
   queryClient.setQueryData<StaffUnitTypeRack>(
     staffUnitTypeRackQueryKey(unitType.id),
-    { id: unitType.id, defaultPriceIdr: unitType.defaultPriceIdr },
+    {
+      id: unitType.id,
+      defaultPriceIdr: unitType.defaultPriceIdr,
+      monthlyPriceIdr: unitType.monthlyPriceIdr,
+      yearlyPriceIdr: unitType.yearlyPriceIdr,
+    },
   );
   void queryClient.invalidateQueries({
     queryKey: staffUnitTypesListQueryKeyPrefix,

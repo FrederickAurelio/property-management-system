@@ -9,6 +9,7 @@ import {
   ReservationBoard,
   ReservationSource,
   ReservationStatus,
+  StayBillingPeriod,
   UnitStatus,
   recomputePaymentStatus,
   sumPaidFromMovements,
@@ -138,6 +139,7 @@ describe('ReservationsService', () => {
             unitId: 'unit_1',
             unitTypeId: 'type_1',
             source: ReservationSource.MANUAL,
+            billingPeriod: StayBillingPeriod.DAILY,
             checkInDate: '2026-08-01',
             checkOutDate: '2026-08-03',
             guestName: 'Guest (iCal)',
@@ -152,6 +154,38 @@ describe('ReservationsService', () => {
       ).rejects.toMatchObject({
         response: {
           details: { reason: ApiFieldReason.CONFIRM_INCOMPLETE },
+        },
+      });
+    });
+
+    it('rejects monthly date mismatch', async () => {
+      prisma.unit.findUnique.mockResolvedValue(unitBookable);
+
+      await expect(
+        service.create(
+          {
+            propertyId: 'prop_1',
+            unitId: 'unit_1',
+            unitTypeId: 'type_1',
+            source: ReservationSource.MANUAL,
+            billingPeriod: StayBillingPeriod.MONTHLY,
+            checkInDate: '2026-06-26',
+            checkOutDate: '2026-07-27',
+            guestName: 'Walk In',
+            guestEmail: 'a@b.com',
+            guestPhone: null,
+            guestCount: 2,
+            totalAmountIdr: 16_900_000,
+            depositAmountIdr: 0,
+          },
+          actor,
+        ),
+      ).rejects.toMatchObject({
+        response: {
+          details: {
+            field: 'checkOutDate',
+            reason: ApiFieldReason.STAY_PERIOD_MISMATCH,
+          },
         },
       });
     });
@@ -174,6 +208,7 @@ describe('ReservationsService', () => {
             unitId: 'unit_1',
             unitTypeId: 'type_1',
             source: ReservationSource.MANUAL,
+            billingPeriod: StayBillingPeriod.DAILY,
             checkInDate: '2026-08-02',
             checkOutDate: '2026-08-04',
             guestName: 'Walk In',
@@ -198,6 +233,7 @@ describe('ReservationsService', () => {
             unitId: 'unit_1',
             unitTypeId: 'type_1',
             source: ReservationSource.MANUAL,
+            billingPeriod: StayBillingPeriod.DAILY,
             checkInDate: '2026-08-01',
             checkOutDate: '2026-08-03',
             guestName: 'Walk In',
@@ -225,6 +261,7 @@ describe('ReservationsService', () => {
         unitId: 'unit_1',
         unitTypeId: 'type_1',
         status: ReservationStatus.CONFIRMED,
+        billingPeriod: StayBillingPeriod.DAILY,
         checkInDate: new Date('2026-08-01T00:00:00.000Z'),
         checkOutDate: new Date('2026-08-03T00:00:00.000Z'),
         guestCount: 2,
@@ -237,6 +274,33 @@ describe('ReservationsService', () => {
       ).rejects.toMatchObject({
         response: {
           details: { reason: ApiFieldReason.GUEST_COUNT_EXCEEDS_MAX },
+        },
+      });
+    });
+
+    it('rejects monthly period mismatch on date patch', async () => {
+      prisma.reservation.findUnique.mockResolvedValue({
+        id: 'res_1',
+        propertyId: 'prop_1',
+        unitId: 'unit_1',
+        unitTypeId: 'type_1',
+        status: ReservationStatus.CONFIRMED,
+        billingPeriod: StayBillingPeriod.MONTHLY,
+        checkInDate: new Date('2026-06-26T00:00:00.000Z'),
+        checkOutDate: new Date('2026-07-26T00:00:00.000Z'),
+        guestCount: 2,
+        property: { timezone: 'Asia/Jakarta' },
+      });
+      prisma.unit.findUnique.mockResolvedValue(unitBookable);
+
+      await expect(
+        service.update('res_1', { checkOutDate: '2026-07-27' }, actor),
+      ).rejects.toMatchObject({
+        response: {
+          details: {
+            field: 'checkOutDate',
+            reason: ApiFieldReason.STAY_PERIOD_MISMATCH,
+          },
         },
       });
     });

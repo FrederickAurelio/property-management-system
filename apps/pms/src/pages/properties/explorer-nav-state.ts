@@ -89,23 +89,38 @@ export function findStaffUnitTypeName(
   return undefined;
 }
 
-/** Resolve rack rate from rack/detail cache or any cached unit-type list. */
-export function findStaffUnitTypeDefaultPriceIdr(
+/** Resolve full rack from rack/detail cache or any cached unit-type list. */
+export function findStaffUnitTypeRack(
   queryClient: QueryClient,
   unitTypeId: string,
-): number | undefined {
+): StaffUnitTypeRack | undefined {
   const rack = queryClient.getQueryData<StaffUnitTypeRack>(
     staffUnitTypeRackQueryKey(unitTypeId),
   );
-  if (rack != null && Number.isFinite(rack.defaultPriceIdr)) {
-    return rack.defaultPriceIdr;
+  if (
+    rack != null &&
+    Number.isFinite(rack.defaultPriceIdr) &&
+    Number.isFinite(rack.monthlyPriceIdr) &&
+    Number.isFinite(rack.yearlyPriceIdr)
+  ) {
+    return rack;
   }
 
   const detail = queryClient.getQueryData<StaffUnitType>(
     staffUnitTypeQueryKey(unitTypeId),
   );
-  if (detail != null && Number.isFinite(detail.defaultPriceIdr)) {
-    return detail.defaultPriceIdr;
+  if (
+    detail != null &&
+    Number.isFinite(detail.defaultPriceIdr) &&
+    Number.isFinite(detail.monthlyPriceIdr) &&
+    Number.isFinite(detail.yearlyPriceIdr)
+  ) {
+    return {
+      id: detail.id,
+      defaultPriceIdr: detail.defaultPriceIdr,
+      monthlyPriceIdr: detail.monthlyPriceIdr,
+      yearlyPriceIdr: detail.yearlyPriceIdr,
+    };
   }
 
   const lists = queryClient.getQueriesData<
@@ -114,9 +129,27 @@ export function findStaffUnitTypeDefaultPriceIdr(
 
   for (const [, data] of lists) {
     const hit = pagesItems(data).find((item) => item.id === unitTypeId);
-    if (hit != null && Number.isFinite(hit.defaultPriceIdr)) {
-      return hit.defaultPriceIdr;
+    if (
+      hit != null &&
+      Number.isFinite(hit.defaultPriceIdr) &&
+      Number.isFinite(hit.monthlyPriceIdr) &&
+      Number.isFinite(hit.yearlyPriceIdr)
+    ) {
+      return {
+        id: hit.id,
+        defaultPriceIdr: hit.defaultPriceIdr,
+        monthlyPriceIdr: hit.monthlyPriceIdr,
+        yearlyPriceIdr: hit.yearlyPriceIdr,
+      };
     }
   }
   return undefined;
+}
+
+/** @deprecated Prefer `findStaffUnitTypeRack` — kept for daily-only callers. */
+export function findStaffUnitTypeDefaultPriceIdr(
+  queryClient: QueryClient,
+  unitTypeId: string,
+): number | undefined {
+  return findStaffUnitTypeRack(queryClient, unitTypeId)?.defaultPriceIdr;
 }

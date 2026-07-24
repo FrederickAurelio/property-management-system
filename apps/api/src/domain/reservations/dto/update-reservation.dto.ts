@@ -16,6 +16,7 @@ import {
   RESERVATION_GUEST_PHONE_MAX,
   RESERVATION_NOTES_MAX,
   ReservationSource,
+  StayBillingPeriod,
 } from '@cabin/api-contract';
 
 export class UpdateReservationDto {
@@ -26,6 +27,10 @@ export class UpdateReservationDto {
   @IsOptional()
   @IsString()
   unitTypeId?: string;
+
+  @IsOptional()
+  @IsEnum(StayBillingPeriod)
+  billingPeriod?: StayBillingPeriod;
 
   @IsOptional()
   @IsString()

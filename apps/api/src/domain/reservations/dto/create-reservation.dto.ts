@@ -17,6 +17,7 @@ import {
   RESERVATION_GUEST_PHONE_MAX,
   RESERVATION_NOTES_MAX,
   ReservationSource,
+  StayBillingPeriod,
 } from '@cabin/api-contract';
 
 export class CreateReservationDto {
@@ -34,6 +35,9 @@ export class CreateReservationDto {
 
   @IsEnum(ReservationSource)
   source!: ReservationSource;
+
+  @IsEnum(StayBillingPeriod)
+  billingPeriod!: StayBillingPeriod;
 
   @IsString()
   @IsNotEmpty()

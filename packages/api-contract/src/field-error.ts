@@ -20,6 +20,11 @@ export const ApiFieldReason = {
   /** Unit/property/type not open for booking (catalog or status). */
   UNIT_NOT_BOOKABLE: 'UNIT_NOT_BOOKABLE',
   DATE_RANGE_INVALID: 'DATE_RANGE_INVALID',
+  /**
+   * Monthly/yearly check-out is not a clean period boundary from check-in
+   * (same calendar date next N months/years, EOM clamp). `field` is checkOutDate.
+   */
+  STAY_PERIOD_MISMATCH: 'STAY_PERIOD_MISMATCH',
   /** Occupying stay overlaps — see OverlapConflictDetails. */
   OVERLAP_CONFLICT: 'OVERLAP_CONFLICT',
   CONFIRM_INCOMPLETE: 'CONFIRM_INCOMPLETE',

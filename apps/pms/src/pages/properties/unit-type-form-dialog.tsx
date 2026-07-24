@@ -11,6 +11,9 @@ import {
   INVENTORY_NAME_MAX,
   INVENTORY_NAME_MIN,
   MediaKind,
+  UNIT_TYPE_DAILY_PRICE_IDR_MAX,
+  UNIT_TYPE_MONTHLY_PRICE_IDR_MAX,
+  UNIT_TYPE_YEARLY_PRICE_IDR_MAX,
   UnitLayout,
   type Amenities,
   type BedConfigRoom,
@@ -88,6 +91,8 @@ const schema = z
     bathroomCount: z.string().trim(),
     maxGuests: z.string().trim(),
     defaultPriceIdr: z.string().trim(),
+    monthlyPriceIdr: z.string().trim(),
+    yearlyPriceIdr: z.string().trim(),
     description: z.string().trim().max(4000),
     smokingAllowed: z.enum(["true", "false"]),
     isActive: z.enum(["true", "false"]),
@@ -166,12 +171,40 @@ const schema = z
       Number.isNaN(price) ||
       !Number.isInteger(price) ||
       price < 0 ||
-      price > 100_000_000
+      price > UNIT_TYPE_DAILY_PRICE_IDR_MAX
     ) {
       ctx.addIssue({
         code: "custom",
         path: ["defaultPriceIdr"],
         message: "Enter a whole IDR amount (0–100.000.000)",
+      });
+    }
+    const monthly = Number(values.monthlyPriceIdr);
+    if (
+      values.monthlyPriceIdr === "" ||
+      Number.isNaN(monthly) ||
+      !Number.isInteger(monthly) ||
+      monthly < 0 ||
+      monthly > UNIT_TYPE_MONTHLY_PRICE_IDR_MAX
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["monthlyPriceIdr"],
+        message: "Enter a whole IDR amount (0–500.000.000)",
+      });
+    }
+    const yearly = Number(values.yearlyPriceIdr);
+    if (
+      values.yearlyPriceIdr === "" ||
+      Number.isNaN(yearly) ||
+      !Number.isInteger(yearly) ||
+      yearly < 0 ||
+      yearly > UNIT_TYPE_YEARLY_PRICE_IDR_MAX
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["yearlyPriceIdr"],
+        message: "Enter a whole IDR amount (0–2.000.000.000)",
       });
     }
   });
@@ -186,6 +219,8 @@ const emptyDefaults: FormValues = {
   bathroomCount: "1",
   maxGuests: "2",
   defaultPriceIdr: "",
+  monthlyPriceIdr: "",
+  yearlyPriceIdr: "",
   description: "",
   smokingAllowed: "false",
   isActive: "true",
@@ -232,6 +267,8 @@ export function UnitTypeFormDialog({
             bathroomCount: String(unitType.bathroomCount),
             maxGuests: String(unitType.maxGuests),
             defaultPriceIdr: String(unitType.defaultPriceIdr),
+            monthlyPriceIdr: String(unitType.monthlyPriceIdr),
+            yearlyPriceIdr: String(unitType.yearlyPriceIdr),
             description: unitType.description ?? "",
             smokingAllowed: unitType.smokingAllowed ? "true" : "false",
             isActive: unitType.isActive ? "true" : "false",
@@ -256,6 +293,8 @@ export function UnitTypeFormDialog({
         bathroomCount: Number(values.bathroomCount),
         maxGuests: Number(values.maxGuests),
         defaultPriceIdr: Number(values.defaultPriceIdr),
+        monthlyPriceIdr: Number(values.monthlyPriceIdr),
+        yearlyPriceIdr: Number(values.yearlyPriceIdr),
         description: values.description || null,
         smokingAllowed: values.smokingAllowed === "true",
         isActive: values.isActive === "true",
@@ -452,39 +491,104 @@ export function UnitTypeFormDialog({
               )}
             />
           </div>
-          <Controller
-            control={form.control}
-            name="defaultPriceIdr"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid || undefined}>
-                <FieldLabel htmlFor="type-price">Default price</FieldLabel>
-                <InputGroup>
-                  <InputGroupAddon>
-                    <InputGroupText>Rp</InputGroupText>
-                  </InputGroupAddon>
-                  <IdrAmountInput
-                    id="type-price"
-                    data-slot="input-group-control"
-                    placeholder="0"
-                    className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent"
-                    aria-invalid={fieldState.invalid || undefined}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                    ref={field.ref}
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupText>/ night</InputGroupText>
-                  </InputGroupAddon>
-                </InputGroup>
-                <p className="text-xs text-muted-foreground">
-                  Rack rate — whole rupiah, no decimals
-                </p>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium text-foreground">Rack rates</p>
+            <p className=" -mt-1 text-xs text-muted-foreground">
+              Whole rupiah, no decimals — used to suggest stay Total by period
+            </p>
+            <Controller
+              control={form.control}
+              name="defaultPriceIdr"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid || undefined}>
+                  <FieldLabel htmlFor="type-price">Daily</FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <InputGroupText>Rp</InputGroupText>
+                    </InputGroupAddon>
+                    <IdrAmountInput
+                      id="type-price"
+                      data-slot="input-group-control"
+                      placeholder="0"
+                      className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent"
+                      aria-invalid={fieldState.invalid || undefined}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupText>/ night</InputGroupText>
+                    </InputGroupAddon>
+                  </InputGroup>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Controller
+                control={form.control}
+                name="monthlyPriceIdr"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid || undefined}>
+                    <FieldLabel htmlFor="type-price-monthly">Monthly</FieldLabel>
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <InputGroupText>Rp</InputGroupText>
+                      </InputGroupAddon>
+                      <IdrAmountInput
+                        id="type-price-monthly"
+                        data-slot="input-group-control"
+                        placeholder="0"
+                        className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent"
+                        aria-invalid={fieldState.invalid || undefined}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                      <InputGroupAddon align="inline-end">
+                        <InputGroupText>/ month</InputGroupText>
+                      </InputGroupAddon>
+                    </InputGroup>
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="yearlyPriceIdr"
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid || undefined}>
+                    <FieldLabel htmlFor="type-price-yearly">Yearly</FieldLabel>
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <InputGroupText>Rp</InputGroupText>
+                      </InputGroupAddon>
+                      <IdrAmountInput
+                        id="type-price-yearly"
+                        data-slot="input-group-control"
+                        placeholder="0"
+                        className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent"
+                        aria-invalid={fieldState.invalid || undefined}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                      <InputGroupAddon align="inline-end">
+                        <InputGroupText>/ year</InputGroupText>
+                      </InputGroupAddon>
+                    </InputGroup>
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field>
               <FieldLabel>Bedrooms</FieldLabel>

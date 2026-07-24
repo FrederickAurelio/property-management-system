@@ -253,7 +253,7 @@ export function ReservationDetailPage() {
             Unit {row.unitCode} · {row.propertyName}
           </p>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {formatStayRange(row.checkInDate, row.checkOutDate)}
+            {formatStayRange(row.checkInDate, row.checkOutDate, row.billingPeriod)}
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <ReservationBadge

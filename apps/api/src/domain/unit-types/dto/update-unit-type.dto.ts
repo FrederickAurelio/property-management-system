@@ -21,6 +21,9 @@ import {
   INVENTORY_CODE_PATTERN,
   INVENTORY_NAME_MAX,
   INVENTORY_NAME_MIN,
+  UNIT_TYPE_DAILY_PRICE_IDR_MAX,
+  UNIT_TYPE_MONTHLY_PRICE_IDR_MAX,
+  UNIT_TYPE_YEARLY_PRICE_IDR_MAX,
   UnitLayout,
 } from '@cabin/api-contract';
 import {
@@ -80,8 +83,22 @@ export class UpdateUnitTypeDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  @Max(100_000_000)
+  @Max(UNIT_TYPE_DAILY_PRICE_IDR_MAX)
   defaultPriceIdr?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(UNIT_TYPE_MONTHLY_PRICE_IDR_MAX)
+  monthlyPriceIdr?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(UNIT_TYPE_YEARLY_PRICE_IDR_MAX)
+  yearlyPriceIdr?: number;
 
   @IsOptional()
   @IsArray()

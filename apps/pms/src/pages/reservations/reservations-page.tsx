@@ -82,7 +82,7 @@ const ReservationRowCells = memo(function ReservationRowCells({
       </TableCell>
       <TableCell className="tabular-nums">{row.unitCode}</TableCell>
       <TableCell className="whitespace-nowrap text-muted-foreground">
-        {formatStayRange(row.checkInDate, row.checkOutDate)}
+        {formatStayRange(row.checkInDate, row.checkOutDate, row.billingPeriod)}
       </TableCell>
       <TableCell>
         <ReservationBadge
@@ -165,7 +165,7 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {row.unitCode}
             <span className="text-border"> · </span>
-            {formatStayRange(row.checkInDate, row.checkOutDate)}
+            {formatStayRange(row.checkInDate, row.checkOutDate, row.billingPeriod)}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">

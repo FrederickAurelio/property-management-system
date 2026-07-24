@@ -6,9 +6,11 @@ import {
   PaymentStatus,
   ReservationSource,
   ReservationStatus,
+  StayBillingPeriod,
   balanceDueIdr,
   getConfirmFieldGaps,
   isReadyToConfirm,
+  periodCountFromRange,
   refundDueIdr,
   todayYmdInTimezone,
   type ConfirmFieldGap,
@@ -17,7 +19,14 @@ import {
 } from "@cabin/api-contract";
 import { formatIdr } from "@/pages/properties/inventory-types";
 
-export { formatIdr, balanceDueIdr, isReadyToConfirm, refundDueIdr, todayYmdInTimezone };
+export {
+  formatIdr,
+  balanceDueIdr,
+  isReadyToConfirm,
+  refundDueIdr,
+  todayYmdInTimezone,
+  StayBillingPeriod,
+};
 
 const mediumDateFormat = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -31,14 +40,27 @@ export function formatDateYmd(ymd: string): string {
   return mediumDateFormat.format(new Date(y, m - 1, d));
 }
 
-/** Inclusive check-in → exclusive check-out as a readable range + night count. */
+/** Inclusive check-in → exclusive check-out as a readable range + period count. */
 export function formatStayRange(
   checkInDate: string,
   checkOutDate: string,
+  billingPeriod: StayBillingPeriod = StayBillingPeriod.DAILY,
 ): string {
+  const count = periodCountFromRange(billingPeriod, checkInDate, checkOutDate);
   const nights = nightCount(checkInDate, checkOutDate);
-  const nightLabel = nights === 1 ? "1 night" : `${nights} nights`;
-  return `${formatDateYmd(checkInDate)} → ${formatDateYmd(checkOutDate)} · ${nightLabel}`;
+  let periodLabel: string;
+  if (billingPeriod === StayBillingPeriod.MONTHLY && count != null) {
+    periodLabel = count === 1 ? "1 month" : `${count} months`;
+  } else if (billingPeriod === StayBillingPeriod.YEARLY && count != null) {
+    periodLabel = count === 1 ? "1 year" : `${count} years`;
+  } else {
+    periodLabel = nights === 1 ? "1 night" : `${nights} nights`;
+  }
+  const suffix =
+    billingPeriod !== StayBillingPeriod.DAILY && count != null
+      ? ` · ${nights} nights`
+      : "";
+  return `${formatDateYmd(checkInDate)} → ${formatDateYmd(checkOutDate)} · ${periodLabel}${suffix}`;
 }
 
 export function nightCount(checkInDate: string, checkOutDate: string): number {

@@ -11,6 +11,7 @@ import { parseYmd } from './reservations-mapper.js';
 export const reservationListSelect = {
   id: true,
   guestName: true,
+  billingPeriod: true,
   checkInDate: true,
   checkOutDate: true,
   status: true,

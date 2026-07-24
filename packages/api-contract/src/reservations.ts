@@ -1,10 +1,10 @@
 /** Keep in sync with Prisma `ReservationSource` (when added). */
 export const ReservationSource = {
-  MANUAL: 'MANUAL',
-  WEBSITE: 'WEBSITE',
-  BOOKING_COM: 'BOOKING_COM',
-  AIRBNB: 'AIRBNB',
-  AGODA: 'AGODA',
+  MANUAL: "MANUAL",
+  WEBSITE: "WEBSITE",
+  BOOKING_COM: "BOOKING_COM",
+  AIRBNB: "AIRBNB",
+  AGODA: "AGODA",
 } as const;
 
 export type ReservationSource =
@@ -12,11 +12,11 @@ export type ReservationSource =
 
 /** Keep in sync with Prisma `ReservationStatus` (when added). */
 export const ReservationStatus = {
-  UNCONFIRMED: 'UNCONFIRMED',
-  CONFIRMED: 'CONFIRMED',
-  CHECKED_IN: 'CHECKED_IN',
-  CHECKED_OUT: 'CHECKED_OUT',
-  CANCELLED: 'CANCELLED',
+  UNCONFIRMED: "UNCONFIRMED",
+  CONFIRMED: "CONFIRMED",
+  CHECKED_IN: "CHECKED_IN",
+  CHECKED_OUT: "CHECKED_OUT",
+  CANCELLED: "CANCELLED",
 } as const;
 
 export type ReservationStatus =
@@ -37,26 +37,26 @@ export function isOccupyingReservationStatus(
 
 /** Desk meaning: what the guest still owes at the property. */
 export const PaymentStatus = {
-  UNPAID: 'UNPAID',
-  DEPOSIT: 'DEPOSIT',
-  PAID: 'PAID',
-  REFUNDED: 'REFUNDED',
+  UNPAID: "UNPAID",
+  DEPOSIT: "DEPOSIT",
+  PAID: "PAID",
+  REFUNDED: "REFUNDED",
 } as const;
 
 export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus];
 
 export const CollectedVia = {
-  PROPERTY: 'PROPERTY',
-  CHANNEL: 'CHANNEL',
-  MIXED: 'MIXED',
+  PROPERTY: "PROPERTY",
+  CHANNEL: "CHANNEL",
+  MIXED: "MIXED",
 } as const;
 
 export type CollectedVia = (typeof CollectedVia)[keyof typeof CollectedVia];
 
 /** Cash movement direction — property money in / out (design §6). */
 export const PaymentMovementDirection = {
-  IN: 'IN',
-  OUT: 'OUT',
+  IN: "IN",
+  OUT: "OUT",
 } as const;
 
 export type PaymentMovementDirection =
@@ -67,11 +67,11 @@ export type PaymentMovementDirection =
  * Nest persists the same kinds when `/staff/reservations` lands.
  */
 export const PaymentMovementKind = {
-  DEPOSIT: 'DEPOSIT',
-  TOP_UP: 'TOP_UP',
-  REFUND: 'REFUND',
-  CANCEL_REFUND: 'CANCEL_REFUND',
-  CHANNEL_SETTLED: 'CHANNEL_SETTLED',
+  DEPOSIT: "DEPOSIT",
+  TOP_UP: "TOP_UP",
+  REFUND: "REFUND",
+  CANCEL_REFUND: "CANCEL_REFUND",
+  CHANNEL_SETTLED: "CHANNEL_SETTLED",
 } as const;
 
 export type PaymentMovementKind =
@@ -111,7 +111,7 @@ export function signedAmountFor(
 
 /** Denormalized Paid = sum of movement signed amounts (never negative). */
 export function sumPaidFromMovements(
-  movements: ReadonlyArray<Pick<PaymentMovement, 'signedAmount'>>,
+  movements: ReadonlyArray<Pick<PaymentMovement, "signedAmount">>,
 ): number {
   let sum = 0;
   for (const m of movements) {
@@ -121,8 +121,8 @@ export function sumPaidFromMovements(
 }
 
 export const IcalSyncWarning = {
-  MISSING_FROM_FEED: 'MISSING_FROM_FEED',
-  DATES_DIFFER: 'DATES_DIFFER',
+  MISSING_FROM_FEED: "MISSING_FROM_FEED",
+  DATES_DIFFER: "DATES_DIFFER",
 } as const;
 
 export type IcalSyncWarning =
@@ -139,11 +139,11 @@ export const RESERVATION_EXTERNAL_REF_MAX = 256;
 /** Property-local calendar date as YYYY-MM-DD (desk boards / check-in window). */
 export function todayYmdInTimezone(timezone: string, now = new Date()): string {
   try {
-    return new Intl.DateTimeFormat('en-CA', {
+    return new Intl.DateTimeFormat("en-CA", {
       timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     }).format(now);
   } catch {
     return now.toISOString().slice(0, 10);
@@ -204,21 +204,215 @@ export function refundDueIdr(
 
 /**
  * Desk stay quote from rack rate (design §6 extend/shrink).
- * `nights × defaultPriceIdr` — whole IDR. Returns `null` if nights or rack invalid.
+ * `periodCount × unitPriceIdr` (nights / months / years) — whole IDR.
+ * Returns `null` if count or rack invalid.
  */
 export function suggestStayTotalIdr(
-  nights: number,
-  defaultPriceIdr: number,
+  periodCount: number,
+  unitPriceIdr: number,
 ): number | null {
   if (
-    !Number.isFinite(nights) ||
-    nights < 1 ||
-    !Number.isFinite(defaultPriceIdr) ||
-    defaultPriceIdr < 0
+    !Number.isFinite(periodCount) ||
+    periodCount < 1 ||
+    !Number.isFinite(unitPriceIdr) ||
+    unitPriceIdr < 0
   ) {
     return null;
   }
-  return Math.floor(nights) * Math.floor(defaultPriceIdr);
+  return Math.floor(periodCount) * Math.floor(unitPriceIdr);
+}
+
+/** Stay quote axis — daily rack vs monthly vs yearly. Keep in sync with Prisma. */
+export const StayBillingPeriod = {
+  DAILY: "DAILY",
+  MONTHLY: "MONTHLY",
+  YEARLY: "YEARLY",
+} as const;
+
+export type StayBillingPeriod =
+  (typeof StayBillingPeriod)[keyof typeof StayBillingPeriod];
+
+/** Max periods for monthly billing (10 years). Enforced in count helpers + picker. */
+export const STAY_MONTHLY_COUNT_MAX = 120;
+/** Max periods for yearly billing. Enforced in count helpers + picker. */
+export const STAY_YEARLY_COUNT_MAX = 30;
+
+/** Upper bound for `count` by period; `null` = daily (night count, uncapped here). */
+export function stayPeriodCountMax(
+  period: StayBillingPeriod,
+): number | null {
+  if (period === StayBillingPeriod.MONTHLY) {
+    return STAY_MONTHLY_COUNT_MAX;
+  }
+  if (period === StayBillingPeriod.YEARLY) {
+    return STAY_YEARLY_COUNT_MAX;
+  }
+  return null;
+}
+
+const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseYmdParts(
+  ymd: string,
+): { y: number; m: number; d: number } | null {
+  if (!YMD_RE.test(ymd)) {
+    return null;
+  }
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) {
+    return null;
+  }
+  return { y, m, d };
+}
+
+function formatYmd(y: number, m: number, d: number): string {
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/** Last calendar day of month `m` (1–12) in year `y`. */
+function daysInMonth(y: number, m: number): number {
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+/**
+ * Exclusive check-out = same calendar date + `n` months (EOM clamp when day
+ * missing). `26 Jun + 1` → `26 Jul`; `31 Jan + 1` → `28/29 Feb`.
+ */
+export function addCalendarMonthsYmd(ymd: string, n: number): string {
+  const parts = parseYmdParts(ymd);
+  if (!parts || !Number.isInteger(n) || n < 0) {
+    return ymd;
+  }
+  const totalMonths = parts.y * 12 + (parts.m - 1) + n;
+  const y = Math.floor(totalMonths / 12);
+  const m = (totalMonths % 12) + 1;
+  const d = Math.min(parts.d, daysInMonth(y, m));
+  return formatYmd(y, m, d);
+}
+
+/**
+ * Exclusive check-out = same month/day + `n` years (Feb 29 → Feb 28 in
+ * non-leap years).
+ */
+export function addCalendarYearsYmd(ymd: string, n: number): string {
+  const parts = parseYmdParts(ymd);
+  if (!parts || !Number.isInteger(n) || n < 0) {
+    return ymd;
+  }
+  const y = parts.y + n;
+  const d = Math.min(parts.d, daysInMonth(y, parts.m));
+  return formatYmd(y, parts.m, d);
+}
+
+function nightCountYmd(checkInDate: string, checkOutDate: string): number {
+  const a = parseYmdParts(checkInDate);
+  const b = parseYmdParts(checkOutDate);
+  if (!a || !b) {
+    return 0;
+  }
+  const ms = Date.UTC(b.y, b.m - 1, b.d) - Date.UTC(a.y, a.m - 1, a.d);
+  return Math.max(0, Math.round(ms / 86_400_000));
+}
+
+/**
+ * Exclusive check-out from check-in + period count.
+ * Daily: +nights days; monthly/yearly: same-date helpers.
+ * Over-max monthly/yearly count returns `checkInDate` (invalid range).
+ */
+export function checkoutFromPeriodCount(
+  period: StayBillingPeriod,
+  checkInDate: string,
+  count: number,
+): string {
+  if (!Number.isInteger(count) || count < 1) {
+    return checkInDate;
+  }
+  const max = stayPeriodCountMax(period);
+  if (max != null && count > max) {
+    return checkInDate;
+  }
+  if (period === StayBillingPeriod.DAILY) {
+    const parts = parseYmdParts(checkInDate);
+    if (!parts) {
+      return checkInDate;
+    }
+    const dt = new Date(Date.UTC(parts.y, parts.m - 1, parts.d));
+    dt.setUTCDate(dt.getUTCDate() + count);
+    return formatYmd(
+      dt.getUTCFullYear(),
+      dt.getUTCMonth() + 1,
+      dt.getUTCDate(),
+    );
+  }
+  if (period === StayBillingPeriod.MONTHLY) {
+    return addCalendarMonthsYmd(checkInDate, count);
+  }
+  return addCalendarYearsYmd(checkInDate, count);
+}
+
+/**
+ * Derive period count from a half-open range. `null` when not a clean
+ * boundary for monthly/yearly, over max, or invalid daily range.
+ * Monthly/yearly use calendar delta + verify (not a 1…N scan).
+ */
+export function periodCountFromRange(
+  period: StayBillingPeriod,
+  checkInDate: string,
+  checkOutDate: string,
+): number | null {
+  const a = parseYmdParts(checkInDate);
+  const b = parseYmdParts(checkOutDate);
+  if (!a || !b || checkOutDate <= checkInDate) {
+    return null;
+  }
+  if (period === StayBillingPeriod.DAILY) {
+    const nights = nightCountYmd(checkInDate, checkOutDate);
+    return nights >= 1 ? nights : null;
+  }
+  if (period === StayBillingPeriod.MONTHLY) {
+    const n = (b.y - a.y) * 12 + (b.m - a.m);
+    if (n < 1 || n > STAY_MONTHLY_COUNT_MAX) {
+      return null;
+    }
+    if (addCalendarMonthsYmd(checkInDate, n) !== checkOutDate) {
+      return null;
+    }
+    return n;
+  }
+  const n = b.y - a.y;
+  if (n < 1 || n > STAY_YEARLY_COUNT_MAX) {
+    return null;
+  }
+  if (addCalendarYearsYmd(checkInDate, n) !== checkOutDate) {
+    return null;
+  }
+  return n;
+}
+
+export function isValidStayPeriodRange(
+  period: StayBillingPeriod,
+  checkInDate: string,
+  checkOutDate: string,
+): boolean {
+  return periodCountFromRange(period, checkInDate, checkOutDate) != null;
+}
+
+/** Rack price for the given billing period. */
+export function rackPriceForPeriod(
+  period: StayBillingPeriod,
+  rack: {
+    defaultPriceIdr: number;
+    monthlyPriceIdr: number;
+    yearlyPriceIdr: number;
+  },
+): number {
+  if (period === StayBillingPeriod.MONTHLY) {
+    return rack.monthlyPriceIdr;
+  }
+  if (period === StayBillingPeriod.YEARLY) {
+    return rack.yearlyPriceIdr;
+  }
+  return rack.defaultPriceIdr;
 }
 
 /**
@@ -226,13 +420,13 @@ export function suggestStayTotalIdr(
  * Shared FE + BE — incomplete Confirm must not invent stub guest/money.
  */
 export type ConfirmFieldGap =
-  | 'unit'
-  | 'dates'
-  | 'guestName'
-  | 'guestContact'
-  | 'guestCount'
-  | 'totalAmountIdr'
-  | 'paidAmountIdr';
+  | "unit"
+  | "dates"
+  | "guestName"
+  | "guestContact"
+  | "guestCount"
+  | "totalAmountIdr"
+  | "paidAmountIdr";
 
 export type ConfirmReadinessInput = {
   unitId: string;
@@ -264,40 +458,37 @@ export function getConfirmFieldGaps(
   const gaps: ConfirmFieldGap[] = [];
 
   if (!input.unitId.trim()) {
-    gaps.push('unit');
+    gaps.push("unit");
   }
   if (
     !input.checkInDate ||
     !input.checkOutDate ||
     input.checkOutDate <= input.checkInDate
   ) {
-    gaps.push('dates');
+    gaps.push("dates");
   }
   if (isPlaceholderGuestName(input.guestName)) {
-    gaps.push('guestName');
+    gaps.push("guestName");
   }
-  const email = input.guestEmail?.trim() ?? '';
-  const phone = input.guestPhone?.trim() ?? '';
+  const email = input.guestEmail?.trim() ?? "";
+  const phone = input.guestPhone?.trim() ?? "";
   if (!email && !phone) {
-    gaps.push('guestContact');
+    gaps.push("guestContact");
   }
   if (
     input.guestCount == null ||
     !Number.isInteger(input.guestCount) ||
     input.guestCount < 1
   ) {
-    gaps.push('guestCount');
-  } else if (
-    input.maxGuests != null &&
-    input.guestCount > input.maxGuests
-  ) {
-    gaps.push('guestCount');
+    gaps.push("guestCount");
+  } else if (input.maxGuests != null && input.guestCount > input.maxGuests) {
+    gaps.push("guestCount");
   }
   if (input.totalAmountIdr == null || input.totalAmountIdr < 0) {
-    gaps.push('totalAmountIdr');
+    gaps.push("totalAmountIdr");
   }
   if (input.paidAmountIdr < 0) {
-    gaps.push('paidAmountIdr');
+    gaps.push("paidAmountIdr");
   }
 
   return gaps;
@@ -309,10 +500,10 @@ export function isReadyToConfirm(input: ConfirmReadinessInput): boolean {
 
 /** Cancel money disposition when paid > 0 (design §6). */
 export const CancelDisposition = {
-  none: 'none',
-  full_refund: 'full_refund',
-  keep: 'keep',
-  partial: 'partial',
+  none: "none",
+  full_refund: "full_refund",
+  keep: "keep",
+  partial: "partial",
 } as const;
 
 export type CancelDisposition =
@@ -324,13 +515,13 @@ export type CancelDisposition =
  * `departures` = CHECKED_IN + checkOutDate ≤ today (overdue inclusive).
  */
 export const ReservationBoard = {
-  all: 'all',
-  arrivals: 'arrivals',
-  'in-house': 'in-house',
-  departures: 'departures',
-  'needs-details': 'needs-details',
-  'ical-alerts': 'ical-alerts',
-  'balance-due': 'balance-due',
+  all: "all",
+  arrivals: "arrivals",
+  "in-house": "in-house",
+  departures: "departures",
+  "needs-details": "needs-details",
+  "ical-alerts": "ical-alerts",
+  "balance-due": "balance-due",
 } as const;
 
 export type ReservationBoard =
@@ -338,8 +529,8 @@ export type ReservationBoard =
 
 /** List sort for staff reservation boards (default = checkIn). */
 export const ReservationListSort = {
-  checkIn: 'checkIn',
-  createdAt: 'createdAt',
+  checkIn: "checkIn",
+  createdAt: "createdAt",
 } as const;
 
 export type ReservationListSort =
@@ -367,6 +558,7 @@ export type CreateStaffReservationInput = {
   unitId: string;
   unitTypeId: string;
   source: ReservationSource;
+  billingPeriod: StayBillingPeriod;
   checkInDate: string;
   checkOutDate: string;
   guestName: string;
@@ -383,6 +575,7 @@ export type CreateStaffReservationInput = {
 export type UpdateStaffReservationInput = {
   unitId?: string;
   unitTypeId?: string;
+  billingPeriod?: StayBillingPeriod;
   checkInDate?: string;
   checkOutDate?: string;
   guestName?: string;
@@ -430,6 +623,7 @@ export type StaffReservation = {
   unitTypeId: string;
   source: ReservationSource;
   status: ReservationStatus;
+  billingPeriod: StayBillingPeriod;
   checkInDate: string;
   checkOutDate: string;
   guestName: string;
@@ -468,16 +662,17 @@ export type StaffReservation = {
  */
 export type StaffReservationListItem = Pick<
   StaffReservation,
-  | 'id'
-  | 'guestName'
-  | 'unitCode'
-  | 'checkInDate'
-  | 'checkOutDate'
-  | 'status'
-  | 'source'
-  | 'totalAmountIdr'
-  | 'paidAmountIdr'
-  | 'paymentStatus'
-  | 'icalSyncWarning'
-  | 'propertyTimezone'
+  | "id"
+  | "guestName"
+  | "unitCode"
+  | "billingPeriod"
+  | "checkInDate"
+  | "checkOutDate"
+  | "status"
+  | "source"
+  | "totalAmountIdr"
+  | "paidAmountIdr"
+  | "paymentStatus"
+  | "icalSyncWarning"
+  | "propertyTimezone"
 >;

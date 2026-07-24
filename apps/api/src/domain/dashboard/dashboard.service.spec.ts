@@ -21,6 +21,7 @@ describe('DashboardService', () => {
     return {
       id: overrides.id,
       guestName: overrides.guestName,
+      billingPeriod: 'DAILY',
       checkInDate: new Date(`${overrides.checkInDate}T00:00:00.000Z`),
       checkOutDate: new Date(`${overrides.checkOutDate}T00:00:00.000Z`),
       status: overrides.status,

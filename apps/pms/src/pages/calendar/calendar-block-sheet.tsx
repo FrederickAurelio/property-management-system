@@ -360,6 +360,7 @@ export function CalendarBlockSheet({
               <StayDateRangePicker
                 id="block-dates"
                 copy="block"
+                showPeriodToggle={false}
                 checkInDate={startDate}
                 checkOutDate={endDate}
                 unitId={chosen?.unitId}

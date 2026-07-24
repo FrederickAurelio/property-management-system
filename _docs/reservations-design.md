@@ -266,14 +266,19 @@ Staff **PATCH dates** (overlap checked).
 **Locked Total suggestion (FE = BE later):**
 
 ```text
-suggestedTotal = nights × UnitType.defaultPriceIdr
+suggestedTotal =
+  DAILY   → nights  × UnitType.defaultPriceIdr
+  MONTHLY → months  × UnitType.monthlyPriceIdr
+  YEARLY  → years   × UnitType.yearlyPriceIdr
 ```
+
+`Reservation.billingPeriod` records which axis was used. Monthly/yearly exclusive check-out = same calendar date + N periods (`26 Jun → 26 Jul`); missing days clamp to EOM (`31 Jan → 28/29 Feb`). Caps: monthly ≤ 120, yearly ≤ 30 (`STAY_*_COUNT_MAX`). Helpers: `checkoutFromPeriodCount` / `periodCountFromRange` / `suggestStayTotalIdr` in `@cabin/api-contract`.
 
 | Trigger | Total | Paid / movements |
 |---------|-------|------------------|
 | Create with unit + dates | Fill suggested | Opening `depositAmountIdr` > 0 → first IN `DEPOSIT` |
-| Unit type or nights change | Set to suggested | **Never change Paid / movements** |
-| Open edit (no night/type change) | Keep saved Total | Keep Paid |
+| Unit type, period, or period-count change | Set to suggested | **Never change Paid / movements** |
+| Open edit (no period/type change) | Keep saved Total | Keep Paid |
 | Staff edits Total by hand | Keep override | Paid stays; if `paid > total` → **Refund** until Collect OUT |
 
 ```text
@@ -315,6 +320,7 @@ Early/late check-out: dates unchanged unless staff **Edit** first; iCal busy fol
 | `id` | no | cuid |
 | `propertyId` / `unitId` / `unitTypeId` | no | type snapshot at create |
 | `source` / `status` | no | |
+| `billingPeriod` | no | `DAILY` \| `MONTHLY` \| `YEARLY` (default `DAILY`) |
 | `checkInDate` / `checkOutDate` | no | inclusive / exclusive |
 | `guestName` | no | |
 | `guestEmail` / `guestPhone` | yes | one required when confirmed |
@@ -496,7 +502,7 @@ public/ical (+ Phase 2 book)
 
 ## 12. Happy-path flows (desk)
 
-**Walk-in:** Choose unit → dates → Total auto `nights × rack` (staff may override) + paid → guest + contact → Save `CONFIRMED` → (export blocks OTA on delay).
+**Walk-in:** Choose unit → period (daily/monthly/yearly) + dates → Total auto `periodCount × matching rack` (staff may override) + paid → guest + contact → Save `CONFIRMED` → (export blocks OTA on delay).
 
 **Arrival:** Arrivals board → see Due → Collect if needed → Check in (early OK with confirm).
 
@@ -542,7 +548,7 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservati
 | `UNCONFIRMED` + missing feed | Warn only (same as confirmed) |
 | `collectedVia` | Optional |
 | Unit vs type-first UX | **Unit required** on write; Choose picker drills Property → Type → Unit |
-| Stay Total suggestion | `nights × UnitType.defaultPriceIdr` (`suggestStayTotalIdr`); Paid = sum(movements), never auto-changed on date/unit change; if Paid > Total → Refund (`refundDueIdr`), settle via Collect OUT |
+| Stay Total suggestion | `periodCount ×` matching rack (`defaultPriceIdr` / `monthlyPriceIdr` / `yearlyPriceIdr` via `billingPeriod`); `suggestStayTotalIdr`; Paid = sum(movements), never auto-changed on date/unit/period change; if Paid > Total → Refund (`refundDueIdr`), settle via Collect OUT |
 | Cash ledger | `PaymentMovement` append-only; Nest `/staff/reservations`; PMS live |
 | Cancel money body | `refundAmountIdr` (OUT amount) for partial — never “remaining Paid” |
 | Check-in if Due > 0 | Warn, allow |
@@ -563,7 +569,7 @@ Unit via Choose (Property → Type → Unit), not a mega Select
 Confirm = name + (phone|email) + guests + total   (paid may be 0 → opening IN on create)
 Money   = UNPAID | DEPOSIT | PAID | REFUNDED
 Paid    = sum(PaymentMovement.signedAmount) — never absolute overwrite as desk path
-Total   = nights × UnitType.defaultPriceIdr on unit/nights change (override OK; Paid unchanged)
+Total   = periodCount × matching rack on unit/period/count change (override OK; Paid unchanged)
          if Paid > Total → Refund = paid − total (Collect OUT; never silent clamp)
 iCal in = UNCONFIRMED; missing/dates on CONFIRMED = warn, human decides
 iCal out = Phase 1 export so walk-ins block OTAs
