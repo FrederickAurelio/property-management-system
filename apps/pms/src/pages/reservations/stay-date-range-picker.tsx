@@ -553,6 +553,9 @@ export function StayDateRangePicker({
   const draftToYm = draftTo ? draftTo.slice(0, 7) : "";
   const draftFromYear = draftFrom ? Number(draftFrom.slice(0, 4)) : null;
   const draftToYear = draftTo ? Number(draftTo.slice(0, 4)) : null;
+  const todayParts = todayYmd();
+  const todayYear = Number(todayParts.slice(0, 4));
+  const todayYm = todayParts.slice(0, 7);
 
   const monthCellState = (year: number, month: number) => {
     const ym = `${year}-${String(month).padStart(2, "0")}`;
@@ -563,7 +566,13 @@ export function StayDateRangePicker({
       Boolean(draftToYm) &&
       ym > draftFromYm &&
       ym < draftToYm;
-    return { isStart, isEnd, isMiddle };
+    return {
+      isStart,
+      isEnd,
+      isMiddle,
+      isToday: ym === todayYm,
+      isPast: ym < todayYm,
+    };
   };
 
   const yearCellState = (year: number) => {
@@ -574,7 +583,13 @@ export function StayDateRangePicker({
       draftToYear != null &&
       year > draftFromYear &&
       year < draftToYear;
-    return { isStart, isEnd, isMiddle };
+    return {
+      isStart,
+      isEnd,
+      isMiddle,
+      isToday: year === todayYear,
+      isPast: year < todayYear,
+    };
   };
 
   const panelRef = useRef<HTMLDivElement>(null);
@@ -675,10 +690,17 @@ export function StayDateRangePicker({
     isStart: boolean;
     isEnd: boolean;
     isMiddle: boolean;
-  }) =>
-    cn(
+    isToday: boolean;
+    isPast: boolean;
+  }) => {
+    const inRange = state.isStart || state.isEnd || state.isMiddle;
+    return cn(
       "h-10 w-full rounded-md text-sm font-normal tabular-nums transition-colors",
       "hover:bg-accent hover:text-accent-foreground",
+      state.isPast && !inRange && "text-muted-foreground",
+      state.isToday &&
+        !inRange &&
+        "bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary",
       state.isMiddle && "rounded-none bg-primary/10 text-foreground",
       (state.isStart || state.isEnd) &&
         "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
@@ -686,6 +708,7 @@ export function StayDateRangePicker({
       state.isStart && !state.isEnd && "rounded-l-md rounded-r-none",
       state.isEnd && !state.isStart && "rounded-r-md rounded-l-none",
     );
+  };
 
   const monthGrid = (
     <div className="flex flex-col gap-3 p-3 sm:min-w-[22rem]">
@@ -702,7 +725,14 @@ export function StayDateRangePicker({
         >
           <ChevronLeftIcon className="size-4" />
         </Button>
-        <span className="text-sm font-medium tabular-nums">{monthPickerYear}</span>
+        <span
+          className={cn(
+            "text-sm font-medium tabular-nums",
+            monthPickerYear === todayYear && "font-semibold text-primary",
+          )}
+        >
+          {monthPickerYear}
+        </span>
         <Button
           type="button"
           variant="ghost"
@@ -730,6 +760,7 @@ export function StayDateRangePicker({
               type="button"
               role="gridcell"
               aria-selected={state.isStart || state.isEnd || state.isMiddle}
+              aria-current={state.isToday ? "date" : undefined}
               className={periodCellClass(state)}
               onClick={() => {
                 handlePickMonth(monthPickerYear, month);
@@ -743,6 +774,7 @@ export function StayDateRangePicker({
       <p className="text-xs text-muted-foreground">
         Same day-of-month ({stickyDay})
         {labels.sameDateHint}. Pick start month, then end — same as dates.
+        Current month is highlighted.
       </p>
     </div>
   );
@@ -797,6 +829,7 @@ export function StayDateRangePicker({
               type="button"
               role="gridcell"
               aria-selected={state.isStart || state.isEnd || state.isMiddle}
+              aria-current={state.isToday ? "date" : undefined}
               className={periodCellClass(state)}
               onClick={() => {
                 handlePickYear(year);
@@ -809,7 +842,7 @@ export function StayDateRangePicker({
       </div>
       <p className="text-xs text-muted-foreground">
         Same month/day as start{labels.sameDateHint}. Pick start year, then
-        end — same as dates.
+        end — same as dates. Current year is highlighted.
       </p>
     </div>
   );
