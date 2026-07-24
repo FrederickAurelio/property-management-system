@@ -7,6 +7,7 @@ import {
   type StaffCalendarUnit,
   type StaffPropertyCalendar,
 } from "@cabin/api-contract";
+import { STICKY_LABEL_COL_CSS } from "@/lib/sticky-label-col";
 import { cn } from "@/lib/utils";
 import { CalendarBlockBar } from "./calendar-block-bar";
 import {
@@ -25,7 +26,6 @@ import {
 } from "./calendar-selection";
 import { CalendarStayBar } from "./calendar-stay-bar";
 
-const UNIT_COL_PX = 148;
 const DAY_COL_MIN = 52;
 const ROW_H = 44;
 
@@ -111,6 +111,7 @@ export function CalendarGrid({
   }, [drag, finishDrag, setDragBoth, unitsById]);
 
   const daysWidth = `minmax(${days.length * DAY_COL_MIN}px, 1fr)`;
+  const unitCol = STICKY_LABEL_COL_CSS;
 
   return (
     <div className="overflow-auto rounded-lg border border-border">
@@ -118,10 +119,10 @@ export function CalendarGrid({
         <div
           className="sticky top-0 z-20 grid border-b border-border bg-background"
           style={{
-            gridTemplateColumns: `${UNIT_COL_PX}px ${daysWidth}`,
+            gridTemplateColumns: `${unitCol} ${daysWidth}`,
           }}
         >
-          <div className="sticky left-0 z-30 flex items-end border-r border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground">
+          <div className="sticky left-0 z-30 flex min-w-0 items-end border-r border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground">
             Unit
           </div>
           <div
@@ -160,8 +161,14 @@ export function CalendarGrid({
 
         {groups.map((group) => (
           <div key={group.key}>
-            <div className="border-b border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              <span className="sticky left-0 inline-block px-0">{group.label}</span>
+            <div className="border-b border-border bg-muted/40 py-1.5 text-xs font-medium text-muted-foreground">
+              <span
+                className="sticky left-0 z-10 block min-w-0 truncate bg-muted px-3"
+                style={{ maxWidth: unitCol }}
+                title={group.label}
+              >
+                {group.label}
+              </span>
             </div>
             {group.units.map((unit) => {
               const bookable = isUnitStatusBookable(unit.status);
@@ -175,13 +182,13 @@ export function CalendarGrid({
                     !bookable && "opacity-60",
                   )}
                   style={{
-                    gridTemplateColumns: `${UNIT_COL_PX}px ${daysWidth}`,
+                    gridTemplateColumns: `${unitCol} ${daysWidth}`,
                     minHeight: ROW_H,
                   }}
                 >
                   <div
                     className={cn(
-                      "sticky left-0 z-10 flex items-center gap-1.5 border-r border-border bg-background px-3 text-sm",
+                      "sticky left-0 z-10 flex min-w-0 items-center gap-1.5 overflow-hidden border-r border-border bg-background px-3 text-sm",
                       !bookable && "text-muted-foreground",
                     )}
                     style={{ minHeight: ROW_H }}

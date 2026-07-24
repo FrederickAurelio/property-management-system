@@ -9,6 +9,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  STICKY_LABEL_MAX_CLASS,
+  stickyLabelCellClass,
+  stickyLabelInnerClass,
+} from "@/lib/sticky-label-col";
 import { formatIdr } from "@/pages/properties/inventory-types";
 import { SourceBadge } from "@/pages/reservations/reservation-badges";
 import {
@@ -36,6 +41,7 @@ function CashBreakdownTable({
   rows: {
     key: string;
     label: ReactNode;
+    labelTitle?: string;
     inIdr: number;
     outIdr: number;
     netIdr: number;
@@ -48,8 +54,8 @@ function CashBreakdownTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="sticky left-0 z-10 bg-background">
-              {labelColumn}
+            <TableHead className={stickyLabelCellClass()}>
+              <span className={stickyLabelInnerClass()}>{labelColumn}</span>
             </TableHead>
             <TableHead className="text-right">In</TableHead>
             <TableHead className="text-right">Out</TableHead>
@@ -60,8 +66,22 @@ function CashBreakdownTable({
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.key}>
-              <TableCell className="sticky left-0 z-10 bg-background">
-                {row.label}
+              <TableCell className={stickyLabelCellClass()}>
+                {typeof row.label === "string" ? (
+                  <span
+                    className={stickyLabelInnerClass("block")}
+                    title={row.labelTitle ?? row.label}
+                  >
+                    {row.label}
+                  </span>
+                ) : (
+                  <div
+                    className={STICKY_LABEL_MAX_CLASS}
+                    title={row.labelTitle}
+                  >
+                    {row.label}
+                  </div>
+                )}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatIdr(row.inIdr)}
@@ -168,8 +188,10 @@ export function ReportsCashSection({ cash, compare }: ReportsCashSectionProps) {
                 <SourceBadge
                   source={row.source}
                   label={formatReservationSource(row.source)}
+                  className="max-w-full truncate"
                 />
               ),
+              labelTitle: formatReservationSource(row.source),
               inIdr: row.inIdr,
               outIdr: row.outIdr,
               netIdr: row.netIdr,

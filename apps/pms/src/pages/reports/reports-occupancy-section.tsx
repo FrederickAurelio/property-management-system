@@ -14,6 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  STICKY_LABEL_MAX_CLASS,
+  stickyLabelCellClass,
+  stickyLabelInnerClass,
+} from "@/lib/sticky-label-col";
 import { cn } from "@/lib/utils";
 import {
   deltaToneClass,
@@ -182,8 +187,8 @@ export function ReportsOccupancySection({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 z-10 bg-background">
-                  Type / unit
+                <TableHead className={stickyLabelCellClass()}>
+                  <span className={stickyLabelInnerClass()}>Type / unit</span>
                 </TableHead>
                 <TableHead className="text-right">Occupied</TableHead>
                 <TableHead className="text-right">Available</TableHead>
@@ -208,12 +213,18 @@ export function ReportsOccupancySection({
                 return (
                   <Fragment key={typeKey}>
                     <TableRow data-state={isOpen ? "selected" : undefined}>
-                      <TableCell className="sticky left-0 z-10 bg-background font-medium">
+                      <TableCell
+                        className={stickyLabelCellClass("font-medium")}
+                      >
                         {canExpand ? (
                           <button
                             type="button"
-                            className="flex items-center gap-1.5 text-left"
+                            className={cn(
+                              STICKY_LABEL_MAX_CLASS,
+                              "flex min-w-0 items-center gap-1.5 text-left",
+                            )}
                             aria-expanded={isOpen}
+                            title={row.name}
                             onClick={() => {
                               toggleType(typeKey);
                             }}
@@ -225,13 +236,18 @@ export function ReportsOccupancySection({
                               )}
                               aria-hidden
                             />
-                            <span>{row.name}</span>
-                            <span className="text-xs font-normal text-muted-foreground">
+                            <span className="min-w-0 truncate">{row.name}</span>
+                            <span className="shrink-0 text-xs font-normal text-muted-foreground">
                               ({units.length})
                             </span>
                           </button>
                         ) : (
-                          <span className="pl-5">{row.name}</span>
+                          <span
+                            className={stickyLabelInnerClass("block pl-5")}
+                            title={row.name}
+                          >
+                            {row.name}
+                          </span>
                         )}
                       </TableCell>
                       <OccupancyMetricCells
@@ -245,8 +261,17 @@ export function ReportsOccupancySection({
                     {isOpen &&
                       units.map((unit) => (
                         <TableRow key={`${typeKey}:${unit.unitId}`}>
-                          <TableCell className="sticky left-0 z-10 bg-background pl-8 text-muted-foreground">
-                            {unit.name}
+                          <TableCell
+                            className={stickyLabelCellClass(
+                              "pl-8 text-muted-foreground",
+                            )}
+                          >
+                            <span
+                              className={stickyLabelInnerClass("block")}
+                              title={unit.name}
+                            >
+                              {unit.name}
+                            </span>
                           </TableCell>
                           <OccupancyMetricCells
                             occupiedNights={unit.occupiedNights}

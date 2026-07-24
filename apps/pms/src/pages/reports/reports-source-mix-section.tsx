@@ -11,6 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  STICKY_LABEL_MAX_CLASS,
+  stickyLabelCellClass,
+  stickyLabelInnerClass,
+} from "@/lib/sticky-label-col";
 import { formatIdr } from "@/pages/properties/inventory-types";
 import { SourceBadge } from "@/pages/reservations/reservation-badges";
 import { formatReservationSource } from "@/pages/reservations/reservation-format";
@@ -65,8 +70,8 @@ export function ReportsSourceMixSection({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 z-10 bg-background">
-                    Source
+                  <TableHead className={stickyLabelCellClass()}>
+                    <span className={stickyLabelInnerClass()}>Source</span>
                   </TableHead>
                   <TableHead className="text-right">Stays</TableHead>
                   <TableHead className="text-right">Nights</TableHead>
@@ -93,14 +98,21 @@ export function ReportsSourceMixSection({
                   );
                   const prevPct = row.compare?.pctOfNights;
                   const shareΔ = shareDeltaPp(row.pctOfNights, prevPct);
+                  const sourceLabel = formatReservationSource(row.source);
 
                   return (
                     <TableRow key={row.source}>
-                      <TableCell className="sticky left-0 z-10 bg-background">
-                        <SourceBadge
-                          source={row.source}
-                          label={formatReservationSource(row.source)}
-                        />
+                      <TableCell className={stickyLabelCellClass()}>
+                        <div
+                          className={STICKY_LABEL_MAX_CLASS}
+                          title={sourceLabel}
+                        >
+                          <SourceBadge
+                            source={row.source}
+                            label={sourceLabel}
+                            className="max-w-full truncate"
+                          />
+                        </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {row.staysCheckInInPeriod}
