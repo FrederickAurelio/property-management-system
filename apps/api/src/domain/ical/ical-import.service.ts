@@ -380,12 +380,12 @@ export class IcalImportService {
       if (!row.externalRef) continue;
 
       if (seenUids.has(row.externalRef)) {
-        // UID back on this unit’s feed — clear move/missing warnings.
+        // UID on this unit’s feed — clear move/missing only.
+        // Do not touch DATES_DIFFER: reconcile already set it + observed dates;
+        // clearing on `icalObservedCheckInDate != null` wiped that warning every sync.
         if (
           row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED ||
-          row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER ||
-          row.icalObservedUnitId != null ||
-          row.icalObservedCheckInDate != null
+          row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER
         ) {
           await this.prisma.reservation.update({
             where: { id: row.id },
@@ -444,11 +444,10 @@ export class IcalImportService {
           continue;
         }
 
+        // Same unit via sibling lookup — clear move/missing only (not DATES_DIFFER).
         if (
           row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED ||
-          row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER ||
-          row.icalObservedUnitId != null ||
-          row.icalObservedCheckInDate != null
+          row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER
         ) {
           await this.prisma.reservation.update({
             where: { id: row.id },
@@ -719,6 +718,7 @@ export class IcalImportService {
       icalOtaStillListedDismissedAt: Date | null;
       icalObservedUnitId?: string | null;
       icalObservedCheckInDate?: Date | null;
+      icalObservedCheckOutDate?: Date | null;
     },
     event: ParsedFeedEvent,
   ): Promise<void> {
@@ -843,12 +843,25 @@ export class IcalImportService {
     }
 
     if (datesDiffer) {
-      if (existing.icalSyncWarning !== IcalSyncWarning.DATES_DIFFER) {
+      const observedIn = existing.icalObservedCheckInDate
+        ? ymdUtc(existing.icalObservedCheckInDate)
+        : null;
+      const observedOut = existing.icalObservedCheckOutDate
+        ? ymdUtc(existing.icalObservedCheckOutDate)
+        : null;
+      const already =
+        existing.icalSyncWarning === IcalSyncWarning.DATES_DIFFER &&
+        observedIn === event.startYmd &&
+        observedOut === event.endYmd;
+      if (!already) {
         await tx.reservation.update({
           where: { id: existing.id },
           data: {
             icalSyncWarning: IcalSyncWarning.DATES_DIFFER,
-            icalSyncWarnedAt: new Date(),
+            icalSyncWarnedAt:
+              existing.icalSyncWarning === IcalSyncWarning.DATES_DIFFER
+                ? existing.icalSyncWarnedAt
+                : new Date(),
             icalObservedUnitId: null,
             icalObservedCheckInDate: parseYmd(event.startYmd),
             icalObservedCheckOutDate: parseYmd(event.endYmd),

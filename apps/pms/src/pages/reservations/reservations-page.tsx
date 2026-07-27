@@ -116,12 +116,12 @@ const ReservationRowCells = memo(function ReservationRowCells({
       <TableCell>
         {row.icalSyncWarning && (
           <span
-            className="inline-flex text-amber-700 dark:text-amber-300"
-            title={formatIcalWarning(row.icalSyncWarning)}
+            className="inline-flex max-w-[11rem] items-center gap-1 text-amber-800 dark:text-amber-200"
+            title={formatIcalWarning(row.icalSyncWarning, row.source)}
           >
-            <AlertTriangleIcon className="size-4" aria-hidden />
-            <span className="sr-only">
-              {formatIcalWarning(row.icalSyncWarning)}
+            <AlertTriangleIcon className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate text-xs">
+              {formatIcalWarning(row.icalSyncWarning, row.source)}
             </span>
           </span>
         )}
@@ -168,12 +168,17 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
             {formatStayRange(row.checkInDate, row.checkOutDate, row.billingPeriod)}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
           {row.icalSyncWarning && (
-            <AlertTriangleIcon
-              className="size-4 text-amber-700 dark:text-amber-300"
-              aria-label={formatIcalWarning(row.icalSyncWarning)}
-            />
+            <span className="inline-flex max-w-[9rem] items-center gap-1 text-amber-800 dark:text-amber-200">
+              <AlertTriangleIcon
+                className="size-3.5 shrink-0"
+                aria-hidden
+              />
+              <span className="truncate text-[11px] leading-tight">
+                {formatIcalWarning(row.icalSyncWarning, row.source)}
+              </span>
+            </span>
           )}
           <ReservationBadge
             label={formatReservationStatus(row.status)}
@@ -392,10 +397,19 @@ export function ReservationsPage() {
             <EmptyMedia variant="icon">
               <SearchIcon />
             </EmptyMedia>
-            <EmptyTitle>No reservations on this board</EmptyTitle>
+            <EmptyTitle>
+              {board === "ical-alerts"
+                ? "No OTA issues"
+                : board === "needs-details"
+                  ? "No stays need details"
+                  : "No reservations on this board"}
+            </EmptyTitle>
             <EmptyDescription>
-              Try another board or clear filters. Create a walk-in to get
-              started.
+              {board === "ical-alerts"
+                ? "When an OTA calendar disagrees with a stay, it shows up here — open a row to fix it."
+                : board === "needs-details"
+                  ? "New OTA stubs land here until guest details and Total are filled, then Confirm."
+                  : "Try another board or clear filters. Create a walk-in to get started."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

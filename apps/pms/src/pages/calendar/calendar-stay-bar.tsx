@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   formatIdr,
+  formatIcalWarning,
   formatReservationLateCue,
   formatReservationSource,
   formatReservationStatus,
@@ -93,7 +94,9 @@ export function CalendarStayBar({
         formatReservationSource(stay.source),
         money,
         late ? formatReservationLateCue(late) : null,
-        stay.icalSyncWarning ? "iCal warning" : null,
+        stay.icalSyncWarning
+          ? formatIcalWarning(stay.icalSyncWarning, stay.source)
+          : null,
       ]
         .filter(Boolean)
         .join(" · ")}
@@ -106,7 +109,7 @@ export function CalendarStayBar({
       )}
       {stay.icalSyncWarning && (
         <span className="shrink-0 rounded bg-amber-500/25 px-1 text-[10px] font-medium">
-          iCal
+          OTA
         </span>
       )}
       {money && (

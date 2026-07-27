@@ -24,6 +24,14 @@ import {
 import { cn } from "@/lib/utils";
 import { CancelSheet } from "./cancel-sheet";
 import { CollectSheet } from "./collect-sheet";
+import { IcalPlaybookCard } from "./ical-playbook-card";
+import {
+  icalActionConfirmCopy,
+  icalPlaybook,
+  isOtaLinkedStay,
+  type IcalPendingAction,
+} from "./ical-playbooks";
+import { OtaRemindDialog } from "./ota-remind-dialog";
 import { PaymentMovementsTimeline } from "./payment-movements-timeline";
 import { ReservationBadge, SourceBadge } from "./reservation-badges";
 import { ReservationFormDialog } from "./reservation-form-dialog";
@@ -32,7 +40,6 @@ import { reservationDetailBackHref } from "./reservation-nav";
 import {
   confirmReadinessFromReservation,
   formatConfirmGapsMessage,
-  formatIcalWarning,
   formatReservationLateCue,
   formatReservationSource,
   formatReservationStatus,
@@ -52,7 +59,7 @@ import {
   todayYmdInTimezone,
   type PrimaryAction,
 } from "./reservation-format";
-import { IcalSyncWarning, type StaffReservation } from "@cabin/api-contract";
+import { ReservationSource, type StaffReservation } from "@cabin/api-contract";
 
 function primaryActionDialogCopy(
   action: PrimaryAction,
@@ -121,6 +128,13 @@ export function ReservationDetailPage() {
   );
   const [cancelOpen, setCancelOpen] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
+  const [otaRemindOpen, setOtaRemindOpen] = useState(false);
+  const [otaRemindReason, setOtaRemindReason] = useState<
+    "cancel" | "check-out"
+  >("check-out");
+  const [pendingIcal, setPendingIcal] = useState<IcalPendingAction | null>(
+    null,
+  );
 
   const detailQuery = useQuery({
     queryKey: staffReservationQueryKey(reservationId),
@@ -164,6 +178,10 @@ export function ReservationDetailPage() {
             ? "Checked in"
             : "Checked out",
       );
+      if (action === "check-out" && isOtaLinkedStay(saved)) {
+        setOtaRemindReason("check-out");
+        setOtaRemindOpen(true);
+      }
     },
     onError: (error) => {
       handleError(error);
@@ -181,6 +199,7 @@ export function ReservationDetailPage() {
       return dismissIcalWarning(reservationId);
     },
     onSuccess: (saved, action) => {
+      setPendingIcal(null);
       syncReservationCaches(queryClient, saved, {
         occupancyChanged: action === "accept-dates" || action === "accept-unit",
       });
@@ -189,7 +208,7 @@ export function ReservationDetailPage() {
           ? "OTA dates applied — revisit Total if needed"
           : action === "accept-unit"
             ? "Moved to OTA unit"
-            : "iCal warning dismissed",
+            : "OTA warning dismissed",
       );
     },
     onError: (error) => {
@@ -246,6 +265,31 @@ export function ReservationDetailPage() {
   const showIcalWarn = row.icalSyncWarning != null;
   const pendingCopy = pendingPrimary
     ? primaryActionDialogCopy(pendingPrimary, row, today)
+    : null;
+  const icalPlaybookForRow =
+    row.icalSyncWarning != null
+      ? icalPlaybook(row.icalSyncWarning, {
+          source: row.source,
+          unitCode: row.unitCode,
+          checkInDate: row.checkInDate,
+          checkOutDate: row.checkOutDate,
+          statusLabel: formatReservationStatus(row.status),
+          icalObservedUnitCode: row.icalObservedUnitCode,
+          icalObservedCheckInDate: row.icalObservedCheckInDate,
+          icalObservedCheckOutDate: row.icalObservedCheckOutDate,
+        })
+      : null;
+  const pendingIcalCopy = pendingIcal
+    ? icalActionConfirmCopy(pendingIcal, {
+        source: row.source,
+        unitCode: row.unitCode,
+        checkInDate: row.checkInDate,
+        checkOutDate: row.checkOutDate,
+        icalObservedUnitCode: row.icalObservedUnitCode,
+        icalObservedCheckInDate: row.icalObservedCheckInDate,
+        icalObservedCheckOutDate: row.icalObservedCheckOutDate,
+        dismissLabel: icalPlaybookForRow?.dismissLabel,
+      })
     : null;
 
   const requestPrimary = (action: PrimaryAction) => {
@@ -330,109 +374,42 @@ export function ReservationDetailPage() {
 
       {(showDueWarn || showRefundWarn || showIcalWarn) && (
         <div className="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-          {showIcalWarn && row.icalSyncWarning && (
-            <div className="flex flex-col gap-2">
-              <p>
-                {row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED
-                  ? `OTA still lists this booking, but PMS is ${formatReservationStatus(row.status)}. Cancel or update it on the OTA if that was intentional, then dismiss — or dismiss after you verified the OTA.`
-                  : row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP
-                    ? "This OTA booking overlaps another stay or block on this unit. Cancel this stub, or free those nights (cancel/move the other stay) then Confirm — or edit this stay onto free dates."
-                    : row.icalSyncWarning === IcalSyncWarning.DATES_DIFFER
-                      ? "OTA calendar shows different dates than this stay. Accept OTA dates to match the feed, edit PMS to match the OTA, or change the booking on the OTA. Dismiss for now keeps local dates and hides this until the next sync."
-                      : row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER
-                        ? row.icalObservedCheckInDate &&
-                          row.icalObservedCheckOutDate &&
-                          (row.icalObservedCheckInDate !== row.checkInDate ||
-                            row.icalObservedCheckOutDate !== row.checkOutDate)
-                          ? `OTA lists this on unit ${row.icalObservedUnitCode ?? "another unit"} for ${row.icalObservedCheckInDate} → ${row.icalObservedCheckOutDate}; PMS has it on ${row.unitCode} for ${row.checkInDate} → ${row.checkOutDate}. Accept OTA unit first (overlap-checked); date mismatch can be handled next. Dismiss for now leaves it here until the next sync.`
-                          : `OTA lists this booking on unit ${row.icalObservedUnitCode ?? "another unit"}, but PMS still has it on ${row.unitCode}. Accept OTA unit to move it (overlap-checked), or Dismiss for now to leave it here until the next sync.`
-                        : row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED
-                          ? "This booking is no longer in the OTA feed. Verify on the OTA, then Cancel if it was cancelled. Dismiss for now if the feed looks wrong — the alert can return on the next sync."
-                          : formatIcalWarning(row.icalSyncWarning)}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {row.icalSyncWarning === IcalSyncWarning.DATES_DIFFER && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={icalMutation.isPending}
-                    onClick={() => {
-                      icalMutation.mutate("accept-dates");
-                    }}
-                  >
-                    Accept OTA dates
-                  </Button>
-                )}
-                {row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={icalMutation.isPending}
-                    onClick={() => {
-                      icalMutation.mutate("accept-unit");
-                    }}
-                  >
-                    Accept OTA unit
-                  </Button>
-                )}
-                {row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={icalMutation.isPending}
-                    onClick={() => {
-                      icalMutation.mutate("dismiss");
-                    }}
-                  >
-                    Clear hold if free
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={icalMutation.isPending}
-                    onClick={() => {
-                      icalMutation.mutate("dismiss");
-                    }}
-                  >
-                    {row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED
-                      ? "Dismiss"
-                      : "Dismiss for now"}
-                  </Button>
-                )}
-              </div>
-              {row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED && (
-                <p className="text-xs opacity-80">
-                  Dismiss acknowledges this — it will not come back on the next
-                  sync unless the OTA drops the booking and lists it again later.
-                </p>
-              )}
-              {row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP && (
-                <p className="text-xs opacity-80">
-                  Clear hold only works when those nights are free. Otherwise
-                  Cancel this stub or free the conflicting stay first.
-                </p>
-              )}
-              {row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER && (
-                <p className="text-xs opacity-80">
-                  Accept fails if the target unit already has an overlapping
-                  stay or block — free those nights first.
-                </p>
-              )}
-              {(row.icalSyncWarning === IcalSyncWarning.DATES_DIFFER ||
-                row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER ||
-                row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED) && (
-                <p className="text-xs opacity-80">
-                  Dismiss for now only hides this until the next sync. The
-                  mismatch remains until you change the OTA, Accept OTA here, or
-                  edit PMS to match.
-                </p>
-              )}
-            </div>
+          {showIcalWarn && row.icalSyncWarning && icalPlaybookForRow && (
+            <IcalPlaybookCard
+              playbook={icalPlaybookForRow}
+              channelLabel={
+                row.source === ReservationSource.BOOKING_COM ||
+                row.source === ReservationSource.AIRBNB ||
+                row.source === ReservationSource.AGODA
+                  ? formatReservationSource(row.source)
+                  : "OTA"
+              }
+              pending={icalMutation.isPending}
+              onPrimary={(kind) => {
+                if (kind === "cancel") {
+                  setCancelOpen(true);
+                  return;
+                }
+                if (kind === "confirm") {
+                  requestPrimary("confirm");
+                  return;
+                }
+                if (kind === "accept-dates") {
+                  setPendingIcal("accept-dates");
+                  return;
+                }
+                if (kind === "accept-unit") {
+                  setPendingIcal("accept-unit");
+                  return;
+                }
+                if (kind === "clear-hold") {
+                  setPendingIcal("clear-hold");
+                }
+              }}
+              onDismiss={() => {
+                setPendingIcal("dismiss");
+              }}
+            />
           )}
           {showRefundWarn && (
             <p>
@@ -536,6 +513,40 @@ export function ReservationDetailPage() {
         onOpenChange={setCancelOpen}
         reservation={row}
       />
+
+      <OtaRemindDialog
+        open={otaRemindOpen}
+        onOpenChange={setOtaRemindOpen}
+        source={row.source}
+        reason={otaRemindReason}
+      />
+
+      {pendingIcalCopy && pendingIcal && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => {
+            if (!open && !icalMutation.isPending) {
+              setPendingIcal(null);
+            }
+          }}
+          title={pendingIcalCopy.title}
+          description={pendingIcalCopy.description}
+          confirmLabel={pendingIcalCopy.confirmLabel}
+          cancelLabel="Go back"
+          confirmDisabled={icalMutation.isPending}
+          onConfirm={() => {
+            if (pendingIcal === "accept-dates") {
+              icalMutation.mutate("accept-dates");
+              return;
+            }
+            if (pendingIcal === "accept-unit") {
+              icalMutation.mutate("accept-unit");
+              return;
+            }
+            icalMutation.mutate("dismiss");
+          }}
+        />
+      )}
 
       {pendingCopy && pendingPrimary && (
         <ConfirmDialog

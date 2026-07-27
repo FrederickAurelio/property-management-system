@@ -1,5 +1,5 @@
 /* anchor: Stripe cancel + refund, diverge: guest vs property money preview */
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RESERVATION_NOTES_MAX, type StaffReservation } from "@cabin/api-contract";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,8 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { formatIdr } from "@/pages/properties/inventory-types";
+import { isOtaLinkedStay } from "./ical-playbooks";
+import { OtaRemindDialog } from "./ota-remind-dialog";
 import { formatMoneyOrDash } from "./reservation-format";
 
 type FormValues = {
@@ -82,6 +84,8 @@ export function CancelSheet({
   const queryClient = useQueryClient();
   const paid = reservation.paidAmountIdr;
   const hasPaid = paid > 0;
+  const [otaRemindOpen, setOtaRemindOpen] = useState(false);
+  const remindOtaAfterCancel = isOtaLinkedStay(reservation);
 
   const schema = z
     .object({
@@ -182,6 +186,9 @@ export function CancelSheet({
       syncReservationCaches(queryClient, saved, { occupancyChanged: true });
       handleSuccess("Reservation cancelled");
       onOpenChange(false);
+      if (remindOtaAfterCancel) {
+        setOtaRemindOpen(true);
+      }
     },
     onError: (error) => {
       handleError(error);
@@ -189,7 +196,8 @@ export function CancelSheet({
   });
 
   return (
-    <ResponsiveFormShell
+    <>
+      <ResponsiveFormShell
       open={open}
       onOpenChange={onOpenChange}
       title="Cancel reservation"
@@ -403,5 +411,12 @@ export function CancelSheet({
         </FieldGroup>
       </form>
     </ResponsiveFormShell>
+      <OtaRemindDialog
+        open={otaRemindOpen}
+        onOpenChange={setOtaRemindOpen}
+        source={reservation.source}
+        reason="cancel"
+      />
+    </>
   );
 }

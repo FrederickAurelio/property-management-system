@@ -39,14 +39,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   applyApiFieldError,
   createReservation,
   getUnitTypeRack,
@@ -60,6 +52,8 @@ import {
 } from "@/lib/api";
 import { IdrAmountInput } from "@/components/form/idr-amount-input";
 import { formatIdr, formatIdrInput } from "@/pages/properties/inventory-types";
+import { isOtaLinkedStay } from "./ical-playbooks";
+import { OtaRemindDialog } from "./ota-remind-dialog";
 import { formatReservationSource, nightCount } from "./reservation-format";
 import { StayDateRangePicker } from "./stay-date-range-picker";
 import { ChosenUnitField } from "./chosen-unit-field";
@@ -614,11 +608,12 @@ export function ReservationFormDialog({
         prev.checkOutDate !== saved.checkOutDate;
       const remindOta =
         isEdit &&
-        Boolean(prev?.externalRef) &&
+        prev != null &&
+        isOtaLinkedStay(prev) &&
         occupancyChanged &&
-        (prev!.unitId !== saved.unitId ||
-          prev!.checkInDate !== saved.checkInDate ||
-          prev!.checkOutDate !== saved.checkOutDate);
+        (prev.unitId !== saved.unitId ||
+          prev.checkInDate !== saved.checkInDate ||
+          prev.checkOutDate !== saved.checkOutDate);
       form.reset(emptyFormValues());
       setPicked(null);
       setPickerOpen(false);
@@ -1087,29 +1082,12 @@ export function ReservationFormDialog({
         />
       ) : null}
 
-      <Dialog open={otaRemindOpen} onOpenChange={setOtaRemindOpen}>
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Update the OTA booking</DialogTitle>
-            <DialogDescription>
-              Cabin updated the local calendar and export busy dates. iCal does
-              not change the guest booking on Airbnb, Booking.com, or Agoda.
-              Update the stay on the OTA as well, or the next sync may show
-              DATES_DIFFER / UNIT_DIFFER until both sides match.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              onClick={() => {
-                setOtaRemindOpen(false);
-              }}
-            >
-              Got it
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <OtaRemindDialog
+        open={otaRemindOpen}
+        onOpenChange={setOtaRemindOpen}
+        source={reservation?.source ?? ReservationSource.BOOKING_COM}
+        reason="dates-or-unit"
+      />
     </>
   );
 }

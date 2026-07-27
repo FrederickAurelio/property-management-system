@@ -11,8 +11,11 @@ import {
   listPropertyOptions,
   staffDashboardQueryKey,
   staffPropertiesOptionsQueryKey,
+  staffSession,
+  staffSessionQueryKey,
   syncAllIcalFeeds,
 } from "@/lib/api";
+import { canManageInventory } from "@/lib/staff-permissions";
 import { DashboardNeedsSection } from "./dashboard-needs-section";
 import { DashboardStayList } from "./dashboard-row";
 import { DashboardPanel } from "./dashboard-section";
@@ -63,6 +66,15 @@ export function DashboardPage() {
     queryFn: listPropertyOptions,
   });
 
+  const sessionQuery = useQuery({
+    queryKey: staffSessionQueryKey,
+    queryFn: () => staffSession(),
+  });
+
+  const canManageFeeds = sessionQuery.data
+    ? canManageInventory(sessionQuery.data.role)
+    : false;
+
   useEffect(() => {
     if (!optionsQuery.isSuccess || optionsQuery.data.length === 0) return;
     if (propertyId && optionsQuery.data.some((p) => p.id === propertyId)) {
@@ -95,16 +107,20 @@ export function DashboardPage() {
     onSuccess: (result) => {
       invalidateIcalSyncCaches(queryClient);
       if (result.feedsAttempted === 0) {
-        handleSuccess("No active iCal feeds to sync");
+        handleSuccess("No active OTA calendars to sync");
         return;
       }
       if (result.feedsFailed > 0) {
         handleSuccess(
-          `Synced ${result.feedsOk}/${result.feedsAttempted} feeds (${result.feedsFailed} failed)`,
+          `Synced ${result.feedsOk} of ${result.feedsAttempted} calendars (${result.feedsFailed} failed)`,
         );
         return;
       }
-      handleSuccess(`Synced ${result.feedsOk} iCal feed(s)`);
+      handleSuccess(
+        result.feedsOk === 1
+          ? "Synced 1 OTA calendar"
+          : `Synced ${result.feedsOk} OTA calendars`,
+      );
     },
     onError: (error) => {
       handleError(error);
@@ -127,6 +143,7 @@ export function DashboardPage() {
         date={dashboardQuery.data?.date ?? null}
         syncPending={syncMutation.isPending}
         icalFeedHealth={dashboardQuery.data?.icalFeedHealth ?? null}
+        canManageFeeds={canManageFeeds}
         onPropertyChange={setPropertyId}
         onSyncAll={onSyncAll}
       />

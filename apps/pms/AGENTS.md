@@ -17,7 +17,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - **Calendar** (`/calendar`): unit × days grid on Nest `GET /staff/properties/:id/calendar` + `/staff/calendar-blocks` CRUD; live property options + create reservation + detail
 - **Reports** (`/reports`): period summary (cash · occupancy · source mix · compare · CSV) via `GET /staff/reports/summary`; ADMIN/SUPER_ADMIN only
 - **Dashboard** (`/`): today arrivals/departures + needs attention via `GET /staff/dashboard`; Sync all → `POST /ical/sync-all`; FRONT_DESK+
-- **iCal:** unit form export Copy + OTA import URLs; detail Accept/Dismiss for sync warnings; boards `ical-alerts` / Needs details
+- **iCal:** unit form export Copy + OTA import URLs; detail OTA playbook (Accept/Dismiss/Cancel); board **OTA issues** (`ical-alerts`) / Needs details
 - **Design:** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) · [`_docs/calendar-design.md`](../../_docs/calendar-design.md) · [`_docs/dashboard-design.md`](../../_docs/dashboard-design.md) · [`_docs/reports-design.md`](../../_docs/reports-design.md)
 
 ## Stack (locked)

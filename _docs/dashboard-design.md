@@ -27,7 +27,7 @@ Dashboard does **not** replace boards, Calendar, or Reports. Collect / Check-in 
 | **1** | Property scope        | One property at a time (same options language as Calendar / Reports)     |
 | **2** | Arrivals today        | Short list: check-in window (incl. late) — row → detail                  |
 | **3** | Departures today      | Short list: checkout due/overdue — row → detail                          |
-| **4** | Needs attention       | Open balance (in-house + after checkout) · stranded CONFIRMED · soon stubs · iCal alerts |
+| **4** | Needs attention       | Open balance (in-house + after checkout) · stranded CONFIRMED · soon stubs · OTA issues |
 | **5** | Sync all              | One button to enqueue iCal pull now (`FRONT_DESK+`; when iCal ships)     |
 
 **Out of this page (wrong job):**
@@ -111,17 +111,17 @@ One strip for exceptions that are **not** “expected in/out today” or that ne
 | **Open balance · checked out** | `status = CHECKED_OUT` and open balance                                                        | Same money rule after checkout                                                | Balance due      |
 | **Stranded CONFIRMED**         | `status = CONFIRMED` and `checkOutDate ≤ today`                                                | Never checked in; fell off Arrivals; still occupies calendar → Cancel / no-show | All (no board) |
 | **Needs details (soon)**       | `status = UNCONFIRMED` and `checkInDate ≤ today + 1 day` (today or tomorrow, property-local) | Stub about to arrive — enrich before they show                                | Needs details    |
-| **iCal alerts**                | `icalSyncWarning IS NOT NULL`                                                                  | Feed cancel / date drift / OTA still listed after local cancel — urgent if in-house | iCal alerts      |
+| **OTA issues**                 | `icalSyncWarning IS NOT NULL`                                                                  | Feed cancel / date drift / OTA still listed after local cancel — urgent if in-house | OTA issues (`ical-alerts`) |
 
 In-house and post-checkout money rows get **identical** open-balance treatment (Due chip and/or Refund chip). Only status differs.
 
 **Stranded CONFIRMED:** same rule as reservations-design (“past `checkOutDate` without ever checking in → Cancel”). No separate `NO_SHOW` status — chip **Cancel / no-show**; row → detail → Cancel sheet. These are **not** on Arrivals once `today >= checkOutDate`, so Dashboard is the place they stay visible.
 
-**Sort (locked):** stranded CONFIRMED first (oldest `checkOutDate` first — unit still blocked) · then open-balance rows — prefer **highest open amount** (max(Due, Refund)), then `CHECKED_OUT` before mid-stay `CHECKED_IN`, then guest · then Needs details by `checkInDate` asc · then iCal alerts (`CHECKED_IN` warnings before others).
+**Sort (locked):** stranded CONFIRMED first (oldest `checkOutDate` first — unit still blocked) · then open-balance rows — prefer **highest open amount** (max(Due, Refund)), then `CHECKED_OUT` before mid-stay `CHECKED_IN`, then guest · then Needs details by `checkInDate` asc · then OTA issues (`CHECKED_IN` warnings before others).
 
-**Dedup:** a row appears **once**. If a stay matches multiple kinds (e.g. open-balance in-house + iCal warning), show **one** row with combined signals (Due/Refund + warning), still link to detail. Stranded CONFIRMED cannot also be Arrivals (window closed).
+**Dedup:** a row appears **once**. If a stay matches multiple kinds (e.g. open-balance in-house + OTA warning), show **one** row with combined signals (Due/Refund + warning), still link to detail. Stranded CONFIRMED cannot also be Arrivals (window closed).
 
-**Cap:** up to **8** rows; truncate + prefer linking View all to Balance due when money rows dominate, else Needs details / iCal alerts as appropriate — or a single “View on Reservations” that lands on Balance due if unsure. Prefer honest deep-links per dominant kind when easy. Stranded rows: View all → `/reservations` (All / default list) filtered if/when FE supports; otherwise detail-only is enough for low counts.
+**Cap:** up to **8** rows; truncate + prefer linking View all to Balance due when money rows dominate, else Needs details / OTA issues as appropriate — or a single “View on Reservations” that lands on Balance due if unsure. Prefer honest deep-links per dominant kind when easy. Stranded rows: View all → `/reservations` (All / default list) filtered if/when FE supports; otherwise detail-only is enough for low counts.
 
 **Not in Needs attention:**
 
@@ -137,7 +137,7 @@ In-house and post-checkout money rows get **identical** open-balance treatment (
 | ------------ | -------------------------------------------------------------------- |
 | Guest        | Name; stub → “Needs details” / source label (same as list language)  |
 | Unit         | Unit label (+ type muted optional)                                   |
-| Badges       | Late arrival / Late departure · Due · Refund · iCal warning          |
+| Badges       | Late arrival / Late departure · Due · Refund · OTA issue             |
 | Why (Needs)  | Short reason chip: `Due` · `Refund` · `Cancel / no-show` · `Needs details` · `iCal` |
 | Primary click| Entire row → `/reservations/:id`                                     |
 | Actions      | **None** on the row — no Collect / Check-in buttons on Dashboard     |
@@ -233,7 +233,7 @@ PMS: TanStack Query key includes `propertyId` (+ date if ever non-today). Invali
 
 | Doc                                                                          | Role                                      |
 | ---------------------------------------------------------------------------- | ----------------------------------------- |
-| [`reservations-design.md`](reservations-design.md)                           | Boards, Due/Refund, Late, iCal warnings   |
+| [`reservations-design.md`](reservations-design.md)                           | Boards, Due/Refund, Late, OTA sync warnings |
 | [`calendar-design.md`](calendar-design.md)                                   | Property scope, click → detail            |
 | [`reports-design.md`](reports-design.md)                                     | Not period KPIs                           |
 | [`inventory-and-reservation-tables.md`](inventory-and-reservation-tables.md) | Tables                                    |

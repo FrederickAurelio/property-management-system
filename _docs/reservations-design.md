@@ -74,7 +74,7 @@ Phase 1 desk boards live on **Reservations** (`/reservations`) only — **no** s
 | **Balance due**   | Due > 0 **or** Refund > 0 (overpay), status occupying **or** `CHECKED_OUT`       | Collect / Refund                                                 |
 | **Departures**    | `status = CHECKED_IN` and `checkOutDate ≤ today` (includes overdue)              | Check out                                                        |
 | **Needs details** | `status = UNCONFIRMED`                                                           | Enrich → Confirm                                                 |
-| **iCal alerts**   | `icalSyncWarning IS NOT NULL`                                                    | Verify cancel / date drift / OTA still listed after local cancel |
+| **OTA issues**    | `icalSyncWarning IS NOT NULL` (board id `ical-alerts`)                            | Playbook on detail: verify on OTA → primary Cabin action → OTA step if required |
 
 Arrivals matches the check-in window; Departures matches due/overdue checkout (not “today only”). Sort Arrivals by `checkInDate` asc, Departures by `checkOutDate` asc (oldest overdue first). PMS shows **Late arrival** / **Late departure** badges on list + detail wherever the row appears (not only on those boards). Past `checkOutDate` without ever checking in → find under All → **Cancel** (no-show notes); no separate `NO_SHOW` status.
 
@@ -98,7 +98,7 @@ Only **one primary button** (filled). Everything else secondary. Money block alw
 2. Illegal actions are **hidden**, not error-after-click (BE still enforces).
 3. Any cash action uses the **same Collect sheet** (amount → posts `PaymentMovement`; Paid = sum).
 4. Cancel always uses the **same Cancel sheet**: reason/notes optional + money disposition if `paid > 0`.
-5. Warnings (`icalSyncWarning`, balance due) use one banner pattern — never a different modal language per screen.
+5. Warnings (`icalSyncWarning`, balance due) use one banner pattern — never a different modal language per screen. OTA sync warnings use a **playbook card** on detail: title (plain language + channel) → what happened → (1) check on OTA (2) primary Cabin CTA (3) OTA step when required → Dismiss with sticky vs reappears hint. List/boards show the playbook title, not a bare icon. Desk UI says **OTA** / channel name (Booking.com, Airbnb, Agoda); keep `ical-*` ids in code/URL.
 
 ### 3.3 Roles (locked for Phase 1)
 
@@ -109,7 +109,7 @@ Only **one primary button** (filled). Everything else secondary. Money block alw
 | Cancel                                       | Yes                  | Yes                     |
 | Mid-stay cancel (`CHECKED_IN` → `CANCELLED`) | Yes + confirm dialog | Yes                     |
 | Delete reservation hard                      | **No**               | **No** (cancel only)    |
-| iCal feed URL settings                       | No                   | Yes                     |
+| iCal feed URL settings                       | No (may view unit; escalate URL fixes) | Yes                     |
 
 ---
 
@@ -402,7 +402,7 @@ No: per-unit “Sync now” on that form — sync is **automatic** via worker. S
 | `createdAt` / `updatedAt`        | timestamptz     | no   |                                         |
 
 **Constraints:** `UNIQUE (unitId, source)`.  
-**Who edits URLs:** `ADMIN+` on unit create/edit. Front desk uses Sync all + enrich queues; does not need to edit URLs daily.
+**Who edits URLs:** `ADMIN+` on unit create/edit. Front desk uses Sync all + enrich / OTA issues queues; does not edit URLs daily. Dashboard failing-feed copy links to the property explorer and tells FRONT_DESK to ask an admin when they cannot edit Calendars.
 
 ### Unit form UX (Create / Edit)
 
@@ -418,7 +418,21 @@ Optional later: move the block to a “Calendars” tab if the form feels crowde
 
 - Cron (e.g. every 5–15 min) pulls every `isActive` feed.
 - **Sync all** (one button on Dashboard `/`; Calendar optional later): enqueue the same pull job now.
-- Failures → `lastError` on that feed; UI shows status under the URL on unit Calendars **and** a compact failing-feed count on Dashboard (`icalFeedHealth`) so FRONT_DESK sees it without editing URLs.
+- Failures → `lastError` on that feed; UI shows **Last sync failed:** under the URL on unit Calendars **and** a compact failing-feed link on Dashboard (`icalFeedHealth`) so FRONT_DESK sees it without editing URLs (escalate to ADMIN when they cannot fix the URL).
+
+### Desk playbook UX (OTA issues)
+
+Desk copy says **OTA** / channel name — not “iCal”. Shared playbook map (one per `icalSyncWarning`):
+
+| Warning | Primary Cabin CTA | OTA step required? |
+| ------- | ----------------- | ------------------ |
+| `MISSING_FROM_FEED` | Cancel this stay | Verify on channel; dismiss if feed looks wrong |
+| `DATES_DIFFER` | Use {channel} dates | Yes — or change dates on channel |
+| `UNIT_DIFFER` | Move to {channel}’s unit | Yes — or move booking on channel |
+| `IMPORT_OVERLAP` | Nights are free now (+ Cancel this booking) | Yes if you cancel a false OTA sell |
+| `OTA_STILL_LISTED` | Dismiss — I checked | Yes — cancel/update on channel if still listed |
+
+Detail banner: **what happened** → **Pick one** (when two outcomes) → check / Cabin / OTA steps → CTAs. Every mutating playbook CTA opens a **confirm dialog** first (Accept dates/unit, Nights are free now, Dismiss). Cancel opens the Cancel sheet. List titles: Gone from… / Dates don’t match / Still on… / Double-booked nights / Wrong unit.
 
 ### Import pull behavior
 
@@ -447,7 +461,7 @@ Unrecovered insert errors fail the pull (`lastError`, no `lastSuccessAt`); uniqu
 UID returns → clear warning.  
 `DATES_DIFFER` on `CONFIRMED+` → Accept (apply + revisit money) or **Dismiss for now** (non-sticky — next sync re-warns while mismatch remains).
 
-Staff date/unit edit on an OTA-linked stay (`externalRef` set): PMS + export update immediately; PMS shows a reminder to update the OTA booking (iCal never pushes into the guest reservation). Source is **locked** while `externalRef` is set (changing channel would free `(source, UID)` and risk a duplicate stub).
+Staff date/unit edit, cancel, or check-out on an OTA-linked stay (`externalRef` + Booking.com / Airbnb / Agoda): PMS + export update immediately; PMS shows a blocking **Got it** checklist dialog (“Update / Cancel on {channel} too”) — the guest booking on the OTA does not change automatically. Accept OTA dates/unit does **not** show this (Cabin is matching the channel). Source is **locked** while `externalRef` is set (changing channel would free `(source, UID)` and risk a duplicate stub).
 
 `UNIT_DIFFER` stores observed unit + OTA dates. Accept unit moves the row; if OTA dates still differ → set `DATES_DIFFER` immediately (no wait for cron).
 
@@ -485,7 +499,7 @@ Staff copy once → paste into each OTA’s **import** calendar. Rotate token = 
 | 14  | Cancel after DP / full pay                                  | Cancel sheet forces refund disposition                                                                                                                                                                                                           |
 | 15  | OTA cancel (UID gone) after Confirm                         | Warning queue → human Cancel + money                                                                                                                                                                                                             |
 | 16  | OTA date change after Confirm                               | `DATES_DIFFER` → Accept/Keep                                                                                                                                                                                                                     |
-| 17  | Re-pull after staff cancelled/checked out; same UID returns | Do **not** revive; set `OTA_STILL_LISTED` on that reservation (iCal alerts / Dashboard / detail). Desk: fix OTA or **Dismiss** (sticky — will not re-warn while UID stays in feed). Clear warning + dismiss ack when UID leaves this unit’s feed |
+| 17  | Re-pull after staff cancelled/checked out; same UID returns | Do **not** revive; set `OTA_STILL_LISTED` on that reservation (OTA issues board / Dashboard / detail). Desk: fix OTA or **Dismiss** (sticky — will not re-warn while UID stays in feed). Clear warning + dismiss ack when UID leaves this unit’s feed |
 | 18  | iCal SUMMARY looks like a person                            | May seed `guestName`; Confirm still requires contact + total                                                                                                                                                                                     |
 | 19  | Same-day turnaround                                         | Exclusive checkout: morning out / evening in OK on same date                                                                                                                                                                                     |
 | 20  | Check-in with Due > 0                                       | Warn + allow (pay-at-property)                                                                                                                                                                                                                   |
@@ -532,7 +546,7 @@ public/ical (+ Phase 2 book)
 
 **iCal stub:** Needs details → fill matrix → Confirm.
 
-**OTA refunded:** iCal alerts → verify → Cancel sheet.
+**OTA refunded:** OTA issues → verify → Cancel sheet.
 
 ---
 
@@ -582,7 +596,7 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservati
 
 ```text
 Desk always sees: Status · Source · Total/Paid/Balance (Due|Refund) · warnings · cash timeline
-Boards on /reservations only (no Check-in page): Arrivals (incl. late-in-window) · In-house · Departures (incl. overdue checkout) · Needs details · iCal alerts · Balance due
+Boards on /reservations only (no Check-in page): Arrivals (incl. late-in-window) · In-house · Departures (incl. overdue checkout) · Needs details · OTA issues · Balance due
 One primary action per status; Collect sheet (IN/OUT movements) + Cancel sheet everywhere
 Unit via Choose (Property → Type → Unit), not a mega Select
 

@@ -69,7 +69,7 @@ Hide on the grid: `CHECKED_OUT` · `CANCELLED` (they do not occupy).
 | Status | Ops status readable (color and/or tiny badge) — same tones as Reservations |
 | Money | Optional compact Due / Refund cue when open money ≠ settled; **no** Total/Paid columns on the grid |
 | Late | Late arrival / Late departure badges when applicable (same rules as list) |
-| iCal warning | Warning affordance when `icalSyncWarning` set |
+| iCal warning | OTA issue affordance when `icalSyncWarning` set (plain-language title on hover) |
 
 Click stay bar → reservation detail (`/reservations/:id`), preserving a way back to calendar (return URL or location state). Same primary/secondary actions as detail; do not invent calendar-only action names.
 

@@ -50,8 +50,8 @@ Open **http://localhost:8765/** for a cheat sheet in the browser.
 |---------|-------------------------|
 | **Dashboard** `/` | Sync all button; failing-feed amber line (`icalFeedHealth`) |
 | **Reservations → Needs details** | New `UNCONFIRMED` iCal stubs |
-| **Reservations → iCal alerts** | `MISSING_FROM_FEED`, `DATES_DIFFER`, `OTA_STILL_LISTED`, `IMPORT_OVERLAP` |
-| **Reservation detail** | Amber banner + **Accept OTA dates** / **Dismiss** / **Clear hold if free** |
+| **Reservations → OTA issues** | `MISSING_FROM_FEED`, `DATES_DIFFER`, `OTA_STILL_LISTED`, `IMPORT_OVERLAP`, `UNIT_DIFFER` |
+| **Reservation detail** | Playbook banner: Pick one · **Use {channel} dates** / **Nights are free now** / **Cancel this stay** / Dismiss |
 | **Calendar** | Occupying stays; overlap **holds** do not block the grid |
 | **Unit → Calendars** | Per-feed `lastError` / last success |
 
@@ -85,7 +85,7 @@ pnpm ical:fixture:set 01-happy-path
 | Check | Expected |
 |-------|----------|
 | Needs details | `UNCONFIRMED` · Airbnb · `Maria Santos (iCal)` · Aug 15–18 |
-| iCal alerts | (empty) |
+| OTA issues | (empty) |
 | Detail | No warning banner |
 
 **Talking point:** OTA sends a stub; staff enriches guest + money, then **Confirm**.
@@ -116,13 +116,13 @@ pnpm ical:fixture:set 03-overlap-candidate
 
 | Check | Expected |
 |-------|----------|
-| iCal alerts | `James Chen (iCal)` · **IMPORT_OVERLAP** · source **Airbnb** |
-| Calendar | Walk-in blocks nights; OTA stub **does not** (hold) |
-| Detail | “Overlaps another stay…” · **Clear hold if free** only after nights free |
+| OTA issues | `James Chen (iCal)` · **Double-booked nights** · source **Airbnb** |
+| Calendar | Walk-in blocks nights; OTA stub **does not** (waiting) |
+| Detail | Pick one · **Nights are free now** / **Cancel this booking** |
 
 **Talking point:** Walk-in vs OTA conflict — same handling as OTA vs OTA below.
 
-**Resolve demo:** Cancel walk-in OR move it → **Clear hold if free** → Confirm OTA stub.
+**Resolve demo:** Cancel walk-in OR move it → **Nights are free now** → Confirm OTA stub.
 
 ---
 
@@ -147,7 +147,7 @@ Sync again.
 | Existing | `cabin-demo-002` stays **CONFIRMED** (Airbnb) |
 | New stub | `Priya Sharma (iCal)` · **Booking.com** · **IMPORT_OVERLAP** |
 | Calendar | First booking blocks; second is hold only |
-| iCal alerts | Both may show — focus on the overlap stub |
+| OTA issues | Both may show — focus on the overlap stub |
 
 **Talking point:** Airbnb and Booking didn’t sync fast enough — PMS catches double-sell instead of hiding it.
 
@@ -173,8 +173,8 @@ pnpm ical:fixture:set 04-dates-changed
 | Check | Expected |
 |-------|----------|
 | Status | Stays `CONFIRMED` (dates not auto-changed) |
-| iCal alerts | **OTA dates differ** |
-| Detail | **Accept OTA dates** / **Keep & dismiss** |
+| OTA issues | **Dates don’t match** |
+| Detail | Pick one · **Use Airbnb dates** / Dismiss for now |
 
 **Talking point:** Money and ops stay under staff control; Accept re-fetches OTA dates and checks overlap.
 
@@ -194,7 +194,7 @@ pnpm ical:fixture:set 05-missing-trigger
 
 | Check | Expected |
 |-------|----------|
-| iCal alerts | **Missing from OTA feed** on `cabin-demo-003` |
+| OTA issues | **Gone from Airbnb** on `cabin-demo-003` |
 | Detail | Staff verifies OTA → **Cancel** if truly gone |
 
 **Talking point:** No auto-cancel on confirmed stays — human verifies refund/cancel on OTA.
@@ -216,7 +216,7 @@ Sync again (same scenario).
 | Check | Expected |
 |-------|----------|
 | Status | Stays `CANCELLED` (not revived) |
-| iCal alerts | **OTA still lists this booking…** |
+| OTA issues | **Still on Airbnb** |
 | Detail | **Dismiss** (sticky — won’t re-fire while UID in feed) |
 
 **Clear when UID leaves feed:**
@@ -248,11 +248,11 @@ Sync.
 | Check | Expected |
 |-------|----------|
 | B-0801 reservation | **UNIT_DIFFER** (UID found on B-0802 — not a cancel) |
-| Detail | Banner names observed unit · **Accept OTA unit** / Keep & dismiss |
+| Detail | Banner names observed unit · **Move to Airbnb’s unit** / Dismiss for now |
 
-**Talking point:** Missing is property-wide per OTA source; a listing move becomes a desk warning so staff can Accept the unit change after overlap check.
+**Talking point:** Missing is property-wide per OTA source; a listing move becomes a desk warning so staff can move the stay after overlap check.
 
-**Resolve:** **Accept OTA unit** (moves to B-0802 if nights free) or Edit unit manually.
+**Resolve:** **Move to Airbnb’s unit** (moves to B-0802 if nights free) or Edit unit manually.
 
 ---
 

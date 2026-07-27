@@ -1,6 +1,5 @@
 import {
   CollectedVia,
-  IcalSyncWarning,
   PaymentMovementDirection,
   PaymentMovementKind,
   PaymentStatus,
@@ -14,10 +13,13 @@ import {
   refundDueIdr,
   todayYmdInTimezone,
   type ConfirmFieldGap,
+  type IcalSyncWarning,
   type PaymentMovement,
+  type ReservationSource as ReservationSourceType,
   type StaffReservation,
 } from "@cabin/api-contract";
 import { formatIdr } from "@/pages/properties/inventory-types";
+import { icalWarningTitle } from "./ical-playbooks";
 
 export {
   formatIdr,
@@ -161,19 +163,11 @@ export function formatPaymentStatus(status: PaymentStatus): string {
   }
 }
 
-export function formatIcalWarning(warning: IcalSyncWarning): string {
-  switch (warning) {
-    case IcalSyncWarning.MISSING_FROM_FEED:
-      return "Missing from OTA feed";
-    case IcalSyncWarning.DATES_DIFFER:
-      return "OTA dates differ";
-    case IcalSyncWarning.OTA_STILL_LISTED:
-      return "OTA still lists this booking";
-    case IcalSyncWarning.IMPORT_OVERLAP:
-      return "OTA booking overlaps another stay";
-    case IcalSyncWarning.UNIT_DIFFER:
-      return "OTA lists on another unit";
-  }
+export function formatIcalWarning(
+  warning: IcalSyncWarning,
+  source?: ReservationSourceType | null,
+): string {
+  return icalWarningTitle(warning, source);
 }
 
 export function formatMoneyOrDash(amount: number | null): string {

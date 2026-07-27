@@ -79,7 +79,7 @@ function GuestSignals({
       {row.icalSyncWarning && (
         <AlertTriangleIcon
           className="size-3.5 shrink-0 text-amber-700 dark:text-amber-300"
-          aria-label={formatIcalWarning(row.icalSyncWarning)}
+          aria-label={formatIcalWarning(row.icalSyncWarning, row.source)}
         />
       )}
     </span>

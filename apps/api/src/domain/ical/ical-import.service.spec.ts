@@ -541,6 +541,78 @@ describe('IcalImportService', () => {
     });
   });
 
+  it('sets DATES_DIFFER on CONFIRMED and does not clear it when UID stays on feed', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'BEGIN:VEVENT',
+            'UID:maria-uid',
+            'DTSTART;VALUE=DATE:20260816',
+            'DTEND;VALUE=DATE:20260819',
+            'SUMMARY:Maria Santos',
+            'END:VEVENT',
+            'END:VCALENDAR',
+          ].join('\r\n'),
+        ),
+    });
+
+    prisma.reservation.findFirst.mockResolvedValue({
+      id: 'res_maria',
+      unitId: 'unit_1',
+      status: ReservationStatus.CONFIRMED,
+      checkInDate: new Date('2026-08-15T00:00:00.000Z'),
+      checkOutDate: new Date('2026-08-18T00:00:00.000Z'),
+      icalSyncWarning: null,
+      icalSyncWarnedAt: null,
+      icalOtaStillListedDismissedAt: null,
+      icalObservedUnitId: null,
+      icalObservedCheckInDate: null,
+      icalObservedCheckOutDate: null,
+      externalRef: 'maria-uid',
+    });
+
+    // applyMissing re-reads the row after reconcile set DATES_DIFFER + observed dates
+    prisma.reservation.findMany
+      .mockResolvedValueOnce([]) // stillListed
+      .mockResolvedValueOnce([
+        {
+          id: 'res_maria',
+          externalRef: 'maria-uid',
+          icalSyncWarning: IcalSyncWarning.DATES_DIFFER,
+          icalObservedUnitId: null,
+          icalObservedCheckInDate: new Date('2026-08-16T00:00:00.000Z'),
+          icalObservedCheckOutDate: new Date('2026-08-19T00:00:00.000Z'),
+          propertyId: 'prop_1',
+          unitId: 'unit_1',
+        },
+      ]);
+
+    await service.pullFeed(FEED);
+
+    expect(prisma.reservation.update).toHaveBeenCalledWith({
+      where: { id: 'res_maria' },
+      data: expect.objectContaining({
+        icalSyncWarning: IcalSyncWarning.DATES_DIFFER,
+        icalObservedCheckInDate: expect.any(Date) as Date,
+        icalObservedCheckOutDate: expect.any(Date) as Date,
+      }) as unknown,
+    });
+
+    // Must not wipe DATES_DIFFER in the post-tx MISSING pass
+    expect(prisma.reservation.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'res_maria' },
+        data: expect.objectContaining({
+          icalSyncWarning: null,
+        }) as unknown,
+      }),
+    );
+  });
+
   it('skips CANCELLED and block-like SUMMARY VEVENTs', async () => {
     const ics = [
       'BEGIN:VCALENDAR',

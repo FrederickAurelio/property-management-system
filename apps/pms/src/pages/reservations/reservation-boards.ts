@@ -8,7 +8,7 @@ export const RESERVATION_BOARDS: {
   { id: "in-house", label: "In-house" },
   { id: "departures", label: "Departures" },
   { id: "needs-details", label: "Needs details" },
-  { id: "ical-alerts", label: "iCal alerts" },
+  { id: "ical-alerts", label: "OTA issues" },
   { id: "balance-due", label: "Balance due" },
   { id: "all", label: "All" },
 ];

@@ -509,7 +509,7 @@ export function UnitFormDialog({
                         UnitIcalFeedSource.BOOKING_COM,
                       ) && (
                         <p className="text-xs text-destructive">
-                          Last sync:{" "}
+                          Last sync failed:{" "}
                           {feedErrorFromUnit(
                             effectiveUnit,
                             UnitIcalFeedSource.BOOKING_COM,
@@ -541,7 +541,7 @@ export function UnitFormDialog({
                         UnitIcalFeedSource.AIRBNB,
                       ) && (
                         <p className="text-xs text-destructive">
-                          Last sync:{" "}
+                          Last sync failed:{" "}
                           {feedErrorFromUnit(
                             effectiveUnit,
                             UnitIcalFeedSource.AIRBNB,
@@ -573,7 +573,7 @@ export function UnitFormDialog({
                         UnitIcalFeedSource.AGODA,
                       ) && (
                         <p className="text-xs text-destructive">
-                          Last sync:{" "}
+                          Last sync failed:{" "}
                           {feedErrorFromUnit(
                             effectiveUnit,
                             UnitIcalFeedSource.AGODA,

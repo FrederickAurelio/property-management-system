@@ -12,7 +12,7 @@ export function primaryAttentionLabel(
     return { label: "Cancel / no-show", tone: "danger" };
   }
   if (kinds.includes("ICAL")) {
-    return { label: "iCal", tone: "warn" };
+    return { label: "OTA issue", tone: "warn" };
   }
   if (kinds.includes("NEEDS_DETAILS")) {
     return { label: "Needs details", tone: "muted" };

@@ -1,4 +1,5 @@
 /* anchor: Linear-dense desk chrome, diverge: title+date left; property+Sync right — one toolbar row */
+import { Link } from "react-router";
 import { RefreshCwIcon } from "lucide-react";
 import type {
   StaffDashboardIcalFeedHealth,
@@ -22,6 +23,8 @@ type DashboardToolbarProps = {
   date: string | null;
   syncPending?: boolean;
   icalFeedHealth?: StaffDashboardIcalFeedHealth | null;
+  /** ADMIN+ can edit calendar URLs; FRONT_DESK should escalate. */
+  canManageFeeds?: boolean;
   onPropertyChange: (propertyId: string) => void;
   onSyncAll: () => void;
 };
@@ -46,11 +49,16 @@ export function DashboardToolbar({
   date,
   syncPending,
   icalFeedHealth,
+  canManageFeeds = false,
   onPropertyChange,
   onSyncAll,
 }: DashboardToolbarProps) {
   const failingCount = icalFeedHealth?.failingCount ?? 0;
   const sample = icalFeedHealth?.feeds[0];
+  const calendarsHref = propertyId ? `/properties/${propertyId}` : "/properties";
+  const escalateHint = canManageFeeds
+    ? "open unit Calendars"
+    : "ask an admin to fix the calendar URL";
 
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -63,9 +71,16 @@ export function DashboardToolbar({
         </p>
         {failingCount > 0 && (
           <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
-            {failingCount === 1 && sample
-              ? `1 iCal feed failing (${sample.unitCode} · ${formatFeedSource(sample.source)}) — open unit Calendars`
-              : `${failingCount} iCal feeds failing — open unit Calendars`}
+            <Link
+              to={calendarsHref}
+              className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-50"
+            >
+              {failingCount === 1 && sample
+                ? `1 OTA calendar failing (${sample.unitCode} · ${formatFeedSource(sample.source)})`
+                : `${failingCount} OTA calendars failing`}
+            </Link>
+            {" — "}
+            {escalateHint}
           </p>
         )}
       </div>
