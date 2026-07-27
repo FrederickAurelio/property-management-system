@@ -133,6 +133,8 @@ export const IcalSyncWarning = {
   DATES_DIFFER: "DATES_DIFFER",
   OTA_STILL_LISTED: "OTA_STILL_LISTED",
   IMPORT_OVERLAP: "IMPORT_OVERLAP",
+  /** OTA UID found on another unit’s same-source feed — staff Accept move. */
+  UNIT_DIFFER: "UNIT_DIFFER",
 } as const;
 
 export type IcalSyncWarning =
@@ -654,6 +656,13 @@ export type StaffReservation = {
   externalRef: string | null;
   icalSyncWarning: IcalSyncWarning | null;
   icalSyncWarnedAt: string | null;
+  /** Target unit when warning is UNIT_DIFFER (OTA feed location). */
+  icalObservedUnitId: string | null;
+  /** Denormalized code for UNIT_DIFFER banner. */
+  icalObservedUnitCode: string | null;
+  /** OTA dates seen with UNIT_DIFFER (YYYY-MM-DD); may also differ from local. */
+  icalObservedCheckInDate: string | null;
+  icalObservedCheckOutDate: string | null;
   /** Import stub that overlaps another stay/block — not calendar-busy until Confirm. */
   icalOverlapHold: boolean;
   confirmedAt: string | null;

@@ -74,6 +74,7 @@ enum IcalSyncWarning {
   DATES_DIFFER
   OTA_STILL_LISTED
   IMPORT_OVERLAP
+  UNIT_DIFFER
 }
 
 enum CalendarBlockKind {
@@ -192,9 +193,11 @@ model Unit {
 
   property       Property        @relation(fields: [propertyId], references: [id], onDelete: Restrict)
   unitType       UnitType        @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
-  reservations   Reservation[]
+  reservations   Reservation[]   @relation("ReservationUnit")
   calendarBlocks CalendarBlock[]
   icalFeeds      UnitIcalFeed[]
+  /// Reservations where OTA feed lists this unit (UNIT_DIFFER observed target).
+  icalObservedByReservations Reservation[] @relation("ReservationIcalObservedUnit")
 
   @@unique([propertyId, code])
   @@index([propertyId, status])
@@ -245,6 +248,11 @@ model Reservation {
   icalSyncWarnedAt  DateTime?
   /// Sticky ack for OTA_STILL_LISTED — dismiss sets this; sync will not re-warn until UID leaves the feed.
   icalOtaStillListedDismissedAt DateTime?
+  /// Target unit when icalSyncWarning = UNIT_DIFFER (OTA currently lists UID on this unit’s feed).
+  icalObservedUnitId String?
+  /// OTA check-in/out seen with UNIT_DIFFER (may also differ from local stay dates).
+  icalObservedCheckInDate  DateTime? @db.Date
+  icalObservedCheckOutDate DateTime? @db.Date
   /// True = UNCONFIRMED import stub that overlaps another stay/block; excluded from calendar busy + gist.
   icalOverlapHold   Boolean            @default(false)
   confirmedAt       DateTime?
@@ -257,8 +265,9 @@ model Reservation {
   updatedByAdminId  String?
 
   property        Property          @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  unit            Unit              @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  unit            Unit              @relation("ReservationUnit", fields: [unitId], references: [id], onDelete: Restrict)
   unitType        UnitType          @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
+  icalObservedUnit Unit?            @relation("ReservationIcalObservedUnit", fields: [icalObservedUnitId], references: [id], onDelete: SetNull)
   createdByAdmin  Admin?            @relation("ReservationCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
   updatedByAdmin  Admin?            @relation("ReservationUpdatedBy", fields: [updatedByAdminId], references: [id], onDelete: SetNull)
   movements       PaymentMovement[]
@@ -268,6 +277,7 @@ model Reservation {
   @@index([propertyId, checkOutDate])
   @@index([propertyId, status])
   @@index([source])
+  @@index([icalObservedUnitId])
   @@index([createdByAdminId])
   @@index([updatedByAdminId])
 }

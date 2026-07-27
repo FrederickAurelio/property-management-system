@@ -16,7 +16,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Property calendar:** `GET /staff/properties/:propertyId/calendar?from&to` — units + occupying stays + `CalendarBlock` bars; block CRUD `/staff/calendar-blocks` (`FRONT_DESK+`); blocks occupy for overlap (create stay / Choose unit / occupancy)
 - **Reports:** `GET /staff/reports/summary?propertyId&from&to&compare=` — cash (movements by property-TZ business date) · occupancy (clip nights, expand units) · source mix · equal-length compare (`ADMIN+`); wire `StaffReportsSummary`
 - **Dashboard:** `GET /staff/dashboard?propertyId&date?` — today arrivals/departures + needs attention (`FRONT_DESK+`); real board-predicate assemble (cap 8 + honest totals); wire `StaffDashboard`
-- **iCal:** `Unit.icalExportToken` + `UnitIcalFeed`; live `GET /public/ical/units/:unitId.ics?token=` (served via PMS origin proxy); Nest cron + `POST /staff/ical/sync-all`; Accept/Dismiss on reservation detail. Copy URL uses `PUBLIC_PMS_BASE_URL`.
+- **iCal:** `Unit.icalExportToken` + `UnitIcalFeed`; live `GET /public/ical/units/:unitId.ics?token=` (served via PMS origin proxy); Nest cron + `POST /staff/ical/sync-all`; Accept dates / Accept unit / Dismiss on reservation detail (`UNIT_DIFFER` when OTA moves listing). Copy URL uses `PUBLIC_PMS_BASE_URL`.
 - **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `periodCount ×` matching rack (`billingPeriod` + `defaultPriceIdr` / `monthlyPriceIdr` / `yearlyPriceIdr`; `suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
 
 ## Stack (locked)

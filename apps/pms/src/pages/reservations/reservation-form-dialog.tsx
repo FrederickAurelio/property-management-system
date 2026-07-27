@@ -39,6 +39,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   applyApiFieldError,
   createReservation,
   getUnitTypeRack,
@@ -215,9 +223,11 @@ export function ReservationFormDialog({
   const isEdit = Boolean(reservation);
   const isConfirmEnrich = intent === "confirm-enrich";
   const queryClient = useQueryClient();
+  const sourceLocked = isEdit && Boolean(reservation?.externalRef);
   const [pickerOpen, setPickerOpen] = useState(() =>
     Boolean(autoOpenUnitPicker && !reservation && !initialChosen),
   );
+  const [otaRemindOpen, setOtaRemindOpen] = useState(false);
   /** `undefined` = fall back to reservation / initialChosen; `null` = cleared; else user pick. */
   const [picked, setPicked] = useState<ChosenUnit | null | undefined>(
     undefined,
@@ -596,14 +606,22 @@ export function ReservationFormDialog({
     onSuccess: (saved) => {
       appliedSuggestKeyRef.current = null;
       editOpenStayKeyRef.current = null;
+      const prev = reservation;
+      const occupancyChanged =
+        prev == null ||
+        prev.unitId !== saved.unitId ||
+        prev.checkInDate !== saved.checkInDate ||
+        prev.checkOutDate !== saved.checkOutDate;
+      const remindOta =
+        isEdit &&
+        Boolean(prev?.externalRef) &&
+        occupancyChanged &&
+        (prev!.unitId !== saved.unitId ||
+          prev!.checkInDate !== saved.checkInDate ||
+          prev!.checkOutDate !== saved.checkOutDate);
       form.reset(emptyFormValues());
       setPicked(null);
       setPickerOpen(false);
-      const occupancyChanged =
-        reservation == null ||
-        reservation.unitId !== saved.unitId ||
-        reservation.checkInDate !== saved.checkInDate ||
-        reservation.checkOutDate !== saved.checkOutDate;
       syncReservationCaches(queryClient, saved, { occupancyChanged });
       handleSuccess(
         isConfirmEnrich
@@ -617,6 +635,9 @@ export function ReservationFormDialog({
         onCreated?.(saved.id);
       }
       onSaved?.(saved);
+      if (remindOta) {
+        setOtaRemindOpen(true);
+      }
     },
     onError: (error) => {
       applyApiFieldError(error, form.setError);
@@ -856,7 +877,11 @@ export function ReservationFormDialog({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel>Source</FieldLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={sourceLocked}
+                    >
                       <SelectTrigger aria-invalid={fieldState.invalid}>
                         <SelectValue />
                       </SelectTrigger>
@@ -870,6 +895,12 @@ export function ReservationFormDialog({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
+                    {sourceLocked ? (
+                      <p className="text-xs text-muted-foreground">
+                        Channel is locked while this stay is linked to an OTA
+                        calendar UID.
+                      </p>
+                    ) : null}
                     <FieldError errors={[fieldState.error]} />
                   </Field>
                 )}
@@ -1055,6 +1086,30 @@ export function ReservationFormDialog({
           }}
         />
       ) : null}
+
+      <Dialog open={otaRemindOpen} onOpenChange={setOtaRemindOpen}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Update the OTA booking</DialogTitle>
+            <DialogDescription>
+              Cabin updated the local calendar and export busy dates. iCal does
+              not change the guest booking on Airbnb, Booking.com, or Agoda.
+              Update the stay on the OTA as well, or the next sync may show
+              DATES_DIFFER / UNIT_DIFFER until both sides match.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => {
+                setOtaRemindOpen(false);
+              }}
+            >
+              Got it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -62,6 +62,7 @@ const DEFAULT_BOARD_TIMEZONE = 'Asia/Jakarta';
 const reservationInclude = {
   property: { select: { name: true, timezone: true } },
   unit: { select: { code: true } },
+  icalObservedUnit: { select: { code: true } },
   createdByAdmin: { select: { username: true } },
   updatedByAdmin: { select: { username: true } },
 } as const;
@@ -281,6 +282,21 @@ export class ReservationsService {
       });
     }
 
+    if (
+      dto.source !== undefined &&
+      dto.source !== existing.source &&
+      existing.externalRef != null
+    ) {
+      throw new BadRequestException({
+        message:
+          'Source is locked while this stay is linked to an OTA calendar UID',
+        details: {
+          field: 'source',
+          reason: ApiFieldReason.SOURCE_LOCKED_WITH_EXTERNAL_REF,
+        },
+      });
+    }
+
     const checkInDate = dto.checkInDate ?? this.ymd(existing.checkInDate);
     const checkOutDate = dto.checkOutDate ?? this.ymd(existing.checkOutDate);
     const billingPeriod: StayBillingPeriodType =
@@ -390,7 +406,13 @@ export class ReservationsService {
               : {}),
             ...(dto.source !== undefined ? { source: dto.source } : {}),
             ...(icalClear.clearWarning
-              ? { icalSyncWarning: null, icalSyncWarnedAt: null }
+              ? {
+                  icalSyncWarning: null,
+                  icalSyncWarnedAt: null,
+                  icalObservedUnitId: null,
+                  icalObservedCheckInDate: null,
+                  icalObservedCheckOutDate: null,
+                }
               : {}),
             ...(icalClear.clearOverlapHold ? { icalOverlapHold: false } : {}),
             updatedByAdminId: actor.id,
@@ -432,9 +454,11 @@ export class ReservationsService {
       source: row.source,
       externalRef: row.externalRef,
     });
-    if (!dates) {
+    if (dates.kind !== 'found') {
       throw new BadRequestException(
-        'Could not re-fetch OTA dates for this booking — check the unit feed URL',
+        dates.kind === 'incomplete'
+          ? 'Could not re-fetch OTA dates (feed error) — try Sync all or check the unit feed URL'
+          : 'Could not re-fetch OTA dates for this booking — check the unit feed URL',
       );
     }
 
@@ -459,7 +483,142 @@ export class ReservationsService {
             checkOutDate: parseYmd(dates.checkOutDate),
             icalSyncWarning: null,
             icalSyncWarnedAt: null,
+            icalObservedUnitId: null,
+            icalObservedCheckInDate: null,
+            icalObservedCheckOutDate: null,
             updatedByAdminId: actor.id,
+          },
+        });
+      });
+    } catch (error: unknown) {
+      this.rethrowExclusionConflict(error);
+      throw error;
+    }
+
+    return this.getById(id);
+  }
+
+  async acceptIcalUnit(id: string, actor: Actor): Promise<StaffReservation> {
+    const row = await this.prisma.reservation.findUnique({ where: { id } });
+    if (!row) {
+      throw new NotFoundException('Reservation not found');
+    }
+    if (row.icalSyncWarning !== IcalSyncWarning.UNIT_DIFFER) {
+      throw new BadRequestException(
+        'Reservation has no OTA unit-move warning to accept',
+      );
+    }
+    if (!row.externalRef) {
+      throw new BadRequestException('Reservation has no iCal external ref');
+    }
+
+    let targetUnitId = row.icalObservedUnitId;
+    let otaCheckIn =
+      row.icalObservedCheckInDate != null
+        ? this.ymd(row.icalObservedCheckInDate)
+        : null;
+    let otaCheckOut =
+      row.icalObservedCheckOutDate != null
+        ? this.ymd(row.icalObservedCheckOutDate)
+        : null;
+
+    if (!targetUnitId || !otaCheckIn || !otaCheckOut) {
+      const located = await this.icalImportService.fetchEventDatesForUid({
+        unitId: row.unitId,
+        propertyId: row.propertyId,
+        source: row.source,
+        externalRef: row.externalRef,
+      });
+      if (located.kind !== 'found' || located.unitId === row.unitId) {
+        throw new BadRequestException(
+          located.kind === 'incomplete'
+            ? 'Could not look up this booking on another unit feed (feed error) — try Sync all'
+            : 'Could not find this booking on another unit feed — check OTA URLs or Sync all',
+        );
+      }
+      targetUnitId = located.unitId;
+      otaCheckIn = located.checkInDate;
+      otaCheckOut = located.checkOutDate;
+    }
+
+    if (!targetUnitId || !otaCheckIn || !otaCheckOut) {
+      throw new BadRequestException(
+        'Could not resolve OTA unit/dates for this booking — try Sync all',
+      );
+    }
+
+    const observedCheckIn = otaCheckIn;
+    const observedCheckOut = otaCheckOut;
+
+    const target = await this.prisma.unit.findUnique({
+      where: { id: targetUnitId },
+      include: {
+        property: { select: { id: true, isActive: true } },
+        unitType: { select: { id: true, isActive: true } },
+      },
+    });
+    if (!target || target.propertyId !== row.propertyId) {
+      throw new BadRequestException({
+        message: 'Observed OTA unit is missing or not on this property',
+        details: {
+          field: 'unitId',
+          reason: ApiFieldReason.UNIT_NOT_BOOKABLE,
+        },
+      });
+    }
+    if (
+      !target.property.isActive ||
+      !target.unitType.isActive ||
+      !isUnitStatusBookable(target.status)
+    ) {
+      throw new BadRequestException({
+        message: 'Observed OTA unit is not bookable',
+        details: {
+          field: 'unitId',
+          reason: ApiFieldReason.UNIT_NOT_BOOKABLE,
+        },
+      });
+    }
+
+    const checkInDate = this.ymd(row.checkInDate);
+    const checkOutDate = this.ymd(row.checkOutDate);
+    const datesStillDiffer =
+      observedCheckIn !== checkInDate || observedCheckOut !== checkOutDate;
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const overlap = await findOccupyingOverlap(tx, {
+          unitId: target.id,
+          checkInDate,
+          checkOutDate,
+          excludeReservationId: id,
+        });
+        if (overlap) {
+          this.throwOverlap(overlap);
+        }
+
+        await tx.reservation.update({
+          where: { id },
+          data: {
+            unitId: target.id,
+            unitTypeId: target.unitTypeId,
+            icalOverlapHold: false,
+            updatedByAdminId: actor.id,
+            ...(datesStillDiffer
+              ? {
+                  icalSyncWarning: IcalSyncWarning.DATES_DIFFER,
+                  icalSyncWarnedAt: new Date(),
+                  icalObservedUnitId: null,
+                  icalObservedCheckInDate: parseYmd(observedCheckIn),
+                  icalObservedCheckOutDate: parseYmd(observedCheckOut),
+                }
+              : {
+                  icalSyncWarning: null,
+                  icalSyncWarnedAt: null,
+                  icalObservedUnitId: null,
+                  icalObservedCheckInDate: null,
+                  icalObservedCheckOutDate: null,
+                }),
           },
         });
       });
@@ -496,6 +655,9 @@ export class ReservationsService {
           icalSyncWarning: null,
           icalSyncWarnedAt: null,
           icalOverlapHold: false,
+          icalObservedUnitId: null,
+          icalObservedCheckInDate: null,
+          icalObservedCheckOutDate: null,
           updatedByAdminId: actor.id,
         },
       });
@@ -507,6 +669,9 @@ export class ReservationsService {
       data: {
         icalSyncWarning: null,
         icalSyncWarnedAt: null,
+        icalObservedUnitId: null,
+        icalObservedCheckInDate: null,
+        icalObservedCheckOutDate: null,
         ...(row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED
           ? { icalOtaStillListedDismissedAt: new Date() }
           : {}),
@@ -789,6 +954,9 @@ export class ReservationsService {
           icalSyncWarning: null,
           icalSyncWarnedAt: null,
           icalOverlapHold: false,
+          icalObservedUnitId: null,
+          icalObservedCheckInDate: null,
+          icalObservedCheckOutDate: null,
           ...(dto.notes !== undefined
             ? { notes: dto.notes?.trim() || null }
             : {}),
@@ -1040,7 +1208,7 @@ export class ReservationsService {
         externalRef: input.existing.externalRef,
       });
       if (
-        ota &&
+        ota.kind === 'found' &&
         ota.checkInDate === input.checkInDate &&
         ota.checkOutDate === input.checkOutDate
       ) {

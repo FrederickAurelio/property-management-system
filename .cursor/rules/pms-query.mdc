@@ -93,6 +93,7 @@ On next-page error: **unmount the in-view sentinel** and show footer + `QueryRet
 | Staff admin create/role/active | `syncStaffAdminCaches(qc, saved)` |
 | Inventory **delete** / tree wipe | `invalidateInventoryCaches(qc)` |
 | Calendar block create/update/delete | `invalidatePropertyCalendarCaches(qc)` — aggregate has no block detail key |
+| iCal Sync all | `invalidateIcalSyncCaches(qc)` — full cache (stubs / occupancy / calendar / feeds) |
 | Login / change username | `setQueryData(staffSessionQueryKey, admin)` |
 | Logout | `invalidateQueries(staffSessionQueryKey)` then `/login` |
 

@@ -33,6 +33,8 @@ const FIELD_REASON_MESSAGE: Partial<Record<ApiFieldReasonType, string>> = {
   [ApiFieldReason.MOVEMENT_EXCEEDS_DUE]: "Amount exceeds Due or Refund",
   [ApiFieldReason.EARLY_CONFIRM_REQUIRED]: "Confirm early / late action",
   [ApiFieldReason.INVALID_STATUS_TRANSITION]: "This action is not allowed now",
+  [ApiFieldReason.SOURCE_LOCKED_WITH_EXTERNAL_REF]:
+    "Source is locked while this stay is linked to an OTA calendar UID",
 };
 
 /**

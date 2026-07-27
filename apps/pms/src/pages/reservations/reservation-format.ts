@@ -171,6 +171,8 @@ export function formatIcalWarning(warning: IcalSyncWarning): string {
       return "OTA still lists this booking";
     case IcalSyncWarning.IMPORT_OVERLAP:
       return "OTA booking overlaps another stay";
+    case IcalSyncWarning.UNIT_DIFFER:
+      return "OTA lists on another unit";
   }
 }
 

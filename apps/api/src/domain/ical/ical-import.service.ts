@@ -24,6 +24,15 @@ type ParsedFeedEvent = {
   summary: string | null;
 };
 
+/** Result of parsing an ICS body — active bookings vs skipped signals. */
+type ParsedFeed = {
+  events: ParsedFeedEvent[];
+  /** UIDs seen with STATUS:CANCELLED (tombstones — not imported as stays). */
+  cancelledUids: Set<string>;
+  /** Raw VEVENT count before filters (0 = truly empty calendar). */
+  veventCount: number;
+};
+
 type FeedPullContext = {
   id: string;
   unitId: string;
@@ -34,8 +43,27 @@ type FeedPullContext = {
 
 const PULL_TIMEOUT_MS = 15_000;
 const PULL_CONCURRENCY = 3;
+const UID_LOOKUP_ATTEMPTS = 3;
+const UID_LOOKUP_RETRY_MS = 50;
 const EMPTY_FEED_ERROR =
   'Feed returned 0 events (possible glitch or empty calendar)';
+
+/** Result of looking up one OTA UID across property same-source feeds. */
+export type UidLookupResult =
+  | {
+      kind: 'found';
+      checkInDate: string;
+      checkOutDate: string;
+      unitId: string;
+    }
+  | { kind: 'absent' }
+  | { kind: 'incomplete' };
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 /** Normalized SUMMARY substrings that mean host block / closed — not a guest. */
 const BLOCK_SUMMARY_MARKERS = [
@@ -247,9 +275,13 @@ export class IcalImportService {
   }
 
   async pullFeed(feed: FeedPullContext): Promise<void> {
-    const events = await this.fetchAndParse(feed.importUrl, feed.unit.timezone);
+    const parsed = await this.fetchAndParse(feed.importUrl, feed.unit.timezone);
+    const { events, cancelledUids } = parsed;
 
-    if (events.length === 0) {
+    // Truly empty calendar (or only block-like rows) → glitch protection: keep
+    // last good data, do not MISSING-storm. Explicit STATUS:CANCELLED tombstones
+    // are different — they are a real cancel signal even when no active booking remains.
+    if (events.length === 0 && cancelledUids.size === 0) {
       await this.prisma.unitIcalFeed.update({
         where: { id: feed.id },
         data: {
@@ -310,12 +342,16 @@ export class IcalImportService {
     });
 
     // MISSING scan outside tx — may HTTP-fetch sibling feeds (unit move / #4).
+    // Cancelled-only feeds: seenUids empty → occupying local UIDs get MISSING
+    // (unless still active on a sibling same-source feed).
     await this.applyMissingFromFeedWarnings(feed, seenUids);
   }
 
   /**
    * Occupying rows on this unit whose UID is absent from this feed:
-   * set MISSING only if UID is also absent from all same-source feeds on the property.
+   * - found on sibling unit → UNIT_DIFFER (do not auto-move)
+   * - absent from all same-source property feeds → MISSING_FROM_FEED
+   * - sibling lookup incomplete (fetch errors) → leave warning unchanged
    */
   private async applyMissingFromFeedWarnings(
     feed: FeedPullContext,
@@ -332,6 +368,9 @@ export class IcalImportService {
         id: true,
         externalRef: true,
         icalSyncWarning: true,
+        icalObservedUnitId: true,
+        icalObservedCheckInDate: true,
+        icalObservedCheckOutDate: true,
         propertyId: true,
         unitId: true,
       },
@@ -341,16 +380,28 @@ export class IcalImportService {
       if (!row.externalRef) continue;
 
       if (seenUids.has(row.externalRef)) {
-        if (row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED) {
+        // UID back on this unit’s feed — clear move/missing warnings.
+        if (
+          row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED ||
+          row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER ||
+          row.icalObservedUnitId != null ||
+          row.icalObservedCheckInDate != null
+        ) {
           await this.prisma.reservation.update({
             where: { id: row.id },
-            data: { icalSyncWarning: null, icalSyncWarnedAt: null },
+            data: {
+              icalSyncWarning: null,
+              icalSyncWarnedAt: null,
+              icalObservedUnitId: null,
+              icalObservedCheckInDate: null,
+              icalObservedCheckOutDate: null,
+            },
           });
         }
         continue;
       }
 
-      const stillOnProperty = await this.fetchEventDatesForUid({
+      const lookup = await this.fetchEventDatesForUid({
         unitId: row.unitId,
         propertyId: row.propertyId,
         source: feed.source,
@@ -358,22 +409,71 @@ export class IcalImportService {
         timezone: feed.unit.timezone,
       });
 
-      if (stillOnProperty) {
-        if (row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED) {
+      if (lookup.kind === 'incomplete') {
+        this.logger.warn(
+          `UID lookup incomplete for reservation ${row.id} — skip MISSING`,
+        );
+        continue;
+      }
+
+      if (lookup.kind === 'found') {
+        if (lookup.unitId !== row.unitId) {
+          // OTA moved listing to sibling unit — warn; staff Accepts move.
+          const observedIn = parseYmd(lookup.checkInDate);
+          const observedOut = parseYmd(lookup.checkOutDate);
+          const sameUnit =
+            row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER &&
+            row.icalObservedUnitId === lookup.unitId;
+          const sameDates =
+            row.icalObservedCheckInDate != null &&
+            row.icalObservedCheckOutDate != null &&
+            ymdUtc(row.icalObservedCheckInDate) === lookup.checkInDate &&
+            ymdUtc(row.icalObservedCheckOutDate) === lookup.checkOutDate;
+          if (!sameUnit || !sameDates) {
+            await this.prisma.reservation.update({
+              where: { id: row.id },
+              data: {
+                icalSyncWarning: IcalSyncWarning.UNIT_DIFFER,
+                ...(sameUnit ? {} : { icalSyncWarnedAt: new Date() }),
+                icalObservedUnitId: lookup.unitId,
+                icalObservedCheckInDate: observedIn,
+                icalObservedCheckOutDate: observedOut,
+              },
+            });
+          }
+          continue;
+        }
+
+        if (
+          row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED ||
+          row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER ||
+          row.icalObservedUnitId != null ||
+          row.icalObservedCheckInDate != null
+        ) {
           await this.prisma.reservation.update({
             where: { id: row.id },
-            data: { icalSyncWarning: null, icalSyncWarnedAt: null },
+            data: {
+              icalSyncWarning: null,
+              icalSyncWarnedAt: null,
+              icalObservedUnitId: null,
+              icalObservedCheckInDate: null,
+              icalObservedCheckOutDate: null,
+            },
           });
         }
         continue;
       }
 
+      // kind === 'absent'
       if (row.icalSyncWarning !== IcalSyncWarning.MISSING_FROM_FEED) {
         await this.prisma.reservation.update({
           where: { id: row.id },
           data: {
             icalSyncWarning: IcalSyncWarning.MISSING_FROM_FEED,
             icalSyncWarnedAt: new Date(),
+            icalObservedUnitId: null,
+            icalObservedCheckInDate: null,
+            icalObservedCheckOutDate: null,
           },
         });
       }
@@ -381,8 +481,9 @@ export class IcalImportService {
   }
 
   /**
-   * Re-fetch OTA dates for one UID (Accept dates / missing check).
+   * Re-fetch OTA dates + feed unit for one UID (Accept dates/unit / missing check).
    * Try current unit feed first, then other active same-source feeds on the property.
+   * Retries each feed; returns incomplete if any feed failed after retries.
    */
   async fetchEventDatesForUid(input: {
     unitId: string;
@@ -390,7 +491,7 @@ export class IcalImportService {
     source: ReservationSource;
     externalRef: string;
     timezone?: string;
-  }): Promise<{ checkInDate: string; checkOutDate: string } | null> {
+  }): Promise<UidLookupResult> {
     const property = await this.prisma.property.findUnique({
       where: { id: input.propertyId },
       select: { timezone: true },
@@ -418,28 +519,64 @@ export class IcalImportService {
     }
     candidates.push(...others);
 
+    if (candidates.length === 0) {
+      return { kind: 'absent' };
+    }
+
+    let anyFailure = false;
+
     for (const feed of candidates) {
       try {
-        const events = await this.fetchAndParse(feed.importUrl, timezone);
+        const { events } = await this.fetchAndParseWithRetry(
+          feed.importUrl,
+          timezone,
+        );
         const hit = events.find((e) => e.uid === input.externalRef);
         if (hit) {
-          return { checkInDate: hit.startYmd, checkOutDate: hit.endYmd };
+          return {
+            kind: 'found',
+            checkInDate: hit.startYmd,
+            checkOutDate: hit.endYmd,
+            unitId: feed.unitId,
+          };
         }
       } catch (error: unknown) {
+        anyFailure = true;
         this.logger.warn(
-          `UID lookup feed ${feed.id} failed: ${
+          `UID lookup feed ${feed.id} failed after retries: ${
             error instanceof Error ? error.message : 'error'
           }`,
         );
       }
     }
-    return null;
+
+    return anyFailure ? { kind: 'incomplete' } : { kind: 'absent' };
+  }
+
+  private async fetchAndParseWithRetry(
+    importUrl: string,
+    timezone: string,
+  ): Promise<ParsedFeed> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= UID_LOOKUP_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.fetchAndParse(importUrl, timezone);
+      } catch (error: unknown) {
+        lastError = error;
+        if (attempt < UID_LOOKUP_ATTEMPTS) {
+          await sleep(UID_LOOKUP_RETRY_MS * attempt);
+        }
+      }
+    }
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('Feed fetch failed');
   }
 
   private async fetchAndParse(
     importUrl: string,
     timezone: string,
-  ): Promise<ParsedFeedEvent[]> {
+  ): Promise<ParsedFeed> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PULL_TIMEOUT_MS);
     try {
@@ -458,19 +595,25 @@ export class IcalImportService {
     }
   }
 
-  private parseIcs(text: string, timezone: string): ParsedFeedEvent[] {
+  private parseIcs(text: string, timezone: string): ParsedFeed {
     const parsed = ical.sync.parseICS(text);
-    const out: ParsedFeedEvent[] = [];
+    const events: ParsedFeedEvent[] = [];
+    const cancelledUids = new Set<string>();
+    let veventCount = 0;
 
     for (const value of Object.values(parsed)) {
       if (!value || typeof value !== 'object') continue;
       const ev = value as ical.VEvent;
       if (ev.type !== 'VEVENT') continue;
+      veventCount += 1;
+      const uid = typeof ev.uid === 'string' ? ev.uid.trim().slice(0, 256) : '';
       const status = eventStatus(ev.status)?.toUpperCase() ?? '';
-      if (status === 'CANCELLED') continue;
+      if (status === 'CANCELLED') {
+        if (uid) cancelledUids.add(uid);
+        continue;
+      }
       const summary = summaryText(ev.summary);
       if (isBlockLikeSummary(summary)) continue;
-      const uid = typeof ev.uid === 'string' ? ev.uid.trim() : '';
       if (!uid) continue;
       const start = asDate(ev.start);
       const end = asDate(ev.end);
@@ -481,14 +624,14 @@ export class IcalImportService {
         : ymdInTimezone(start, timezone);
       const endYmd = toExclusiveEndYmd(start, end, allDay, timezone);
       if (endYmd <= startYmd) continue;
-      out.push({
-        uid: uid.slice(0, 256),
+      events.push({
+        uid,
         startYmd,
         endYmd,
         summary,
       });
     }
-    return out;
+    return { events, cancelledUids, veventCount };
   }
 
   private async reconcileEvent(
@@ -508,7 +651,7 @@ export class IcalImportService {
       return;
     }
 
-    await this.updateExistingEvent(tx, existing, event);
+    await this.updateExistingEvent(tx, feed, existing, event);
   }
 
   private async insertOrRecoverNewEvent(
@@ -553,7 +696,7 @@ export class IcalImportService {
         },
       });
       if (raced) {
-        await this.updateExistingEvent(tx, raced, event);
+        await this.updateExistingEvent(tx, feed, raced, event);
         return;
       }
       const message = error instanceof Error ? error.message : 'Insert failed';
@@ -564,6 +707,7 @@ export class IcalImportService {
 
   private async updateExistingEvent(
     tx: Prisma.TransactionClient,
+    feed: FeedPullContext,
     existing: {
       id: string;
       unitId: string;
@@ -573,6 +717,8 @@ export class IcalImportService {
       icalSyncWarning: string | null;
       icalSyncWarnedAt: Date | null;
       icalOtaStillListedDismissedAt: Date | null;
+      icalObservedUnitId?: string | null;
+      icalObservedCheckInDate?: Date | null;
     },
     event: ParsedFeedEvent,
   ): Promise<void> {
@@ -590,15 +736,56 @@ export class IcalImportService {
           data: {
             icalSyncWarning: IcalSyncWarning.OTA_STILL_LISTED,
             icalSyncWarnedAt: new Date(),
+            icalObservedUnitId: null,
+            icalObservedCheckInDate: null,
+            icalObservedCheckOutDate: null,
           },
         });
       }
       return;
     }
 
+    const unitDiffer = existing.unitId !== feed.unitId;
     const localIn = ymdUtc(existing.checkInDate);
     const localOut = ymdUtc(existing.checkOutDate);
     const datesDiffer = localIn !== event.startYmd || localOut !== event.endYmd;
+
+    // OTA lists UID on a different unit — warn; never silent-move.
+    // Prefer UNIT_DIFFER over DATES_DIFFER this sync (Accept move first).
+    // Always store observed OTA dates so the banner can show dual drift.
+    if (unitDiffer) {
+      const data: Prisma.ReservationUpdateInput = {
+        icalSyncWarning: IcalSyncWarning.UNIT_DIFFER,
+        icalSyncWarnedAt:
+          existing.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER &&
+          existing.icalObservedUnitId === feed.unitId
+            ? existing.icalSyncWarnedAt
+            : new Date(),
+        icalObservedUnit: { connect: { id: feed.unitId } },
+        icalObservedCheckInDate: parseYmd(event.startYmd),
+        icalObservedCheckOutDate: parseYmd(event.endYmd),
+      };
+
+      if (existing.status === ReservationStatus.UNCONFIRMED && datesDiffer) {
+        // Refresh stub dates on the *current* local unit (overlap against current unit).
+        const overlap = await findOccupyingOverlap(tx, {
+          unitId: existing.unitId,
+          checkInDate: event.startYmd,
+          checkOutDate: event.endYmd,
+          excludeReservationId: existing.id,
+        });
+        data.checkInDate = parseYmd(event.startYmd);
+        data.checkOutDate = parseYmd(event.endYmd);
+        data.icalOverlapHold = overlap != null;
+        // UNIT_DIFFER stays primary; hold flag still tracks occupancy conflict.
+      }
+
+      await tx.reservation.update({
+        where: { id: existing.id },
+        data,
+      });
+      return;
+    }
 
     if (existing.status === ReservationStatus.UNCONFIRMED) {
       const checkInDate = event.startYmd;
@@ -626,12 +813,15 @@ export class IcalImportService {
               existing.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP
                 ? existing.icalSyncWarnedAt
                 : new Date(),
+            icalObservedUnitId: null,
+            icalObservedCheckInDate: null,
+            icalObservedCheckOutDate: null,
           },
         });
         return;
       }
 
-      // Free nights — promote hold or refresh dates.
+      // Free nights — promote hold or refresh dates; clear observed fields.
       await tx.reservation.update({
         where: { id: existing.id },
         data: {
@@ -644,6 +834,9 @@ export class IcalImportService {
           icalOverlapHold: false,
           icalSyncWarning: null,
           icalSyncWarnedAt: null,
+          icalObservedUnitId: null,
+          icalObservedCheckInDate: null,
+          icalObservedCheckOutDate: null,
         },
       });
       return;
@@ -656,13 +849,26 @@ export class IcalImportService {
           data: {
             icalSyncWarning: IcalSyncWarning.DATES_DIFFER,
             icalSyncWarnedAt: new Date(),
+            icalObservedUnitId: null,
+            icalObservedCheckInDate: parseYmd(event.startYmd),
+            icalObservedCheckOutDate: parseYmd(event.endYmd),
           },
         });
       }
-    } else if (existing.icalSyncWarning) {
+    } else if (
+      existing.icalSyncWarning ||
+      existing.icalObservedUnitId ||
+      existing.icalObservedCheckInDate
+    ) {
       await tx.reservation.update({
         where: { id: existing.id },
-        data: { icalSyncWarning: null, icalSyncWarnedAt: null },
+        data: {
+          icalSyncWarning: null,
+          icalSyncWarnedAt: null,
+          icalObservedUnitId: null,
+          icalObservedCheckInDate: null,
+          icalObservedCheckOutDate: null,
+        },
       });
     }
   }

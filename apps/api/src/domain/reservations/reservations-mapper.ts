@@ -25,6 +25,7 @@ function bigintToNumber(value: bigint | null): number | null {
 type ReservationWithJoins = Reservation & {
   property: Pick<Property, 'name' | 'timezone'>;
   unit: Pick<Unit, 'code'>;
+  icalObservedUnit: Pick<Unit, 'code'> | null;
   createdByAdmin: Pick<Admin, 'username'> | null;
   updatedByAdmin: Pick<Admin, 'username'> | null;
   movements?: Array<
@@ -125,6 +126,14 @@ export function toStaffReservation(
     externalRef: row.externalRef,
     icalSyncWarning: row.icalSyncWarning,
     icalSyncWarnedAt: row.icalSyncWarnedAt?.toISOString() ?? null,
+    icalObservedUnitId: row.icalObservedUnitId,
+    icalObservedUnitCode: row.icalObservedUnit?.code ?? null,
+    icalObservedCheckInDate: row.icalObservedCheckInDate
+      ? ymd(row.icalObservedCheckInDate)
+      : null,
+    icalObservedCheckOutDate: row.icalObservedCheckOutDate
+      ? ymd(row.icalObservedCheckOutDate)
+      : null,
     icalOverlapHold: row.icalOverlapHold,
     confirmedAt: row.confirmedAt?.toISOString() ?? null,
     checkedInAt: row.checkedInAt?.toISOString() ?? null,

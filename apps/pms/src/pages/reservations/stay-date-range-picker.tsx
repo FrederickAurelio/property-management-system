@@ -2,7 +2,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { addMonths, format } from "date-fns";
-import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
+import {
+  CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  XIcon,
+} from "lucide-react";
 import type { DateRange, Matcher } from "react-day-picker";
 import {
   StayBillingPeriod,
@@ -16,6 +21,14 @@ import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Button } from "@/components/ui/button";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -83,9 +96,14 @@ function formatRangeLabel(
   return emptyLabel;
 }
 
-function dayOfMonthFromYmd(ymd: string, fallbackYmd: string): number {
-  const parts = (ymd || fallbackYmd).split("-").map(Number);
-  return parts[2] && parts[2] >= 1 ? parts[2] : 1;
+function dayOfMonthFromYmd(ymd: string, fallbackDay = 1): number {
+  const parts = ymd.split("-").map(Number);
+  return parts[2] && parts[2] >= 1 && parts[2] <= 31 ? parts[2] : fallbackDay;
+}
+
+function monthFromYmd(ymd: string, fallbackMonth: number): number {
+  const parts = ymd.split("-").map(Number);
+  return parts[1] && parts[1] >= 1 && parts[1] <= 12 ? parts[1] : fallbackMonth;
 }
 
 function daysInMonth(y: number, m: number): number {
@@ -96,6 +114,8 @@ function ymdFromYearMonthDay(year: number, month: number, day: number): string {
   const d = Math.min(day, daysInMonth(year, month));
   return `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
+
+const DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 /** Nights in [checkIn, checkOut) — exclusive checkout. */
 function expandBlockedNights(blocks: UnitOccupancyBlock[]): Set<string> {
@@ -166,9 +186,9 @@ const COPY = {
     chooseUnit: "Choose a unit to see booked nights on this calendar.",
     pickStartDaily: "Pick check-in, then check-out",
     pickEndDaily: "Pick check-out to finish the range",
-    pickStartMonthly: "Pick start month, then end month",
+    pickStartMonthly: "Set start day, then pick start month → end month",
     pickEndMonthly: "Pick end month to finish the range",
-    pickStartYearly: "Pick start year, then end year",
+    pickStartYearly: "Set start month/day, then pick start year → end year",
     pickEndYearly: "Pick end year to finish the range",
     exclusive: " · check-out is exclusive",
     busyNoun: "a booked night",
@@ -185,9 +205,9 @@ const COPY = {
     chooseUnit: "Choose a unit to see busy nights on this calendar.",
     pickStartDaily: "Pick start, then end",
     pickEndDaily: "Pick end to finish the range",
-    pickStartMonthly: "Pick start month, then end month",
+    pickStartMonthly: "Set start day, then pick start month → end month",
     pickEndMonthly: "Pick end month to finish the range",
-    pickStartYearly: "Pick start year, then end year",
+    pickStartYearly: "Set start month/day, then pick start year → end year",
     pickEndYearly: "Pick end year to finish the range",
     exclusive: " · end is exclusive",
     busyNoun: "a busy night",
@@ -236,11 +256,21 @@ export function StayDateRangePicker({
   const [displayMonth, setDisplayMonth] = useState<Date>(
     () => ymdToDate(checkInDate) ?? new Date(),
   );
-  const [monthPickerYear, setMonthPickerYear] = useState(
-    () => (ymdToDate(checkInDate) ?? new Date()).getFullYear(),
+  const [monthPickerYear, setMonthPickerYear] = useState(() =>
+    (ymdToDate(checkInDate) ?? new Date()).getFullYear(),
   );
-  const [yearPickerCenter, setYearPickerCenter] = useState(
-    () => (ymdToDate(checkInDate) ?? new Date()).getFullYear(),
+  const [yearPickerCenter, setYearPickerCenter] = useState(() =>
+    (ymdToDate(checkInDate) ?? new Date()).getFullYear(),
+  );
+  /** Explicit calendar day for monthly/yearly (not inferred from “today”). */
+  const [periodStartDay, setPeriodStartDay] = useState(() =>
+    checkInDate ? dayOfMonthFromYmd(checkInDate) : 1,
+  );
+  /** Explicit calendar month for yearly stays. */
+  const [periodStartMonth, setPeriodStartMonth] = useState(() =>
+    checkInDate
+      ? monthFromYmd(checkInDate, new Date().getMonth() + 1)
+      : new Date().getMonth() + 1,
   );
 
   const committedCount =
@@ -267,6 +297,10 @@ export function StayDateRangePicker({
       setDuration(committedCount);
       setDurationText(String(committedCount));
     }
+    if (checkInDate) {
+      setPeriodStartDay(dayOfMonthFromYmd(checkInDate));
+      setPeriodStartMonth(monthFromYmd(checkInDate, 1));
+    }
   }
   /**
    * After duration auto-fills check-out, the next calendar click after
@@ -280,6 +314,54 @@ export function StayDateRangePicker({
     if (count != null && count >= 1) {
       setDuration(count);
       setDurationText(String(count));
+    }
+  };
+
+  /** Rebuild start/end from an explicit day (+ month for yearly), keeping period count. */
+  const applyPeriodAnchor = (next: {
+    day: number;
+    month?: number;
+    commit?: boolean;
+  }) => {
+    const day = Math.min(31, Math.max(1, next.day));
+    const month = next.month ?? periodStartMonth;
+    setPeriodStartDay(day);
+    if (next.month != null) {
+      setPeriodStartMonth(month);
+    }
+
+    const startSource = draftFrom || checkInDate;
+    if (!startSource) {
+      return;
+    }
+    const [y, m] = startSource.split("-").map(Number);
+    if (!y || !m) {
+      return;
+    }
+
+    const newFrom =
+      period === StayBillingPeriod.YEARLY
+        ? ymdFromYearMonthDay(y, month, day)
+        : ymdFromYearMonthDay(y, m, day);
+
+    const rangeCount =
+      draftFrom && draftTo
+        ? periodCountFromRange(period, draftFrom, draftTo)
+        : null;
+    const count =
+      rangeCount != null && rangeCount >= 1
+        ? rangeCount
+        : duration >= 1
+          ? duration
+          : 1;
+    const newTo = checkoutFromPeriodCount(period, newFrom, Math.max(1, count));
+
+    if (open) {
+      setDraft({ from: ymdToDate(newFrom), to: ymdToDate(newTo) });
+      durationSuggestedRef.current = true;
+    }
+    if (next.commit !== false && checkInDate) {
+      onChange({ checkInDate: newFrom, checkOutDate: newTo });
     }
   };
 
@@ -428,9 +510,11 @@ export function StayDateRangePicker({
       return;
     }
     onBillingPeriodChange?.(next);
-    // Fresh mode: clear range + reset duration to 1 (like Clear dates).
+    // Fresh mode: clear range + reset duration / start day (like Clear dates).
     setDuration(1);
     setDurationText("1");
+    setPeriodStartDay(1);
+    setPeriodStartMonth(new Date().getMonth() + 1);
     durationSuggestedRef.current = false;
     setDraft(undefined);
     setOpen(false);
@@ -470,6 +554,10 @@ export function StayDateRangePicker({
       setDisplayMonth(base);
       setMonthPickerYear(base.getFullYear());
       setYearPickerCenter(base.getFullYear());
+      if (checkInDate) {
+        setPeriodStartDay(dayOfMonthFromYmd(checkInDate));
+        setPeriodStartMonth(monthFromYmd(checkInDate, base.getMonth() + 1));
+      }
     } else {
       setDraft(rangeFromYmd(checkInDate, checkOutDate));
       durationSuggestedRef.current = false;
@@ -497,6 +585,10 @@ export function StayDateRangePicker({
   const hasDraftRange = Boolean(draftFrom);
 
   const handleClear = () => {
+    setDuration(1);
+    setDurationText("1");
+    setPeriodStartDay(1);
+    setPeriodStartMonth(new Date().getMonth() + 1);
     setDraft(undefined);
     durationSuggestedRef.current = false;
     onChange({ checkInDate: "", checkOutDate: "" });
@@ -536,16 +628,13 @@ export function StayDateRangePicker({
     syncDurationFromRange(clickedYmd, toYmd);
   };
 
-  const stickyDay = dayOfMonthFromYmd(checkInDate || draftFrom, todayYmd());
-
   const handlePickMonth = (year: number, month: number) => {
-    applyPeriodClick(ymdFromYearMonthDay(year, month, stickyDay));
+    applyPeriodClick(ymdFromYearMonthDay(year, month, periodStartDay));
   };
 
   const handlePickYear = (year: number) => {
-    const base = ymdToDate(checkInDate || draftFrom) ?? new Date();
     applyPeriodClick(
-      ymdFromYearMonthDay(year, base.getMonth() + 1, stickyDay),
+      ymdFromYearMonthDay(year, periodStartMonth, periodStartDay),
     );
   };
 
@@ -639,6 +728,86 @@ export function StayDateRangePicker({
       </div>
     </div>
   );
+
+  const periodAnchorFields =
+    period === StayBillingPeriod.MONTHLY ||
+    period === StayBillingPeriod.YEARLY ? (
+      <div className="flex flex-wrap items-end gap-3">
+        {period === StayBillingPeriod.YEARLY && (
+          <div className="flex min-w-[7rem] flex-col gap-1">
+            <label
+              htmlFor={`${id}-start-month`}
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Start month
+            </label>
+            <Select
+              value={String(periodStartMonth)}
+              onValueChange={(v) => {
+                const month = Number(v);
+                if (!Number.isInteger(month) || month < 1 || month > 12) {
+                  return;
+                }
+                applyPeriodAnchor({ day: periodStartDay, month });
+              }}
+            >
+              <SelectTrigger
+                id={`${id}-start-month`}
+                size="sm"
+                className="w-28"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {MONTH_SHORT.map((label, idx) => (
+                    <SelectItem key={label} value={String(idx + 1)}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <div className="flex min-w-[5.5rem] flex-col gap-1">
+          <label
+            htmlFor={`${id}-start-day`}
+            className="text-xs font-medium text-muted-foreground"
+          >
+            Start day
+          </label>
+          <Select
+            value={String(periodStartDay)}
+            onValueChange={(v) => {
+              const day = Number(v);
+              if (!Number.isInteger(day) || day < 1 || day > 31) {
+                return;
+              }
+              applyPeriodAnchor({
+                day,
+                ...(period === StayBillingPeriod.YEARLY
+                  ? { month: periodStartMonth }
+                  : {}),
+              });
+            }}
+          >
+            <SelectTrigger id={`${id}-start-day`} size="sm" className="w-20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {DAY_OPTIONS.map((day) => (
+                  <SelectItem key={day} value={String(day)}>
+                    {day}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    ) : null;
 
   const triggerButton = (
     <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -772,9 +941,9 @@ export function StayDateRangePicker({
         })}
       </div>
       <p className="text-xs text-muted-foreground">
-        Same day-of-month ({stickyDay})
-        {labels.sameDateHint}. Pick start month, then end — same as dates.
-        Current month is highlighted.
+        Check-in uses start day {periodStartDay}
+        {labels.sameDateHint}. Pick start month, then end. Current month is
+        highlighted.
       </p>
     </div>
   );
@@ -841,8 +1010,9 @@ export function StayDateRangePicker({
         })}
       </div>
       <p className="text-xs text-muted-foreground">
-        Same month/day as start{labels.sameDateHint}. Pick start year, then
-        end — same as dates. Current year is highlighted.
+        Check-in uses {MONTH_SHORT[periodStartMonth - 1]} {periodStartDay}
+        {labels.sameDateHint}. Pick start year, then end. Current year is
+        highlighted.
       </p>
     </div>
   );
@@ -1151,8 +1321,9 @@ export function StayDateRangePicker({
         </ToggleGroup>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         {durationField}
+        {periodAnchorFields}
         {triggerButton}
       </div>
 

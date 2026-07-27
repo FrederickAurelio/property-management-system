@@ -179,11 +179,6 @@ property
 6. **iCal import** into PMS → `UNCONFIRMED` stubs + **Sync now** + staff enrich queue.  
 7. Optional checklist: “Refresh Airbnb / Agoda if urgent” (manual in OTA UI).
 
-### Nice soon (still Phase 1.x)
-
-- Audit log of sync / confirms.  
-- Tighter unpaid / DP boards.
-
 ### Explicitly out of Phase 1
 
 - **OTA email ingest** / WhatsApp ping / quick-confirm parser.  

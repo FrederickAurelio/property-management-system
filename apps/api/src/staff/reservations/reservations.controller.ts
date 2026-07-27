@@ -113,6 +113,14 @@ export class ReservationsController {
     return this.reservationsService.acceptIcalDates(id, admin);
   }
 
+  @Post(':id/accept-ical-unit')
+  acceptIcalUnit(
+    @Param('id') id: string,
+    @CurrentAdmin() admin: StaffAdmin,
+  ): Promise<StaffReservation> {
+    return this.reservationsService.acceptIcalUnit(id, admin);
+  }
+
   @Post(':id/dismiss-ical-warning')
   dismissIcalWarning(
     @Param('id') id: string,

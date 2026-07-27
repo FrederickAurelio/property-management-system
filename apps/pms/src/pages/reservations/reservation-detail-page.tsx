@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   acceptIcalDates,
+  acceptIcalUnit,
   checkInReservation,
   checkOutReservation,
   confirmReservation,
@@ -170,20 +171,25 @@ export function ReservationDetailPage() {
   });
 
   const icalMutation = useMutation({
-    mutationFn: async (action: "accept" | "dismiss") => {
-      if (action === "accept") {
+    mutationFn: async (action: "accept-dates" | "accept-unit" | "dismiss") => {
+      if (action === "accept-dates") {
         return acceptIcalDates(reservationId);
+      }
+      if (action === "accept-unit") {
+        return acceptIcalUnit(reservationId);
       }
       return dismissIcalWarning(reservationId);
     },
     onSuccess: (saved, action) => {
       syncReservationCaches(queryClient, saved, {
-        occupancyChanged: action === "accept",
+        occupancyChanged: action === "accept-dates" || action === "accept-unit",
       });
       handleSuccess(
-        action === "accept"
+        action === "accept-dates"
           ? "OTA dates applied — revisit Total if needed"
-          : "iCal warning dismissed",
+          : action === "accept-unit"
+            ? "Moved to OTA unit"
+            : "iCal warning dismissed",
       );
     },
     onError: (error) => {
@@ -332,10 +338,17 @@ export function ReservationDetailPage() {
                   : row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP
                     ? "This OTA booking overlaps another stay or block on this unit. Cancel this stub, or free those nights (cancel/move the other stay) then Confirm — or edit this stay onto free dates."
                     : row.icalSyncWarning === IcalSyncWarning.DATES_DIFFER
-                      ? "OTA calendar shows different dates than this stay. Accept OTA dates, edit the stay to match the OTA, or Keep & dismiss to keep local dates."
-                      : row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED
-                        ? "This booking is no longer in the OTA feed. Verify on the OTA, then Cancel if it was cancelled — or Keep & dismiss if the feed looks wrong."
-                        : formatIcalWarning(row.icalSyncWarning)}
+                      ? "OTA calendar shows different dates than this stay. Accept OTA dates to match the feed, edit PMS to match the OTA, or change the booking on the OTA. Dismiss for now keeps local dates and hides this until the next sync."
+                      : row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER
+                        ? row.icalObservedCheckInDate &&
+                          row.icalObservedCheckOutDate &&
+                          (row.icalObservedCheckInDate !== row.checkInDate ||
+                            row.icalObservedCheckOutDate !== row.checkOutDate)
+                          ? `OTA lists this on unit ${row.icalObservedUnitCode ?? "another unit"} for ${row.icalObservedCheckInDate} → ${row.icalObservedCheckOutDate}; PMS has it on ${row.unitCode} for ${row.checkInDate} → ${row.checkOutDate}. Accept OTA unit first (overlap-checked); date mismatch can be handled next. Dismiss for now leaves it here until the next sync.`
+                          : `OTA lists this booking on unit ${row.icalObservedUnitCode ?? "another unit"}, but PMS still has it on ${row.unitCode}. Accept OTA unit to move it (overlap-checked), or Dismiss for now to leave it here until the next sync.`
+                        : row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED
+                          ? "This booking is no longer in the OTA feed. Verify on the OTA, then Cancel if it was cancelled. Dismiss for now if the feed looks wrong — the alert can return on the next sync."
+                          : formatIcalWarning(row.icalSyncWarning)}
               </p>
               <div className="flex flex-wrap gap-2">
                 {row.icalSyncWarning === IcalSyncWarning.DATES_DIFFER && (
@@ -345,10 +358,23 @@ export function ReservationDetailPage() {
                     variant="outline"
                     disabled={icalMutation.isPending}
                     onClick={() => {
-                      icalMutation.mutate("accept");
+                      icalMutation.mutate("accept-dates");
                     }}
                   >
                     Accept OTA dates
+                  </Button>
+                )}
+                {row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={icalMutation.isPending}
+                    onClick={() => {
+                      icalMutation.mutate("accept-unit");
+                    }}
+                  >
+                    Accept OTA unit
                   </Button>
                 )}
                 {row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP ? (
@@ -375,7 +401,7 @@ export function ReservationDetailPage() {
                   >
                     {row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED
                       ? "Dismiss"
-                      : "Keep & dismiss"}
+                      : "Dismiss for now"}
                   </Button>
                 )}
               </div>
@@ -389,6 +415,21 @@ export function ReservationDetailPage() {
                 <p className="text-xs opacity-80">
                   Clear hold only works when those nights are free. Otherwise
                   Cancel this stub or free the conflicting stay first.
+                </p>
+              )}
+              {row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER && (
+                <p className="text-xs opacity-80">
+                  Accept fails if the target unit already has an overlapping
+                  stay or block — free those nights first.
+                </p>
+              )}
+              {(row.icalSyncWarning === IcalSyncWarning.DATES_DIFFER ||
+                row.icalSyncWarning === IcalSyncWarning.UNIT_DIFFER ||
+                row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED) && (
+                <p className="text-xs opacity-80">
+                  Dismiss for now only hides this until the next sync. The
+                  mismatch remains until you change the OTA, Accept OTA here, or
+                  edit PMS to match.
                 </p>
               )}
             </div>

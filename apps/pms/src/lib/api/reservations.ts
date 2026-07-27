@@ -198,6 +198,13 @@ export async function acceptIcalDates(id: string): Promise<StaffReservation> {
   return data;
 }
 
+export async function acceptIcalUnit(id: string): Promise<StaffReservation> {
+  const { data } = await api.post<StaffReservation>(
+    `/reservations/${id}/accept-ical-unit`,
+  );
+  return data;
+}
+
 export async function dismissIcalWarning(
   id: string,
 ): Promise<StaffReservation> {

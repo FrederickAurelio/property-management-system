@@ -7,11 +7,10 @@ import {
   getStaffDashboard,
   handleError,
   handleSuccess,
+  invalidateIcalSyncCaches,
   listPropertyOptions,
   staffDashboardQueryKey,
-  staffDashboardQueryKeyPrefix,
   staffPropertiesOptionsQueryKey,
-  staffReservationsListQueryKeyPrefix,
   syncAllIcalFeeds,
 } from "@/lib/api";
 import { DashboardNeedsSection } from "./dashboard-needs-section";
@@ -94,12 +93,7 @@ export function DashboardPage() {
   const syncMutation = useMutation({
     mutationFn: syncAllIcalFeeds,
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({
-        queryKey: staffReservationsListQueryKeyPrefix,
-      });
-      void queryClient.invalidateQueries({
-        queryKey: staffDashboardQueryKeyPrefix,
-      });
+      invalidateIcalSyncCaches(queryClient);
       if (result.feedsAttempted === 0) {
         handleSuccess("No active iCal feeds to sync");
         return;

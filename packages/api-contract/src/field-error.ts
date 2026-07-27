@@ -35,6 +35,8 @@ export const ApiFieldReason = {
   MOVEMENT_EXCEEDS_DUE: 'MOVEMENT_EXCEEDS_DUE',
   EARLY_CONFIRM_REQUIRED: 'EARLY_CONFIRM_REQUIRED',
   INVALID_STATUS_TRANSITION: 'INVALID_STATUS_TRANSITION',
+  /** Edit source blocked while reservation still has an OTA calendar UID. */
+  SOURCE_LOCKED_WITH_EXTERNAL_REF: 'SOURCE_LOCKED_WITH_EXTERNAL_REF',
 } as const;
 
 /** Extra fields allowed on delete-conflict `error.details` alongside `field` / `reason`. */

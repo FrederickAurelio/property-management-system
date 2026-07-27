@@ -229,7 +229,7 @@ Sync → warning + dismiss ack cleared.
 
 ---
 
-### 7 — Unit move / sibling feed (no false missing)
+### 7 — Unit move / sibling feed (`UNIT_DIFFER`)
 
 Wire **B-0802** with `http://localhost:8765/airbnb/unit-b.ics`.
 
@@ -247,9 +247,12 @@ Sync.
 
 | Check | Expected |
 |-------|----------|
-| B-0801 reservation | **No** `MISSING_FROM_FEED` (UID found on B-0802 feed) |
+| B-0801 reservation | **UNIT_DIFFER** (UID found on B-0802 — not a cancel) |
+| Detail | Banner names observed unit · **Accept OTA unit** / Keep & dismiss |
 
-**Talking point:** Missing is property-wide per OTA source — moving listing between units doesn’t false-alarm.
+**Talking point:** Missing is property-wide per OTA source; a listing move becomes a desk warning so staff can Accept the unit change after overlap check.
+
+**Resolve:** **Accept OTA unit** (moves to B-0802 if nights free) or Edit unit manually.
 
 ---
 

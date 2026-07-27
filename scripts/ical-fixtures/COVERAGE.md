@@ -19,8 +19,7 @@ Legend: **✅** fixture scenario · **📋** prep + fixture · **🖥️** PMS-o
 | | ✅ `04-dates-match-again` | After DATES_DIFFER → sync (clears warning) |
 | `MISSING_FROM_FEED` | ✅ `05-missing-trigger` | Prep `05-prep-with-demo-003` → Confirm → sync |
 | | 📋 `manual-missing-checked-in` | Same prep → Confirm → **Check-in** → sync |
-| `OTA_STILL_LISTED` | ✅ `06-still-listed` | Sync → Confirm → **Cancel** → sync |
-| | 📋 `manual-still-listed-checkout` | Sync → Confirm → **Check-out** → sync |
+| `UNIT_DIFFER` | ✅ `07-sibling-feed` | Prep `07-prep-moved-on-unit-a` → Confirm on B-0801 → set sibling → sync |
 
 ---
 
@@ -33,7 +32,7 @@ Legend: **✅** fixture scenario · **📋** prep + fixture · **🖥️** PMS-o
 | 3 | Two OTAs same nights (mesh) | ✅ `09-ota-mesh-booking-com`, `14-agoda-mesh`, `09-airbnb-mesh-second-uid` |
 | 4 | Walk-in before OTA polls export | 🖥️ `manual-export-busy` + explain lag |
 | 5–9 | Money (paid, complimentary, overpay, extend, shrink) | 🖥️ Reservation detail — not iCal |
-| 10 | Move to another unit | 📋 `07-sibling-feed` + 🖥️ `manual-unit-move` |
+| 10 | Move to another unit | ✅ `07-sibling-feed` → `UNIT_DIFFER` + Accept OTA unit |
 | 11 | Unit MAINTENANCE with future stays | 🖥️ Inventory — not iCal |
 | 12 | Early check-in/out | 🖥️ Reservation ops — not iCal |
 | 13–14 | Never arrived / cancel + refund | 🖥️ Cancel sheet — not iCal |
@@ -63,9 +62,10 @@ Legend: **✅** fixture scenario · **📋** prep + fixture · **🖥️** PMS-o
 | All-day `VALUE=DATE` | ✅ most fixtures |
 | Timed `DATE-TIME` + timezone | ✅ `08-timed-jakarta` |
 | Empty body → `lastError`, no MISSING | ✅ `empty`, `only-skipped` |
+| Cancelled-only → success + MISSING | 🧪 `ical-import.service.spec.ts` (STATUS:CANCELLED-only) |
 | HTTP error on pull | 🖥️ paste `errors/http-404.ics` URL temporarily |
 | UNCONFIRMED date auto-apply | ✅ `10-unconfirmed-dates-shift` |
-| Property-wide MISSING (sibling feeds) | ✅ `07-sibling-feed` |
+| Property-wide MISSING (sibling feeds) | ✅ `07-sibling-feed` (now `UNIT_DIFFER` when UID on sibling) |
 | Sticky `OTA_STILL_LISTED` dismiss | ✅ `06-still-listed` (Dismiss → re-sync) |
 | Batch events in one pull | ✅ `15-batch-import` |
 | Unique race on insert | 🧪 `ical-import.service.spec.ts` |
@@ -115,7 +115,7 @@ Run: `pnpm ical:fixture:set <id>` then **Sync all**.
 | `04-dates-match-again` | Clear DATES_DIFFER |
 | `05-missing-trigger` | MISSING_FROM_FEED |
 | `06-still-listed` | OTA_STILL_LISTED after cancel |
-| `07-sibling-feed` | No false missing |
+| `07-sibling-feed` | UNIT_DIFFER (UID on sibling unit) |
 | `08-timed-jakarta` | Timezone |
 | `11-opaque-summary` | "Reserved" guest name |
 | `12-turnaround` | Same-day in/out |

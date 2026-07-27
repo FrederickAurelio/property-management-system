@@ -129,6 +129,9 @@ describe('IcalImportService', () => {
       data: {
         icalSyncWarning: IcalSyncWarning.OTA_STILL_LISTED,
         icalSyncWarnedAt: expect.any(Date) as Date,
+        icalObservedUnitId: null,
+        icalObservedCheckInDate: null,
+        icalObservedCheckOutDate: null,
       },
     });
     expect(prisma.unitIcalFeed.update).toHaveBeenCalledWith({
@@ -217,6 +220,91 @@ describe('IcalImportService', () => {
     expect(prisma.reservation.update).not.toHaveBeenCalled();
   });
 
+  it('STATUS:CANCELLED-only feed succeeds and marks occupying UID MISSING', async () => {
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:live-uid',
+      'DTSTART;VALUE=DATE:20260728',
+      'DTEND;VALUE=DATE:20260731',
+      'SUMMARY:Guest',
+      'STATUS:CANCELLED',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(ics),
+    });
+    prisma.reservation.findFirst.mockResolvedValue(null);
+    prisma.unitIcalFeed.findUnique.mockResolvedValue({
+      id: 'feed_1',
+      isActive: true,
+      importUrl: FEED.importUrl,
+      unitId: 'unit_1',
+      source: 'AIRBNB',
+    });
+    prisma.unitIcalFeed.findMany.mockResolvedValue([]);
+    prisma.reservation.findMany
+      .mockResolvedValueOnce([]) // stillListed
+      .mockResolvedValueOnce([
+        {
+          id: 'res_live',
+          externalRef: 'live-uid',
+          icalSyncWarning: null,
+          propertyId: 'prop_1',
+          unitId: 'unit_1',
+        },
+      ]);
+
+    await service.pullFeed(FEED);
+
+    expect(prisma.reservation.create).not.toHaveBeenCalled();
+    expect(prisma.unitIcalFeed.update).toHaveBeenCalledWith({
+      where: { id: 'feed_1' },
+      data: {
+        lastPulledAt: expect.any(Date) as Date,
+        lastSuccessAt: expect.any(Date) as Date,
+        lastError: null,
+      },
+    });
+    expect(prisma.reservation.update).toHaveBeenCalledWith({
+      where: { id: 'res_live' },
+      data: {
+        icalSyncWarning: IcalSyncWarning.MISSING_FROM_FEED,
+        icalSyncWarnedAt: expect.any(Date) as Date,
+        icalObservedUnitId: null,
+        icalObservedCheckInDate: null,
+        icalObservedCheckOutDate: null,
+      },
+    });
+  });
+
+  it('block-only feed (no CANCELLED) still uses empty-feed protection', async () => {
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:block-uid',
+      'DTSTART;VALUE=DATE:20260801',
+      'DTEND;VALUE=DATE:20260805',
+      'SUMMARY:CLOSED - Not available',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(ics),
+    });
+
+    await expect(service.pullFeed(FEED)).rejects.toThrow(EMPTY_FEED_ERROR);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.reservation.update).not.toHaveBeenCalled();
+  });
+
   it('clears OTA_STILL_LISTED when UID leaves this unit feed', async () => {
     // Non-empty feed without the dismissed UID — empty body would abort before clear.
     fetchSpy.mockResolvedValue({
@@ -265,6 +353,9 @@ describe('IcalImportService', () => {
           id: 'res_live',
           externalRef: 'live-uid',
           icalSyncWarning: null,
+          icalObservedUnitId: null,
+          icalObservedCheckInDate: null,
+          icalObservedCheckOutDate: null,
           propertyId: 'prop_1',
           unitId: 'unit_1',
         },
@@ -277,11 +368,75 @@ describe('IcalImportService', () => {
       data: {
         icalSyncWarning: IcalSyncWarning.MISSING_FROM_FEED,
         icalSyncWarnedAt: expect.any(Date) as Date,
+        icalObservedUnitId: null,
+        icalObservedCheckInDate: null,
+        icalObservedCheckOutDate: null,
       },
     });
   });
 
-  it('does not set MISSING when UID exists on sibling unit feed', async () => {
+  it('does not set MISSING when sibling UID lookup is incomplete', async () => {
+    fetchSpy.mockImplementation((url: RequestInfo | URL) => {
+      const href = hrefOf(url);
+      if (href.includes('sibling')) {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          text: () => Promise.resolve(''),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(icsWithUid('other-uid')),
+      });
+    });
+
+    prisma.reservation.findFirst.mockResolvedValue(null);
+    prisma.reservation.create.mockResolvedValue({});
+    prisma.unitIcalFeed.findUnique.mockResolvedValue({
+      id: 'feed_1',
+      isActive: true,
+      importUrl: FEED.importUrl,
+      unitId: 'unit_1',
+      source: 'AIRBNB',
+    });
+    prisma.unitIcalFeed.findMany.mockResolvedValue([
+      {
+        id: 'feed_sibling',
+        isActive: true,
+        importUrl: 'https://example.com/sibling.ics',
+        unitId: 'unit_2',
+        source: 'AIRBNB',
+      },
+    ]);
+
+    prisma.reservation.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: 'res_live',
+          externalRef: 'live-uid',
+          icalSyncWarning: null,
+          icalObservedUnitId: null,
+          icalObservedCheckInDate: null,
+          icalObservedCheckOutDate: null,
+          propertyId: 'prop_1',
+          unitId: 'unit_1',
+        },
+      ]);
+
+    await service.pullFeed(FEED);
+
+    expect(prisma.reservation.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          icalSyncWarning: IcalSyncWarning.MISSING_FROM_FEED,
+        }) as unknown,
+      }),
+    );
+  });
+
+  it('sets UNIT_DIFFER when UID exists on sibling unit feed', async () => {
     fetchSpy.mockImplementation((url: RequestInfo | URL) => {
       const href = hrefOf(url);
       if (href.includes('sibling')) {
@@ -322,6 +477,9 @@ describe('IcalImportService', () => {
           id: 'res_moved',
           externalRef: 'live-uid',
           icalSyncWarning: null,
+          icalObservedUnitId: null,
+          icalObservedCheckInDate: null,
+          icalObservedCheckOutDate: null,
           propertyId: 'prop_1',
           unitId: 'unit_1',
         },
@@ -329,6 +487,16 @@ describe('IcalImportService', () => {
 
     await service.pullFeed(FEED);
 
+    expect(prisma.reservation.update).toHaveBeenCalledWith({
+      where: { id: 'res_moved' },
+      data: {
+        icalSyncWarning: IcalSyncWarning.UNIT_DIFFER,
+        icalSyncWarnedAt: expect.any(Date) as Date,
+        icalObservedUnitId: 'unit_2',
+        icalObservedCheckInDate: expect.any(Date) as Date,
+        icalObservedCheckOutDate: expect.any(Date) as Date,
+      },
+    });
     expect(prisma.reservation.update).not.toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -336,6 +504,41 @@ describe('IcalImportService', () => {
         }) as unknown,
       }),
     );
+  });
+
+  it('sets UNIT_DIFFER when reconciling existing row on another unit feed', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(icsWithUid('moved-uid')),
+    });
+
+    prisma.reservation.findFirst.mockResolvedValue({
+      id: 'res_1',
+      unitId: 'unit_other',
+      status: ReservationStatus.CONFIRMED,
+      checkInDate: new Date('2026-07-28T00:00:00.000Z'),
+      checkOutDate: new Date('2026-07-31T00:00:00.000Z'),
+      icalSyncWarning: null,
+      icalSyncWarnedAt: null,
+      icalOtaStillListedDismissedAt: null,
+      icalObservedUnitId: null,
+      externalRef: 'moved-uid',
+    });
+    prisma.reservation.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await service.pullFeed(FEED);
+
+    expect(prisma.reservation.update).toHaveBeenCalledWith({
+      where: { id: 'res_1' },
+      data: expect.objectContaining({
+        icalSyncWarning: IcalSyncWarning.UNIT_DIFFER,
+        icalObservedUnit: { connect: { id: 'unit_1' } },
+        icalObservedCheckInDate: expect.any(Date) as Date,
+        icalObservedCheckOutDate: expect.any(Date) as Date,
+      }) as unknown,
+    });
   });
 
   it('skips CANCELLED and block-like SUMMARY VEVENTs', async () => {
@@ -522,7 +725,10 @@ describe('IcalImportService', () => {
       externalRef: 'abc',
     });
 
-    expect(dates).not.toBeNull();
-    expect(dates!.checkOutDate > dates!.checkInDate).toBe(true);
+    expect(dates.kind).toBe('found');
+    if (dates.kind === 'found') {
+      expect(dates.checkOutDate > dates.checkInDate).toBe(true);
+      expect(dates.unitId).toBe('unit_melati');
+    }
   });
 });

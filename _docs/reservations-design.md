@@ -331,7 +331,7 @@ Early/late check-out: dates unchanged unless staff **Edit** first; iCal busy fol
 | `paymentStatus`                         | no   |                                                                                 |
 | `collectedVia`                          | yes  | optional rollup                                                                 |
 | `externalRef`                           | yes  | OTA id or iCal UID                                                              |
-| `icalSyncWarning`                       | yes  | `MISSING_FROM_FEED` \| `DATES_DIFFER` \| `OTA_STILL_LISTED` \| `IMPORT_OVERLAP` |
+| `icalSyncWarning`                       | yes  | `MISSING_FROM_FEED` \| `DATES_DIFFER` \| `OTA_STILL_LISTED` \| `IMPORT_OVERLAP` \| `UNIT_DIFFER` |
 | `icalSyncWarnedAt`                      | yes  |                                                                                 |
 | lifecycle timestamps                    | yes  |                                                                                 |
 | `createdByAdminId` / `updatedByAdminId` | yes  |                                                                                 |
@@ -426,7 +426,8 @@ Match `(source, externalRef=uid)` → insert `UNCONFIRMED` or update; never clob
 If new UID overlaps an occupying stay/block on that unit → still insert `UNCONFIRMED` with `IMPORT_OVERLAP` + `icalOverlapHold=true` (excluded from calendar busy / gist until Confirm or Cancel).  
 Unrecovered insert errors fail the pull (`lastError`, no `lastSuccessAt`); unique `(source, externalRef)` races re-reconcile the existing row.
 
-**Empty / zero-event body:** HTTP OK with `0` booking events → set `lastError` (“0 events…”), **do not** run MISSING / still-listed clear, leave prior `lastSuccessAt`. Avoids false MISSING storms on flaky empty pulls.
+**Empty / zero-event body:** HTTP OK with `0` active booking events and **no** `STATUS:CANCELLED` tombstones → set `lastError` (“0 events…”), **do not** run MISSING / still-listed clear, leave prior `lastSuccessAt`. Covers truly empty calendars and block-only feeds (glitch / host-block noise).  
+**Cancelled-only feed:** at least one `STATUS:CANCELLED` UID and no active bookings → successful pull; run MISSING for occupying UIDs no longer active (cancelled UIDs are not counted as seen).
 
 **Skip non-bookings (no auto `CalendarBlock`):** ignore `STATUS:CANCELLED` and block-like SUMMARY markers (`unavailable`, `not available`, `blocked`, `no vacancy`, `closed`).
 
@@ -434,7 +435,7 @@ Unrecovered insert errors fail the pull (`lastError`, no `lastSuccessAt`); uniqu
 
 ### UID disappeared
 
-**No new ops status.** Set `icalSyncWarning = MISSING_FROM_FEED` only when the UID is absent from **all** active same-source feeds on the property (not merely the current unit’s feed — avoids false alarms after a unit move). Only run this scan after a **non-empty** successful parse.
+**No new ops status.** Set `icalSyncWarning = MISSING_FROM_FEED` only when the UID is absent from **all** active same-source feeds on the property (not merely the current unit’s feed — avoids false cancel alarms after a unit move). If the UID is found on a **sibling** unit’s same-source feed → `UNIT_DIFFER` + `icalObservedUnitId` + observed OTA dates (staff **Accept OTA unit**; banner shows date drift too when dates also differ). If sibling feed lookups fail after retries → leave warning unchanged (do **not** false-MISSING). Only run this scan after a successful parse with active bookings and/or CANCELLED tombstones.
 
 | Local status  | Auto                   | Staff                             |
 | ------------- | ---------------------- | --------------------------------- |
@@ -444,7 +445,11 @@ Unrecovered insert errors fail the pull (`lastError`, no `lastSuccessAt`); uniqu
 | Terminal      | Ignore                 | —                                 |
 
 UID returns → clear warning.  
-`DATES_DIFFER` on `CONFIRMED+` → Accept (apply + revisit money) or Dismiss/Keep.
+`DATES_DIFFER` on `CONFIRMED+` → Accept (apply + revisit money) or **Dismiss for now** (non-sticky — next sync re-warns while mismatch remains).
+
+Staff date/unit edit on an OTA-linked stay (`externalRef` set): PMS + export update immediately; PMS shows a reminder to update the OTA booking (iCal never pushes into the guest reservation). Source is **locked** while `externalRef` is set (changing channel would free `(source, UID)` and risk a duplicate stub).
+
+`UNIT_DIFFER` stores observed unit + OTA dates. Accept unit moves the row; if OTA dates still differ → set `DATES_DIFFER` immediately (no wait for cron).
 
 ### UID returns after Cancel / Check-out
 
@@ -473,7 +478,7 @@ Staff copy once → paste into each OTA’s **import** calendar. Rotate token = 
 | 7   | Overpay `paid > total`                                      | `PAID`, Due = 0                                                                                                                                                                                                                                  |
 | 8   | Extend after full pay                                       | Raise total → Due appears; Collect IN top-up                                                                                                                                                                                                     |
 | 9   | Shrink after full pay                                       | Lower total; Paid stays; Refund = paid − total; Collect OUT                                                                                                                                                                                      |
-| 10  | Move to another unit                                        | PATCH `unitId` if free for range; keep money/guest. Missing check is property-wide for that OTA source — no false `MISSING_FROM_FEED` while the old unit’s feed still lists the UID                                                              |
+| 10  | Move to another unit                                        | PATCH `unitId` if free for range; keep money/guest. If OTA moves the listing (UID on sibling feed) → `UNIT_DIFFER` + observed unit/dates — staff **Accept OTA unit** (overlap-checked) or Dismiss for now. Accept unit may raise `DATES_DIFFER` immediately if dates also drifted. No false `MISSING_FROM_FEED` while the UID still appears on any same-source feed (or while sibling lookup is incomplete after retries) |
 | 11  | Unit set `MAINTENANCE` with future stays                    | Allow unit status change with **warning** listing future occupying rows — do not auto-cancel                                                                                                                                                     |
 | 12  | Early check-in / early check-out                            | Allowed with confirm; dates unchanged unless staff edits                                                                                                                                                                                         |
 | 13  | Guest never arrived                                         | Cancel (notes optional) → frees unit; money via Cancel sheet if paid                                                                                                                                                                             |
@@ -508,7 +513,7 @@ public/ical (+ Phase 2 book)
 | `POST`      | `.../cancel`                                      | Body: `disposition` + optional `refundAmountIdr` (partial) + `notes` — cash = movement OUT, never remaining-Paid rewrite |
 | `POST`      | `.../payments` (or `.../movements`)               | Body: `direction` · `kind` · `amountIdr` · `method?` · `note?` — Paid = sum                                              |
 | `PATCH`     | `.../` (total quote only)                         | Total on reservation; do not PATCH absolute Paid                                                                         |
-| `POST`      | `.../accept-ical-dates` \| `dismiss-ical-warning` |                                                                                                                          |
+| `POST`      | `.../accept-ical-dates` \| `accept-ical-unit` \| `dismiss-ical-warning` | Accept unit moves to observed sibling feed (overlap-checked) |
 | `GET`       | `/staff/properties/:propertyId/calendar`          |                                                                                                                          |
 | CRUD        | `/staff/calendar-blocks`                          |                                                                                                                          |
 | `GET`       | `/public/ical/units/:unitId.ics`                  | tokenized export                                                                                                         |

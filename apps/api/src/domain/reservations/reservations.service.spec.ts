@@ -348,6 +348,9 @@ describe('ReservationsService', () => {
         icalSyncWarning: null,
         icalSyncWarnedAt: null,
         icalOverlapHold: false,
+        icalObservedUnitId: null,
+        icalObservedCheckInDate: null,
+        icalObservedCheckOutDate: null,
         icalOtaStillListedDismissedAt: null,
         confirmedAt: new Date(),
         checkedInAt: null,
@@ -359,6 +362,7 @@ describe('ReservationsService', () => {
         updatedByAdminId: actor.id,
         property: { name: 'Sky', timezone: 'Asia/Jakarta' },
         unit: { code: 'B-0801' },
+        icalObservedUnit: null,
         createdByAdmin: { username: 'desk' },
         updatedByAdmin: { username: 'desk' },
         movements: [],
@@ -399,7 +403,7 @@ describe('ReservationsService', () => {
             icalSyncWarning: null,
             icalSyncWarnedAt: null,
             icalOverlapHold: false,
-          }),
+          }) as Record<string, unknown>,
         }),
       );
     });
@@ -422,8 +426,10 @@ describe('ReservationsService', () => {
         });
       prisma.unit.findUnique.mockResolvedValue(unitBookable);
       icalImport.fetchEventDatesForUid.mockResolvedValue({
+        kind: 'found',
         checkInDate: '2026-08-16',
         checkOutDate: '2026-08-19',
+        unitId: 'unit_1',
       });
 
       await service.update(
@@ -438,7 +444,7 @@ describe('ReservationsService', () => {
           data: expect.objectContaining({
             icalSyncWarning: null,
             icalSyncWarnedAt: null,
-          }),
+          }) as Record<string, unknown>,
         }),
       );
     });
@@ -460,8 +466,10 @@ describe('ReservationsService', () => {
         });
       prisma.unit.findUnique.mockResolvedValue(unitBookable);
       icalImport.fetchEventDatesForUid.mockResolvedValue({
+        kind: 'found',
         checkInDate: '2026-08-16',
         checkOutDate: '2026-08-19',
+        unitId: 'unit_1',
       });
 
       await service.update(
@@ -470,10 +478,10 @@ describe('ReservationsService', () => {
         actor,
       );
 
-      const updateData = prisma.reservation.update.mock.calls[0]?.[0]?.data as
-        | Record<string, unknown>
-        | undefined;
-      expect(updateData?.icalSyncWarning).toBeUndefined();
+      const updateCalls = prisma.reservation.update.mock.calls as Array<
+        [{ data?: Record<string, unknown> }]
+      >;
+      expect(updateCalls[0]?.[0]?.data?.icalSyncWarning).toBeUndefined();
     });
 
     it('keeps MISSING_FROM_FEED on date patch', async () => {
@@ -496,10 +504,30 @@ describe('ReservationsService', () => {
       );
 
       expect(icalImport.fetchEventDatesForUid).not.toHaveBeenCalled();
-      const updateData = prisma.reservation.update.mock.calls[0]?.[0]?.data as
-        | Record<string, unknown>
-        | undefined;
-      expect(updateData?.icalSyncWarning).toBeUndefined();
+      const updateCalls = prisma.reservation.update.mock.calls as Array<
+        [{ data?: Record<string, unknown> }]
+      >;
+      expect(updateCalls[0]?.[0]?.data?.icalSyncWarning).toBeUndefined();
+    });
+    it('rejects source change when externalRef is set', async () => {
+      prisma.reservation.findUnique.mockResolvedValue({
+        ...detailRow({
+          externalRef: 'cabin-demo-001',
+          source: ReservationSource.AIRBNB,
+        }),
+        property: { timezone: 'Asia/Jakarta' },
+      });
+
+      await expect(
+        service.update('res_1', { source: ReservationSource.MANUAL }, actor),
+      ).rejects.toMatchObject({
+        response: {
+          details: {
+            field: 'source',
+            reason: ApiFieldReason.SOURCE_LOCKED_WITH_EXTERNAL_REF,
+          },
+        },
+      });
     });
   });
 
@@ -571,7 +599,11 @@ describe('ReservationsService', () => {
         totalAmountIdr: BigInt(1_000_000),
       });
 
-      await service.cancel('res_1', { disposition: CancelDisposition.none }, actor);
+      await service.cancel(
+        'res_1',
+        { disposition: CancelDisposition.none },
+        actor,
+      );
 
       expect(prisma.reservation.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -580,9 +612,195 @@ describe('ReservationsService', () => {
             icalSyncWarning: null,
             icalSyncWarnedAt: null,
             icalOverlapHold: false,
-          }),
+            icalObservedUnitId: null,
+          }) as Record<string, unknown>,
         }),
       );
+    });
+  });
+
+  describe('acceptIcalUnit', () => {
+    const targetUnit = {
+      id: 'unit_2',
+      propertyId: 'prop_1',
+      unitTypeId: 'type_2',
+      status: 'ACTIVE',
+      property: { id: 'prop_1', isActive: true },
+      unitType: { id: 'type_2', isActive: true },
+    };
+
+    it('moves reservation to observed unit when nights are free', async () => {
+      const existing = {
+        id: 'res_1',
+        propertyId: 'prop_1',
+        unitId: 'unit_1',
+        unitTypeId: 'type_1',
+        source: ReservationSource.AIRBNB,
+        status: ReservationStatus.CONFIRMED,
+        checkInDate: new Date('2026-08-15T00:00:00.000Z'),
+        checkOutDate: new Date('2026-08-18T00:00:00.000Z'),
+        externalRef: 'cabin-demo-moved',
+        icalSyncWarning: IcalSyncWarning.UNIT_DIFFER,
+        icalObservedUnitId: 'unit_2',
+        icalObservedCheckInDate: new Date('2026-08-15T00:00:00.000Z'),
+        icalObservedCheckOutDate: new Date('2026-08-18T00:00:00.000Z'),
+      };
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce({
+          ...existing,
+          unitId: 'unit_2',
+          unitTypeId: 'type_2',
+          icalSyncWarning: null,
+          icalObservedUnitId: null,
+          icalObservedCheckInDate: null,
+          icalObservedCheckOutDate: null,
+          billingPeriod: StayBillingPeriod.DAILY,
+          guestName: 'Moved',
+          guestEmail: null,
+          guestPhone: null,
+          guestCount: 2,
+          notes: null,
+          totalAmountIdr: BigInt(1_000_000),
+          paidAmountIdr: BigInt(0),
+          paymentStatus: PaymentStatus.UNPAID,
+          collectedVia: null,
+          icalSyncWarnedAt: null,
+          icalOverlapHold: false,
+          icalOtaStillListedDismissedAt: null,
+          confirmedAt: new Date(),
+          checkedInAt: null,
+          checkedOutAt: null,
+          cancelledAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdByAdminId: actor.id,
+          updatedByAdminId: actor.id,
+          property: { name: 'Sky', timezone: 'Asia/Jakarta' },
+          unit: { code: 'B-0802' },
+          icalObservedUnit: null,
+          createdByAdmin: { username: 'desk' },
+          updatedByAdmin: { username: 'desk' },
+          movements: [],
+        });
+      prisma.unit.findUnique.mockResolvedValue(targetUnit);
+
+      await service.acceptIcalUnit('res_1', actor);
+
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            unitId: 'unit_2',
+            unitTypeId: 'type_2',
+            icalSyncWarning: null,
+            icalObservedUnitId: null,
+            icalOverlapHold: false,
+          }) as Record<string, unknown>,
+        }),
+      );
+    });
+
+    it('sets DATES_DIFFER after accept when OTA dates also differ', async () => {
+      const existing = {
+        id: 'res_1',
+        propertyId: 'prop_1',
+        unitId: 'unit_1',
+        unitTypeId: 'type_1',
+        source: ReservationSource.AIRBNB,
+        status: ReservationStatus.CONFIRMED,
+        checkInDate: new Date('2026-08-15T00:00:00.000Z'),
+        checkOutDate: new Date('2026-08-18T00:00:00.000Z'),
+        externalRef: 'cabin-demo-moved',
+        icalSyncWarning: IcalSyncWarning.UNIT_DIFFER,
+        icalObservedUnitId: 'unit_2',
+        icalObservedCheckInDate: new Date('2026-08-16T00:00:00.000Z'),
+        icalObservedCheckOutDate: new Date('2026-08-19T00:00:00.000Z'),
+      };
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce({
+          ...existing,
+          unitId: 'unit_2',
+          unitTypeId: 'type_2',
+          icalSyncWarning: IcalSyncWarning.DATES_DIFFER,
+          icalObservedUnitId: null,
+          billingPeriod: StayBillingPeriod.DAILY,
+          guestName: 'Moved',
+          guestEmail: null,
+          guestPhone: null,
+          guestCount: 2,
+          notes: null,
+          totalAmountIdr: BigInt(1_000_000),
+          paidAmountIdr: BigInt(0),
+          paymentStatus: PaymentStatus.UNPAID,
+          collectedVia: null,
+          icalSyncWarnedAt: new Date(),
+          icalOverlapHold: false,
+          icalOtaStillListedDismissedAt: null,
+          confirmedAt: new Date(),
+          checkedInAt: null,
+          checkedOutAt: null,
+          cancelledAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdByAdminId: actor.id,
+          updatedByAdminId: actor.id,
+          property: { name: 'Sky', timezone: 'Asia/Jakarta' },
+          unit: { code: 'B-0802' },
+          icalObservedUnit: null,
+          createdByAdmin: { username: 'desk' },
+          updatedByAdmin: { username: 'desk' },
+          movements: [],
+        });
+      prisma.unit.findUnique.mockResolvedValue(targetUnit);
+
+      await service.acceptIcalUnit('res_1', actor);
+
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            unitId: 'unit_2',
+            icalSyncWarning: IcalSyncWarning.DATES_DIFFER,
+            icalObservedCheckInDate: expect.any(Date) as Date,
+            icalObservedCheckOutDate: expect.any(Date) as Date,
+          }) as Record<string, unknown>,
+        }),
+      );
+    });
+
+    it('rejects when target nights overlap', async () => {
+      prisma.reservation.findUnique.mockResolvedValue({
+        id: 'res_1',
+        propertyId: 'prop_1',
+        unitId: 'unit_1',
+        unitTypeId: 'type_1',
+        source: ReservationSource.AIRBNB,
+        status: ReservationStatus.CONFIRMED,
+        checkInDate: new Date('2026-08-15T00:00:00.000Z'),
+        checkOutDate: new Date('2026-08-18T00:00:00.000Z'),
+        externalRef: 'cabin-demo-moved',
+        icalSyncWarning: IcalSyncWarning.UNIT_DIFFER,
+        icalObservedUnitId: 'unit_2',
+        icalObservedCheckInDate: new Date('2026-08-15T00:00:00.000Z'),
+        icalObservedCheckOutDate: new Date('2026-08-18T00:00:00.000Z'),
+      });
+      prisma.unit.findUnique.mockResolvedValue(targetUnit);
+      prisma.reservation.findFirst.mockResolvedValue({
+        id: 'res_other',
+        guestName: 'Other',
+        source: ReservationSource.MANUAL,
+        checkInDate: new Date('2026-08-15T00:00:00.000Z'),
+        checkOutDate: new Date('2026-08-18T00:00:00.000Z'),
+        status: ReservationStatus.CONFIRMED,
+      });
+
+      await expect(
+        service.acceptIcalUnit('res_1', actor),
+      ).rejects.toMatchObject({
+        response: {
+          details: { reason: ApiFieldReason.OVERLAP_CONFLICT },
+        },
+      });
     });
   });
 
