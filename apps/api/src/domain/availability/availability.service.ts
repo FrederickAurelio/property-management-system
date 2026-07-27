@@ -62,6 +62,7 @@ export class AvailabilityService {
       },
       include: {
         unitType: { select: { isActive: true } },
+        icalFeeds: { orderBy: { source: 'asc' } },
       },
       orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
     });
@@ -123,6 +124,7 @@ export class AvailabilityService {
         where: {
           unitId,
           status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
+          icalOverlapHold: false,
           checkInDate: { lt: monthEnd },
           checkOutDate: { gt: monthStart },
           ...(query.excludeReservationId

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,6 +15,7 @@ import { StaffReservationsModule } from './staff/reservations/reservations.modul
 import { StaffCalendarModule } from './staff/calendar/calendar.module.js';
 import { StaffReportsModule } from './staff/reports/reports.module.js';
 import { StaffDashboardModule } from './staff/dashboard/dashboard.module.js';
+import { StaffIcalModule } from './staff/ical/ical.module.js';
 import { PublicModule } from './public/public.module.js';
 
 @Module({
@@ -26,6 +28,7 @@ import { PublicModule } from './public/public.module.js';
         join(process.cwd(), '.env'),
       ],
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     StaffAuthModule,
     AdminsModule,
@@ -37,6 +40,7 @@ import { PublicModule } from './public/public.module.js';
     StaffCalendarModule,
     StaffReportsModule,
     StaffDashboardModule,
+    StaffIcalModule,
     PublicModule,
   ],
   controllers: [AppController],

@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  acceptIcalDates,
   checkInReservation,
   checkOutReservation,
   confirmReservation,
+  dismissIcalWarning,
   getReservation,
   handleError,
   handleSuccess,
@@ -49,7 +51,7 @@ import {
   todayYmdInTimezone,
   type PrimaryAction,
 } from "./reservation-format";
-import type { StaffReservation } from "@cabin/api-contract";
+import { IcalSyncWarning, type StaffReservation } from "@cabin/api-contract";
 
 function primaryActionDialogCopy(
   action: PrimaryAction,
@@ -160,6 +162,28 @@ export function ReservationDetailPage() {
           : action === "check-in"
             ? "Checked in"
             : "Checked out",
+      );
+    },
+    onError: (error) => {
+      handleError(error);
+    },
+  });
+
+  const icalMutation = useMutation({
+    mutationFn: async (action: "accept" | "dismiss") => {
+      if (action === "accept") {
+        return acceptIcalDates(reservationId);
+      }
+      return dismissIcalWarning(reservationId);
+    },
+    onSuccess: (saved, action) => {
+      syncReservationCaches(queryClient, saved, {
+        occupancyChanged: action === "accept",
+      });
+      handleSuccess(
+        action === "accept"
+          ? "OTA dates applied — revisit Total if needed"
+          : "iCal warning dismissed",
       );
     },
     onError: (error) => {
@@ -299,9 +323,75 @@ export function ReservationDetailPage() {
       </div>
 
       {(showDueWarn || showRefundWarn || showIcalWarn) && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+        <div className="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
           {showIcalWarn && row.icalSyncWarning && (
-            <p>{formatIcalWarning(row.icalSyncWarning)}</p>
+            <div className="flex flex-col gap-2">
+              <p>
+                {row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED
+                  ? `OTA still lists this booking, but PMS is ${formatReservationStatus(row.status)}. Cancel or update it on the OTA if that was intentional, then dismiss — or dismiss after you verified the OTA.`
+                  : row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP
+                    ? "This OTA booking overlaps another stay or block on this unit. Cancel this stub, or free those nights (cancel/move the other stay) then Confirm — or edit this stay onto free dates."
+                    : row.icalSyncWarning === IcalSyncWarning.DATES_DIFFER
+                      ? "OTA calendar shows different dates than this stay. Accept OTA dates, edit the stay to match the OTA, or Keep & dismiss to keep local dates."
+                      : row.icalSyncWarning === IcalSyncWarning.MISSING_FROM_FEED
+                        ? "This booking is no longer in the OTA feed. Verify on the OTA, then Cancel if it was cancelled — or Keep & dismiss if the feed looks wrong."
+                        : formatIcalWarning(row.icalSyncWarning)}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {row.icalSyncWarning === IcalSyncWarning.DATES_DIFFER && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={icalMutation.isPending}
+                    onClick={() => {
+                      icalMutation.mutate("accept");
+                    }}
+                  >
+                    Accept OTA dates
+                  </Button>
+                )}
+                {row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={icalMutation.isPending}
+                    onClick={() => {
+                      icalMutation.mutate("dismiss");
+                    }}
+                  >
+                    Clear hold if free
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={icalMutation.isPending}
+                    onClick={() => {
+                      icalMutation.mutate("dismiss");
+                    }}
+                  >
+                    {row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED
+                      ? "Dismiss"
+                      : "Keep & dismiss"}
+                  </Button>
+                )}
+              </div>
+              {row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED && (
+                <p className="text-xs opacity-80">
+                  Dismiss acknowledges this — it will not come back on the next
+                  sync unless the OTA drops the booking and lists it again later.
+                </p>
+              )}
+              {row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP && (
+                <p className="text-xs opacity-80">
+                  Clear hold only works when those nights are free. Otherwise
+                  Cancel this stub or free the conflicting stay first.
+                </p>
+              )}
+            </div>
           )}
           {showRefundWarn && (
             <p>

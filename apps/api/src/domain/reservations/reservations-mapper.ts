@@ -48,6 +48,7 @@ export type ReservationListRow = Pick<
   | 'paidAmountIdr'
   | 'paymentStatus'
   | 'icalSyncWarning'
+  | 'icalOverlapHold'
 > & {
   property: Pick<Property, 'timezone'>;
   unit: Pick<Unit, 'code'>;
@@ -89,6 +90,7 @@ export function toStaffReservationListItem(
     paidAmountIdr: Number(row.paidAmountIdr),
     paymentStatus: row.paymentStatus,
     icalSyncWarning: row.icalSyncWarning,
+    icalOverlapHold: row.icalOverlapHold,
     propertyTimezone: row.property.timezone,
   };
 }
@@ -123,6 +125,7 @@ export function toStaffReservation(
     externalRef: row.externalRef,
     icalSyncWarning: row.icalSyncWarning,
     icalSyncWarnedAt: row.icalSyncWarnedAt?.toISOString() ?? null,
+    icalOverlapHold: row.icalOverlapHold,
     confirmedAt: row.confirmedAt?.toISOString() ?? null,
     checkedInAt: row.checkedInAt?.toISOString() ?? null,
     checkedOutAt: row.checkedOutAt?.toISOString() ?? null,

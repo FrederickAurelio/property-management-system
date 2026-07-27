@@ -23,12 +23,17 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       // Browser `/api/...` → Nest `/staff/...` (audience prefix stays off the wire).
-      // Do not proxy Nest `/public` or `/health` through this origin — Phase 2 web owns that.
+      // Phase 1 iCal export: `/public/ical/...` → Nest `/public/ical/...` (OTA poll; no session).
+      // Do not proxy `/health` through this origin.
       proxy: {
         "/api": {
           target: apiTarget,
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/api/, "/staff"),
+        },
+        "/public/ical": {
+          target: apiTarget,
+          changeOrigin: true,
         },
       },
     },

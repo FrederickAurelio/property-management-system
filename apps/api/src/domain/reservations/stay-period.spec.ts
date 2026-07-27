@@ -55,9 +55,9 @@ describe('stay billing period helpers', () => {
   it('derives long monthly/yearly counts via calendar delta (not a 1…N scan)', () => {
     const inYmd = '2016-06-26';
     const out120 = addCalendarMonthsYmd(inYmd, STAY_MONTHLY_COUNT_MAX);
-    expect(
-      periodCountFromRange(StayBillingPeriod.MONTHLY, inYmd, out120),
-    ).toBe(STAY_MONTHLY_COUNT_MAX);
+    expect(periodCountFromRange(StayBillingPeriod.MONTHLY, inYmd, out120)).toBe(
+      STAY_MONTHLY_COUNT_MAX,
+    );
     const out121 = addCalendarMonthsYmd(inYmd, STAY_MONTHLY_COUNT_MAX + 1);
     expect(
       periodCountFromRange(StayBillingPeriod.MONTHLY, inYmd, out121),

@@ -82,6 +82,12 @@ export class UnitsController {
     return this.unitsService.update(id, dto);
   }
 
+  @Post('units/:id/rotate-ical-token')
+  @StaffRoles('ADMIN')
+  rotateIcalToken(@Param('id') id: string): Promise<StaffUnit> {
+    return this.unitsService.rotateIcalToken(id);
+  }
+
   @Delete('units/:id')
   @StaffRoles('ADMIN')
   delete(@Param('id') id: string): Promise<{ ok: true }> {

@@ -1,13 +1,17 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   Matches,
   MaxLength,
   MinLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import {
   INVENTORY_CODE_MAX,
@@ -15,8 +19,26 @@ import {
   INVENTORY_CODE_PATTERN,
   INVENTORY_FLOOR_MAX,
   INVENTORY_NAME_MAX,
+  UNIT_ICAL_IMPORT_URL_MAX,
+  UnitIcalFeedSource,
   UnitStatus,
 } from '@cabin/api-contract';
+
+export class UnitIcalFeedInputDto {
+  @IsEnum(UnitIcalFeedSource)
+  source!: (typeof UnitIcalFeedSource)[keyof typeof UnitIcalFeedSource];
+
+  /** Empty string = disconnect this source. */
+  @IsString()
+  @MaxLength(UNIT_ICAL_IMPORT_URL_MAX)
+  @ValidateIf((_, v) => typeof v === 'string' && v.trim().length > 0)
+  @IsUrl({
+    require_protocol: true,
+    protocols: ['http', 'https'],
+    require_tld: false,
+  })
+  importUrl!: string;
+}
 
 export class CreateUnitDto {
   @IsString()
@@ -55,4 +77,11 @@ export class CreateUnitDto {
   @IsString()
   @MaxLength(4000)
   notes?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => UnitIcalFeedInputDto)
+  icalFeeds?: UnitIcalFeedInputDto[];
 }

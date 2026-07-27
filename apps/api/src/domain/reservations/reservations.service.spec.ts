@@ -3,6 +3,7 @@ import { ConflictException } from '@nestjs/common';
 import {
   ApiFieldReason,
   CancelDisposition,
+  IcalSyncWarning,
   PaymentMovementDirection,
   PaymentMovementKind,
   PaymentStatus,
@@ -18,6 +19,7 @@ import {
 } from '@cabin/api-contract';
 import { ReservationsService } from './reservations.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { IcalImportService } from '../ical/ical-import.service';
 
 describe('ReservationsService helpers (contract)', () => {
   it('sums paid from movements', () => {
@@ -56,6 +58,10 @@ describe('ReservationsService helpers (contract)', () => {
 
 describe('ReservationsService', () => {
   let service: ReservationsService;
+  let icalImport: {
+    fetchEventDatesForUid: jest.Mock;
+    syncAll: jest.Mock;
+  };
   let prisma: {
     reservation: {
       findUnique: jest.Mock;
@@ -70,6 +76,7 @@ describe('ReservationsService', () => {
       create: jest.Mock;
       findMany: jest.Mock;
     };
+    calendarBlock: { findFirst: jest.Mock };
     unit: { findUnique: jest.Mock };
     unitType: { findUnique: jest.Mock };
     property: { findUnique: jest.Mock };
@@ -107,6 +114,7 @@ describe('ReservationsService', () => {
         create: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      calendarBlock: { findFirst: jest.fn().mockResolvedValue(null) },
       unit: { findUnique: jest.fn() },
       unitType: { findUnique: jest.fn() },
       property: { findUnique: jest.fn() },
@@ -118,10 +126,19 @@ describe('ReservationsService', () => {
       }),
     };
 
+    icalImport = {
+      fetchEventDatesForUid: jest.fn(),
+      syncAll: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ReservationsService,
         { provide: PrismaService, useValue: prisma },
+        {
+          provide: IcalImportService,
+          useValue: icalImport,
+        },
       ],
     }).compile();
 
@@ -304,6 +321,186 @@ describe('ReservationsService', () => {
         },
       });
     });
+
+    function detailRow(
+      overrides: Record<string, unknown> = {},
+    ): Record<string, unknown> {
+      return {
+        id: 'res_1',
+        propertyId: 'prop_1',
+        unitId: 'unit_1',
+        unitTypeId: 'type_1',
+        source: ReservationSource.AIRBNB,
+        status: ReservationStatus.CONFIRMED,
+        billingPeriod: StayBillingPeriod.DAILY,
+        checkInDate: new Date('2026-08-15T00:00:00.000Z'),
+        checkOutDate: new Date('2026-08-18T00:00:00.000Z'),
+        guestName: 'Maria Santos',
+        guestEmail: 'a@b.com',
+        guestPhone: null,
+        guestCount: 2,
+        notes: null,
+        totalAmountIdr: BigInt(1_000_000),
+        paidAmountIdr: BigInt(0),
+        paymentStatus: PaymentStatus.UNPAID,
+        collectedVia: null,
+        externalRef: 'cabin-demo-001',
+        icalSyncWarning: null,
+        icalSyncWarnedAt: null,
+        icalOverlapHold: false,
+        icalOtaStillListedDismissedAt: null,
+        confirmedAt: new Date(),
+        checkedInAt: null,
+        checkedOutAt: null,
+        cancelledAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdByAdminId: actor.id,
+        updatedByAdminId: actor.id,
+        property: { name: 'Sky', timezone: 'Asia/Jakarta' },
+        unit: { code: 'B-0801' },
+        createdByAdmin: { username: 'desk' },
+        updatedByAdmin: { username: 'desk' },
+        movements: [],
+        ...overrides,
+      };
+    }
+
+    it('clears IMPORT_OVERLAP + hold when date patch lands on free nights', async () => {
+      const existing = detailRow({
+        status: ReservationStatus.UNCONFIRMED,
+        icalSyncWarning: IcalSyncWarning.IMPORT_OVERLAP,
+        icalOverlapHold: true,
+        confirmedAt: null,
+      });
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce({
+          ...existing,
+          property: { timezone: 'Asia/Jakarta' },
+        })
+        .mockResolvedValueOnce({
+          ...existing,
+          checkInDate: new Date('2026-08-20T00:00:00.000Z'),
+          checkOutDate: new Date('2026-08-22T00:00:00.000Z'),
+          icalSyncWarning: null,
+          icalOverlapHold: false,
+        });
+      prisma.unit.findUnique.mockResolvedValue(unitBookable);
+
+      await service.update(
+        'res_1',
+        { checkInDate: '2026-08-20', checkOutDate: '2026-08-22' },
+        actor,
+      );
+
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            icalSyncWarning: null,
+            icalSyncWarnedAt: null,
+            icalOverlapHold: false,
+          }),
+        }),
+      );
+    });
+
+    it('clears DATES_DIFFER when patched dates match OTA feed', async () => {
+      const existing = detailRow({
+        icalSyncWarning: IcalSyncWarning.DATES_DIFFER,
+        icalSyncWarnedAt: new Date(),
+      });
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce({
+          ...existing,
+          property: { timezone: 'Asia/Jakarta' },
+        })
+        .mockResolvedValueOnce({
+          ...existing,
+          checkInDate: new Date('2026-08-16T00:00:00.000Z'),
+          checkOutDate: new Date('2026-08-19T00:00:00.000Z'),
+          icalSyncWarning: null,
+        });
+      prisma.unit.findUnique.mockResolvedValue(unitBookable);
+      icalImport.fetchEventDatesForUid.mockResolvedValue({
+        checkInDate: '2026-08-16',
+        checkOutDate: '2026-08-19',
+      });
+
+      await service.update(
+        'res_1',
+        { checkInDate: '2026-08-16', checkOutDate: '2026-08-19' },
+        actor,
+      );
+
+      expect(icalImport.fetchEventDatesForUid).toHaveBeenCalled();
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            icalSyncWarning: null,
+            icalSyncWarnedAt: null,
+          }),
+        }),
+      );
+    });
+
+    it('keeps DATES_DIFFER when patched dates still differ from OTA', async () => {
+      const existing = detailRow({
+        icalSyncWarning: IcalSyncWarning.DATES_DIFFER,
+        icalSyncWarnedAt: new Date(),
+      });
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce({
+          ...existing,
+          property: { timezone: 'Asia/Jakarta' },
+        })
+        .mockResolvedValueOnce({
+          ...existing,
+          checkInDate: new Date('2026-08-17T00:00:00.000Z'),
+          checkOutDate: new Date('2026-08-20T00:00:00.000Z'),
+        });
+      prisma.unit.findUnique.mockResolvedValue(unitBookable);
+      icalImport.fetchEventDatesForUid.mockResolvedValue({
+        checkInDate: '2026-08-16',
+        checkOutDate: '2026-08-19',
+      });
+
+      await service.update(
+        'res_1',
+        { checkInDate: '2026-08-17', checkOutDate: '2026-08-20' },
+        actor,
+      );
+
+      const updateData = prisma.reservation.update.mock.calls[0]?.[0]?.data as
+        | Record<string, unknown>
+        | undefined;
+      expect(updateData?.icalSyncWarning).toBeUndefined();
+    });
+
+    it('keeps MISSING_FROM_FEED on date patch', async () => {
+      const existing = detailRow({
+        icalSyncWarning: IcalSyncWarning.MISSING_FROM_FEED,
+        icalSyncWarnedAt: new Date(),
+      });
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce({
+          ...existing,
+          property: { timezone: 'Asia/Jakarta' },
+        })
+        .mockResolvedValueOnce(existing);
+      prisma.unit.findUnique.mockResolvedValue(unitBookable);
+
+      await service.update(
+        'res_1',
+        { checkInDate: '2026-08-15', checkOutDate: '2026-08-19' },
+        actor,
+      );
+
+      expect(icalImport.fetchEventDatesForUid).not.toHaveBeenCalled();
+      const updateData = prisma.reservation.update.mock.calls[0]?.[0]?.data as
+        | Record<string, unknown>
+        | undefined;
+      expect(updateData?.icalSyncWarning).toBeUndefined();
+    });
   });
 
   describe('cancel', () => {
@@ -322,6 +519,70 @@ describe('ReservationsService', () => {
           details: { reason: ApiFieldReason.CANCEL_DISPOSITION_REQUIRED },
         },
       });
+    });
+
+    it('clears ical warning + hold on cancel', async () => {
+      const row = {
+        id: 'res_1',
+        status: ReservationStatus.CONFIRMED,
+        paidAmountIdr: BigInt(0),
+        collectedVia: null,
+        icalSyncWarning: IcalSyncWarning.MISSING_FROM_FEED,
+        icalOverlapHold: false,
+      };
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce(row)
+        .mockResolvedValueOnce({
+          ...row,
+          status: ReservationStatus.CANCELLED,
+          icalSyncWarning: null,
+          cancelledAt: new Date(),
+          propertyId: 'prop_1',
+          unitId: 'unit_1',
+          unitTypeId: 'type_1',
+          source: ReservationSource.AIRBNB,
+          billingPeriod: StayBillingPeriod.DAILY,
+          checkInDate: new Date('2026-08-15T00:00:00.000Z'),
+          checkOutDate: new Date('2026-08-18T00:00:00.000Z'),
+          guestName: 'Maria',
+          guestEmail: null,
+          guestPhone: null,
+          guestCount: 2,
+          notes: null,
+          totalAmountIdr: BigInt(1_000_000),
+          paymentStatus: PaymentStatus.UNPAID,
+          externalRef: 'cabin-demo-001',
+          icalSyncWarnedAt: null,
+          icalOtaStillListedDismissedAt: null,
+          confirmedAt: new Date(),
+          checkedInAt: null,
+          checkedOutAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdByAdminId: actor.id,
+          updatedByAdminId: actor.id,
+          property: { name: 'Sky', timezone: 'Asia/Jakarta' },
+          unit: { code: 'B-0801' },
+          createdByAdmin: { username: 'desk' },
+          updatedByAdmin: { username: 'desk' },
+          movements: [],
+        });
+      prisma.reservation.findUniqueOrThrow.mockResolvedValue({
+        totalAmountIdr: BigInt(1_000_000),
+      });
+
+      await service.cancel('res_1', { disposition: CancelDisposition.none }, actor);
+
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: ReservationStatus.CANCELLED,
+            icalSyncWarning: null,
+            icalSyncWarnedAt: null,
+            icalOverlapHold: false,
+          }),
+        }),
+      );
     });
   });
 
@@ -376,6 +637,8 @@ describe('ReservationsService', () => {
         externalRef: null,
         icalSyncWarning: null,
         icalSyncWarnedAt: null,
+        icalOverlapHold: false,
+        icalOtaStillListedDismissedAt: null,
         confirmedAt: new Date(),
         checkedInAt: null,
         checkedOutAt: null,

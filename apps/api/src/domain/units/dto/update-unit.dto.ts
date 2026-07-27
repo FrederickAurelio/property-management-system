@@ -1,5 +1,7 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEnum,
   IsOptional,
   IsString,
@@ -7,6 +9,7 @@ import {
   MaxLength,
   MinLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import {
   INVENTORY_CODE_MAX,
@@ -16,6 +19,7 @@ import {
   INVENTORY_NAME_MAX,
   UnitStatus,
 } from '@cabin/api-contract';
+import { UnitIcalFeedInputDto } from './create-unit.dto.js';
 
 export class UpdateUnitDto {
   @IsOptional()
@@ -51,4 +55,11 @@ export class UpdateUnitDto {
   @IsString()
   @MaxLength(4000)
   notes?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => UnitIcalFeedInputDto)
+  icalFeeds?: UnitIcalFeedInputDto[];
 }

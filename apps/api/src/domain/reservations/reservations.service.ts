@@ -11,6 +11,7 @@ import {
   CancelDisposition,
   CollectedVia,
   getConfirmFieldGaps,
+  IcalSyncWarning,
   isUnitStatusBookable,
   OCCUPYING_RESERVATION_STATUSES,
   PaymentMovementDirection,
@@ -34,6 +35,7 @@ import {
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { IcalImportService } from '../ical/ical-import.service.js';
 import type { CancelReservationDto } from './dto/cancel-reservation.dto.js';
 import type { ConfirmEarlyDto } from './dto/confirm-early.dto.js';
 import type { CreateReservationDto } from './dto/create-reservation.dto.js';
@@ -76,7 +78,10 @@ type Actor = Pick<StaffAdmin, 'id'>;
 
 @Injectable()
 export class ReservationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly icalImportService: IcalImportService,
+  ) {}
 
   async list(
     query: ListReservationsQueryDto,
@@ -318,6 +323,18 @@ export class ReservationsService {
       this.throwGuestCountExceedsMax(maxGuests);
     }
 
+    const occupancyTouched = Boolean(
+      dto.unitId || dto.checkInDate || dto.checkOutDate,
+    );
+    const icalClear = await this.resolveIcalWarningClearOnUpdate({
+      existing,
+      unitId,
+      checkInDate,
+      checkOutDate,
+      occupancyTouched,
+      datesTouched: Boolean(dto.checkInDate || dto.checkOutDate),
+    });
+
     try {
       await this.prisma.$transaction(async (tx) => {
         if (dto.unitId || dto.checkInDate || dto.checkOutDate) {
@@ -372,6 +389,10 @@ export class ReservationsService {
                 }
               : {}),
             ...(dto.source !== undefined ? { source: dto.source } : {}),
+            ...(icalClear.clearWarning
+              ? { icalSyncWarning: null, icalSyncWarnedAt: null }
+              : {}),
+            ...(icalClear.clearOverlapHold ? { icalOverlapHold: false } : {}),
             updatedByAdminId: actor.id,
           },
         });
@@ -387,6 +408,111 @@ export class ReservationsService {
       this.rethrowExclusionConflict(error);
       throw error;
     }
+
+    return this.getById(id);
+  }
+
+  async acceptIcalDates(id: string, actor: Actor): Promise<StaffReservation> {
+    const row = await this.prisma.reservation.findUnique({ where: { id } });
+    if (!row) {
+      throw new NotFoundException('Reservation not found');
+    }
+    if (row.icalSyncWarning !== IcalSyncWarning.DATES_DIFFER) {
+      throw new BadRequestException(
+        'Reservation has no OTA date-change warning to accept',
+      );
+    }
+    if (!row.externalRef) {
+      throw new BadRequestException('Reservation has no iCal external ref');
+    }
+
+    const dates = await this.icalImportService.fetchEventDatesForUid({
+      unitId: row.unitId,
+      propertyId: row.propertyId,
+      source: row.source,
+      externalRef: row.externalRef,
+    });
+    if (!dates) {
+      throw new BadRequestException(
+        'Could not re-fetch OTA dates for this booking — check the unit feed URL',
+      );
+    }
+
+    this.assertDateRange(dates.checkInDate, dates.checkOutDate);
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const overlap = await findOccupyingOverlap(tx, {
+          unitId: row.unitId,
+          checkInDate: dates.checkInDate,
+          checkOutDate: dates.checkOutDate,
+          excludeReservationId: id,
+        });
+        if (overlap) {
+          this.throwOverlap(overlap);
+        }
+
+        await tx.reservation.update({
+          where: { id },
+          data: {
+            checkInDate: parseYmd(dates.checkInDate),
+            checkOutDate: parseYmd(dates.checkOutDate),
+            icalSyncWarning: null,
+            icalSyncWarnedAt: null,
+            updatedByAdminId: actor.id,
+          },
+        });
+      });
+    } catch (error: unknown) {
+      this.rethrowExclusionConflict(error);
+      throw error;
+    }
+
+    return this.getById(id);
+  }
+
+  async dismissIcalWarning(
+    id: string,
+    actor: Actor,
+  ): Promise<StaffReservation> {
+    const row = await this.prisma.reservation.findUnique({ where: { id } });
+    if (!row) {
+      throw new NotFoundException('Reservation not found');
+    }
+    if (!row.icalSyncWarning) {
+      throw new BadRequestException('Reservation has no iCal warning');
+    }
+
+    if (row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP) {
+      await this.assertNoOverlap({
+        unitId: row.unitId,
+        checkInDate: this.ymd(row.checkInDate),
+        checkOutDate: this.ymd(row.checkOutDate),
+        excludeReservationId: id,
+      });
+      await this.prisma.reservation.update({
+        where: { id },
+        data: {
+          icalSyncWarning: null,
+          icalSyncWarnedAt: null,
+          icalOverlapHold: false,
+          updatedByAdminId: actor.id,
+        },
+      });
+      return this.getById(id);
+    }
+
+    await this.prisma.reservation.update({
+      where: { id },
+      data: {
+        icalSyncWarning: null,
+        icalSyncWarnedAt: null,
+        ...(row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED
+          ? { icalOtaStillListedDismissedAt: new Date() }
+          : {}),
+        updatedByAdminId: actor.id,
+      },
+    });
 
     return this.getById(id);
   }
@@ -441,12 +567,23 @@ export class ReservationsService {
       });
     }
 
+    await this.assertNoOverlap({
+      unitId: row.unitId,
+      checkInDate: this.ymd(row.checkInDate),
+      checkOutDate: this.ymd(row.checkOutDate),
+      excludeReservationId: id,
+    });
+
     await this.prisma.reservation.update({
       where: { id },
       data: {
         status: ReservationStatus.CONFIRMED,
         guestName: row.guestName.trim(),
         confirmedAt: new Date(),
+        icalOverlapHold: false,
+        ...(row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP
+          ? { icalSyncWarning: null, icalSyncWarnedAt: null }
+          : {}),
         updatedByAdminId: actor.id,
       },
     });
@@ -648,6 +785,10 @@ export class ReservationsService {
         data: {
           status: ReservationStatus.CANCELLED,
           cancelledAt: new Date(),
+          // Desk resolved via Cancel; sync may set OTA_STILL_LISTED if UID returns.
+          icalSyncWarning: null,
+          icalSyncWarnedAt: null,
+          icalOverlapHold: false,
           ...(dto.notes !== undefined
             ? { notes: dto.notes?.trim() || null }
             : {}),
@@ -857,6 +998,57 @@ export class ReservationsService {
       });
     }
     return unit;
+  }
+
+  /**
+   * After a successful occupancy PATCH, clear warnings the desk already resolved:
+   * - IMPORT_OVERLAP: nights/unit are free (overlap already asserted) → clear + drop hold
+   * - DATES_DIFFER: local dates now match OTA feed → clear (else keep until Accept/Dismiss/sync)
+   * - MISSING_FROM_FEED / OTA_STILL_LISTED: not resolved by date edit
+   */
+  private async resolveIcalWarningClearOnUpdate(input: {
+    existing: {
+      propertyId: string;
+      source: StaffReservation['source'];
+      externalRef: string | null;
+      icalSyncWarning: string | null;
+    };
+    unitId: string;
+    checkInDate: string;
+    checkOutDate: string;
+    occupancyTouched: boolean;
+    datesTouched: boolean;
+  }): Promise<{ clearWarning: boolean; clearOverlapHold: boolean }> {
+    const warning = input.existing.icalSyncWarning;
+    if (!warning || !input.occupancyTouched) {
+      return { clearWarning: false, clearOverlapHold: false };
+    }
+
+    if (warning === IcalSyncWarning.IMPORT_OVERLAP) {
+      return { clearWarning: true, clearOverlapHold: true };
+    }
+
+    if (
+      warning === IcalSyncWarning.DATES_DIFFER &&
+      input.datesTouched &&
+      input.existing.externalRef
+    ) {
+      const ota = await this.icalImportService.fetchEventDatesForUid({
+        unitId: input.unitId,
+        propertyId: input.existing.propertyId,
+        source: input.existing.source,
+        externalRef: input.existing.externalRef,
+      });
+      if (
+        ota &&
+        ota.checkInDate === input.checkInDate &&
+        ota.checkOutDate === input.checkOutDate
+      ) {
+        return { clearWarning: true, clearOverlapHold: false };
+      }
+    }
+
+    return { clearWarning: false, clearOverlapHold: false };
   }
 
   private async assertNoOverlap(input: {

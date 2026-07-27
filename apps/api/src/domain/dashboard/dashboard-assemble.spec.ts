@@ -32,6 +32,7 @@ function item(
     paidAmountIdr: 1_000_000,
     paymentStatus: PaymentStatus.PAID,
     icalSyncWarning: null,
+    icalOverlapHold: false,
     propertyTimezone: TZ,
     ...partial,
   };

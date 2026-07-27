@@ -2,6 +2,7 @@ import type {
   Paginated,
   StaffUnit,
   StaffUnitAvailability,
+  StaffUnitIcalFeedInput,
   UnitMonthOccupancy,
   UnitStatus,
 } from "@cabin/api-contract";
@@ -23,6 +24,7 @@ export type UnitWriteInput = {
   floor?: string | null;
   status: UnitStatus;
   notes?: string | null;
+  icalFeeds?: StaffUnitIcalFeedInput[];
 };
 
 export type UnitUpdateInput = {
@@ -31,6 +33,7 @@ export type UnitUpdateInput = {
   floor?: string | null;
   status?: UnitStatus;
   notes?: string | null;
+  icalFeeds?: StaffUnitIcalFeedInput[];
 };
 
 export async function listUnits(
@@ -124,6 +127,11 @@ export async function updateUnit(
   input: UnitUpdateInput,
 ): Promise<StaffUnit> {
   const { data } = await api.patch<StaffUnit>(`/units/${id}`, input);
+  return data;
+}
+
+export async function rotateUnitIcalToken(id: string): Promise<StaffUnit> {
+  const { data } = await api.post<StaffUnit>(`/units/${id}/rotate-ical-token`);
   return data;
 }
 

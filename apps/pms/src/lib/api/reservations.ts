@@ -190,3 +190,19 @@ export async function cancelReservation(
   );
   return data;
 }
+
+export async function acceptIcalDates(id: string): Promise<StaffReservation> {
+  const { data } = await api.post<StaffReservation>(
+    `/reservations/${id}/accept-ical-dates`,
+  );
+  return data;
+}
+
+export async function dismissIcalWarning(
+  id: string,
+): Promise<StaffReservation> {
+  const { data } = await api.post<StaffReservation>(
+    `/reservations/${id}/dismiss-ical-warning`,
+  );
+  return data;
+}

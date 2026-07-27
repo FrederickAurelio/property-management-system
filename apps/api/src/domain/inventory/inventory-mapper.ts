@@ -3,11 +3,16 @@ import type {
   BedConfigRoom,
   MediaItem,
   StaffProperty,
-  StaffUnit,
   StaffUnitType,
 } from '@cabin/api-contract';
 import { EMPTY_AMENITIES } from '@cabin/api-contract';
-import type { Property, Unit, UnitType } from '../../generated/prisma/index.js';
+import type { Property, UnitType } from '../../generated/prisma/index.js';
+export {
+  buildIcalExportUrl,
+  newIcalExportToken,
+  toStaffUnit,
+  type UnitWithIcalFeeds,
+} from './unit-ical.js';
 
 function decimalToNumber(value: { toNumber(): number } | null): number | null {
   if (value === null) {
@@ -131,22 +136,6 @@ export function toStaffUnitType(
     sortOrder: row.sortOrder,
     isActive: row.isActive,
     unitCount,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
-
-export function toStaffUnit(row: Unit): StaffUnit {
-  return {
-    id: row.id,
-    propertyId: row.propertyId,
-    unitTypeId: row.unitTypeId,
-    code: row.code,
-    name: row.name,
-    floor: row.floor,
-    status: row.status,
-    notes: row.notes,
-    sortOrder: row.sortOrder,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

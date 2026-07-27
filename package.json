@@ -22,7 +22,9 @@
     "prisma:generate": "pnpm --filter @cabin/api prisma:generate",
     "prisma:migrate": "pnpm --filter @cabin/api prisma:migrate",
     "prisma:seed": "pnpm --filter @cabin/api prisma:seed",
-    "prisma:studio": "pnpm --filter @cabin/api prisma:studio"
+    "prisma:studio": "pnpm --filter @cabin/api prisma:studio",
+    "ical:fixtures": "node scripts/ical-fixtures/serve.mjs",
+    "ical:fixture:set": "node scripts/ical-fixtures/set-scenario.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

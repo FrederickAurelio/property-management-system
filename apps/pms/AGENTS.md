@@ -16,8 +16,8 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - **Bookability UX:** Property “Open for ops” · Type “Offered for booking” · Unit status only (`ACTIVE` = bookable)
 - **Calendar** (`/calendar`): unit × days grid on Nest `GET /staff/properties/:id/calendar` + `/staff/calendar-blocks` CRUD; live property options + create reservation + detail
 - **Reports** (`/reports`): period summary (cash · occupancy · source mix · compare · CSV) via `GET /staff/reports/summary`; ADMIN/SUPER_ADMIN only
-- **Dashboard** (`/`): today arrivals/departures + needs attention via `GET /staff/dashboard`; Sync all → toast only; FRONT_DESK+
-- **Not yet:** iCal sync enqueue · Accept-iCal actions
+- **Dashboard** (`/`): today arrivals/departures + needs attention via `GET /staff/dashboard`; Sync all → `POST /ical/sync-all`; FRONT_DESK+
+- **iCal:** unit form export Copy + OTA import URLs; detail Accept/Dismiss for sync warnings; boards `ical-alerts` / Needs details
 - **Design:** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) · [`_docs/calendar-design.md`](../../_docs/calendar-design.md) · [`_docs/dashboard-design.md`](../../_docs/dashboard-design.md) · [`_docs/reports-design.md`](../../_docs/reports-design.md)
 
 ## Stack (locked)
@@ -38,7 +38,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Call sites: `api.get` / `api.post` / `api.patch` / `api.delete`. Interceptors handle envelope + errors.
 - Shared HTTP contract types: `@cabin/api-contract` (envelope, codes, `StaffAdmin`, `AdminRole`) — do not duplicate cross-app types here.
 - `withCredentials: true` (cookie `cabin.pms.sid`).
-- `baseURL: "/api"` + audience-free paths (`/auth/...`, `/reservations/...`) → browser `/api/...`. Dev: Vite rewrites `/api` → Nest `/staff` (`VITE_API_URL`, default `http://localhost:3000`). Prod nginx: same (`location /api/` → `http://api:3000/staff/`). Nest still uses `/staff/...`; the audience prefix is not on the wire. Do **not** proxy Nest `/public` or `/health` through PMS — Phase 2 `web` rewrites `/api` → `/public` on its own origin.
+- `baseURL: "/api"` + audience-free paths (`/auth/...`, `/reservations/...`) → browser `/api/...`. Dev: Vite rewrites `/api` → Nest `/staff` (`VITE_API_URL`, default `http://localhost:3000`). Prod nginx: same (`location /api/` → `http://api:3000/staff/`). Nest still uses `/staff/...`; the audience prefix is not on the wire. **Exception (Phase 1 iCal):** Vite/nginx also proxy `/public/ical/` → Nest `/public/ical/` so OTAs poll the **PMS origin** (`PUBLIC_PMS_BASE_URL`); Nest itself stays off the public host. Do not proxy `/health` through PMS.
 - Success `{ data, meta? }` → interceptor sets `response.data` to unwrapped `data` → `(await api.get<T>(…)).data`.
 - Errors `{ error: { code, message, details? } }` → throws `ApiError`. Also maps timeout / network / 502–504 to FE-only codes (`TIMEOUT`, `NETWORK_ERROR`, `SERVER_UNAVAILABLE`).
 - Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers) — paths `/auth/*`.
@@ -87,7 +87,7 @@ Add UI: from repo root → `pnpm dlx shadcn@latest add <component> -c apps/pms`
 4. Manual reservations (Choose unit · rack Total · money/DP · boards on `/reservations`) ← **done** (Nest)
 5. Check-in / check-out + Collect/Cancel ← **done** (detail + Arrivals/In-house/Departures boards; no `/check-in` route)
 6. Basic reports ← **done** (Nest summary + PMS `/reports`)
-7. iCal Sync now + `UNCONFIRMED` enrich queue ← board/warning UI only; Nest + feeds not yet
+7. iCal Sync now + `UNCONFIRMED` enrich queue ← **done** (feeds · Sync all · Accept/Dismiss)
 
 Optional: checklist “refresh OTA if urgent” (staff does it in the OTA UI — PMS does not remote-click).
 

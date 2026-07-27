@@ -17,7 +17,8 @@ scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 
 - Envelope types, error codes, `ApiError`
 - Staff wire types (`AdminRole`, `StaffAdmin`) + credential limits — `Staff*` = staff/PMS wire shapes, **not** the public website catalog
-- Inventory wire types (`StaffProperty`, `StaffPropertyOption`, `StaffUnitType`, `StaffUnit`, `StaffUnitAvailability`, `UnitMonthOccupancy`, enums, `MediaItem`, `Amenities`, `BedConfigRoom`) + `isUnitStatusBookable` / `UnitAvailabilityBlockReason`
+- Inventory wire types (`StaffProperty`, `StaffPropertyOption`, `StaffUnitType`, `StaffUnit`, `StaffUnitIcalFeed`, `StaffUnitAvailability`, `UnitMonthOccupancy`, enums, `MediaItem`, `Amenities`, `BedConfigRoom`) + `isUnitStatusBookable` / `UnitAvailabilityBlockReason`
+- iCal staff wire (`StaffIcalSyncAllResult`, `UnitIcalFeedSource`, feed inputs on unit write)
 - Reservation wire types (`StaffReservation` detail/mutations, `StaffReservationListItem` desk list, create/update/cancel/list filters, boards, `ReservationListSort`, `StayBillingPeriod`, `STAY_*_COUNT_MAX`) + helpers (`recomputePaymentStatus`, `balanceDueIdr`, `refundDueIdr`, `suggestStayTotalIdr`, `checkoutFromPeriodCount`, `periodCountFromRange`, `stayPeriodCountMax`, `isValidStayPeriodRange` — Nest must reuse; do not fork)
 - Calendar wire types (`StaffPropertyCalendar`, `StaffCalendarStay`, `StaffCalendarBlock`, `CalendarBlockKind`, create/update block inputs) — property aggregate for unit×days grid
 - Reports wire types (`StaffReportsSummary`, cash / occupancy / source mix) + period helpers (`previousEqualPeriod`, `ymdInclusiveToUtcHalfOpen`) — Nest `GET /staff/reports/summary`. Open balances stay on Reservations boards.

@@ -16,7 +16,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Property calendar:** `GET /staff/properties/:propertyId/calendar?from&to` — units + occupying stays + `CalendarBlock` bars; block CRUD `/staff/calendar-blocks` (`FRONT_DESK+`); blocks occupy for overlap (create stay / Choose unit / occupancy)
 - **Reports:** `GET /staff/reports/summary?propertyId&from&to&compare=` — cash (movements by property-TZ business date) · occupancy (clip nights, expand units) · source mix · equal-length compare (`ADMIN+`); wire `StaffReportsSummary`
 - **Dashboard:** `GET /staff/dashboard?propertyId&date?` — today arrivals/departures + needs attention (`FRONT_DESK+`); real board-predicate assemble (cap 8 + honest totals); wire `StaffDashboard`
-- **Not yet:** iCal export/import
+- **iCal:** `Unit.icalExportToken` + `UnitIcalFeed`; live `GET /public/ical/units/:unitId.ics?token=` (served via PMS origin proxy); Nest cron + `POST /staff/ical/sync-all`; Accept/Dismiss on reservation detail. Copy URL uses `PUBLIC_PMS_BASE_URL`.
 - **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `periodCount ×` matching rack (`billingPeriod` + `defaultPriceIdr` / `monthlyPriceIdr` / `yearlyPriceIdr`; `suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
 
 ## Stack (locked)
@@ -177,7 +177,7 @@ Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`)
 3. Reservations CRUD + money/DP + availability (overlap in DB) ← **done** (`/staff/reservations` + units availability)
 4. Check-in / check-out ← **done** (with `confirmEarly`)
 5. Basic reports ← **done** (`GET /staff/reports/summary`)
-6. iCal import + Sync now (`UNCONFIRMED` → enrich)
+6. iCal export + import + Sync all ← **done** (`/public/ical` · `/staff/ical/sync-all` · Accept/Dismiss)
 
 Reservation `source`: `manual` | `website` (enum now, public write in Phase 2) | `booking_com` | `airbnb` | `agoda`  
 Ops `status` ≠ money: `CONFIRMED` is not “paid”. Money: `totalAmountIdr` (quote) + append-only `PaymentMovement` cash lines; `paidAmountIdr` = sum(movements); `paymentStatus` (`UNPAID` | `DEPOSIT` | `PAID` | `REFUNDED`). Nest must append movements — do not overwrite Paid alone. Cancel partial takes `refundAmountIdr` (money OUT), not remaining Paid. Stamp session `createdByAdminId` / `updatedByAdminId` on reservation + movement create (not a full audit log).  

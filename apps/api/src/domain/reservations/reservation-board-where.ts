@@ -20,6 +20,7 @@ export const reservationListSelect = {
   paidAmountIdr: true,
   paymentStatus: true,
   icalSyncWarning: true,
+  icalOverlapHold: true,
   property: { select: { timezone: true } },
   unit: { select: { code: true } },
 } as const;

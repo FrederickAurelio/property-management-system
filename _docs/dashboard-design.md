@@ -111,7 +111,7 @@ One strip for exceptions that are **not** “expected in/out today” or that ne
 | **Open balance · checked out** | `status = CHECKED_OUT` and open balance                                                        | Same money rule after checkout                                                | Balance due      |
 | **Stranded CONFIRMED**         | `status = CONFIRMED` and `checkOutDate ≤ today`                                                | Never checked in; fell off Arrivals; still occupies calendar → Cancel / no-show | All (no board) |
 | **Needs details (soon)**       | `status = UNCONFIRMED` and `checkInDate ≤ today + 1 day` (today or tomorrow, property-local) | Stub about to arrive — enrich before they show                                | Needs details    |
-| **iCal alerts**                | `icalSyncWarning IS NOT NULL`                                                                  | Feed cancel / date drift — urgent if in-house                                 | iCal alerts      |
+| **iCal alerts**                | `icalSyncWarning IS NOT NULL`                                                                  | Feed cancel / date drift / OTA still listed after local cancel — urgent if in-house | iCal alerts      |
 
 In-house and post-checkout money rows get **identical** open-balance treatment (Due chip and/or Refund chip). Only status differs.
 

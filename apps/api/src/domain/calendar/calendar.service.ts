@@ -69,6 +69,7 @@ export class CalendarService {
         where: {
           propertyId,
           status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
+          icalOverlapHold: false,
           checkInDate: { lt: to },
           checkOutDate: { gt: from },
         },

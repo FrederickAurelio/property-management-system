@@ -54,6 +54,8 @@ export {
   checkOutReservation,
   confirmReservation,
   createReservation,
+  dismissIcalWarning,
+  acceptIcalDates,
   getReservation,
   syncReservationCaches,
   listReservations,
@@ -106,6 +108,7 @@ export {
   getUnitMonthOccupancy,
   listAvailableUnits,
   listUnits,
+  rotateUnitIcalToken,
   updateUnit,
   type ListUnitsParams,
   type UnitUpdateInput,
@@ -120,6 +123,7 @@ export {
   getStaffDashboard,
   type GetStaffDashboardParams,
 } from "./dashboard";
+export { syncAllIcalFeeds } from "./ical";
 export {
   cloudinaryDeliveryUrl,
   createUploadIntent,

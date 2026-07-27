@@ -1,21 +1,25 @@
 /* anchor: Linear issues home / Stripe desk, diverge: Today title; bordered Arrivals|Departures + Needs; no KPI strip */
 import { useCallback, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getStaffDashboard,
+  handleError,
   handleSuccess,
   listPropertyOptions,
   staffDashboardQueryKey,
+  staffDashboardQueryKeyPrefix,
   staffPropertiesOptionsQueryKey,
+  staffReservationsListQueryKeyPrefix,
+  syncAllIcalFeeds,
 } from "@/lib/api";
 import { DashboardNeedsSection } from "./dashboard-needs-section";
 import { DashboardStayList } from "./dashboard-row";
 import { DashboardPanel } from "./dashboard-section";
 import { reservationsBoardHref } from "./dashboard-format";
 import { DashboardToolbar } from "./dashboard-toolbar";
+import { useSearchParams } from "react-router";
 
 const LAST_PROPERTY_KEY = "cabin.pms.dashboard.propertyId";
 
@@ -53,6 +57,8 @@ export function DashboardPage() {
     [setSearchParams],
   );
 
+  const queryClient = useQueryClient();
+
   const optionsQuery = useQuery({
     queryKey: staffPropertiesOptionsQueryKey(),
     queryFn: listPropertyOptions,
@@ -85,11 +91,37 @@ export function DashboardPage() {
     enabled: Boolean(propertyId),
   });
 
+  const syncMutation = useMutation({
+    mutationFn: syncAllIcalFeeds,
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({
+        queryKey: staffReservationsListQueryKeyPrefix,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: staffDashboardQueryKeyPrefix,
+      });
+      if (result.feedsAttempted === 0) {
+        handleSuccess("No active iCal feeds to sync");
+        return;
+      }
+      if (result.feedsFailed > 0) {
+        handleSuccess(
+          `Synced ${result.feedsOk}/${result.feedsAttempted} feeds (${result.feedsFailed} failed)`,
+        );
+        return;
+      }
+      handleSuccess(`Synced ${result.feedsOk} iCal feed(s)`);
+    },
+    onError: (error) => {
+      handleError(error);
+    },
+  });
+
   const noProperties =
     optionsQuery.isSuccess && optionsQuery.data.length === 0;
 
   const onSyncAll = () => {
-    handleSuccess("iCal sync queued");
+    syncMutation.mutate();
   };
 
   return (
@@ -99,6 +131,8 @@ export function DashboardPage() {
         properties={optionsQuery.data ?? []}
         propertiesLoading={optionsQuery.isPending}
         date={dashboardQuery.data?.date ?? null}
+        syncPending={syncMutation.isPending}
+        icalFeedHealth={dashboardQuery.data?.icalFeedHealth ?? null}
         onPropertyChange={setPropertyId}
         onSyncAll={onSyncAll}
       />

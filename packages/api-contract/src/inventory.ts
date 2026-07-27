@@ -194,6 +194,40 @@ export type StaffUnitType = {
   updatedAt: string;
 };
 
+/** OTA sources that can own a `UnitIcalFeed` import URL. */
+export const UnitIcalFeedSource = {
+  BOOKING_COM: 'BOOKING_COM',
+  AIRBNB: 'AIRBNB',
+  AGODA: 'AGODA',
+} as const;
+
+export type UnitIcalFeedSource =
+  (typeof UnitIcalFeedSource)[keyof typeof UnitIcalFeedSource];
+
+export const UNIT_ICAL_FEED_SOURCES = [
+  UnitIcalFeedSource.BOOKING_COM,
+  UnitIcalFeedSource.AIRBNB,
+  UnitIcalFeedSource.AGODA,
+] as const;
+
+export const UNIT_ICAL_IMPORT_URL_MAX = 2048;
+
+/** Staff wire: one OTA import feed on a unit. */
+export type StaffUnitIcalFeed = {
+  source: UnitIcalFeedSource;
+  importUrl: string;
+  isActive: boolean;
+  lastPulledAt: string | null;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+};
+
+/** Create/update body: empty `importUrl` disconnects that source. */
+export type StaffUnitIcalFeedInput = {
+  source: UnitIcalFeedSource;
+  importUrl: string;
+};
+
 export type StaffUnit = {
   id: string;
   propertyId: string;
@@ -204,8 +238,18 @@ export type StaffUnit = {
   status: UnitStatus;
   notes: string | null;
   sortOrder: number;
+  /** Absolute public .ics URL for OTA import (token embedded). */
+  icalExportUrl: string;
+  icalFeeds: StaffUnitIcalFeed[];
   createdAt: string;
   updatedAt: string;
+};
+
+/** Dashboard Sync all result. */
+export type StaffIcalSyncAllResult = {
+  feedsAttempted: number;
+  feedsOk: number;
+  feedsFailed: number;
 };
 
 /**

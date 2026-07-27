@@ -1,0 +1,291 @@
+{
+  "uids": {
+    "cabin-demo-001": "Maria Santos — happy path / dates differ / UNCONFIRMED date shift",
+    "cabin-demo-002": "James Chen — overlap (Airbnb)",
+    "cabin-demo-003": "Ayu Wijaya — missing from feed",
+    "cabin-demo-004": "Lee Min-ho — OTA still listed",
+    "cabin-demo-005": "Batch Guest One",
+    "cabin-demo-006": "Batch Guest Two",
+    "cabin-demo-007": "Batch Guest Three",
+    "cabin-demo-booking-mesh": "Priya Sharma — Booking.com mesh overlap",
+    "cabin-demo-airbnb-mesh": "Second Airbnb UID — same nights mesh",
+    "cabin-demo-agoda-mesh": "Ravi Kumar — Agoda mesh overlap",
+    "cabin-demo-moved": "Moved listing — sibling unit feed",
+    "cabin-demo-timed": "Timed check-in (Asia/Jakarta DATE-TIME)",
+    "cabin-demo-opaque": "Opaque SUMMARY: Reserved",
+    "cabin-demo-turn-out": "Turnaround — morning checkout",
+    "cabin-demo-turn-in": "Turnaround — evening check-in",
+    "cabin-demo-block-overlap": "OTA vs calendar block overlap"
+  },
+  "scenarios": [
+    {
+      "id": "01-happy-path",
+      "title": "New OTA booking",
+      "unitA": "01-happy-path.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "UNCONFIRMED cabin-demo-001 on Needs details; no warning",
+      "covers": ["import-happy", "design-18-partial"]
+    },
+    {
+      "id": "02-skipped-events",
+      "title": "Cancelled + block-like SUMMARY filtered",
+      "unitA": "02-skipped-events.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "Only cabin-demo-001 imported; CANCELLED + CLOSED ignored",
+      "covers": ["skip-cancelled", "skip-block-summary"]
+    },
+    {
+      "id": "only-skipped",
+      "title": "All events filtered → 0 bookable (same as empty)",
+      "unitA": "only-skipped-events.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "lastError 0 events; no MISSING storm; prior rows unchanged",
+      "covers": ["empty-after-filter", "design-23"]
+    },
+    {
+      "id": "03-overlap-candidate",
+      "title": "Walk-in + OTA same nights",
+      "unitA": "03-overlap-candidate.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "After manual CONFIRMED Aug 20–23 → IMPORT_OVERLAP on cabin-demo-002",
+      "covers": ["import-overlap-walkin", "design-2-partial"]
+    },
+    {
+      "id": "09-ota-mesh-booking-com",
+      "title": "Airbnb booked + Booking.com same nights",
+      "unitA": "03-prep-airbnb-only-demo-002.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "09-booking-com-mesh-overlap.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "IMPORT_OVERLAP stub cabin-demo-booking-mesh (Booking.com)",
+      "covers": ["import-overlap-ota-mesh", "design-3"]
+    },
+    {
+      "id": "09-airbnb-mesh-second-uid",
+      "title": "Airbnb confirmed + second Airbnb UID same nights",
+      "unitA": "09-airbnb-mesh-second-uid.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "IMPORT_OVERLAP on cabin-demo-airbnb-mesh",
+      "covers": ["import-overlap-same-source-two-uids"]
+    },
+    {
+      "id": "14-agoda-mesh",
+      "title": "Airbnb booked + Agoda same nights",
+      "unitA": "03-prep-airbnb-only-demo-002.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "14-agoda-mesh-overlap.ics",
+      "expects": "IMPORT_OVERLAP stub cabin-demo-agoda-mesh (Agoda)",
+      "covers": ["import-overlap-agoda", "design-3"]
+    },
+    {
+      "id": "13-block-overlap",
+      "title": "OTA vs calendar block overlap",
+      "unitA": "13-block-overlap.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "After staff block Aug 25–28 → IMPORT_OVERLAP on cabin-demo-block-overlap",
+      "covers": ["import-overlap-block"]
+    },
+    {
+      "id": "10-unconfirmed-dates-shift",
+      "title": "UNCONFIRMED dates auto-update (no DATES_DIFFER)",
+      "unitA": "10-unconfirmed-dates-shift.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "After 01 import (do not Confirm): dates shift Aug 16–19; no warning",
+      "covers": ["unconfirmed-date-auto-apply"]
+    },
+    {
+      "id": "04-dates-changed",
+      "title": "CONFIRMED + OTA date change",
+      "unitA": "04-dates-changed.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "DATES_DIFFER on confirmed cabin-demo-001; Accept / Keep",
+      "covers": ["dates-differ", "design-16"]
+    },
+    {
+      "id": "04-dates-match-again",
+      "title": "DATES_DIFFER clears when OTA matches again",
+      "unitA": "04-dates-match-again.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "After DATES_DIFFER: warning clears on sync when dates match PMS",
+      "covers": ["dates-differ-clear"]
+    },
+    {
+      "id": "05-missing-trigger",
+      "title": "UID gone from all property feeds",
+      "unitA": "05-missing-trigger.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "MISSING_FROM_FEED on confirmed cabin-demo-003",
+      "covers": ["missing-confirmed", "design-15"]
+    },
+    {
+      "id": "06-still-listed",
+      "title": "UID after cancel (OTA_STILL_LISTED)",
+      "unitA": "06-still-listed.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "Cancelled cabin-demo-004 not revived; OTA_STILL_LISTED; sticky Dismiss",
+      "covers": ["ota-still-listed-cancel", "design-17"]
+    },
+    {
+      "id": "07-sibling-feed",
+      "title": "UID on sibling unit feed (no false MISSING)",
+      "unitA": "07a-unit-a-no-moved.ics",
+      "unitB": "07b-unit-b-has-moved.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "cabin-demo-moved on unit A: no MISSING while UID on unit B feed",
+      "covers": ["missing-sibling-feed", "design-10"]
+    },
+    {
+      "id": "08-timed-jakarta",
+      "title": "DATE-TIME in property timezone",
+      "unitA": "08-timed-jakarta.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "cabin-demo-timed → check-in 2026-08-28, check-out 2026-08-31",
+      "covers": ["timezone-datetime"]
+    },
+    {
+      "id": "11-opaque-summary",
+      "title": "Opaque OTA SUMMARY (Reserved)",
+      "unitA": "11-opaque-summary.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "UNCONFIRMED guestName Reserved (iCal); Confirm still needs real contact",
+      "covers": ["opaque-summary", "design-18"]
+    },
+    {
+      "id": "12-turnaround",
+      "title": "Same-day turnaround (back-to-back)",
+      "unitA": "12-turnaround.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "Two UNCONFIRMED stubs; checkout Aug 15 + check-in Aug 15 both OK",
+      "covers": ["same-day-turnaround", "design-19"]
+    },
+    {
+      "id": "15-batch-import",
+      "title": "Multiple new UIDs in one sync",
+      "unitA": "15-batch-import.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "Three UNCONFIRMED stubs (cabin-demo-005/006/007) in one pull",
+      "covers": ["batch-import"]
+    },
+    {
+      "id": "empty",
+      "title": "Empty VCALENDAR body",
+      "unitA": "empty.ics",
+      "unitB": "decoy-only.ics",
+      "bookingCom": "decoy-only.ics",
+      "agoda": "decoy-only.ics",
+      "expects": "lastError; no MISSING storm",
+      "covers": ["empty-feed", "design-23"]
+    }
+  ],
+  "fixedUrls": {
+    "http404": "http://localhost:8765/errors/http-404.ics",
+    "http500": "http://localhost:8765/errors/http-500.ics"
+  },
+  "prepOnly": [
+    {
+      "id": "03-prep-airbnb-only-demo-002",
+      "title": "Airbnb only James Chen — before mesh scenarios"
+    },
+    {
+      "id": "05-prep-with-demo-003",
+      "title": "Import Ayu before MISSING demo"
+    },
+    {
+      "id": "07-prep-moved-on-unit-a",
+      "title": "Import moved UID on unit A before sibling demo"
+    }
+  ],
+  "manualOnly": [
+    {
+      "id": "manual-stub-vs-walkin-409",
+      "title": "iCal stub exists; staff creates manual same dates",
+      "steps": "Import 01 → do not Confirm → try manual create same nights → 409 CONFLICT",
+      "covers": ["design-2"]
+    },
+    {
+      "id": "manual-missing-checked-in",
+      "title": "MISSING while CHECKED_IN",
+      "steps": "05-prep → Confirm → Check-in → 05-missing-trigger → sync",
+      "covers": ["missing-checked-in", "design-15-urgent"]
+    },
+    {
+      "id": "manual-still-listed-checkout",
+      "title": "OTA_STILL_LISTED after check-out",
+      "steps": "06-still-listed → Confirm → Check-out → sync same scenario",
+      "covers": ["ota-still-listed-checkout", "design-17"]
+    },
+    {
+      "id": "manual-export-busy",
+      "title": "PMS export → OTA poll",
+      "steps": "Confirm stay → Copy unit export URL → open in browser → VEVENT busy ranges",
+      "covers": ["export-busy", "design-4-delay"]
+    },
+    {
+      "id": "manual-export-hold-excluded",
+      "title": "Overlap hold not in export",
+      "steps": "IMPORT_OVERLAP stub exists → export URL → hold nights absent",
+      "covers": ["export-excludes-hold"]
+    },
+    {
+      "id": "manual-rotate-token",
+      "title": "Leaked export token",
+      "steps": "Unit form → Rotate token → old URL 404",
+      "covers": ["design-24"]
+    },
+    {
+      "id": "manual-unit-move",
+      "title": "PATCH unitId after OTA relist",
+      "steps": "Reservation on B-0801 → staff moves to B-0802 if free",
+      "covers": ["design-10-move"]
+    }
+  ],
+  "inherentLimits": [
+    {
+      "id": "mesh-delay",
+      "title": "OTA poll lag / double-sell window",
+      "note": "iCal cannot guarantee zero conflict; IMPORT_OVERLAP mitigates"
+    },
+    {
+      "id": "no-price-sync",
+      "title": "iCal does not sync prices",
+      "note": "Money always staff-entered"
+    },
+    {
+      "id": "no-remote-ota-actions",
+      "title": "PMS cannot cancel on OTA",
+      "note": "Staff fixes OTA extranet manually"
+    }
+  ]
+}

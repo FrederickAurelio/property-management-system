@@ -32,6 +32,18 @@ export type StaffDashboardSection<T> = {
 };
 
 /** Staff desk home triage for one property (today + exceptions). */
+export type StaffDashboardIcalFeedHealthItem = {
+  unitCode: string;
+  source: string;
+  lastError: string;
+};
+
+export type StaffDashboardIcalFeedHealth = {
+  failingCount: number;
+  /** Up to 5 failing feeds for the property. */
+  feeds: StaffDashboardIcalFeedHealthItem[];
+};
+
 export type StaffDashboard = {
   propertyId: string;
   /** Property-local calendar date (YYYY-MM-DD). */
@@ -40,4 +52,5 @@ export type StaffDashboard = {
   arrivals: StaffDashboardSection<StaffReservationListItem>;
   departures: StaffDashboardSection<StaffReservationListItem>;
   needsAttention: StaffDashboardSection<StaffDashboardListItem>;
+  icalFeedHealth: StaffDashboardIcalFeedHealth;
 };

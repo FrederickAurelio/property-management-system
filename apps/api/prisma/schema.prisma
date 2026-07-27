@@ -72,6 +72,8 @@ enum PaymentMovementKind {
 enum IcalSyncWarning {
   MISSING_FROM_FEED
   DATES_DIFFER
+  OTA_STILL_LISTED
+  IMPORT_OVERLAP
 }
 
 enum CalendarBlockKind {
@@ -174,27 +176,49 @@ model UnitType {
 }
 
 model Unit {
-  id         String     @id @default(cuid())
-  propertyId String
-  unitTypeId String
-  code       String     @db.VarChar(32)
-  name       String?    @db.VarChar(128)
-  floor      String?    @db.VarChar(16)
-  status     UnitStatus @default(ACTIVE)
-  notes      String?    @db.Text
-  sortOrder  Int        @default(0)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id              String     @id @default(cuid())
+  propertyId      String
+  unitTypeId      String
+  code            String     @db.VarChar(32)
+  name            String?    @db.VarChar(128)
+  floor           String?    @db.VarChar(16)
+  status          UnitStatus @default(ACTIVE)
+  notes           String?    @db.Text
+  sortOrder       Int        @default(0)
+  /// Secret token for public PMS → OTA .ics export URL
+  icalExportToken String     @unique @db.VarChar(64)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  property       Property       @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  unitType       UnitType       @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
+  property       Property        @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unitType       UnitType        @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
   reservations   Reservation[]
   calendarBlocks CalendarBlock[]
+  icalFeeds      UnitIcalFeed[]
 
   @@unique([propertyId, code])
   @@index([propertyId, status])
   @@index([unitTypeId])
   @@index([propertyId, unitTypeId])
+}
+
+/// OTA calendar import URL pasted by staff (one per source per unit).
+model UnitIcalFeed {
+  id            String            @id @default(cuid())
+  unitId        String
+  source        ReservationSource
+  importUrl     String            @db.VarChar(2048)
+  isActive      Boolean           @default(true)
+  lastPulledAt  DateTime?
+  lastSuccessAt DateTime?
+  lastError     String?           @db.Text
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([unitId, source])
+  @@index([isActive, lastPulledAt])
 }
 
 model Reservation {
@@ -219,6 +243,10 @@ model Reservation {
   externalRef       String?            @db.VarChar(256)
   icalSyncWarning   IcalSyncWarning?
   icalSyncWarnedAt  DateTime?
+  /// Sticky ack for OTA_STILL_LISTED — dismiss sets this; sync will not re-warn until UID leaves the feed.
+  icalOtaStillListedDismissedAt DateTime?
+  /// True = UNCONFIRMED import stub that overlaps another stay/block; excluded from calendar busy + gist.
+  icalOverlapHold   Boolean            @default(false)
   confirmedAt       DateTime?
   checkedInAt       DateTime?
   checkedOutAt      DateTime?

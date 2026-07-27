@@ -33,6 +33,7 @@ describe('DashboardService', () => {
       paidAmountIdr: overrides.paidAmountIdr ?? 1_000_000,
       paymentStatus: overrides.paymentStatus ?? PaymentStatus.PAID,
       icalSyncWarning: null,
+      icalOverlapHold: false,
       property: { timezone: 'Asia/Jakarta' },
       unit: { code: 'A-01' },
     };
@@ -73,6 +74,16 @@ describe('DashboardService', () => {
         }),
       },
       $queryRaw: jest.fn().mockResolvedValue([]),
+      unitIcalFeed: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            lastError: 'HTTP 500',
+            source: 'BOOKING_COM',
+            unit: { code: 'A-01' },
+          },
+        ]),
+        count: jest.fn().mockResolvedValue(1),
+      },
       reservation: {
         findMany: jest
           .fn()
@@ -104,6 +115,12 @@ describe('DashboardService', () => {
     expect(result.needsAttention.items[0]?.attentionKinds).toContain(
       'STRANDED_CONFIRMED',
     );
+    expect(result.icalFeedHealth.failingCount).toBe(1);
+    expect(result.icalFeedHealth.feeds[0]).toEqual({
+      unitCode: 'A-01',
+      source: 'BOOKING_COM',
+      lastError: 'HTTP 500',
+    });
     expect(prisma.reservation.findMany).toHaveBeenCalledTimes(3);
   });
 

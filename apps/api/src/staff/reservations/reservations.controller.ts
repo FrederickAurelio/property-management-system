@@ -104,4 +104,20 @@ export class ReservationsController {
   ): Promise<StaffReservation> {
     return this.reservationsService.postMovement(id, dto, admin);
   }
+
+  @Post(':id/accept-ical-dates')
+  acceptIcalDates(
+    @Param('id') id: string,
+    @CurrentAdmin() admin: StaffAdmin,
+  ): Promise<StaffReservation> {
+    return this.reservationsService.acceptIcalDates(id, admin);
+  }
+
+  @Post(':id/dismiss-ical-warning')
+  dismissIcalWarning(
+    @Param('id') id: string,
+    @CurrentAdmin() admin: StaffAdmin,
+  ): Promise<StaffReservation> {
+    return this.reservationsService.dismissIcalWarning(id, admin);
+  }
 }

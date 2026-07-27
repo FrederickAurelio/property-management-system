@@ -57,7 +57,13 @@ export class DashboardService {
 
     // Same pattern as desk boards: where in Prisma, full matching set for this
     // property window (no artificial take). Cap/sort to 8 happens in assemble.
-    const [arrivalsRows, departuresRows, needsRows] = await Promise.all([
+    const [
+      arrivalsRows,
+      departuresRows,
+      needsRows,
+      failingFeeds,
+      failingCount,
+    ] = await Promise.all([
       this.prisma.reservation.findMany({
         where: arrivalsW,
         select: reservationListSelect,
@@ -69,6 +75,27 @@ export class DashboardService {
       this.prisma.reservation.findMany({
         where: needsW,
         select: reservationListSelect,
+      }),
+      this.prisma.unitIcalFeed.findMany({
+        where: {
+          isActive: true,
+          lastError: { not: null },
+          unit: { propertyId: property.id },
+        },
+        select: {
+          source: true,
+          lastError: true,
+          unit: { select: { code: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+      }),
+      this.prisma.unitIcalFeed.count({
+        where: {
+          isActive: true,
+          lastError: { not: null },
+          unit: { propertyId: property.id },
+        },
       }),
     ]);
 
@@ -95,6 +122,14 @@ export class DashboardService {
         { today: date, tomorrow },
         needsItems.length,
       ),
+      icalFeedHealth: {
+        failingCount,
+        feeds: failingFeeds.map((f) => ({
+          unitCode: f.unit.code,
+          source: f.source,
+          lastError: f.lastError ?? '',
+        })),
+      },
     };
   }
 }

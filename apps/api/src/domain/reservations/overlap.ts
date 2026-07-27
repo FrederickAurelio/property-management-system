@@ -45,6 +45,7 @@ export async function findStayOverlap(
     where: {
       unitId: input.unitId,
       status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
+      icalOverlapHold: false,
       checkInDate: { lt: checkOut },
       checkOutDate: { gt: checkIn },
       ...(input.excludeReservationId
@@ -152,6 +153,7 @@ export async function findBusyUnitIds(
       where: {
         propertyId: input.propertyId,
         status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
+        icalOverlapHold: false,
         checkInDate: { lt: checkOut },
         checkOutDate: { gt: checkIn },
         ...unitFilter,

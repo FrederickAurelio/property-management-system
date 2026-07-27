@@ -9,13 +9,22 @@ import {
   buildPageInfo,
   type Paginated,
   type StaffUnit,
+  type StaffUnitIcalFeedInput,
+  UNIT_ICAL_FEED_SOURCES,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
-import { toStaffUnit } from '../inventory/inventory-mapper.js';
-import { PrismaService } from '../../prisma/prisma.service';
+import {
+  newIcalExportToken,
+  toStaffUnit,
+} from '../inventory/inventory-mapper.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CreateUnitDto } from './dto/create-unit.dto.js';
 import type { ListUnitsQueryDto } from './dto/list-units.query.dto.js';
 import type { UpdateUnitDto } from './dto/update-unit.dto.js';
+
+const unitWithFeeds = {
+  icalFeeds: { orderBy: { source: 'asc' as const } },
+} satisfies Prisma.UnitInclude;
 
 @Injectable()
 export class UnitsService {
@@ -47,6 +56,7 @@ export class UnitsService {
       this.prisma.unit.count({ where }),
       this.prisma.unit.findMany({
         where,
+        include: unitWithFeeds,
         orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
@@ -60,7 +70,10 @@ export class UnitsService {
   }
 
   async getById(id: string): Promise<StaffUnit> {
-    const row = await this.prisma.unit.findUnique({ where: { id } });
+    const row = await this.prisma.unit.findUnique({
+      where: { id },
+      include: unitWithFeeds,
+    });
     if (!row) {
       throw new NotFoundException('Unit not found');
     }
@@ -85,6 +98,7 @@ export class UnitsService {
 
     const code = dto.code.trim().toUpperCase();
     const sortOrder = await this.nextSortOrder(propertyId, dto.unitTypeId);
+    const feedCreates = this.feedCreatesFromInput(dto.icalFeeds);
 
     try {
       const created = await this.prisma.unit.create({
@@ -97,7 +111,12 @@ export class UnitsService {
           status: dto.status,
           notes: dto.notes?.trim() || null,
           sortOrder,
+          icalExportToken: newIcalExportToken(),
+          ...(feedCreates.length > 0
+            ? { icalFeeds: { create: feedCreates } }
+            : {}),
         },
+        include: unitWithFeeds,
       });
       return toStaffUnit(created);
     } catch (error: unknown) {
@@ -116,25 +135,48 @@ export class UnitsService {
       dto.code !== undefined ? dto.code.trim().toUpperCase() : existing.code;
 
     try {
-      const updated = await this.prisma.unit.update({
-        where: { id },
-        data: {
-          code,
-          ...(dto.name !== undefined ? { name: dto.name?.trim() || null } : {}),
-          ...(dto.floor !== undefined
-            ? { floor: dto.floor?.trim() || null }
-            : {}),
-          ...(dto.status !== undefined ? { status: dto.status } : {}),
-          ...(dto.notes !== undefined
-            ? { notes: dto.notes?.trim() || null }
-            : {}),
-        },
+      const updated = await this.prisma.$transaction(async (tx) => {
+        if (dto.icalFeeds !== undefined) {
+          await this.syncFeeds(tx, id, dto.icalFeeds);
+        }
+
+        return tx.unit.update({
+          where: { id },
+          data: {
+            code,
+            ...(dto.name !== undefined
+              ? { name: dto.name?.trim() || null }
+              : {}),
+            ...(dto.floor !== undefined
+              ? { floor: dto.floor?.trim() || null }
+              : {}),
+            ...(dto.status !== undefined ? { status: dto.status } : {}),
+            ...(dto.notes !== undefined
+              ? { notes: dto.notes?.trim() || null }
+              : {}),
+          },
+          include: unitWithFeeds,
+        });
       });
       return toStaffUnit(updated);
     } catch (error: unknown) {
       this.rethrowCodeConflict(error);
       throw error;
     }
+  }
+
+  async rotateIcalToken(id: string): Promise<StaffUnit> {
+    const existing = await this.prisma.unit.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Unit not found');
+    }
+
+    const updated = await this.prisma.unit.update({
+      where: { id },
+      data: { icalExportToken: newIcalExportToken() },
+      include: unitWithFeeds,
+    });
+    return toStaffUnit(updated);
   }
 
   async delete(id: string): Promise<{ ok: true }> {
@@ -173,6 +215,89 @@ export class UnitsService {
     }
 
     return { ok: true };
+  }
+
+  private feedCreatesFromInput(
+    feeds: StaffUnitIcalFeedInput[] | undefined,
+  ): { source: (typeof UNIT_ICAL_FEED_SOURCES)[number]; importUrl: string }[] {
+    if (!feeds?.length) {
+      return [];
+    }
+    const seen = new Set<string>();
+    const out: {
+      source: (typeof UNIT_ICAL_FEED_SOURCES)[number];
+      importUrl: string;
+    }[] = [];
+    for (const feed of feeds) {
+      if (seen.has(feed.source)) {
+        throw new BadRequestException(
+          `Duplicate iCal feed source ${feed.source}`,
+        );
+      }
+      seen.add(feed.source);
+      const url = feed.importUrl.trim();
+      if (!url) {
+        continue;
+      }
+      if (
+        !(UNIT_ICAL_FEED_SOURCES as readonly string[]).includes(feed.source)
+      ) {
+        throw new BadRequestException(
+          `Invalid iCal feed source ${feed.source}`,
+        );
+      }
+      out.push({
+        source: feed.source,
+        importUrl: url,
+      });
+    }
+    return out;
+  }
+
+  private async syncFeeds(
+    tx: Prisma.TransactionClient,
+    unitId: string,
+    feeds: StaffUnitIcalFeedInput[],
+  ): Promise<void> {
+    const creates = this.feedCreatesFromInput(feeds);
+    const keepSources = new Set(creates.map((c) => c.source));
+
+    await tx.unitIcalFeed.deleteMany({
+      where: {
+        unitId,
+        source: { notIn: [...keepSources] },
+      },
+    });
+
+    for (const feed of creates) {
+      await tx.unitIcalFeed.upsert({
+        where: {
+          unitId_source: { unitId, source: feed.source },
+        },
+        create: {
+          unitId,
+          source: feed.source,
+          importUrl: feed.importUrl,
+          isActive: true,
+        },
+        update: {
+          importUrl: feed.importUrl,
+          isActive: true,
+          lastError: null,
+        },
+      });
+    }
+
+    // Explicit empty URL for a source in input → already excluded from creates;
+    // also delete sources present in input with empty URL.
+    for (const feed of feeds) {
+      if (feed.importUrl.trim()) {
+        continue;
+      }
+      await tx.unitIcalFeed.deleteMany({
+        where: { unitId, source: feed.source },
+      });
+    }
   }
 
   private async assertPropertyExists(propertyId: string): Promise<void> {

@@ -22,7 +22,7 @@ export const ReservationStatus = {
 export type ReservationStatus =
   (typeof ReservationStatus)[keyof typeof ReservationStatus];
 
-/** Occupying statuses — block the unit calendar. */
+/** Occupying statuses — block the unit calendar (unless icalOverlapHold). */
 export const OCCUPYING_RESERVATION_STATUSES: readonly ReservationStatus[] = [
   ReservationStatus.UNCONFIRMED,
   ReservationStatus.CONFIRMED,
@@ -33,6 +33,14 @@ export function isOccupyingReservationStatus(
   status: ReservationStatus,
 ): boolean {
   return (OCCUPYING_RESERVATION_STATUSES as readonly string[]).includes(status);
+}
+
+/** True when the stay blocks calendar / export / overlap (status occupying and not an import hold). */
+export function isCalendarOccupying(row: {
+  status: ReservationStatus;
+  icalOverlapHold?: boolean;
+}): boolean {
+  return isOccupyingReservationStatus(row.status) && !row.icalOverlapHold;
 }
 
 /** Desk meaning: what the guest still owes at the property. */
@@ -123,6 +131,8 @@ export function sumPaidFromMovements(
 export const IcalSyncWarning = {
   MISSING_FROM_FEED: "MISSING_FROM_FEED",
   DATES_DIFFER: "DATES_DIFFER",
+  OTA_STILL_LISTED: "OTA_STILL_LISTED",
+  IMPORT_OVERLAP: "IMPORT_OVERLAP",
 } as const;
 
 export type IcalSyncWarning =
@@ -138,15 +148,20 @@ export const RESERVATION_EXTERNAL_REF_MAX = 256;
 
 /** Property-local calendar date as YYYY-MM-DD (desk boards / check-in window). */
 export function todayYmdInTimezone(timezone: string, now = new Date()): string {
+  return ymdInTimezone(now, timezone);
+}
+
+/** Instant → YYYY-MM-DD in an IANA timezone (iCal DATE-TIME import). */
+export function ymdInTimezone(date: Date, timezone: string): string {
   try {
     return new Intl.DateTimeFormat("en-CA", {
       timeZone: timezone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    }).format(now);
+    }).format(date);
   } catch {
-    return now.toISOString().slice(0, 10);
+    return date.toISOString().slice(0, 10);
   }
 }
 
@@ -639,6 +654,8 @@ export type StaffReservation = {
   externalRef: string | null;
   icalSyncWarning: IcalSyncWarning | null;
   icalSyncWarnedAt: string | null;
+  /** Import stub that overlaps another stay/block — not calendar-busy until Confirm. */
+  icalOverlapHold: boolean;
   confirmedAt: string | null;
   checkedInAt: string | null;
   checkedOutAt: string | null;
@@ -674,5 +691,6 @@ export type StaffReservationListItem = Pick<
   | "paidAmountIdr"
   | "paymentStatus"
   | "icalSyncWarning"
+  | "icalOverlapHold"
   | "propertyTimezone"
 >;

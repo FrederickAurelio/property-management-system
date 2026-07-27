@@ -5,6 +5,11 @@ import {
   UnitStatus,
 } from '../generated/prisma/index.js';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'node:crypto';
+
+function seedIcalToken(): string {
+  return randomBytes(24).toString('hex');
+}
 
 const prisma = new PrismaClient();
 
@@ -264,6 +269,7 @@ async function seedSkybreeze(): Promise<void> {
         floor: '8',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
+        icalExportToken: seedIcalToken(),
       },
       {
         propertyId: property.id,
@@ -272,6 +278,7 @@ async function seedSkybreeze(): Promise<void> {
         floor: '8',
         status: UnitStatus.ACTIVE,
         sortOrder: 2,
+        icalExportToken: seedIcalToken(),
       },
       {
         propertyId: property.id,
@@ -281,6 +288,7 @@ async function seedSkybreeze(): Promise<void> {
         status: UnitStatus.MAINTENANCE,
         notes: 'AC servicing',
         sortOrder: 3,
+        icalExportToken: seedIcalToken(),
       },
       {
         propertyId: property.id,
@@ -289,6 +297,7 @@ async function seedSkybreeze(): Promise<void> {
         floor: '12',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
+        icalExportToken: seedIcalToken(),
       },
       {
         propertyId: property.id,
@@ -297,6 +306,7 @@ async function seedSkybreeze(): Promise<void> {
         floor: '5',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
+        icalExportToken: seedIcalToken(),
       },
       {
         propertyId: property.id,
@@ -305,6 +315,7 @@ async function seedSkybreeze(): Promise<void> {
         floor: '7',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
+        icalExportToken: seedIcalToken(),
       },
       {
         propertyId: property.id,
@@ -313,6 +324,7 @@ async function seedSkybreeze(): Promise<void> {
         floor: '9',
         status: UnitStatus.ACTIVE,
         sortOrder: 1,
+        icalExportToken: seedIcalToken(),
       },
       {
         propertyId: property.id,
@@ -322,6 +334,7 @@ async function seedSkybreeze(): Promise<void> {
         status: UnitStatus.INACTIVE,
         notes: 'Offline for renovation',
         sortOrder: 2,
+        icalExportToken: seedIcalToken(),
       },
     ],
   });

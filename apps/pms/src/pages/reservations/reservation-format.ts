@@ -167,6 +167,10 @@ export function formatIcalWarning(warning: IcalSyncWarning): string {
       return "Missing from OTA feed";
     case IcalSyncWarning.DATES_DIFFER:
       return "OTA dates differ";
+    case IcalSyncWarning.OTA_STILL_LISTED:
+      return "OTA still lists this booking";
+    case IcalSyncWarning.IMPORT_OVERLAP:
+      return "OTA booking overlaps another stay";
   }
 }
 
