@@ -46,7 +46,7 @@ export type MediaItem = {
   mimeType: string;
 };
 
-/** Media upload bounds (staff → Cloudinary; Nest validates intent). */
+/** Media upload bounds (staff → active media provider; Nest validates intent). */
 export const MEDIA_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const MEDIA_VIDEO_MAX_BYTES = 30 * 1024 * 1024;
 export const MEDIA_IMAGE_MIME_TYPES = [
@@ -61,19 +61,50 @@ export const MEDIA_IMAGE_MAX_EDGE_PX = 1920;
 export type MediaImageMimeType = (typeof MEDIA_IMAGE_MIME_TYPES)[number];
 export type MediaVideoMimeType = (typeof MEDIA_VIDEO_MIME_TYPES)[number];
 
-/** Nest → PMS: signed Cloudinary browser upload (secret never leaves Nest). */
-export type MediaUploadIntent = {
-  id: string;
-  cloudName: string;
-  apiKey: string;
-  timestamp: number;
-  signature: string;
-  folder: string;
-  publicId: string;
-  resourceType: 'image' | 'video';
-  /** Included in signature when set — apply on Cloudinary upload. */
-  transformation?: string;
+/** Active media storage vendor — Nest selects via `MEDIA_PROVIDER`. */
+export const MediaProvider = {
+  CLOUDINARY: 'cloudinary',
+  CLOUDFLARE_R2: 'cloudflare_r2',
+} as const;
+
+export type MediaProvider = (typeof MediaProvider)[keyof typeof MediaProvider];
+
+/** Nest → PMS: which media vendor is active (decide FE optimize before upload-intent). */
+export type StaffMediaConfig = {
+  provider: MediaProvider;
 };
+
+/**
+ * Nest → PMS: provider-discriminated browser upload intent.
+ * Secrets never leave Nest; FE executes `upload` then persists `MediaItem` with a delivery URL.
+ */
+export type MediaUploadIntent =
+  | {
+      id: string;
+      provider: typeof MediaProvider.CLOUDINARY;
+      upload: {
+        url: string;
+        method: 'POST';
+        fields: Record<string, string>;
+      };
+      delivery: {
+        cloudName: string;
+        resourceType: 'image' | 'video';
+        publicId: string;
+      };
+    }
+  | {
+      id: string;
+      provider: typeof MediaProvider.CLOUDFLARE_R2;
+      upload: {
+        url: string;
+        method: 'PUT';
+        headers: Record<string, string>;
+      };
+      delivery: {
+        publicUrl: string;
+      };
+    };
 
 export type BedRow = {
   type: BedKind;

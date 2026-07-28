@@ -1,0 +1,25 @@
+---
+description: Nest external integrations — port/adapter pattern for paid vendors
+globs: apps/api/src/integrations/**/*,apps/api/src/staff/media/**
+alwaysApply: false
+---
+
+# API — integrations (external vendors)
+
+Paid / swappable third-party capabilities use a **capability port + vendor adapters + env registry**. Depth: [`_docs/integrations-pattern.md`](../../_docs/integrations-pattern.md). Media: [`_docs/media-upload-strategy.md`](../../_docs/media-upload-strategy.md).
+
+## Locked
+
+- Put ports + adapters under `apps/api/src/integrations/<capability>/`.
+- Staff/domain services **inject the port token** — never import vendor SDKs (`cloudinary`, `@aws-sdk/*`, payment SDKs, …) outside `adapters/`.
+- Register **one** adapter via env (e.g. `MEDIA_PROVIDER`). Missing vendor config → unavailable (503), not silent cross-vendor fallback.
+- Secrets only in **root `.env`**. Never `VITE_*` vendor secrets.
+- Wire shapes for FE live in `@cabin/api-contract` (provider-discriminated when FE must branch). Adapter **impls** stay in `apps/api` — not in `packages/`.
+- Prefer Nest-minted upload/payment intents + **direct browser → vendor** when proxying bytes/redirects would burn VPS bandwidth.
+
+## Don’t
+
+- Hard-wire a vendor SDK in a controller or staff service
+- Duplicate the same vendor client in PMS/web
+- Put Nest adapters in `packages/` for FE to import
+- Change inventory/reservation CRUD to accept raw file bytes for media

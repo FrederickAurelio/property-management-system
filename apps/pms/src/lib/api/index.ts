@@ -128,7 +128,9 @@ export { invalidateIcalSyncCaches, syncAllIcalFeeds } from "./ical";
 export {
   cloudinaryDeliveryUrl,
   createUploadIntent,
+  getMediaConfig,
   uploadMediaFile,
+  uploadToCloudflareR2,
   uploadToCloudinary,
   type CreateUploadIntentInput,
 } from "./media";

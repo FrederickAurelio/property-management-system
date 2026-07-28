@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
-import { StaffAuthModule } from '../auth/staff-auth.module';
-import { MediaController } from './media.controller';
-import { MediaService } from './media.service';
+import { MediaStorageModule } from '../../integrations/media/media-storage.module.js';
+import { StaffAuthModule } from '../auth/staff-auth.module.js';
+import { MediaController } from './media.controller.js';
+import { MediaService } from './media.service.js';
 
 @Module({
-  imports: [StaffAuthModule],
+  imports: [StaffAuthModule, MediaStorageModule],
   controllers: [MediaController],
   providers: [MediaService],
 })

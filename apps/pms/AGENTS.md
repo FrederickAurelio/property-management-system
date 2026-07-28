@@ -44,7 +44,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers) — paths `/auth/*`.
 - Staff admin helpers: `listAdmins` / `createAdmin` / `changeAdminRole` / `setAdminActive` (`/admins`, SUPER_ADMIN). Query key: `staffAdminsQueryKey`.
 - Inventory helpers: `listProperties` / `listPropertyOptions` / `listUnitTypes` / `listUnits` (+ create/update/delete + detail GETs) under `/properties|unit-types|units`. Wire types `StaffProperty` / `StaffPropertyOption` / `StaffUnitType` / `StaffUnit`; lists are `Paginated<T>` (options = unpaginated `{ id, name }[]`).
-- Media helpers: `createUploadIntent` / `uploadMediaFile` (`src/lib/api/media.ts`) — Nest signs Cloudinary upload; browser POSTs bytes to Cloudinary; never put `CLOUDINARY_API_SECRET` in Vite.
+- Media helpers: `getMediaConfig` / `createUploadIntent` / `uploadMediaFile` (`src/lib/api/media.ts`) — Nest mints provider-shaped intent; R2 images FE-optimized (`browser-image-compression`) before intent; Cloudinary uploads original (provider optimizes); never put vendor secrets in Vite.
 - SPA routes like `/properties` are UI-only — never invent unprefixed Nest paths.
 - 401 hook: `setUnauthorizedHandler` (wired to `/login` via `UnauthorizedRedirect`). Session probe on login uses `{ skipUnauthorizedRedirect: true }`.
 - Toasts: `handleSuccess` / `handleError` from screens/mutations — **not** inside the interceptor.
@@ -68,6 +68,8 @@ Locked BE→FE wiring (keys, `useQuery` / `useInfiniteQuery` / `useMutation`, ca
 ## Forms
 
 Use shadcn’s RHF pattern: `useForm` + `zodResolver` + `Controller` + `<Field />` (not the legacy `<Form>` wrapper). See [shadcn React Hook Form](https://ui.shadcn.com/docs/forms/react-hook-form). Zod bounds from `@cabin/api-contract`. Field names must match Nest DTO / `details.field`.
+
+**Resetting forms / dialog state:** prefer remount via `key` (create vs edit id) and clear in `onOpenChange` / Cancel — not `useEffect` that `form.reset` when `open` or entity props change. Effects rules: [`.cursor/rules/pms-ui.mdc`](../../.cursor/rules/pms-ui.mdc) · [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect).
 
 ## Run
 
@@ -120,5 +122,6 @@ Anchor DNA: **Linear-dense / Stripe-data**. No purple gradients, glowing status 
 - Invent local booking truth that bypasses the API
 - Put tokens in `localStorage` (session cookie only)
 - Use `npm i` inside this folder (pnpm from repo root only)
+- `useEffect` to reset RHF / local state from `open` or entity props — use `key` remount + event handlers (`pms-ui`)
 
 Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md` · Reservations: `_docs/reservations-design.md`

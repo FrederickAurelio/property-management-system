@@ -40,6 +40,8 @@ One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (nev
 
 **Shared packages:** if two apps need the same types/constants/pure helpers, put them in `packages/` and depend with `workspace:*` — do not copy between apps. New package or new app dep → also update Dockerfile `COPY packages/...` layers (local `pnpm` alone won’t catch it). How-to: [`packages/README.md`](packages/README.md) · tooling: [`.cursor/rules/monorepo-tooling.mdc`](.cursor/rules/monorepo-tooling.mdc).
 
+**External paid services** (media CDN, future payment gateway, email, …): Nest **capability port + vendor adapters** under `apps/api/src/integrations/` — see [`_docs/integrations-pattern.md`](_docs/integrations-pattern.md). Do not hard-wire vendor SDKs into controllers.
+
 **IDE:** open [`cabin.code-workspace`](cabin.code-workspace). If IDE shows `no-unsafe-*` but `pnpm --filter @cabin/api lint` is clean → fix workspace, **do not change code** ([`.cursor/rules/monorepo-eslint-types.mdc`](.cursor/rules/monorepo-eslint-types.mdc)).
 
 ## Locked stack (Phase 1)
@@ -107,6 +109,7 @@ Money quote (locked): stay Total suggests `periodCount ×` matching rack (`billi
 | Dashboard (desk today) | [`_docs/dashboard-design.md`](_docs/dashboard-design.md) |
 | Reports (owner period) | [`_docs/reports-design.md`](_docs/reports-design.md) |
 | Shared libs | `packages/README.md` + that package’s `AGENTS.md` |
+| External vendors (media, payments, …) | [`_docs/integrations-pattern.md`](_docs/integrations-pattern.md) · media: [`_docs/media-upload-strategy.md`](_docs/media-upload-strategy.md) |
 | Backend | `apps/api/AGENTS.md` (audience: `staff` / `domain` / `public`) |
 | Staff UI | `apps/pms/AGENTS.md` |
 | Public site | `apps/web/AGENTS.md` + `apps/web/PRODUCT.md` (Impeccable) |

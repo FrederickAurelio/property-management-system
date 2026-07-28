@@ -1,9 +1,12 @@
 import {
   MEDIA_IMAGE_MAX_EDGE_PX,
   MediaKind,
+  MediaProvider,
   type MediaItem,
   type MediaUploadIntent,
+  type StaffMediaConfig,
 } from "@cabin/api-contract";
+import { optimizeImageForUpload } from "@/lib/media/optimize-image";
 import { api } from "./client";
 
 export type CreateUploadIntentInput = {
@@ -21,6 +24,11 @@ type CloudinaryUploadResponse = {
   bytes?: number;
 };
 
+export async function getMediaConfig(): Promise<StaffMediaConfig> {
+  const { data } = await api.get<StaffMediaConfig>("/media/config");
+  return data;
+}
+
 export async function createUploadIntent(
   input: CreateUploadIntentInput,
 ): Promise<MediaUploadIntent> {
@@ -33,35 +41,35 @@ export async function createUploadIntent(
 
 /** Delivery URL with Cloudinary auto format/quality (+ width limit for images). */
 export function cloudinaryDeliveryUrl(
-  intent: MediaUploadIntent,
-  uploadedPublicId: string,
+  delivery: Extract<
+    MediaUploadIntent,
+    { provider: typeof MediaProvider.CLOUDINARY }
+  >["delivery"],
+  uploadedPublicId?: string,
 ): string {
-  const publicId = uploadedPublicId.replace(/^\/+/, "");
-  if (intent.resourceType === "video") {
-    return `https://res.cloudinary.com/${intent.cloudName}/video/upload/${publicId}`;
+  const publicId = (uploadedPublicId ?? delivery.publicId).replace(/^\/+/, "");
+  if (delivery.resourceType === "video") {
+    return `https://res.cloudinary.com/${delivery.cloudName}/video/upload/${publicId}`;
   }
   const transform = `f_auto,q_auto,c_limit,w_${MEDIA_IMAGE_MAX_EDGE_PX}`;
-  return `https://res.cloudinary.com/${intent.cloudName}/image/upload/${transform}/${publicId}`;
+  return `https://res.cloudinary.com/${delivery.cloudName}/image/upload/${transform}/${publicId}`;
 }
 
 export async function uploadToCloudinary(
-  intent: MediaUploadIntent,
+  intent: Extract<
+    MediaUploadIntent,
+    { provider: typeof MediaProvider.CLOUDINARY }
+  >,
   file: File,
 ): Promise<CloudinaryUploadResponse> {
   const form = new FormData();
   form.append("file", file);
-  form.append("api_key", intent.apiKey);
-  form.append("timestamp", String(intent.timestamp));
-  form.append("signature", intent.signature);
-  form.append("folder", intent.folder);
-  form.append("public_id", intent.publicId);
-  if (intent.transformation) {
-    form.append("transformation", intent.transformation);
+  for (const [key, value] of Object.entries(intent.upload.fields)) {
+    form.append(key, value);
   }
 
-  const endpoint = `https://api.cloudinary.com/v1_1/${intent.cloudName}/${intent.resourceType}/upload`;
-  const response = await fetch(endpoint, {
-    method: "POST",
+  const response = await fetch(intent.upload.url, {
+    method: intent.upload.method,
     body: form,
   });
 
@@ -81,27 +89,71 @@ export async function uploadToCloudinary(
   return (await response.json()) as CloudinaryUploadResponse;
 }
 
-/** Full pick → intent → Cloudinary → MediaItem with optimized delivery URL. */
+export async function uploadToCloudflareR2(
+  intent: Extract<
+    MediaUploadIntent,
+    { provider: typeof MediaProvider.CLOUDFLARE_R2 }
+  >,
+  file: File,
+): Promise<void> {
+  const response = await fetch(intent.upload.url, {
+    method: intent.upload.method,
+    headers: intent.upload.headers,
+    body: file,
+  });
+
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const text = await response.text();
+      if (text) detail = text.slice(0, 200);
+    } catch {
+      // ignore
+    }
+    throw new Error(`Cloudflare R2 upload failed: ${detail}`);
+  }
+}
+
+/**
+ * Pick → optional FE optimize (R2 images only) → intent → provider upload → MediaItem.
+ * Cloudinary: original bytes; provider applies f_auto/q_auto on delivery.
+ */
 export async function uploadMediaFile(file: File): Promise<MediaItem> {
   const kind = file.type.startsWith("video/")
     ? MediaKind.VIDEO
     : MediaKind.IMAGE;
 
+  const { provider } = await getMediaConfig();
+
+  let uploadFile = file;
+  if (kind === MediaKind.IMAGE && provider === MediaProvider.CLOUDFLARE_R2) {
+    uploadFile = await optimizeImageForUpload(file);
+  }
+
   const intent = await createUploadIntent({
     kind,
-    mimeType: file.type,
-    byteSize: file.size,
-    name: file.name || undefined,
+    mimeType: uploadFile.type,
+    byteSize: uploadFile.size,
+    name: uploadFile.name || file.name || undefined,
   });
 
-  const uploaded = await uploadToCloudinary(intent, file);
-  const url = cloudinaryDeliveryUrl(intent, uploaded.public_id);
+  let url: string;
+  if (intent.provider === MediaProvider.CLOUDFLARE_R2) {
+    await uploadToCloudflareR2(intent, uploadFile);
+    url = intent.delivery.publicUrl;
+  } else {
+    const uploaded = await uploadToCloudinary(intent, uploadFile);
+    url = cloudinaryDeliveryUrl(intent.delivery, uploaded.public_id);
+  }
 
   return {
     id: intent.id,
     kind,
     url,
-    name: file.name || `${kind.toLowerCase()}-${intent.id.slice(0, 8)}`,
-    mimeType: file.type,
+    name:
+      uploadFile.name ||
+      file.name ||
+      `${kind.toLowerCase()}-${intent.id.slice(0, 8)}`,
+    mimeType: uploadFile.type || file.type,
   };
 }
