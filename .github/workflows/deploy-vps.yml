@@ -4,7 +4,7 @@
 # Direct-on-VPS backup: deploy-vps.direct.backup.yml
 # Secrets: VPS_HOST, SSH_USER, SSH_PRIVATE_KEY
 # Path: ~/property-management-system · branch: release
-# Images: ghcr.io/<owner>/cabin-api , ghcr.io/<owner>/cabin-pms
+# Images: ghcr.io/<owner>/cabin-api , cabin-pms , cabin-web
 
 name: Deploy to VPS
 
@@ -57,6 +57,14 @@ jobs:
             docker push "${IMG}:previous"
           fi
 
+      - name: Promote cabin-web latest → previous
+        run: |
+          IMG="${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/cabin-web"
+          if docker pull "${IMG}:latest"; then
+            docker tag "${IMG}:latest" "${IMG}:previous"
+            docker push "${IMG}:previous"
+          fi
+
       - name: Build and push cabin-api
         uses: docker/build-push-action@v6
         with:
@@ -91,6 +99,22 @@ jobs:
           cache-from: type=gha,scope=cabin-pms
           cache-to: type=gha,mode=max,scope=cabin-pms
 
+      - name: Build and push cabin-web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          build-args: |
+            APT_MIRROR=
+            NPM_REGISTRY=
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/cabin-web:latest
+          cache-from: type=gha,scope=cabin-web
+          cache-to: type=gha,mode=max,scope=cabin-web
+
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -119,6 +143,7 @@ jobs:
             OWNER="${{ steps.meta.outputs.owner }}"
             API="ghcr.io/${OWNER}/cabin-api"
             PMS="ghcr.io/${OWNER}/cabin-pms"
+            WEB="ghcr.io/${OWNER}/cabin-web"
 
             if docker inspect cabin-api >/dev/null 2>&1; then
               docker tag "$(docker inspect -f '{{.Image}}' cabin-api)" "${API}:previous" || true
@@ -126,12 +151,16 @@ jobs:
             if docker inspect cabin-pms >/dev/null 2>&1; then
               docker tag "$(docker inspect -f '{{.Image}}' cabin-pms)" "${PMS}:previous" || true
             fi
+            if docker inspect cabin-web >/dev/null 2>&1; then
+              docker tag "$(docker inspect -f '{{.Image}}' cabin-web)" "${WEB}:previous" || true
+            fi
 
             # Private GHCR: one-time `docker login ghcr.io` on the VPS (PAT with read:packages)
             export DOCKER_CLIENT_TIMEOUT=3600
             export COMPOSE_HTTP_TIMEOUT=3600
             export IMAGE_API="${API}:latest"
             export IMAGE_PMS="${PMS}:latest"
+            export IMAGE_WEB="${WEB}:latest"
 
             # Mainland China routes to GHCR can reset long layer downloads.
             # Docker keeps completed layers, so retries resume remaining work.
@@ -154,7 +183,7 @@ jobs:
             docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T api node dist/scripts/seed.js
 
             # Avoid `case … ;;` — appleboy/ssh-action can mangle `;;` into a bash syntax error.
-            for img in "${API}" "${PMS}"; do
+            for img in "${API}" "${PMS}" "${WEB}"; do
               docker images --format '{{.Repository}}:{{.Tag}}' | while read -r ref; do
                 if [ "$ref" = "${img}:latest" ] || [ "$ref" = "${img}:previous" ]; then
                   continue

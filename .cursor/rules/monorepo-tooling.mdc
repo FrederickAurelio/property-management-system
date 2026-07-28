@@ -69,12 +69,14 @@ If CLI is clean and IDE is red → IDE CWD/workspace is wrong — **do not chang
 3. In each consumer app: `"@cabin/<name>": "workspace:*"`, then `pnpm install` from **repo root**.
 4. Import from `@cabin/<name>` — never relative-path into another app (`apps/pms` must not import from `apps/api/src`).
 5. Root `pnpm typecheck` should build shared packages that emit `dist/` before app typechecks (see root `package.json`).
+6. **Dockerfiles:** every `apps/*/Dockerfile` lists workspace `packages/*/package.json` before `pnpm install`, then copies package sources before build. Adding a package or a new consumer dep → update those COPY lines (checklist: [`packages/README.md`](../../packages/README.md) § How to add). Local install alone is not enough.
 
 **Do not**
 
 - Duplicate the same constants/types in two apps “just for now”
 - Put app A’s Nest/React code inside a package “so B can import it”
 - `npm i` inside `packages/*` or `apps/*` (always root + filter / workspace)
+- Add a `workspace:*` package without updating Docker COPY layers
 
 Inventory and add-package checklist: [`packages/README.md`](packages/README.md).
 
@@ -95,6 +97,7 @@ Inventory and add-package checklist: [`packages/README.md`](packages/README.md).
 | CLI lint/typecheck red, IDE green | Trust CLI; fix code |
 | Module missing in one app | Dep in that app’s `package.json`? right `--filter`? |
 | Workspace package types/runtime missing | Package built (`prepare` / `pnpm --filter @cabin/<pkg> build`)? `workspace:*` linked? |
+| Docker build can’t resolve `@cabin/<pkg>` (local pnpm fine) | Missing `COPY packages/<pkg>/…` in that app’s Dockerfile — see [`packages/README.md`](../../packages/README.md) |
 | `.js` / `.d.ts` junk in `packages/*/src/` | Stray emit — `pnpm --filter @cabin/api-contract run clean:src-artifacts`; build only to `dist/` |
 | `ERR_PNPM_IGNORED_BUILDS` | `allowBuilds` |
 | Env undefined | Root `.env`; scripts under `apps/<name>` must load `../../.env` |

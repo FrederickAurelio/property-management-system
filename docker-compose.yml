@@ -1,7 +1,7 @@
-# VPS / full stack — postgres + api + pms on cabin-net.
-# Only pms publishes a host port (8080→80). api and postgres stay internal.
+# VPS / full stack — postgres + api + pms + web on cabin-net.
+# Host ports: pms 8080→80 · web 3050→80. api and postgres stay internal.
 # Local Postgres: use docker-compose.dev.yml via `pnpm db:up`.
-# GHCR deploy: also use docker-compose.ci.yml with IMAGE_API / IMAGE_PMS.
+# GHCR deploy: also use docker-compose.ci.yml with IMAGE_API / IMAGE_PMS / IMAGE_WEB.
 
 name: cabin
 
@@ -88,6 +88,24 @@ services:
       - api
     ports:
       - '8080:80'
+    logging: *default-logging
+    networks:
+      - cabin
+
+  web:
+    image: cabin-web:latest
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
+    container_name: cabin-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '3050:80'
     logging: *default-logging
     networks:
       - cabin

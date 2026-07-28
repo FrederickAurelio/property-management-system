@@ -1,8 +1,10 @@
 # GHCR overlay — used by deploy-vps.yml pull path.
-# Requires IMAGE_API and IMAGE_PMS (full refs including :tag).
+# Requires IMAGE_API, IMAGE_PMS, and IMAGE_WEB (full refs including :tag).
 
 services:
   api:
     image: ${IMAGE_API}
   pms:
     image: ${IMAGE_PMS}
+  web:
+    image: ${IMAGE_WEB}

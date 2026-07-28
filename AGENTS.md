@@ -28,7 +28,7 @@ apps/web   → Public browse/book (Phase 2)   @cabin/web (Vite + prerender; stac
 packages/  → Shared libs for 2+ apps        @cabin/*
 .docs/     → Product plan
 _docs/     → Locked design notes (inventory, reservations, …)
-docker-compose.yml     → VPS full stack (postgres + api + pms; only FE :8080 published)
+docker-compose.yml     → VPS full stack (postgres + api + pms + web; FE :8080 pms · :3050 web)
 docker-compose.dev.yml → local Postgres only (host port for Nest/Vite)
 ```
 
@@ -38,7 +38,7 @@ One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (nev
 
 **Phase framing (locked):** business already runs on OTA + manual/walk-in. **Phase 1** = production **staff** PMS for that reality (calendar, reservations, check-in/out, **money/DP**, reports, **iCal import**). **No OTA email ingest.** **Phase 2** = **customer** booking FE only — same `Reservation` + `domain/` model (`source=WEBSITE`). Phase 2 is not “when bookings or payments start.” Design: [`_docs/reservations-design.md`](_docs/reservations-design.md).
 
-**Shared packages:** if two apps need the same types/constants/pure helpers, put them in `packages/` and depend with `workspace:*` — do not copy between apps. How-to: [`packages/README.md`](packages/README.md) · tooling: [`.cursor/rules/monorepo-tooling.mdc`](.cursor/rules/monorepo-tooling.mdc).
+**Shared packages:** if two apps need the same types/constants/pure helpers, put them in `packages/` and depend with `workspace:*` — do not copy between apps. New package or new app dep → also update Dockerfile `COPY packages/...` layers (local `pnpm` alone won’t catch it). How-to: [`packages/README.md`](packages/README.md) · tooling: [`.cursor/rules/monorepo-tooling.mdc`](.cursor/rules/monorepo-tooling.mdc).
 
 **IDE:** open [`cabin.code-workspace`](cabin.code-workspace). If IDE shows `no-unsafe-*` but `pnpm --filter @cabin/api lint` is clean → fix workspace, **do not change code** ([`.cursor/rules/monorepo-eslint-types.mdc`](.cursor/rules/monorepo-eslint-types.mdc)).
 
@@ -71,7 +71,7 @@ From **repo root**:
 | Web dev | `pnpm --filter @cabin/web dev` (`:5174`) |
 | Add dep to one app | `pnpm --filter @cabin/api add <pkg>` |
 
-Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`). VPS: only host port **8080** (PMS nginx); api/postgres stay on Docker network.
+Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`). VPS: host ports **8080** (PMS nginx) · **3050** (web nginx); api/postgres stay on Docker network.
 
 ## Product path
 

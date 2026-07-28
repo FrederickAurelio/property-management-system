@@ -39,6 +39,7 @@ RUN set -eux; \
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/api-contract/package.json packages/api-contract/
+COPY packages/ui-tokens/package.json packages/ui-tokens/
 COPY apps/api/package.json apps/api/
 COPY apps/pms/package.json apps/pms/
 COPY apps/web/package.json apps/web/

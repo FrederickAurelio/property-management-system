@@ -41,7 +41,7 @@ jobs:
             docker image prune -f || true
             docker builder prune -f --keep-storage 1GB || true
 
-            for img in cabin-api cabin-pms; do
+            for img in cabin-api cabin-pms cabin-web; do
               if docker image inspect "${img}:latest" >/dev/null 2>&1; then
                 docker tag "${img}:latest" "${img}:previous"
               fi
@@ -54,11 +54,12 @@ jobs:
 
             docker compose build --progress=plain api
             docker compose build --progress=plain pms
+            docker compose build --progress=plain web
             docker compose up -d
             docker compose exec -T api npx prisma migrate deploy
             docker compose exec -T api node dist/scripts/seed.js
 
-            for img in cabin-api cabin-pms; do
+            for img in cabin-api cabin-pms cabin-web; do
               docker images --format '{{.Repository}}:{{.Tag}}' "$img" | while read -r ref; do
                 if [ "$ref" = "${img}:latest" ] || [ "$ref" = "${img}:previous" ]; then
                   continue

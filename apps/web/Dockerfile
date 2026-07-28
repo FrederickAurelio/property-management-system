@@ -1,4 +1,4 @@
-# Cabin PMS — Vite build + nginx (context = repo root)
+# Cabin Web — Vite build + nginx (context = repo root)
 # syntax=docker/dockerfile:1
 
 # Optional mirrors (China demo VPS). Leave empty for Indo/MY/SG / official registries.
@@ -36,20 +36,20 @@ COPY apps/pms/package.json apps/pms/
 COPY apps/web/package.json apps/web/
 
 # Skip prepare until api-contract sources are present
-RUN pnpm install --frozen-lockfile --filter @cabin/pms... --ignore-scripts
+RUN pnpm install --frozen-lockfile --filter @cabin/web... --ignore-scripts
 
 COPY packages/api-contract packages/api-contract
 COPY packages/ui-tokens packages/ui-tokens
-COPY apps/pms apps/pms
+COPY apps/web apps/web
 
 RUN pnpm --filter @cabin/api-contract build
-RUN pnpm --filter @cabin/pms build
+RUN pnpm --filter @cabin/web build
 
 # --- nginx ---
 FROM nginx:1.27-alpine AS runner
 
-COPY apps/pms/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/apps/pms/dist /usr/share/nginx/html
+COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
 EXPOSE 80
 
