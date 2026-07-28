@@ -26,5 +26,8 @@ Shared libraries for **two or more apps**. Not a junk drawer for one app’s int
 | Package | Purpose |
 |---------|---------|
 | [`@cabin/api-contract`](api-contract/) | HTTP envelope, error codes, staff + inventory wire types, pagination (`Paginated`) |
+| [`@cabin/ui-tokens`](ui-tokens/) | Shared CSS design tokens + Tailwind `@theme` for `pms` + `web` (not React components) |
 
 Add rows when new packages appear. Details for each package live in that package’s `AGENTS.md`.
+
+**UI sharing rule:** tokens in `@cabin/ui-tokens`; shadcn/React components stay **per app** until the same primitive is copy-pasted and must stay identical — then consider `packages/ui`. Do **not** put CSS or components in `@cabin/api-contract`.

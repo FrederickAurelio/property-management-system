@@ -24,7 +24,7 @@ Same policy for agents: [`.cursor/rules/agents-writing.mdc`](.cursor/rules/agent
 ```text
 apps/api   → Nest API (source of truth)     @cabin/api
 apps/pms   → Staff PMS UI (Phase 1 prod)    @cabin/pms
-apps/web   → Public browse/book (Phase 2)   @cabin/web (scaffold only)
+apps/web   → Public browse/book (Phase 2)   @cabin/web (Vite + prerender; stack locked)
 packages/  → Shared libs for 2+ apps        @cabin/*
 .docs/     → Product plan
 _docs/     → Locked design notes (inventory, reservations, …)
@@ -47,8 +47,8 @@ One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (nev
 | App | Stack | Scaffold |
 |-----|--------|----------|
 | `api` | NestJS · TypeScript · PostgreSQL · Prisma 6 · session cookies + Guards | Auth + inventory + **reservations/money** done |
-| `pms` | React · Vite · TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) | Auth + inventory + **reservations desk on Nest** |
-| `web` | **Undecided** (Phase 2 customer FE) | Placeholder only |
+| `pms` | React · Vite · TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) · dev `:5173` | Auth + inventory + **reservations desk on Nest** |
+| `web` | React · Vite · TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) · `@cabin/ui-tokens` · i18n en/id/zh · dev `:5174` · prerender/SSG · CDN in prod | Phase 2 customer FE (scaffold; stack locked) |
 
 Do not introduce Express+Mongo, a second API, or a second booking database.
 
@@ -67,7 +67,8 @@ From **repo root**:
 | Prisma migrate | `pnpm prisma:migrate` |
 | VPS stack | `docker compose up -d --build` (default `docker-compose.yml`) |
 | API dev | `pnpm --filter @cabin/api dev` |
-| PMS dev | `pnpm --filter @cabin/pms dev` |
+| PMS dev | `pnpm --filter @cabin/pms dev` (`:5173`) |
+| Web dev | `pnpm --filter @cabin/web dev` (`:5174`) |
 | Add dep to one app | `pnpm --filter @cabin/api add <pkg>` |
 
 Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`). VPS: only host port **8080** (PMS nginx); api/postgres stay on Docker network.
@@ -108,7 +109,7 @@ Money quote (locked): stay Total suggests `periodCount ×` matching rack (`billi
 | Shared libs | `packages/README.md` + that package’s `AGENTS.md` |
 | Backend | `apps/api/AGENTS.md` (audience: `staff` / `domain` / `public`) |
 | Staff UI | `apps/pms/AGENTS.md` |
-| Public site | `apps/web/AGENTS.md` |
+| Public site | `apps/web/AGENTS.md` + `apps/web/PRODUCT.md` (Impeccable) |
 
 Constraints: `.cursor/rules/` — layered entry + concern globs per app (map: [`.cursor/rules/README.md`](.cursor/rules/README.md)). Commits: `.cursor/rules/commits.mdc`. Tooling/packages: `.cursor/rules/monorepo-tooling.mdc`.
 
@@ -121,6 +122,7 @@ Constraints: `.cursor/rules/` — layered entry + concern globs per app (map: [`
 - Defer staff reservation **money/DP** until Phase 2 web — Phase 1 PMS must track it for live desk
 - OTA **email ingest** / ping / quick-confirm parsers — out; use iCal + staff enrich
 - Treat Phase 2 as inventing a second booking/payment model — web reuses `domain/reservations`
+- Default Phase 2 `web` to Next.js — locked default is Vite + React + prerender/SSG; Next only by explicit decision
 - Channel Manager or `web` booking before Phase 1 ops MVP is solid
 - Copy the same types/constants into two apps — use `packages/` instead
 - Flat audience-neutral Nest app routes (`/properties`, `/admins`) — use `/staff/...` or `/public/...` (see `apps/api/AGENTS.md`)

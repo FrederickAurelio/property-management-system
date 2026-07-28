@@ -1,0 +1,19 @@
+{
+  "appName": "Cabin",
+  "home": {
+    "title": "Stay with us",
+    "subtitle": "Public booking site scaffold — Phase 2. Same colors as staff PMS; brand comes later.",
+    "cta": "Browse stays"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "id": "Bahasa Indonesia",
+    "zh": "中文"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}

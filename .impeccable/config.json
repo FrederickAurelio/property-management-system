@@ -1,0 +1,6 @@
+{
+  "projectRoots": ["apps/web"],
+  "hook": {
+    "enabled": true
+  }
+}

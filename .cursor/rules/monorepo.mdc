@@ -5,11 +5,11 @@ alwaysApply: true
 
 # Monorepo
 
-- Apps: `api` (`@cabin/api` Nest), `pms` (`@cabin/pms` Vite/React/Tailwind/shadcn), `web` (Phase 2 customer FE scaffold).
+- Apps: `api` (`@cabin/api` Nest), `pms` (`@cabin/pms` Vite/React/Tailwind/shadcn + `@cabin/ui-tokens`), `web` (`@cabin/web` Phase 2 customer FE — Vite/React/Tailwind/shadcn + `@cabin/ui-tokens` + i18n en/id/zh + prerender/SSG; CDN in front of public origin).
 - Shared libs: `packages/*` — code needed by **2+ apps** (types, constants, pure helpers). Apps depend via `workspace:*`. See `packages/README.md` + `.cursor/rules/monorepo-tooling.mdc`.
 - **pnpm only** from repo root. Never `npm i` inside an app or package.
 - One API only. Product: `AGENTS.md` + `.docs/cabin-pms-client-plan.md`. Reservations/money: `_docs/reservations-design.md`.
-- **Phase 1** = prod staff PMS (`api` + `pms`) for live manual + OTA — incl. reservations + money/DP (`Total` quote + `PaymentMovement` cash ledger; Paid = sum). **Phase 2** = public `web` book FE only (same reservation domain). No CM or OTA scraping in Phase 1.
+- **Phase 1** = prod staff PMS (`api` + `pms`) for live manual + OTA — incl. reservations + money/DP (`Total` quote + `PaymentMovement` cash ledger; Paid = sum). **Phase 2** = public `web` book FE only (same reservation domain; Nest `/public`). No CM or OTA scraping in Phase 1. Next.js is **not** the default for `web`.
 - Unique-unit calendars. Overlap safety in Postgres. `CONFIRMED` ≠ paid.
 - Tooling pitfalls (pnpm builds, Prisma output, single `.env`, ESLint per app, shared packages): `.cursor/rules/monorepo-tooling.mdc`.
 - Docker: `docker-compose.yml` = VPS stack (postgres+api+pms; only FE `:8080`); `docker-compose.dev.yml` = local Postgres for `pnpm db:up`. Deploy on push to `release` via **GHCR** (build on GitHub, pull on VPS); direct-on-VPS backup workflow available.

@@ -108,7 +108,7 @@ Optional: checklist “refresh OTA if urgent” (staff does it in the OTA UI —
 | 1     | `shadcn`            | Add/compose shadcn components    |
 | 2     | `product-ui-design` | Shipped admin look; anti AI-slop |
 
-Do **not** load `ui-design-brain` / `ui-craft` / `ui-craft-dense-dashboard` for PMS — reserved for `apps/web` (Phase 2).
+Do **not** load `impeccable` / `ui-design-brain` / `ui-craft` / `ui-craft-dense-dashboard` for PMS — reserved for `apps/web` (Phase 2).
 
 Anchor DNA: **Linear-dense / Stripe-data**. No purple gradients, glowing status dots, or landing-page hero patterns.
 

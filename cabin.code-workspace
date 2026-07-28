@@ -35,6 +35,10 @@
       "name": "api-contract",
       "path": "packages/api-contract",
     },
+    {
+      "name": "ui-tokens",
+      "path": "packages/ui-tokens",
+    },
   ],
   "settings": {
     "typescript.tsdk": "node_modules/typescript/lib",

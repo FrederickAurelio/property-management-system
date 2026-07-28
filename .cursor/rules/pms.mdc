@@ -9,7 +9,7 @@ alwaysApply: false
 Concern rules layer on via tighter globs (`pms-api`, `pms-query`, `pms-ui`). Map: [`.cursor/rules/README.md`](README.md).
 
 - React + Vite + Tailwind + shadcn. **Prod staff ops** only → `apps/api` (live manual + OTA; money/DP in Phase 1).
-- UI/UX: always read `shadcn` + `product-ui-design` skills; apply with judgment — `pms-ui.mdc`.
+- UI/UX: always read `shadcn` + `product-ui-design` skills; apply with judgment — `pms-ui.mdc`. Do **not** load `impeccable` / web marketing skills on PMS.
 - Server state (query/mutate/errors): `pms-query.mdc` — mutation response 1:1 with GET → `setQueryData` / `sync*Caches`; invalidate lists / derived slices when membership or busy nights can go stale; **on success clear local form/pending state before cache/toast/close** (no double-submit blink).
 - Reservations desk (boards, Choose unit, Collect/Cancel as cash movements, rack Total, timeline) wired to Nest `/staff/reservations`; calendar / iCal / reports next.
 - Read `apps/pms/AGENTS.md` + `_docs/reservations-design.md` (Paid = sum(movements); Total = `periodCount ×` matching rack by `billingPeriod`).

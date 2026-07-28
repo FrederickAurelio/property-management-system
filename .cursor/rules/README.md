@@ -18,6 +18,6 @@ Layered **glob** rules under `.cursor/rules/`. Entry files apply to the whole ap
 |-----|--------------------------|-------------------------------|
 | `api` | `api.mdc` | `api-http`, `api-prisma`, `api-auth`, `api-audience` · *slot:* `api-domain` for deep domain patterns if needed |
 | `pms` | `pms.mdc` | `pms-api`, `pms-query`, `pms-ui` |
-| `web` | `web.mdc` | *Phase 2 slots:* `web-api`, `web-ui` |
+| `web` | `web.mdc` | `web-ui` · *slot:* `web-api` when public API client code lands |
 
 Deep playbook: `apps/<app>/AGENTS.md`. Add a concern `.mdc` only when [agents-writing.mdc](agents-writing.mdc) scaling criteria apply.

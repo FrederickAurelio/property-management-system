@@ -22,6 +22,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      // Locked — web uses 5174. Keep strict so a busy port fails loudly.
+      port: 5173,
+      strictPort: true,
       // Browser `/api/...` → Nest `/staff/...` (audience prefix stays off the wire).
       // Phase 1 iCal export: `/public/ical/...` → Nest `/public/ical/...` (OTA poll; no session).
       // Do not proxy `/health` through this origin.

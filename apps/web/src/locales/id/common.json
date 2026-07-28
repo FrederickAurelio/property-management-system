@@ -1,0 +1,19 @@
+{
+  "appName": "Cabin",
+  "home": {
+    "title": "Menginap bersama kami",
+    "subtitle": "Kerangka situs booking publik — Fase 2. Warna sama dengan PMS staf; merek menyusul.",
+    "cta": "Jelajahi unit"
+  },
+  "language": {
+    "label": "Bahasa",
+    "en": "English",
+    "id": "Bahasa Indonesia",
+    "zh": "中文"
+  },
+  "theme": {
+    "light": "Terang",
+    "dark": "Gelap",
+    "system": "Sistem"
+  }
+}

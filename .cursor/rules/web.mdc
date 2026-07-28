@@ -1,11 +1,15 @@
 ---
-description: Constraints when editing apps/web
+description: Web entry — Phase 2 customer FE stack and domain when editing apps/web
 globs: apps/web/**
 alwaysApply: false
 ---
 
-# Web
+# Web (entry)
 
-- Phase 2 **customer** FE only. Stack undecided. Books via shared `apps/api` (`source=website`) — same reservation/money model as Phase 1 PMS.
-- Prefer `api` + `pms` until Phase 2 starts. Read `apps/web/AGENTS.md` + `_docs/reservations-design.md`.
-- Customer-facing UI skills: `ui-design-brain` / `ui-craft*` (see `.cursor/skills/README.md`) — not for PMS.
+Concern rules: `web-ui` (and later `web-api` when public client code exists). Map: [`.cursor/rules/README.md`](README.md).
+
+- Phase 2 **customer** FE only. Locked stack: **Vite + React + TS** · Tailwind v4 · **shadcn/ui (radix-nova)** · **`@cabin/ui-tokens`** · **i18n en/id/zh** (`i18next`). Prerender/SSG for public marketing + listings; book/manage may stay CSR. Nest `/public` via browser `/api` → `/public`. CDN (Cloudflare default) in front of the public origin; never cache `/api/`.
+- Same reservation/money domain as PMS (`source=WEBSITE`). No second booking DB. No Next.js unless explicitly chosen later.
+- Tokens shared with PMS via `@cabin/ui-tokens`; shadcn components stay app-local. Details: [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md).
+- UI/UX: [`.cursor/rules/web-ui.mdc`](web-ui.mdc) + [`.cursor/skills/README.md`](../skills/README.md). Product truth: [`apps/web/PRODUCT.md`](../../apps/web/PRODUCT.md).
+- Read `apps/web/AGENTS.md` + `_docs/reservations-design.md`. Client brief before inventing brand or guest cancel/refund UX.

@@ -189,9 +189,10 @@ property
 
 ### Phase 2 (website)
 
-- Public booking engine on company site → writes PMS.  
+- Public booking engine on company site → writes PMS (`apps/web`: Vite + React; prerender/SSG for SEO pages; CDN in front of public origin).  
 - PMS export `.ics` per unit → OTAs import PMS.  
-- Migrate from mesh → hub when stable.
+- Migrate from mesh → hub when stable.  
+- Guest cancel / change-date / refund self-serve only after client policy is locked.
 
 ---
 

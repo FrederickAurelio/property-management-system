@@ -1,0 +1,17 @@
+{
+  "name": "@cabin/ui-tokens",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared CSS design tokens (oklch) + Tailwind v4 @theme for pms and web",
+  "type": "module",
+  "exports": {
+    "./tokens.css": "./src/tokens.css",
+    "./theme.css": "./src/theme.css"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "node -e \"process.exit(0)\""
+  }
+}

@@ -11,7 +11,7 @@
     "typecheck:api": "pnpm --filter @cabin/api-contract run build && pnpm --filter @cabin/api run typecheck",
     "typecheck:pms": "pnpm --filter @cabin/api-contract run build && pnpm --filter @cabin/pms run typecheck",
     "typecheck:web": "pnpm --filter @cabin/web run typecheck",
-    "typecheck:packages": "pnpm --filter @cabin/api-contract run typecheck",
+    "typecheck:packages": "pnpm --filter @cabin/api-contract run typecheck && pnpm --filter @cabin/ui-tokens run typecheck",
     "lint": "pnpm -r --if-present run lint",
     "build": "pnpm -r --if-present run build",
     "test": "pnpm -r --if-present run test",

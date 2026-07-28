@@ -1,0 +1,35 @@
+---
+description: Web UI — Impeccable + customer FE skills; Persuade vs Operate
+globs:
+  - apps/web/**
+  - apps/web/PRODUCT.md
+  - apps/web/DESIGN.md
+alwaysApply: false
+---
+
+# Web — UI
+
+**Always read** [`.cursor/skills/README.md`](../skills/README.md). Apply with judgment — skills are the floor, not a substitute for the client brief.
+
+| Surface | Mode | Skills |
+|---------|------|--------|
+| Landing, brand story, unit marketing | **Persuade** | **`impeccable`** first (`/impeccable` craft · shape · polish · critique · …) |
+| Availability, book wizard, payment, manage stay | **Operate** | `impeccable` + `ui-craft` / `ui-design-brain` |
+| Account / settings chrome | **Operate** | `product-ui-design` (restraint; no marketing hero techniques) |
+| Components | — | **`shadcn`** (radix-nova) — adopted; install into `apps/web/src/components/ui` |
+| Look / tokens | — | `@cabin/ui-tokens` — edit shared CSS here, not a second `:root` in the app |
+
+## Workflow
+
+1. Load Impeccable context (`PRODUCT.md`; `DESIGN.md` when present) before UI edits.
+2. No client brand yet → update `PRODUCT.md` / run `/impeccable init`; do **not** invent photography, names, or policies. Palette changes go in `@cabin/ui-tokens` when brand lands.
+3. Guest cancel / change-date / refund UI only after policy is locked in product docs.
+4. Copy strings through i18n (`en` / `id` / `zh`); do not hardcode user-facing English only.
+5. Detector / hooks: keep Impeccable findings honest; fix real slop, don’t waive the brand brief.
+
+## Don’t
+
+- Use `product-ui-design` as the primary skill for landing heroes
+- Load PMS admin density / desk patterns onto marketing heroes (PMS stays `shadcn` + `product-ui-design`)
+- Duplicate design tokens in `apps/web` once `@cabin/ui-tokens` owns them
+- Ship purple-gradient / Inter-default AI landing templates against Impeccable bans

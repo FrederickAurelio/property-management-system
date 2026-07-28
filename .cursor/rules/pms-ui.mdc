@@ -8,7 +8,7 @@ alwaysApply: false
 
 # PMS — UI
 
-**Always read and apply** `.cursor/skills/` **`shadcn`** then **`product-ui-design`** when building or changing UI/UX. Do **not** load `ui-design-brain` / `ui-craft*` (reserved for `apps/web`).
+**Always read and apply** `.cursor/skills/` **`shadcn`** then **`product-ui-design`** when building or changing UI/UX. Do **not** load `impeccable` / `ui-design-brain` / `ui-craft*` (reserved for `apps/web`).
 
 **Use judgment — don't obey blindly.** Skills are the floor (components, tokens, anti-slop, workflow), not a substitute for the task. Override when the product wins:
 
@@ -21,7 +21,7 @@ alwaysApply: false
 
 If you skip a skill step, say what you skipped and why in the PR/commit mindset — not silent drift.
 
-Do **not** load marketing/landing design skills on PMS.
+Do **not** load marketing/landing design skills (`impeccable`, landing recipes) on PMS.
 
 ## Responsive — web and mobile
 
