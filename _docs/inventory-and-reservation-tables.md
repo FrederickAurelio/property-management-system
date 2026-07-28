@@ -4,7 +4,7 @@
 **Wire types:** `@cabin/api-contract` (`StaffProperty` / `StaffUnitType` / `StaffUnit`).  
 **Display helpers:** [`inventory-types.ts`](../apps/pms/src/pages/properties/inventory-types.ts).  
 **Scope:** multi-property inventory + reservation-ready unit calendars.  
-**Product context:** [`.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md)
+**Product context:** [`cabin-pms-client-plan.md`](cabin-pms-client-plan.md)
 
 ---
 

@@ -237,4 +237,4 @@ PMS: TanStack Query key includes `propertyId` (+ date if ever non-today). Invali
 | [`calendar-design.md`](calendar-design.md)                                   | Property scope, click → detail            |
 | [`reports-design.md`](reports-design.md)                                     | Not period KPIs                           |
 | [`inventory-and-reservation-tables.md`](inventory-and-reservation-tables.md) | Tables                                    |
-| [`.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md)        | Product brief                             |
+| [`cabin-pms-client-plan.md`](cabin-pms-client-plan.md)        | Product brief                             |

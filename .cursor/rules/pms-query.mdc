@@ -19,18 +19,18 @@ alwaysApply: false
 
 Wire Nest → PMS in three layers. Do not collapse them.
 
-| Layer | Owns |
-|-------|------|
+| Layer                 | Owns                                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------------------- |
 | `src/lib/api` helpers | Thin `api.*` wrappers; return unwrapped `T`; browser paths without `/staff` (proxy injects it) |
-| Query keys | `src/lib/api/query-keys.ts` — `as const` tuples; one key (or factory) per resource |
-| Screens / forms | `useQuery` / `useInfiniteQuery` / `useMutation`, cache updates, toasts, RHF `setError` |
+| Query keys            | `src/lib/api/query-keys.ts` — `as const` tuples; one key (or factory) per resource             |
+| Screens / forms       | `useQuery` / `useInfiniteQuery` / `useMutation`, cache updates, toasts, RHF `setError`         |
 
 Client / envelope / credentials: [`pms-api.mdc`](pms-api.mdc). GET loading UX: [`pms-ui.mdc`](pms-ui.mdc). BE field-error shape: [`api-http.mdc`](api-http.mdc).
 
 ## Queries
 
 ```ts
-useQuery({ queryKey: staffAdminsQueryKey, queryFn: listAdmins })
+useQuery({ queryKey: staffAdminsQueryKey, queryFn: listAdmins });
 ```
 
 - Import keys + helpers from `@/lib/api` (barrel). Do not invent inline key strings in pages.
@@ -48,22 +48,22 @@ useInfiniteQuery({
   queryFn: ({ pageParam }) => listProperties({ page: pageParam, ...filters }),
   initialPageParam: INFINITE_INITIAL_PAGE, // 1
   getNextPageParam: getNextPageParamFromPageInfo,
-})
+});
 ```
 
-| Rule | Detail |
-|------|--------|
-| Page param | 1-based `page`; next = `page < totalPages ? page + 1 : undefined` via `getNextPageParamFromPageInfo` |
-| Query keys | Factories include list filters (`q`, `status`, …). Invalidate with the **list** prefix tuple after writes |
-| Flatten | `data.pages.flatMap((p) => p.items)` |
-| Scroll UX | Shared [`InfiniteListFooter`](../../apps/pms/src/components/infinite-list-footer.tsx) + `react-intersection-observer` (`pms-ui`) |
+| Rule       | Detail                                                                                                                           |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Page param | 1-based `page`; next = `page < totalPages ? page + 1 : undefined` via `getNextPageParamFromPageInfo`                             |
+| Query keys | Factories include list filters (`q`, `status`, …). Invalidate with the **list** prefix tuple after writes                        |
+| Flatten    | `data.pages.flatMap((p) => p.items)`                                                                                             |
+| Scroll UX  | Shared [`InfiniteListFooter`](../../apps/pms/src/components/infinite-list-footer.tsx) + `react-intersection-observer` (`pms-ui`) |
 
 **Errors (do not conflate):**
 
-| Failure | Keep loaded pages? | Retry |
-|---------|--------------------|-------|
-| Page 1 (`isError` && no `data`) | N/A | `refetch` |
-| Page 2+ (`isFetchNextPageError`) | **Yes** | `fetchNextPage()` — same failed `pageParam` |
+| Failure                          | Keep loaded pages? | Retry                                       |
+| -------------------------------- | ------------------ | ------------------------------------------- |
+| Page 1 (`isError` && no `data`)  | N/A                | `refetch`                                   |
+| Page 2+ (`isFetchNextPageError`) | **Yes**            | `fetchNextPage()` — same failed `pageParam` |
 
 On next-page error: **unmount the in-view sentinel** and show footer + `QueryRetryButton`. Leaving the sentinel `inView` while errored causes an auto-fetch loop.
 
@@ -71,39 +71,39 @@ On next-page error: **unmount the in-view sentinel** and show footer + `QueryRet
 
 ### Decision: `setQueryData` vs `invalidateQueries`
 
-| Situation | Do |
-|-----------|-----|
-| Mutation response is **1:1 with a GET detail** (same `Staff*` row) | `setQueryData(detailKey, saved)` — **do not** refetch that detail |
-| Unpaginated list you can patch locally (e.g. `StaffAdmin[]`) | Merge/`setQueryData` the list from `saved` — no list GET |
-| Infinite / filtered / board lists (membership or sort may change) | `invalidateQueries({ queryKey: *List*Prefix })` — server recomputes pages |
-| Related derived data (availability, occupancy, parent counts) | Invalidate **only** those prefixes when the write can change them |
-| Delete / no usable body / logout | Invalidate (or `removeQueries`) — nothing to write |
-| Stale risk matters more than a round-trip (boards, busy nights after cancel) | Prefer invalidate for that slice — correctness over chatter |
+| Situation                                                                    | Do                                                                        |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Mutation response is **1:1 with a GET detail** (same `Staff*` row)           | `setQueryData(detailKey, saved)` — **do not** refetch that detail         |
+| Unpaginated list you can patch locally (e.g. `StaffAdmin[]`)                 | Merge/`setQueryData` the list from `saved` — no list GET                  |
+| Infinite / filtered / board lists (membership or sort may change)            | `invalidateQueries({ queryKey: *List*Prefix })` — server recomputes pages |
+| Related derived data (availability, occupancy, parent counts)                | Invalidate **only** those prefixes when the write can change them         |
+| Delete / no usable body / logout                                             | Invalidate (or `removeQueries`) — nothing to write                        |
+| Stale risk matters more than a round-trip (boards, busy nights after cancel) | Prefer invalidate for that slice — correctness over chatter               |
 
 **Never** invalidate a broad resource prefix that also matches the detail key you just `setQueryData`’d — use a `…ListQueryKeyPrefix` (or tighter) so detail stays from the mutation.
 
 ### Helpers (use these — don’t invent ad-hoc invalidates)
 
-| Write | Helper |
-|-------|--------|
-| Reservation ops returning `StaffReservation` | `syncReservationCaches(qc, saved, { occupancyChanged? })` |
-| Property create/update | `syncPropertyCaches(qc, saved)` |
-| Unit type create/update | `syncUnitTypeCaches(qc, saved)` |
-| Unit create/update | `syncUnitCaches(qc, saved, { bookabilityChanged? })` |
-| Staff admin create/role/active | `syncStaffAdminCaches(qc, saved)` |
-| Inventory **delete** / tree wipe | `invalidateInventoryCaches(qc)` |
-| Calendar block create/update/delete | `invalidatePropertyCalendarCaches(qc)` — aggregate has no block detail key |
-| iCal Sync all | `invalidateIcalSyncCaches(qc)` — full cache (stubs / occupancy / calendar / feeds) |
-| Login / change username | `setQueryData(staffSessionQueryKey, admin)` |
-| Logout | `invalidateQueries(staffSessionQueryKey)` then `/login` |
+| Write                                        | Helper                                                                             |
+| -------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Reservation ops returning `StaffReservation` | `syncReservationCaches(qc, saved, { occupancyChanged? })`                          |
+| Property create/update                       | `syncPropertyCaches(qc, saved)`                                                    |
+| Unit type create/update                      | `syncUnitTypeCaches(qc, saved)`                                                    |
+| Unit create/update                           | `syncUnitCaches(qc, saved, { bookabilityChanged? })`                               |
+| Staff admin create/role/active               | `syncStaffAdminCaches(qc, saved)`                                                  |
+| Inventory **delete** / tree wipe             | `invalidateInventoryCaches(qc)`                                                    |
+| Calendar block create/update/delete          | `invalidatePropertyCalendarCaches(qc)` — aggregate has no block detail key         |
+| iCal Sync all                                | `invalidateIcalSyncCaches(qc)` — full cache (stubs / occupancy / calendar / feeds) |
+| Login / change username                      | `setQueryData(staffSessionQueryKey, admin)`                                        |
+| Logout                                       | `invalidateQueries(staffSessionQueryKey)` then `/login`                            |
 
 **Where cache helpers live**
 
-| Pattern | Put helper |
-|---------|------------|
-| One resource module (reservations, admins, calendar) | Same file as that resource’s HTTP helpers (`reservations.ts`, `admins.ts`, `calendar.ts`) |
-| Shared across several inventory HTTP files | `inventory-cache.ts` |
-| Naming | `sync*Caches` when mutation body maps 1:1 to a GET detail (`setQueryData` + targeted invalidates); `invalidate*Caches` when there is nothing to write (delete, aggregate-only refresh) |
+| Pattern                                              | Put helper                                                                                                                                                                             |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One resource module (reservations, admins, calendar) | Same file as that resource’s HTTP helpers (`reservations.ts`, `admins.ts`, `calendar.ts`)                                                                                              |
+| Shared across several inventory HTTP files           | `inventory-cache.ts`                                                                                                                                                                   |
+| Naming                                               | `sync*Caches` when mutation body maps 1:1 to a GET detail (`setQueryData` + targeted invalidates); `invalidate*Caches` when there is nothing to write (delete, aggregate-only refresh) |
 
 Do **not** name helpers `*Queries`. Do **not** call `invalidateQueries` with ad-hoc key strings from screens — export a helper and list it in this table.
 
@@ -117,17 +117,17 @@ TanStack `mutation.isPending` flips **false** when the request settles. `onOpenC
 
 **Every** `useMutation` `onSuccess` in PMS: **clear local UI state first**, then cache sync, toast, navigate, or close.
 
-| Local state | Clear first (examples) |
-|-------------|-------------------------|
-| RHF form | `form.reset(emptyFormValues())` — reuse a module-level `emptyFormValues` / `emptyDefaults`; not ad-hoc partial clears |
-| Choose-unit / picker | `setPicked(null)` — **`null`**, not `undefined`, when `undefined` falls back to `initialChosen` / reservation |
-| Picker open | `setPickerOpen(false)` |
-| Dialog / sheet open | `onOpenChange(false)` or `setXOpen(false)` **after** reset |
-| Delete confirm | `setDeleteTarget(null)` |
-| Ops confirm (check-in, etc.) | `setPendingPrimary(null)` |
-| Staff re-auth | `closeReauth()` / `setPending(null)` |
-| Media uploading flags | `setMediaUploading(false)` |
-| Login / settings | `form.reset(…)` + hide-password toggles before navigate / close |
+| Local state                  | Clear first (examples)                                                                                                |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| RHF form                     | `form.reset(emptyFormValues())` — reuse a module-level `emptyFormValues` / `emptyDefaults`; not ad-hoc partial clears |
+| Choose-unit / picker         | `setPicked(null)` — **`null`**, not `undefined`, when `undefined` falls back to `initialChosen` / reservation         |
+| Picker open                  | `setPickerOpen(false)`                                                                                                |
+| Dialog / sheet open          | `onOpenChange(false)` or `setXOpen(false)` **after** reset                                                            |
+| Delete confirm               | `setDeleteTarget(null)`                                                                                               |
+| Ops confirm (check-in, etc.) | `setPendingPrimary(null)`                                                                                             |
+| Staff re-auth                | `closeReauth()` / `setPending(null)`                                                                                  |
+| Media uploading flags        | `setMediaUploading(false)`                                                                                            |
+| Login / settings             | `form.reset(…)` + hide-password toggles before navigate / close                                                       |
 
 ```ts
 onSuccess: (saved) => {
@@ -146,7 +146,7 @@ onSuccess: (saved) => {
 - Parent closes by clearing target state in `onSuccess` (or immediately for blocked “Got it” flows).
 - Pass `confirmDisabled={mutation.isPending}` so confirm stays dead while the request runs.
 
-**Re-auth** ([`reauth-password-dialog.tsx`](../../apps/pms/src/components/reauth-password-dialog.tsx)): reset password field when `open` → `false` (`useEffect`); parent still clears `pending` in `onSuccess` first.
+**Re-auth** ([`reauth-password-dialog.tsx`](../../apps/pms/src/components/reauth-password-dialog.tsx)): reset password field in `onOpenChange(false)` (and Cancel); parent still clears `pending` in `onSuccess` first.
 
 **Don’t**
 
@@ -156,14 +156,14 @@ onSuccess: (saved) => {
 
 ## Errors — pick one path
 
-| Failure | Handler |
-|---------|---------|
-| Domain field error `details: { field, reason }` | `applyApiFieldError(error, form.setError)` — if it returns `true`, **do not** also `handleError` |
-| Re-auth password dialog (`INVALID_CURRENT_PASSWORD`) | Dialog `serverError` (or equivalent) — no toast |
-| Login / auth / 404 / role / class-validator `string[]` / network | `handleError` → Sonner toast |
-| Delete blocked (`HAS_CHILDREN`) | Dialog or toast — **not** RHF `setError` |
-| Failed GET (page 1 / detail) | Inline message + retry — **not** a toast storm |
-| Failed infinite next page | Footer retry via `fetchNextPage` — see above |
+| Failure                                                          | Handler                                                                                          |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Domain field error `details: { field, reason }`                  | `applyApiFieldError(error, form.setError)` — if it returns `true`, **do not** also `handleError` |
+| Re-auth password dialog (`INVALID_CURRENT_PASSWORD`)             | Dialog `serverError` (or equivalent) — no toast                                                  |
+| Login / auth / 404 / role / class-validator `string[]` / network | `handleError` → Sonner toast                                                                     |
+| Delete blocked (`HAS_CHILDREN`)                                  | Dialog or toast — **not** RHF `setError`                                                         |
+| Failed GET (page 1 / detail)                                     | Inline message + retry — **not** a toast storm                                                   |
+| Failed infinite next page                                        | Footer retry via `fetchNextPage` — see above                                                     |
 
 `applyApiFieldError` already toasts non-field errors. Callers that branch first (re-auth vs username) must not double-toast.
 

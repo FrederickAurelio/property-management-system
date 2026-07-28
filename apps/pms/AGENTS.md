@@ -124,4 +124,4 @@ Anchor DNA: **Linear-dense / Stripe-data**. No purple gradients, glowing status 
 - Use `npm i` inside this folder (pnpm from repo root only)
 - `useEffect` to reset RHF / local state from `open` or entity props — use `key` remount + event handlers (`pms-ui`)
 
-Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md` · Reservations: `_docs/reservations-design.md`
+Root: `AGENTS.md` · Plan: `_docs/cabin-pms-client-plan.md` · Reservations: `_docs/reservations-design.md`

@@ -14,7 +14,7 @@ These files guide future humans and agents. Write **reusable patterns**, not a d
 - **One job per file.** Root AGENTS = repo-wide. App/package AGENTS = that app/package only. One `.mdc` = one concern.
 - **Locked decisions only.** Stack, phase, hard don’ts, invariants. Skip tutorials, speculation, and chat recap.
 - **Prefer bullets and tables.** Target ~one screen when possible.
-- **Link out** for depth (`.docs/`, package README, another rule). Don’t paste the same wall in three places.
+- **Link out** for depth (`_docs/`, package README, another rule). Don’t paste the same wall in three places.
 - **Delete stale lines.** Drop “not yet” / finished milestones; update status in place.
 - **Examples are optional and secondary.** If you need an example, one short one is enough — the rule must still make sense after that example is deleted.
 

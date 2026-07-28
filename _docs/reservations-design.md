@@ -2,7 +2,7 @@
 
 **Status:** locked design intent — align before Prisma / API / PMS.  
 **Depends on:** [`inventory-and-reservation-tables.md`](inventory-and-reservation-tables.md)  
-**Product:** [`.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md)
+**Product:** [`cabin-pms-client-plan.md`](cabin-pms-client-plan.md)
 
 ---
 

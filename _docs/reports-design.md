@@ -405,4 +405,4 @@ Wire types in `@cabin/api-contract`. Do not fork money helpers for cash aggregat
 | [`reservations-design.md`](reservations-design.md)                           | Statuses, money, source, Due/Refund      |
 | [`calendar-design.md`](calendar-design.md)                                   | Occupying nights, blocks, property scope |
 | [`inventory-and-reservation-tables.md`](inventory-and-reservation-tables.md) | Tables                                   |
-| [`.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md)        | Product brief                            |
+| [`cabin-pms-client-plan.md`](cabin-pms-client-plan.md)        | Product brief                            |

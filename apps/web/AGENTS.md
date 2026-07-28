@@ -77,5 +77,6 @@ Do **not** load PMS-only admin patterns onto marketing heroes.
 - Duplicate `:root` / `@theme` colors in this app — edit `@cabin/ui-tokens`
 - Invent brand, testimonials, or cancel policies before client answers
 - Skip CDN planning for the public origin when shipping prod
+- `useEffect` to sync derived UI or reset forms from props — prefer render-time calc / `key` remount ([You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect))
 
-Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md`
+Root: `AGENTS.md` · Plan: `_docs/cabin-pms-client-plan.md`

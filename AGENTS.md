@@ -1,6 +1,6 @@
 # Cabin PMS — Agent Brief
 
-Custom property management monorepo. Product plan: `.docs/cabin-pms-client-plan.md`.
+Custom property management monorepo. Product plan: `_docs/cabin-pms-client-plan.md`.
 
 ## How to write AGENTS.md and `.mdc` rules
 
@@ -11,7 +11,7 @@ Short source of truth — **not** a changelog and **not** a dump of today’s in
 - **One job per file.** Root = repo-wide. App/package files = that folder only. One `.mdc` = one concern.
 - **Locked decisions only.** Stack, phase, hard don’ts. Skip tutorials, speculation, and chat recap.
 - **Prefer bullets and tables.** Target ~one screen when possible.
-- **Link out** for depth — don’t duplicate `.docs/` or the same paragraph in three places.
+- **Link out** for depth — don’t duplicate `_docs/` or the same paragraph in three places.
 - **Delete stale lines.** Drop finished “not yet” noise; update status in place.
 - **Examples are optional.** At most one short example; the rule must still work if that example is removed.
 
@@ -26,8 +26,7 @@ apps/api   → Nest API (source of truth)     @cabin/api
 apps/pms   → Staff PMS UI (Phase 1 prod)    @cabin/pms
 apps/web   → Public browse/book (Phase 2)   @cabin/web (Vite + prerender; stack locked)
 packages/  → Shared libs for 2+ apps        @cabin/*
-.docs/     → Product plan
-_docs/     → Locked design notes (inventory, reservations, …)
+_docs/     → Product plan + locked design notes (inventory, reservations, …)
 docker-compose.yml     → VPS full stack (postgres + api + pms + web; FE :8080 pms · :3050 web)
 docker-compose.dev.yml → local Postgres only (host port for Nest/Vite)
 ```
@@ -103,7 +102,7 @@ Money quote (locked): stay Total suggests `periodCount ×` matching rack (`billi
 
 | Work in | Read |
 |---------|------|
-| Repo / architecture | This file + `.docs/cabin-pms-client-plan.md` |
+| Repo / architecture | This file + `_docs/cabin-pms-client-plan.md` |
 | Reservations / money / iCal | [`_docs/reservations-design.md`](_docs/reservations-design.md) |
 | Calendar page (unit × days) | [`_docs/calendar-design.md`](_docs/calendar-design.md) |
 | Dashboard (desk today) | [`_docs/dashboard-design.md`](_docs/dashboard-design.md) |

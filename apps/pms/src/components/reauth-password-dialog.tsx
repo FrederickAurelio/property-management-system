@@ -1,5 +1,5 @@
 /* anchor: Linear re-auth confirm, diverge: password field inside Dialog */
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { STAFF_PASSWORD_MAX, STAFF_PASSWORD_MIN } from "@cabin/api-contract";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
@@ -76,13 +76,6 @@ export function ReauthPasswordDialog({
     form.reset({ currentPassword: "" });
     setShowPassword(false);
   }
-
-  useEffect(() => {
-    if (!open) {
-      resetLocal();
-      onClearServerError?.();
-    }
-  }, [open, form, onClearServerError]);
 
   return (
     <Dialog

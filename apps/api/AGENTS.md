@@ -215,4 +215,4 @@ One calendar per unit. Occupying stays and calendar blocks must not overlap on t
 - Unguard `/staff/*` for the website — add a `public/` controller that calls `domain/` instead
 - Reuse `Staff*` wire types as the public catalog contract without a deliberate public DTO
 
-Root: `AGENTS.md` · Plan: `.docs/cabin-pms-client-plan.md` · Reservations: `_docs/reservations-design.md`
+Root: `AGENTS.md` · Plan: `_docs/cabin-pms-client-plan.md` · Reservations: `_docs/reservations-design.md`

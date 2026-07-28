@@ -53,7 +53,7 @@ None confirmed yet. Do not invent property names, testimonials, or “luxury cab
 
 ## Evidence on Hand
 
-- Repo product plan: `.docs/cabin-pms-client-plan.md`
+- Repo product plan: `_docs/cabin-pms-client-plan.md`
 - Reservation/money domain: `_docs/reservations-design.md`
 - Staff ops UI (anti-reference for marketing register): `apps/pms`
 - No client brand kit or production photos in-repo yet — do not fabricate guest reviews or occupancy claims

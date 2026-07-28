@@ -268,6 +268,6 @@ Until iCal ships, calendar still shows manual stays + blocks.
 | Topic | Doc |
 |-------|-----|
 | Statuses, boards, money, overlap, iCal feeds | [`reservations-design.md`](reservations-design.md) |
-| Product phase framing | [`../.docs/cabin-pms-client-plan.md`](../.docs/cabin-pms-client-plan.md) |
+| Product phase framing | [`cabin-pms-client-plan.md`](cabin-pms-client-plan.md) |
 | API audience / staff paths | [`../apps/api/AGENTS.md`](../apps/api/AGENTS.md) |
 | PMS UI / query rules | [`../apps/pms/AGENTS.md`](../apps/pms/AGENTS.md) |
