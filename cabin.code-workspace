@@ -20,6 +20,9 @@
         "eslint.workingDirectories": [
           { "directory": ".", "changeProcessCWD": true },
         ],
+        "prettier.configPath": "prettier.config.mjs",
+        "prettier.prettierPath": "./node_modules/prettier",
+        "tailwindCSS.experimental.configFile": "src/index.css",
       },
     },
     {
@@ -29,6 +32,9 @@
         "eslint.workingDirectories": [
           { "directory": ".", "changeProcessCWD": true },
         ],
+        "prettier.configPath": "prettier.config.mjs",
+        "prettier.prettierPath": "./node_modules/prettier",
+        "tailwindCSS.experimental.configFile": "src/index.css",
       },
     },
     {
@@ -55,11 +61,31 @@
       "typescript",
       "typescriptreact",
     ],
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "[javascriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "[css]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "tailwindCSS.experimental.configFile": {
+      "apps/pms/src/index.css": "apps/pms/**",
+      "apps/web/src/index.css": "apps/web/**",
+    },
+    "tailwindCSS.classAttributes": ["class", "className", "class:list"],
+    "tailwindCSS.classFunctions": ["cva", "cn", "clsx", "twMerge"],
+    "tailwindCSS.includeLanguages": {
+      "typescript": "javascript",
+      "typescriptreact": "javascript",
+    },
     "prisma.pinToPrisma6": true,
   },
   "extensions": {
     "recommendations": [
       "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
       "Prisma.prisma",
       "bradlc.vscode-tailwindcss",
     ],

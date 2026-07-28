@@ -137,11 +137,17 @@ export function UnitFormDialog({
   /** After create, keep dialog open on the saved row so staff can copy export URL. */
   const [createdUnit, setCreatedUnit] = useState<StaffUnit | null>(null);
   const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
+  /** Local override after rotate when `unit` prop is still the pre-rotate row. */
+  const [exportUrlOverride, setExportUrlOverride] = useState<string | null>(
+    null,
+  );
   const effectiveUnit = createdUnit ?? unit ?? null;
   const isEdit = Boolean(effectiveUnit);
-  const [exportUrl, setExportUrl] = useState(
-    effectiveUnit?.icalExportUrl ?? "",
-  );
+  const exportUrl =
+    exportUrlOverride ??
+    createdUnit?.icalExportUrl ??
+    unit?.icalExportUrl ??
+    "";
 
   const form = useForm<FormValues>({
     // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
@@ -149,16 +155,19 @@ export function UnitFormDialog({
     defaultValues: emptyFormValues,
   });
 
-  useEffect(() => {
-    if (!open) {
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
       setCreatedUnit(null);
       setRotateConfirmOpen(false);
+      setExportUrlOverride(null);
+    }
+    onOpenChange(nextOpen);
+  }
+
+  useEffect(() => {
+    if (!open || createdUnit) {
       return;
     }
-    if (createdUnit) {
-      return;
-    }
-    setExportUrl(unit?.icalExportUrl ?? "");
     form.reset(
       unit
         ? {
@@ -209,7 +218,7 @@ export function UnitFormDialog({
       });
       if (creating) {
         setCreatedUnit(saved);
-        setExportUrl(saved.icalExportUrl);
+        setExportUrlOverride(null);
         form.reset({
           code: saved.code,
           name: saved.name ?? "",
@@ -229,9 +238,9 @@ export function UnitFormDialog({
       }
       form.reset(emptyFormValues);
       setCreatedUnit(null);
-      setExportUrl("");
+      setExportUrlOverride(null);
       handleSuccess("Unit updated");
-      onOpenChange(false);
+      handleOpenChange(false);
     },
     onError: (error) => {
       applyApiFieldError(error, form.setError);
@@ -247,7 +256,7 @@ export function UnitFormDialog({
     },
     onSuccess: (saved) => {
       setRotateConfirmOpen(false);
-      setExportUrl(saved.icalExportUrl);
+      setExportUrlOverride(saved.icalExportUrl);
       if (createdUnit) {
         setCreatedUnit(saved);
       }
@@ -279,7 +288,7 @@ export function UnitFormDialog({
     <>
       <ResponsiveFormShell
         open={open}
-        onOpenChange={onOpenChange}
+        onOpenChange={handleOpenChange}
         title={readOnly ? "View unit" : isEdit ? "Edit unit" : "Add unit"}
         description="Physical apartment — one calendar each."
         footer={
@@ -288,7 +297,7 @@ export function UnitFormDialog({
               type="button"
               variant="outline"
               onClick={() => {
-                onOpenChange(false);
+                handleOpenChange(false);
               }}
             >
               Close
@@ -299,7 +308,7 @@ export function UnitFormDialog({
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  onOpenChange(false);
+                  handleOpenChange(false);
                 }}
               >
                 Cancel

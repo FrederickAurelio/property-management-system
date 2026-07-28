@@ -10,17 +10,19 @@ export function HomePage() {
   return (
     <div className="flex min-h-svh flex-col">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <span className="text-sm font-medium tracking-tight">{t("appName")}</span>
+        <span className="text-sm font-medium tracking-tight">
+          {t("appName")}
+        </span>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
           <ThemeToggle />
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center gap-4 px-4 py-16">
+      <main className="flex w-full max-w-lg flex-1 flex-col justify-center gap-4 px-4 py-16 mx-auto">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           {t("home.title")}
         </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed">
+        <p className="text-sm leading-relaxed text-muted-foreground">
           {t("home.subtitle")}
         </p>
         <div>
