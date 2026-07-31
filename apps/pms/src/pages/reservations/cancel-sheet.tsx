@@ -25,8 +25,8 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { formatIdr } from "@/pages/properties/inventory-types";
-import { isOtaLinkedStay } from "./ical-playbooks";
-import { OtaRemindDialog } from "./ota-remind-dialog";
+import { isOtaLinkedStay } from "@/lib/ota-channels";
+import { OtaRemindDialog } from "@/components/ota/ota-remind-dialog";
 import { formatMoneyOrDash } from "./reservation-format";
 
 type FormValues = {
@@ -411,12 +411,14 @@ export function CancelSheet({
         </FieldGroup>
       </form>
     </ResponsiveFormShell>
-      <OtaRemindDialog
-        open={otaRemindOpen}
-        onOpenChange={setOtaRemindOpen}
-        source={reservation.source}
-        reason="cancel"
-      />
+      {otaRemindOpen && isOtaLinkedStay(reservation) && (
+        <OtaRemindDialog
+          open={otaRemindOpen}
+          onOpenChange={setOtaRemindOpen}
+          source={reservation.source}
+          reason="cancel"
+        />
+      )}
     </>
   );
 }

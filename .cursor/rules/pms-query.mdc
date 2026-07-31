@@ -120,7 +120,7 @@ TanStack `mutation.isPending` flips **false** when the request settles. `onOpenC
 | Local state                  | Clear first (examples)                                                                                                |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | RHF form                     | `form.reset(emptyFormValues())` — reuse a module-level `emptyFormValues` / `emptyDefaults`; not ad-hoc partial clears |
-| Choose-unit / picker         | `setPicked(null)` — **`null`**, not `undefined`, when `undefined` falls back to `initialChosen` / reservation         |
+| Choose-unit / picker         | Three-state: `undefined` = fall back to reservation / `initialChosen`; `null` = cleared; object = pick. See below.   |
 | Picker open                  | `setPickerOpen(false)`                                                                                                |
 | Dialog / sheet open          | `onOpenChange(false)` or `setXOpen(false)` **after** reset                                                            |
 | Delete confirm               | `setDeleteTarget(null)`                                                                                               |
@@ -129,10 +129,19 @@ TanStack `mutation.isPending` flips **false** when the request settles. `onOpenC
 | Media uploading flags        | `setMediaUploading(false)`                                                                                            |
 | Login / settings             | `form.reset(…)` + hide-password toggles before navigate / close                                                       |
 
+**Choose-unit `picked` on success** (when `chosen = picked !== undefined ? picked : reservation \| initialChosen`):
+
+| Moment | Set | Why |
+| --- | --- | --- |
+| Create success (shell may stay open for OTA remind) | `setPicked(null)` | Avoid falling back to `initialChosen` while the empty form is still mounted |
+| Edit / confirm-enrich success | `setPicked(undefined)` | Stay-mounted dialogs (e.g. detail Edit) must fall back to the reservation on reopen — `null` sticks as “No unit” |
+| Mid-session hard clear (unit not bookable) | `setPicked(null)` | Intentionally empty until staff picks again |
+| Cancel / close via `handleOpenChange(false)` | `setPicked(undefined)` | Drop local override |
+
 ```ts
 onSuccess: (saved) => {
   form.reset(emptyFormValues());
-  setPicked(null);
+  setPicked(isEdit || isConfirmEnrich ? undefined : null);
   setPickerOpen(false);
   syncReservationCaches(queryClient, saved, { occupancyChanged });
   handleSuccess("Reservation created");
@@ -152,7 +161,7 @@ onSuccess: (saved) => {
 
 - Rely on `isPending` alone to block double-submit on dialogs/sheets
 - Add a submit-lock hook/latch as the default fix — clear state on success instead
-- `setPicked(undefined)` on success when create flows fall back to `initialChosen`
+- `setPicked(null)` on **edit** success when the dialog stays mounted — next Edit shows “No unit chosen”
 
 ## Errors — pick one path
 

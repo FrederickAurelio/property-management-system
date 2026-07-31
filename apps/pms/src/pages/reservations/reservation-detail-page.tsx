@@ -25,13 +25,13 @@ import { cn } from "@/lib/utils";
 import { CancelSheet } from "./cancel-sheet";
 import { CollectSheet } from "./collect-sheet";
 import { IcalPlaybookCard } from "./ical-playbook-card";
+import { isOtaLinkedStay } from "@/lib/ota-channels";
 import {
   icalActionConfirmCopy,
   icalPlaybook,
-  isOtaLinkedStay,
   type IcalPendingAction,
 } from "./ical-playbooks";
-import { OtaRemindDialog } from "./ota-remind-dialog";
+import { useOtaRemindDialog } from "@/hooks/use-ota-remind-dialog";
 import { PaymentMovementsTimeline } from "./payment-movements-timeline";
 import { ReservationBadge, SourceBadge } from "./reservation-badges";
 import { ReservationFormDialog } from "./reservation-form-dialog";
@@ -128,10 +128,8 @@ export function ReservationDetailPage() {
   );
   const [cancelOpen, setCancelOpen] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
-  const [otaRemindOpen, setOtaRemindOpen] = useState(false);
-  const [otaRemindReason, setOtaRemindReason] = useState<
-    "cancel" | "check-out"
-  >("check-out");
+  const { showRefreshImports, showSourceRemind, remindDialog } =
+    useOtaRemindDialog();
   const [pendingIcal, setPendingIcal] = useState<IcalPendingAction | null>(
     null,
   );
@@ -178,9 +176,15 @@ export function ReservationDetailPage() {
             ? "Checked in"
             : "Checked out",
       );
+      if (action === "confirm") {
+        showRefreshImports({
+          trigger: "confirm",
+          unitId: saved.unitId,
+          bookingSource: saved.source,
+        });
+      }
       if (action === "check-out" && isOtaLinkedStay(saved)) {
-        setOtaRemindReason("check-out");
-        setOtaRemindOpen(true);
+        showSourceRemind(saved.source, "check-out");
       }
     },
     onError: (error) => {
@@ -514,12 +518,7 @@ export function ReservationDetailPage() {
         reservation={row}
       />
 
-      <OtaRemindDialog
-        open={otaRemindOpen}
-        onOpenChange={setOtaRemindOpen}
-        source={row.source}
-        reason={otaRemindReason}
-      />
+      {remindDialog}
 
       {pendingIcalCopy && pendingIcal && (
         <ConfirmDialog

@@ -45,6 +45,12 @@ import { StayDateRangePicker } from "@/pages/reservations/stay-date-range-picker
 import { UnitInventoryPicker } from "@/pages/reservations/unit-inventory-picker";
 import { formatBlockKind } from "./calendar-block-labels";
 import { occupancyExtrasForUnit } from "./calendar-occupancy";
+import type { OtaRefreshTrigger } from "@/lib/ota-remind";
+
+export type CalendarBlockSavedInfo = {
+  trigger: OtaRefreshTrigger;
+  unitId: string;
+};
 
 const KIND_OPTIONS = [
   CalendarBlockKind.MAINTENANCE,
@@ -134,6 +140,8 @@ type CalendarBlockSheetProps = {
   initialEndDate?: string;
   /** When set, edit mode. */
   block?: StaffCalendarBlock | null;
+  /** Fired after a successful create or occupancy-changing update (before sheet closes). */
+  onBlockSaved?: (info: CalendarBlockSavedInfo) => void;
 };
 
 export function CalendarBlockSheet({
@@ -146,6 +154,7 @@ export function CalendarBlockSheet({
   initialStartDate = "",
   initialEndDate = "",
   block = null,
+  onBlockSaved,
 }: CalendarBlockSheetProps) {
   const queryClient = useQueryClient();
   const isEdit = Boolean(block);
@@ -248,7 +257,17 @@ export function CalendarBlockSheet({
         note: values.note || null,
       });
     },
-    onSuccess: () => {
+    onSuccess: (_data, values) => {
+      const occupancyChanged =
+        !isEdit ||
+        block!.unitId !== values.unitId ||
+        block!.startDate !== values.startDate ||
+        block!.endDate !== values.endDate;
+      if (!isEdit) {
+        onBlockSaved?.({ trigger: "block-create", unitId: values.unitId });
+      } else if (occupancyChanged) {
+        onBlockSaved?.({ trigger: "block-update", unitId: values.unitId });
+      }
       form.reset(emptyFormValues());
       setPicked(null);
       setPickerOpen(false);

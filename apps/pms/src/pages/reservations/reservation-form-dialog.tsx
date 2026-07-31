@@ -51,9 +51,9 @@ import {
   updateReservation,
 } from "@/lib/api";
 import { IdrAmountInput } from "@/components/form/idr-amount-input";
+import { useOtaRemindDialog } from "@/hooks/use-ota-remind-dialog";
 import { formatIdr, formatIdrInput } from "@/pages/properties/inventory-types";
-import { isOtaLinkedStay } from "./ical-playbooks";
-import { OtaRemindDialog } from "./ota-remind-dialog";
+import { isOtaLinkedStay } from "@/lib/ota-channels";
 import { formatReservationSource, nightCount } from "./reservation-format";
 import { StayDateRangePicker } from "./stay-date-range-picker";
 import { ChosenUnitField } from "./chosen-unit-field";
@@ -221,7 +221,15 @@ export function ReservationFormDialog({
   const [pickerOpen, setPickerOpen] = useState(() =>
     Boolean(autoOpenUnitPicker && !reservation && !initialChosen),
   );
-  const [otaRemindOpen, setOtaRemindOpen] = useState(false);
+  /** Run after staff dismisses an OTA remind (keeps form open until then). */
+  const afterOtaRemindRef = useRef<(() => void) | null>(null);
+  const { showRefreshImports, showSourceRemind, remindDialog } =
+    useOtaRemindDialog({
+      onDismissed: () => {
+        afterOtaRemindRef.current?.();
+        afterOtaRemindRef.current = null;
+      },
+    });
   /** `undefined` = fall back to reservation / initialChosen; `null` = cleared; else user pick. */
   const [picked, setPicked] = useState<ChosenUnit | null | undefined>(
     undefined,
@@ -614,9 +622,6 @@ export function ReservationFormDialog({
         (prev.unitId !== saved.unitId ||
           prev.checkInDate !== saved.checkInDate ||
           prev.checkOutDate !== saved.checkOutDate);
-      form.reset(emptyFormValues());
-      setPicked(null);
-      setPickerOpen(false);
       syncReservationCaches(queryClient, saved, { occupancyChanged });
       handleSuccess(
         isConfirmEnrich
@@ -625,14 +630,50 @@ export function ReservationFormDialog({
             ? "Reservation updated"
             : "Reservation created",
       );
-      onOpenChange(false);
-      if (!isEdit) {
-        onCreated?.(saved.id);
+
+      const finish = () => {
+        form.reset(emptyFormValues());
+        // Edit/confirm: `undefined` so stay-mounted reopen falls back to reservation.
+        // Create: `null` so we don't flash `initialChosen` while the shell is still open.
+        setPicked(isEdit || isConfirmEnrich ? undefined : null);
+        setPickerOpen(false);
+        onOpenChange(false);
+        if (!isEdit) {
+          onCreated?.(saved.id);
+        }
+        onSaved?.(saved);
+      };
+
+      if (!isEdit && !isConfirmEnrich) {
+        afterOtaRemindRef.current = finish;
+        showRefreshImports({
+          trigger: "walk-in",
+          unitId: saved.unitId,
+          bookingSource: saved.source,
+        });
+        return;
       }
-      onSaved?.(saved);
-      if (remindOta) {
-        setOtaRemindOpen(true);
+      if (remindOta && prev) {
+        afterOtaRemindRef.current = finish;
+        showSourceRemind(prev.source, "dates-or-unit");
+        return;
       }
+      if (
+        isEdit &&
+        prev != null &&
+        occupancyChanged &&
+        !isOtaLinkedStay(prev)
+      ) {
+        afterOtaRemindRef.current = finish;
+        showRefreshImports({
+          trigger: "stay-update",
+          unitId: saved.unitId,
+          bookingSource: saved.source,
+        });
+        return;
+      }
+
+      finish();
     },
     onError: (error) => {
       applyApiFieldError(error, form.setError);
@@ -1082,12 +1123,7 @@ export function ReservationFormDialog({
         />
       ) : null}
 
-      <OtaRemindDialog
-        open={otaRemindOpen}
-        onOpenChange={setOtaRemindOpen}
-        source={reservation?.source ?? ReservationSource.BOOKING_COM}
-        reason="dates-or-unit"
-      />
+      {remindDialog}
     </>
   );
 }

@@ -1,5 +1,5 @@
 /* anchor: Linear confirm dialog, diverge: OTA checklist — must ack so desk doesn’t skip channel */
-import type { ReservationSource } from "@cabin/api-contract";
+import type { OtaChannelSource } from "@/lib/ota-channels";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,24 +10,39 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  otaUpdateChecklist,
-  type OtaRemindReason,
-} from "./ical-playbooks";
+  otaRemindChecklist,
+  type OtaRefreshImportsRemindContext,
+  type OtaSourceRemindReason,
+} from "@/lib/ota-remind";
 
-type OtaRemindDialogProps = {
+type OtaRemindDialogBaseProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  source: ReservationSource;
-  reason: OtaRemindReason;
 };
 
-export function OtaRemindDialog({
-  open,
-  onOpenChange,
-  source,
-  reason,
-}: OtaRemindDialogProps) {
-  const checklist = otaUpdateChecklist(source, reason);
+export type OtaRemindDialogProps = OtaRemindDialogBaseProps &
+  (
+    | {
+        reason: "refresh-imports";
+        refreshContext: OtaRefreshImportsRemindContext;
+        source?: never;
+      }
+    | {
+        reason: OtaSourceRemindReason;
+        source: OtaChannelSource;
+        refreshContext?: never;
+      }
+  );
+
+export function OtaRemindDialog(props: OtaRemindDialogProps) {
+  const { open, onOpenChange, reason } = props;
+  const checklist =
+    reason === "refresh-imports"
+      ? otaRemindChecklist({
+          reason,
+          refreshContext: props.refreshContext,
+        })
+      : otaRemindChecklist({ reason, source: props.source });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -35,7 +50,7 @@ export function OtaRemindDialog({
         <DialogHeader>
           <DialogTitle>{checklist.title}</DialogTitle>
           <DialogDescription asChild>
-            <ol className="mt-1 list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
+            <ol className="mt-1 flex list-decimal flex-col gap-2 pl-4 text-sm text-muted-foreground">
               {checklist.steps.map((step) => (
                 <li key={step}>{step}</li>
               ))}

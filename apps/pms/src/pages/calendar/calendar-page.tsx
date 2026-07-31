@@ -33,6 +33,7 @@ import type { ChosenUnit } from "@/pages/reservations/chosen-unit";
 import { reservationCalendarStateFromSearch } from "@/pages/reservations/reservation-nav";
 import { CalendarBlockSheet } from "./calendar-block-sheet";
 import { CalendarGrid } from "./calendar-grid";
+import { useOtaRemindDialog } from "@/hooks/use-ota-remind-dialog";
 import {
   defaultRangeFromToday,
   formatRangeLabel,
@@ -163,6 +164,7 @@ export function CalendarPage() {
 
   const [createIntent, setCreateIntent] = useState<CreateIntent | null>(null);
   const [blockIntent, setBlockIntent] = useState<BlockIntent | null>(null);
+  const { showRefreshImports, remindDialog } = useOtaRemindDialog();
 
   const propertyName =
     optionsQuery.data?.find((p) => p.id === propertyId)?.name ?? "";
@@ -394,8 +396,16 @@ export function CalendarPage() {
               ? blockIntent.selection?.checkOutDate
               : undefined
           }
+          onBlockSaved={(info) => {
+            showRefreshImports({
+              trigger: info.trigger,
+              unitId: info.unitId,
+            });
+          }}
         />
       )}
+
+      {remindDialog}
     </div>
   );
 }

@@ -78,11 +78,11 @@ Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env`
 
 | Phase | Focus |
 |-------|--------|
-| **1 (now)** | **Prod staff PMS** for live manual + OTA: auth, units, calendar, reservations (incl. **total/paid/DP**), check-in/out, reports → **iCal export** (block OTAs) + **iCal import** + Sync now. Schema merge-ready for web. **No email ingest.** |
+| **1 (now)** | **Prod staff PMS** for live manual + OTA: auth, units, calendar, reservations (incl. **total/paid/DP**), check-in/out, reports → **iCal hub** (PMS export → each OTA; import each OTA → PMS) + Sync now. Migrate off OTA↔OTA mesh when PMS trusted. **No email ingest.** |
 | **2** | Customer `web` browse/book FE + public API + PMS iCal **export** hub — **same** reservation/money model |
 | **3** | Paid Channel Manager only if iCal delay/scale hurts |
 
-OTA sync today: native iCal (Booking.com · Airbnb · Agoda). No extranet scraping.  
+OTA sync: **hub topology** (each OTA imports PMS export only; PMS imports each OTA). Mesh bootstrap OK until PMS trusted — then drop peer OTA↔OTA links. Hub migration + why: [`_docs/reservations-design.md`](_docs/reservations-design.md) §9. No extranet scraping.  
 `CONFIRMED` = ops-booked, **not** fully paid — money is a separate axis (`paymentStatus`).  
 iCal stubs → `UNCONFIRMED` until staff enrich guest + money.
 
@@ -120,7 +120,7 @@ Constraints: `.cursor/rules/` — layered entry + concern globs per app (map: [`
 - Promise zero double-booking from iCal alone
 - Remote OTA “Import now” bots / scraping
 - Claim iCal syncs prices
-- Rip OTA↔OTA iCal before PMS is trusted
+- Rip OTA↔OTA mesh before PMS export is verified on all OTAs (hub migration checklist: `_docs/reservations-design.md` §9)
 - Defer staff reservation **money/DP** until Phase 2 web — Phase 1 PMS must track it for live desk
 - OTA **email ingest** / ping / quick-confirm parsers — out; use iCal + staff enrich
 - Treat Phase 2 as inventing a second booking/payment model — web reuses `domain/reservations`

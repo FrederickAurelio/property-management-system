@@ -1,9 +1,9 @@
 import {
   IcalSyncWarning,
-  ReservationSource,
   type IcalSyncWarning as IcalSyncWarningType,
   type ReservationSource as ReservationSourceType,
 } from "@cabin/api-contract";
+import { channelLabel } from "@/lib/ota-channels";
 
 export type IcalPlaybookPrimaryKind =
   | "accept-dates"
@@ -45,19 +45,6 @@ export type IcalPlaybookContext = {
   icalObservedCheckInDate?: string | null;
   icalObservedCheckOutDate?: string | null;
 };
-
-function channelLabel(source: ReservationSourceType): string {
-  switch (source) {
-    case ReservationSource.BOOKING_COM:
-      return "Booking.com";
-    case ReservationSource.AIRBNB:
-      return "Airbnb";
-    case ReservationSource.AGODA:
-      return "Agoda";
-    default:
-      return "the OTA";
-  }
-}
 
 /** Short list/chip title — no dates/unit details. */
 export function icalWarningTitle(
@@ -206,9 +193,6 @@ export function icalPlaybook(
   }
 }
 
-export type OtaRemindReason = "dates-or-unit" | "cancel" | "check-out";
-
-/** Pending playbook mutation that needs a confirm dialog (not Cancel sheet). */
 export type IcalPendingAction =
   | "accept-dates"
   | "accept-unit"
@@ -264,60 +248,6 @@ export function icalActionConfirmCopy(
           ? `Hides this alert. It will not come back on the next sync unless ${channel} drops the booking and lists it again later.`
           : `Hides this alert until the next sync. If nothing changed on ${channel}, it will likely come back.`,
         confirmLabel: ctx.dismissLabel ?? "Dismiss",
-      };
-  }
-}
-
-export function isOtaLinkedStay(row: {
-  externalRef?: string | null;
-  source: ReservationSourceType;
-}): boolean {
-  if (!row.externalRef) {
-    return false;
-  }
-  return (
-    row.source === ReservationSource.BOOKING_COM ||
-    row.source === ReservationSource.AIRBNB ||
-    row.source === ReservationSource.AGODA
-  );
-}
-
-export function otaUpdateChecklist(
-  source: ReservationSourceType,
-  reason: OtaRemindReason = "dates-or-unit",
-): {
-  title: string;
-  steps: string[];
-} {
-  const channel = channelLabel(source);
-
-  switch (reason) {
-    case "cancel":
-      return {
-        title: `Cancel on ${channel} too`,
-        steps: [
-          "Cabin cancelled this stay and freed the unit on our calendar.",
-          `${channel} does not cancel the guest booking by itself — open ${channel} and cancel (or modify) that reservation.`,
-          `If you leave it active on ${channel}, the next sync may warn that it is still listed.`,
-        ],
-      };
-    case "check-out":
-      return {
-        title: `Update ${channel} if needed`,
-        steps: [
-          "Cabin checked the guest out and updated the busy calendar we send out.",
-          `If they left early, or the booking on ${channel} should end, edit or cancel that reservation on ${channel}.`,
-          `${channel} will not change the guest booking automatically.`,
-        ],
-      };
-    case "dates-or-unit":
-      return {
-        title: `Update ${channel} too`,
-        steps: [
-          "Cabin already saved the new dates/unit and updated the busy calendar we send out.",
-          `${channel} does not update the guest’s booking by itself — you must edit that reservation on ${channel}.`,
-          `Make dates and unit match Cabin, or the next sync will warn that the two sides disagree.`,
-        ],
       };
   }
 }

@@ -477,6 +477,64 @@ Feed `lastError` is for pull failures only — not this case.
 `GET /public/ical/units/:unitId.ics?token=…` — busy ranges only (occupying reservations + blocks). No PII.  
 Staff copy once → paste into each OTA’s **import** calendar. Rotate token = ADMIN (invalidates old link).
 
+### OTA topology: hub (prod target) vs mesh (bootstrap)
+
+**Prod target = hub.** Mesh was a valid bootstrap while PMS was new; migrate unit-by-unit when PMS is trusted.
+
+| Topology | OTA extranet wiring | PMS import (unchanged) | PMS desk |
+| -------- | ------------------- | ---------------------- | -------- |
+| **Hub** (target) | Each OTA imports **only** the PMS export `.ics` per unit | One `UnitIcalFeed` per source (Booking / Airbnb / Agoda) | One `UNCONFIRMED` per real OTA booking |
+| **Mesh** (bootstrap) | OTAs also import each other’s export URLs (peer OTA↔OTA) | Same | Same booking can echo as 2–3 stubs (different UIDs); echoes often get `IMPORT_OVERLAP` hold |
+
+```text
+HUB (target)
+  Booking / Airbnb / Agoda  ──export──►  PMS imports (cron + Sync all)
+  walk-in / website ─────────────────►  PMS calendar truth
+  PMS export .ics / unit  ──import──►  each OTA (only peer link they need)
+
+MESH (bootstrap — remove peer links after hub verified)
+  Airbnb ◄──iCal──► Booking ◄──iCal──► Agoda   ← drop these when hub is live
+         └──────── PMS imports each OTA ────────┘   ← keep always
+```
+
+**Why hub:** iCal has no cross-channel booking id. Importer dedupes on `(source, externalRef=UID)` only — not “same nights = same guest.” Mesh echoes look like separate bookings; hub avoids most echoes because non-booking OTAs block via **PMS export**, not re-exported peer feeds.
+
+**Why we do not auto-merge mesh echoes in code:** echo vs real double-book (mesh delay) look identical (different UIDs, same nights, different sources). `IMPORT_OVERLAP` + `icalOverlapHold` surfaces real conflicts; block-like SUMMARY rows are already skipped. Heuristic cross-OTA merge would hide rare true double-sells.
+
+**OTAs blocking from hub:** After a booking (OTA, walk-in, or website), PMS export includes busy nights → each OTA **imports** that feed on **its** poll schedule (hours, not instant). PMS Sync all refreshes **our** copy only — staff still **Refresh / Import now** on OTAs when last-minute. iCal delay risk remains; hub reduces echo noise, not physics.
+
+**Migrate mesh → hub (per unit, when ready):**
+
+1. PMS export URL pasted on Booking, Airbnb, and Agoda; verify a test block appears on each (manual refresh if needed).
+2. Staff use PMS daily; feeds pull without chronic `lastError`; Sync all trusted.
+3. **Optional overlap:** run hub + mesh briefly (redundant, safer).
+4. On each OTA extranet, **remove peer OTA import URLs** — keep **only** the PMS export URL. **Do not** remove OTA→PMS import URLs in the unit form.
+5. Watch 1–2 weeks: fewer echo stubs; real bookings still one row per channel.
+
+**Do not** drop peer mesh before step 1 — OTAs may show open nights until they pull PMS export. See [`cabin-pms-client-plan.md`](cabin-pms-client-plan.md) §4.
+
+### Desk: refresh OTA imports (optional nudge)
+
+PMS export updates immediately when nights become busy; OTAs pull on **their** schedule (hours). Staff can speed this with extranet **Refresh / Import now** — PMS cannot trigger it remotely.
+
+Two reminder families in PMS (`OtaRemindDialog`):
+
+| Family | When | Copy |
+| ------ | ---- | ---- |
+| **A — update source** | Staff edit dates/unit, cancel, or check-out on an OTA-linked stay | Fix the **guest booking** on the source channel (existing) |
+| **B — refresh imports** | Staff **confirm** iCal stub, **create** walk-in, **edit** non–OTA-linked stay dates/unit, or **create/update** calendar block (dates/unit) | Pull **PMS export** on peer channels |
+
+Family **B** triggers (after success, non-blocking **Got it**):
+
+- Confirm UNCONFIRMED → CONFIRMED (reservation detail)
+- Create manual / walk-in reservation (reservations + calendar)
+- Edit manual / non–OTA-linked stay when dates or unit change
+- Create calendar block; update block when dates or unit change (not note-only)
+
+Not triggered: auto iCal import, enrich-save only, check-in, cancel/check-out/block delete (family A or defer).
+
+Extranet labels: Booking.com **Import now** · Airbnb **Refresh** · Agoda **Refresh connections**. Copy builder: `apps/pms/src/lib/ota-remind.ts`.
+
 ---
 
 ## 10. Edge-case catalog (prod)
@@ -485,7 +543,7 @@ Staff copy once → paste into each OTA’s **import** calendar. Rotate token = 
 | --- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1   | Save overlaps occupying stay/block                          | **409** `CONFLICT`; FE shows who conflicts (guest/source/dates)                                                                                                                                                                                  |
 | 2   | iCal stub exists; staff creates manual same unit/dates      | Overlap 409 — open stub and Confirm instead                                                                                                                                                                                                      |
-| 3   | Two OTA feeds mark same nights (mesh delay double-book)     | Second UID → `UNCONFIRMED` with `IMPORT_OVERLAP` + `icalOverlapHold` (not calendar-busy). Desk: Cancel stub or free nights then Confirm                                                                                                          |
+| 3   | Two OTA feeds mark same nights (mesh echo or real double-book) | Second UID → `UNCONFIRMED` with `IMPORT_OVERLAP` + `icalOverlapHold` (not calendar-busy). Hub reduces echoes; edge case stays for true conflicts. Desk: Cancel echo stub or free nights then Confirm real guest                                                                 |
 | 4   | Walk-in while export not yet pulled by OTA                  | Known delay window; SOP refresh OTA if last-minute                                                                                                                                                                                               |
 | 5   | Guest paid Airbnb; Due would confuse check-in               | Mark paid (+ optional CHANNEL) so Due = 0                                                                                                                                                                                                        |
 | 6   | Complimentary / owner friend                                | `total = 0`, Mark paid or leave `PAID` with paid 0→ treat `total=0` and `paid=0` as `PAID` (due 0)                                                                                                                                               |
@@ -569,7 +627,8 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservati
 | 5   | **iCal export**                         |
 | 6   | Enrich queues                           |
 | 7   | **iCal import** + Sync now + warnings   |
-| Ph2 | Public book + hub preference            |
+| Ph1 prod | **Hub** topology when PMS trusted (mesh bootstrap OK until then) |
+| Ph2 | Public book — **hub required** (website + walk-in + OTA share PMS export) |
 
 ---
 

@@ -10,11 +10,12 @@
 | Item | Decision |
 |------|----------|
 | Product path | **Custom PMS (Approach B)** |
-| OTA strategy (now) | **B2** — keep their iCal; PMS imports iCal + staff enrich guest/money |
+| OTA strategy (now) | **B2** — iCal; PMS imports each OTA + staff enrich guest/money |
 | OTAs live | **Booking.com · Airbnb · Agoda** |
-| Client sync today | **Confirmed: native iCal** (OTA↔OTA), no paid CM |
+| OTA topology (prod target) | **Hub** — each OTA imports PMS export only; drop peer OTA↔OTA links when PMS trusted (see [`reservations-design.md`](reservations-design.md) §9) |
+| Client bootstrap | Was **OTA↔OTA mesh** (no CM); migrate to hub — not required on day one |
 | Channel Manager | **Later (B1)** if volume / double-books / scale needs real-time |
-| Website booking | Planned — triggers **B2b** (PMS as iCal hub) |
+| Website booking | Phase 2 — **requires** hub; start hub migration earlier if desk echo noise hurts |
 | Email ingest | **Out** — unreliable; not Phase 1 |
 
 ```text
@@ -34,6 +35,8 @@ B) Custom PMS
 | **OTA** | Online Travel Agency — Booking.com, Airbnb, Agoda. |
 | **CM** | Channel Manager — paid real-time API sync to OTAs (not used now). |
 | **iCal** | Free `.ics` calendar URL sync. Dates only. Pull-based, delayed. **What client uses now.** |
+| **Hub** | PMS export `.ics` per unit → each OTA imports **only** that; PMS imports each OTA export. Prod target. |
+| **Mesh** | OTAs also import each other’s `.ics` (peer links). Bootstrap only — causes echo stubs in PMS. |
 | **Booking engine** | Book flow on **their website**, writing into the same PMS. |
 
 ---
@@ -63,17 +66,20 @@ Even with working OTA iCal:
 ### Phase 1 — B2a (build first)
 
 ```text
-Airbnb ◄──iCal──► Booking.com ◄──iCal──► Agoda     (leave mesh as-is)
-         │
-         │  (PMS also pulls each OTA export .ics)
+Bootstrap (client may still have):
+  Airbnb ◄──iCal──► Booking.com ◄──iCal──► Agoda     ← remove peer links when hub verified
+
+Always:
+  each OTA export ──► PMS imports (cron + Sync all)
          ▼
-  Custom PMS
-  (ops truth)
+  Custom PMS (ops truth)
   iCal → UNCONFIRMED stub → staff enrich guest + $
   check-in, reports, money/DP, staff
 ```
 
-### Phase 2 — B2b (when website booking ships)
+**Prod migration (when PMS trusted):** paste PMS export on all OTAs → verify blocks → drop peer OTA↔OTA imports per unit. Detail: [`reservations-design.md`](reservations-design.md) §9 “OTA topology”.
+
+### Phase 2 — B2b (website booking + hub required)
 
 ```text
 Airbnb / Booking / Agoda  ──export──►  PMS imports (timer + Sync now)
@@ -84,9 +90,10 @@ Airbnb / Booking / Agoda  ──export──►  PMS imports (timer + Sync now)
                                             │
                                      PMS export .ics / unit
                                             ▼
-                              each OTA imports PMS feed
-                         (drop peer OTA↔OTA links when stable)
+                              each OTA imports PMS feed only (hub)
 ```
+
+Hub is **required** before public website book (walk-in + web + OTA share one export). Prefer hub in Phase 1 prod even without website — cleaner desk, one stub per booking.
 
 ### Phase 3 — B1 (optional)
 
@@ -185,13 +192,13 @@ property
 - Channel Manager / Channex.  
 - Scraping OTA extranets / remote Import now bots.  
 - Full dynamic pricing.  
-- Replacing their OTA↔OTA iCal mesh on day one.
+- Dropping peer OTA↔OTA mesh before PMS export is verified on all channels.
 
 ### Phase 2 (website)
 
 - Public booking engine on company site → writes PMS (`apps/web`: Vite + React; prerender/SSG for SEO pages; CDN in front of public origin).  
 - PMS export `.ics` per unit → OTAs import PMS.  
-- Migrate from mesh → hub when stable.  
+- **Hub topology** before website go-live; migrate mesh → hub when PMS trusted (can be Phase 1 prod).  
 - Guest cancel / change-date / refund self-serve only after client policy is locked.
 
 ---
@@ -200,12 +207,14 @@ property
 
 ```text
 OTA booking
-    → peer OTA iCal mesh (existing)
-    → PMS pulls .ics (timer / Sync now)
+    → PMS pulls that OTA export .ics (timer / Sync all)
     → Reservation UNCONFIRMED on unit calendar
     → Staff “Needs details” → guest + total/paid → Confirm
-    → (Optional) Staff refreshes other OTAs if last-minute
+    → PMS export blocks other OTAs (on their poll delay)
+    → (Optional) Staff refreshes OTA import if last-minute
 ```
+
+Peer OTA↔OTA mesh (if still present) can echo extra stubs — migrate to hub when PMS trusted.
 
 iCal owns **availability** in PMS. Staff owns **guest + money** when the OTA feed is blank.
 
@@ -215,10 +224,10 @@ iCal owns **availability** in PMS. Staff owns **guest + money** when the OTA fee
 
 | Do | Don’t |
 |----|--------|
-| Keep their working iCal in Phase 1 | Rip OTA sync before PMS is trusted |
-| PMS = ops + website source of truth | Promise zero double-booking with iCal only |
-| Warn about hours delay | Promise remote OTA Import now from PMS |
-| Plan B2b hub for website | Build extranet scrapers for client |
+| Keep iCal in Phase 1; migrate mesh → **hub** when PMS trusted | Drop peer OTA↔OTA before PMS export works on all OTAs |
+| PMS = ops + calendar export truth | Promise zero double-booking with iCal only |
+| Warn about hours delay; manual OTA Refresh when urgent | Promise remote OTA Import now from PMS |
+| Hub before website; hub early if echo stubs annoy desk | Build extranet scrapers for client |
 | Prices stay manual per OTA until CM | Claim iCal syncs prices |
 
 ---
