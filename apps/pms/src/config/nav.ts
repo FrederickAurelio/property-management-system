@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 
 export type NavItem = {
-  title: string;
+  /** i18n key in the `common` namespace, e.g. "nav.dashboard" */
+  titleKey: string;
   href: string;
   icon: LucideIcon;
   /** Primary destinations shown in the mobile bottom bar */
@@ -17,10 +18,15 @@ export type NavItem = {
 };
 
 export const primaryNavItems: NavItem[] = [
-  { title: "Dashboard", href: "/", icon: LayoutDashboard, mobile: true },
-  { title: "Calendar", href: "/calendar", icon: CalendarDays, mobile: true },
+  { titleKey: "nav.dashboard", href: "/", icon: LayoutDashboard, mobile: true },
   {
-    title: "Reservations",
+    titleKey: "nav.calendar",
+    href: "/calendar",
+    icon: CalendarDays,
+    mobile: true,
+  },
+  {
+    titleKey: "nav.reservations",
     href: "/reservations",
     icon: ClipboardList,
     mobile: true,
@@ -29,13 +35,13 @@ export const primaryNavItems: NavItem[] = [
 
 /** Property ops — not account/security */
 export const secondaryNavItems: NavItem[] = [
-  { title: "Properties", href: "/properties", icon: Building2 },
-  { title: "Reports", href: "/reports", icon: BarChart3 },
+  { titleKey: "nav.properties", href: "/properties", icon: Building2 },
+  { titleKey: "nav.reports", href: "/reports", icon: BarChart3 },
 ];
 
 /** Account + appearance (+ staff for SUPER_ADMIN). Not in Manage. */
 export const accountNavItems: NavItem[] = [
-  { title: "Settings", href: "/settings", icon: Settings },
+  { titleKey: "nav.settings", href: "/settings", icon: Settings },
 ];
 
 export const mobileNavItems = primaryNavItems.filter((item) => item.mobile);
@@ -46,11 +52,12 @@ export const allNavItems = [
   ...accountNavItems,
 ];
 
-export function getNavTitle(pathname: string): string {
+/** Returns the `common` namespace i18n key for the nav item matching `pathname`, if any. */
+export function getNavTitleKey(pathname: string): string | undefined {
   const match = allNavItems.find(
     (item) =>
       item.href === pathname ||
       (item.href !== "/" && pathname.startsWith(`${item.href}/`)),
   );
-  return match?.title ?? "Cabin PMS";
+  return match?.titleKey;
 }

@@ -4,38 +4,39 @@ import {
   type ApiFieldReason as ApiFieldReasonType,
 } from "@cabin/api-contract";
 import type { FieldPath, FieldValues, UseFormSetError } from "react-hook-form";
+import i18n from "@/i18n";
 import { ApiError, handleError } from "@/lib/api";
 
-const FIELD_REASON_MESSAGE: Partial<Record<ApiFieldReasonType, string>> = {
-  [ApiFieldReason.USERNAME_TAKEN]: "That username is already taken",
-  [ApiFieldReason.INVALID_CURRENT_PASSWORD]: "Current password is incorrect",
-  [ApiFieldReason.SAME_AS_CURRENT]:
-    "New password must differ from the current one",
-  [ApiFieldReason.USERNAME_UNCHANGED]: "Username is unchanged",
-  [ApiFieldReason.CODE_TAKEN]: "This code is already in use",
-  [ApiFieldReason.LAT_LNG_PAIR_REQUIRED]:
-    "Enter both latitude and longitude",
-  [ApiFieldReason.LAT_OUT_OF_RANGE]: "Enter a latitude between -90 and 90",
-  [ApiFieldReason.LNG_OUT_OF_RANGE]: "Enter a longitude between -180 and 180",
-  [ApiFieldReason.UNIT_TYPE_INVALID]: "Unit type not found on this property",
-  [ApiFieldReason.UNIT_NOT_BOOKABLE]: "This unit is not bookable",
-  [ApiFieldReason.DATE_RANGE_INVALID]: "Check-out must be after check-in",
-  [ApiFieldReason.STAY_PERIOD_MISMATCH]:
-    "Check-out must match a full daily, monthly, or yearly period from check-in",
-  [ApiFieldReason.OVERLAP_CONFLICT]:
-    "These dates overlap a booking on this unit — change dates or choose another unit.",
-  [ApiFieldReason.CONFIRM_INCOMPLETE]: "Guest or money details are incomplete",
-  [ApiFieldReason.GUEST_COUNT_EXCEEDS_MAX]:
-    "Guest count exceeds this unit type's max",
-  [ApiFieldReason.CANCEL_DISPOSITION_REQUIRED]:
-    "Choose how to handle the payment",
-  [ApiFieldReason.REFUND_AMOUNT_INVALID]: "Invalid refund amount",
-  [ApiFieldReason.MOVEMENT_EXCEEDS_DUE]: "Amount exceeds Due or Refund",
-  [ApiFieldReason.EARLY_CONFIRM_REQUIRED]: "Confirm early / late action",
-  [ApiFieldReason.INVALID_STATUS_TRANSITION]: "This action is not allowed now",
+const FIELD_REASON_KEY: Partial<Record<ApiFieldReasonType, string>> = {
+  [ApiFieldReason.USERNAME_TAKEN]: "usernameTaken",
+  [ApiFieldReason.INVALID_CURRENT_PASSWORD]: "invalidCurrentPassword",
+  [ApiFieldReason.SAME_AS_CURRENT]: "sameAsCurrent",
+  [ApiFieldReason.USERNAME_UNCHANGED]: "usernameUnchanged",
+  [ApiFieldReason.CODE_TAKEN]: "codeTaken",
+  [ApiFieldReason.LAT_LNG_PAIR_REQUIRED]: "latLngPairRequired",
+  [ApiFieldReason.LAT_OUT_OF_RANGE]: "latOutOfRange",
+  [ApiFieldReason.LNG_OUT_OF_RANGE]: "lngOutOfRange",
+  [ApiFieldReason.UNIT_TYPE_INVALID]: "unitTypeInvalid",
+  [ApiFieldReason.UNIT_NOT_BOOKABLE]: "unitNotBookable",
+  [ApiFieldReason.DATE_RANGE_INVALID]: "dateRangeInvalid",
+  [ApiFieldReason.STAY_PERIOD_MISMATCH]: "stayPeriodMismatch",
+  [ApiFieldReason.OVERLAP_CONFLICT]: "overlapConflict",
+  [ApiFieldReason.CONFIRM_INCOMPLETE]: "confirmIncomplete",
+  [ApiFieldReason.GUEST_COUNT_EXCEEDS_MAX]: "guestCountExceedsMax",
+  [ApiFieldReason.CANCEL_DISPOSITION_REQUIRED]: "cancelDispositionRequired",
+  [ApiFieldReason.REFUND_AMOUNT_INVALID]: "refundAmountInvalid",
+  [ApiFieldReason.MOVEMENT_EXCEEDS_DUE]: "movementExceedsDue",
+  [ApiFieldReason.EARLY_CONFIRM_REQUIRED]: "earlyConfirmRequired",
+  [ApiFieldReason.INVALID_STATUS_TRANSITION]: "invalidStatusTransition",
   [ApiFieldReason.SOURCE_LOCKED_WITH_EXTERNAL_REF]:
-    "Source is locked while this stay is linked to an OTA calendar UID",
+    "sourceLockedWithExternalRef",
 };
+
+/** Looks up the i18n message for a mapped `ApiFieldReason`, if any. */
+function getFieldReasonMessage(reason: ApiFieldReasonType): string | undefined {
+  const key = FIELD_REASON_KEY[reason];
+  return key ? i18n.t(`errors:fieldReasons.${key}`) : undefined;
+}
 
 /**
  * Maps structured API field errors onto RHF. Returns true when handled
@@ -60,7 +61,7 @@ export function applyApiFieldError<TFieldValues extends FieldValues>(
   }
 
   // Prefer Nest message when it names the conflicting guest / stay.
-  const mapped = FIELD_REASON_MESSAGE[reason as ApiFieldReasonType];
+  const mapped = getFieldReasonMessage(reason as ApiFieldReasonType);
   const message =
     reason === ApiFieldReason.OVERLAP_CONFLICT && error.message
       ? error.message

@@ -1,0 +1,55 @@
+{
+  "toolbar": {
+    "title": "Hari Ini",
+    "subtitle": "Kedatangan, keberangkatan, dan pengecualian untuk properti ini.",
+    "propertyAriaLabel": "Properti",
+    "selectPropertyPlaceholder": "Pilih properti",
+    "syncAll": "Sinkronkan semua",
+    "otaFailingOne": "1 kalender OTA gagal ({{unitCode}} · {{source}})",
+    "otaFailingMany": "{{count}} kalender OTA gagal",
+    "escalateOpenCalendars": "buka Kalender unit",
+    "escalateAskAdmin": "minta admin memperbaiki URL kalender"
+  },
+  "noProperties": "Belum ada properti. Tambahkan satu di Properti untuk mulai memakai desk.",
+  "loadError": "Desk hari ini gagal dimuat.",
+  "panel": {
+    "viewAll": "Lihat semua",
+    "nothingHere": "Belum ada apa-apa",
+    "quietHint": "Sepi itu bagus — tidak ada yang perlu dikejar di daftar ini."
+  },
+  "arrivals": {
+    "title": "Kedatangan",
+    "empty": "Tidak ada kedatangan hari ini"
+  },
+  "departures": {
+    "title": "Keberangkatan",
+    "empty": "Tidak ada keberangkatan hari ini"
+  },
+  "needsAttention": {
+    "title": "Perlu perhatian"
+  },
+  "table": {
+    "guest": "Tamu",
+    "unit": "Unit",
+    "why": "Alasan",
+    "due": "Sisa",
+    "openSr": "Buka"
+  },
+  "row": {
+    "needsDetails": "Perlu detail",
+    "openReservationFor": "Buka reservasi untuk {{guest}}"
+  },
+  "attention": {
+    "cancelNoShow": "Batal / no-show",
+    "otaIssue": "Masalah OTA",
+    "needsDetails": "Perlu detail",
+    "refund": "Refund",
+    "due": "Sisa"
+  },
+  "sync": {
+    "noneActive": "Tidak ada kalender OTA aktif untuk disinkronkan",
+    "partial": "{{ok}} dari {{attempted}} kalender tersinkron ({{failed}} gagal)",
+    "ok_one": "{{count}} kalender OTA tersinkron",
+    "ok_other": "{{count}} kalender OTA tersinkron"
+  }
+}

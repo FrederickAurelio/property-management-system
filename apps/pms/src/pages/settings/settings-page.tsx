@@ -1,9 +1,11 @@
 /* anchor: Linear settings / Stripe team, diverge: account + SUPER_ADMIN staff in one page */
 import { useQuery } from "@tanstack/react-query";
 import { AdminRole } from "@cabin/api-contract";
+import { useTranslation } from "react-i18next";
 import { Separator } from "@/components/ui/separator";
 import { staffSession } from "@/lib/api";
 import { staffSessionQueryKey } from "@/lib/api/query-keys";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { StaffLogoutButton } from "@/components/layout/staff-logout-button";
 import { ChangePasswordForm } from "./change-password-form";
 import { ChangeUsernameForm } from "./change-username-form";
@@ -33,6 +35,7 @@ function SettingsSection({
 }
 
 export function SettingsPage() {
+  const { t } = useTranslation(["settings", "common"]);
   const { data: staff } = useQuery({
     queryKey: staffSessionQueryKey,
     queryFn: () => staffSession(),
@@ -47,8 +50,8 @@ export function SettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 p-4 md:gap-10 md:p-6">
       <SettingsSection
-        title="Profile"
-        description="How you appear when signing in."
+        title={t("settings:profile.title")}
+        description={t("settings:profile.description")}
       >
         <ChangeUsernameForm currentUsername={staff.username} />
       </SettingsSection>
@@ -56,23 +59,39 @@ export function SettingsPage() {
       <Separator />
 
       <SettingsSection
-        title="Password"
-        description="Change the password for this account."
+        title={t("settings:password.title")}
+        description={t("settings:password.description")}
       >
         <ChangePasswordForm />
       </SettingsSection>
 
       <Separator />
 
-      <SettingsSection title="Appearance" description="Display preference.">
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-3 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Theme</p>
-            <p className="text-xs text-muted-foreground">
-              Light, dark, or match the system
-            </p>
+      <SettingsSection
+        title={t("settings:appearance.title")}
+        description={t("settings:appearance.description")}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-3 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                {t("settings:appearance.themeLabel")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t("settings:appearance.themeDescription")}
+              </p>
+            </div>
+            <ThemePreferenceSelect />
           </div>
-          <ThemePreferenceSelect />
+
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-3 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                {t("common:language.label")}
+              </p>
+            </div>
+            <LanguageSwitcher />
+          </div>
         </div>
       </SettingsSection>
 
@@ -80,8 +99,8 @@ export function SettingsPage() {
         <>
           <Separator />
           <SettingsSection
-            title="Staff"
-            description="Create accounts, change roles, and revoke access."
+            title={t("settings:staff.title")}
+            description={t("settings:staff.description")}
           >
             <StaffSection currentAdmin={staff} />
           </SettingsSection>
@@ -91,8 +110,8 @@ export function SettingsPage() {
       <Separator />
 
       <SettingsSection
-        title="Session"
-        description="Sign out on this device."
+        title={t("settings:session.title")}
+        description={t("settings:session.description")}
       >
         <StaffLogoutButton
           variant="outline"

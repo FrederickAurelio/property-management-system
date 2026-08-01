@@ -1,5 +1,6 @@
 import type { StaffReportsSummary } from "@cabin/api-contract";
 import { formatReservationSource } from "@/pages/reservations/reservation-format";
+import i18n from "@/i18n";
 import { pctOfTotal, shareDeltaPp } from "./reports-format";
 
 function csvEscape(value: string | number | null | undefined): string {
@@ -23,7 +24,7 @@ function rowsToCsv(
 }
 
 function methodLabel(method: string | null): string {
-  if (method == null) return "Unspecified";
+  if (method == null) return i18n.t("reports:csv.methodUnspecified");
   return method;
 }
 
@@ -36,17 +37,21 @@ export function buildReportsCsv(
   const compareOn = opts.compare && summary.compare != null;
   const cashNetAbs = Math.abs(summary.cash.netIdr) || 0;
 
-  sections.push(`# Cabin PMS Reports`);
-  sections.push(`# Property,${csvEscape(opts.propertyName)}`);
-  sections.push(`# Period,${summary.from},${summary.to}`);
+  sections.push(`# ${i18n.t("reports:csv.reportTitle")}`);
+  sections.push(
+    `# ${i18n.t("reports:csv.propertyLabel")},${csvEscape(opts.propertyName)}`,
+  );
+  sections.push(
+    `# ${i18n.t("reports:csv.periodLabel")},${summary.from},${summary.to}`,
+  );
   if (compareOn && summary.compare) {
     sections.push(
-      `# Compare period,${summary.compare.from},${summary.compare.to}`,
+      `# ${i18n.t("reports:csv.comparePeriodLabel")},${summary.compare.from},${summary.compare.to}`,
     );
   }
   sections.push("");
 
-  sections.push("# cash-summary");
+  sections.push(`# ${i18n.t("reports:csv.sectionCashSummary")}`);
   sections.push(
     rowsToCsv(
       compareOn
@@ -84,7 +89,7 @@ export function buildReportsCsv(
     ),
   );
   sections.push("");
-  sections.push("# cash-by-source");
+  sections.push(`# ${i18n.t("reports:csv.sectionCashBySource")}`);
   sections.push(
     rowsToCsv(
       ["source", "inIdr", "outIdr", "netIdr", "pctOfNet"],
@@ -98,7 +103,7 @@ export function buildReportsCsv(
     ),
   );
   sections.push("");
-  sections.push("# cash-by-unit-type");
+  sections.push(`# ${i18n.t("reports:csv.sectionCashByUnitType")}`);
   sections.push(
     rowsToCsv(
       ["unitType", "inIdr", "outIdr", "netIdr", "pctOfNet"],
@@ -114,7 +119,7 @@ export function buildReportsCsv(
     ),
   );
   sections.push("");
-  sections.push("# cash-by-method");
+  sections.push(`# ${i18n.t("reports:csv.sectionCashByMethod")}`);
   sections.push(
     rowsToCsv(
       ["method", "inIdr", "outIdr", "netIdr", "pctOfNet"],
@@ -129,7 +134,7 @@ export function buildReportsCsv(
   );
 
   sections.push("");
-  sections.push("# occupancy");
+  sections.push(`# ${i18n.t("reports:csv.sectionOccupancy")}`);
   sections.push(
     rowsToCsv(
       compareOn
@@ -154,7 +159,7 @@ export function buildReportsCsv(
       [
         compareOn && summary.occupancy.compare
           ? [
-              "property",
+              i18n.t("reports:csv.propertyRowLabel"),
               "",
               summary.occupancy.occupiedNights,
               summary.occupancy.availableNights,
@@ -165,7 +170,7 @@ export function buildReportsCsv(
               summary.occupancy.compare.occupancyPctDelta,
             ]
           : [
-              "property",
+              i18n.t("reports:csv.propertyRowLabel"),
               "",
               summary.occupancy.occupiedNights,
               summary.occupancy.availableNights,
@@ -222,7 +227,7 @@ export function buildReportsCsv(
   );
 
   sections.push("");
-  sections.push("# source-mix");
+  sections.push(`# ${i18n.t("reports:csv.sectionSourceMix")}`);
   sections.push(
     rowsToCsv(
       compareOn

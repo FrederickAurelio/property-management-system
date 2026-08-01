@@ -1,11 +1,8 @@
 /* anchor: Linear-dense form groups, diverge: multi-bed rooms → bedConfig JSON */
 import { PlusIcon, Trash2Icon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -16,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { BedConfigRoom, BedKind } from "./inventory-types";
-import { BED_KIND_OPTIONS } from "./amenity-catalog";
+import { getBedKindOptions } from "./amenity-catalog";
 
 type BedConfigFieldProps = {
   value: BedConfigRoom[];
@@ -29,6 +26,9 @@ export function BedConfigField({
   onChange,
   readOnly = false,
 }: BedConfigFieldProps) {
+  const { t } = useTranslation(["inventory", "common"]);
+  const bedKindOptions = getBedKindOptions();
+
   function updateRoom(index: number, patch: Partial<BedConfigRoom>) {
     onChange(
       value.map((room, i) => {
@@ -86,7 +86,10 @@ export function BedConfigField({
     onChange([
       ...value,
       {
-        room: value.length === 0 ? "Studio" : `Bedroom ${n}`,
+        room:
+          value.length === 0
+            ? t("inventory:bedConfig.defaultStudioRoomName")
+            : t("inventory:bedConfig.defaultBedroomName", { n }),
         beds: [{ type: "DOUBLE", count: 1 }],
       },
     ]);
@@ -99,15 +102,18 @@ export function BedConfigField({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm font-medium">Rooms & beds</p>
+        <p className="text-sm font-medium">
+          {t("inventory:bedConfig.sectionTitle")}
+        </p>
         <FieldDescription>
-          Each room can have several beds (e.g. 1 queen + 1 single). Bedroom
-          count above follows the number of rooms here.
+          {t("inventory:bedConfig.sectionDescription")}
         </FieldDescription>
       </div>
 
       {value.length === 0 && (
-        <p className="text-sm text-muted-foreground">No rooms yet.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("inventory:bedConfig.noRooms")}
+        </p>
       )}
 
       {value.map((room, roomIndex) => (
@@ -117,7 +123,9 @@ export function BedConfigField({
         >
           <div className="flex items-start gap-2">
             <Field className="min-w-0 flex-1">
-              <FieldLabel htmlFor={`bed-room-${roomIndex}`}>Room name</FieldLabel>
+              <FieldLabel htmlFor={`bed-room-${roomIndex}`}>
+                {t("inventory:bedConfig.roomNameLabel")}
+              </FieldLabel>
               <Input
                 id={`bed-room-${roomIndex}`}
                 value={room.room}
@@ -125,7 +133,7 @@ export function BedConfigField({
                 onChange={(event) => {
                   updateRoom(roomIndex, { room: event.target.value });
                 }}
-                placeholder="Bedroom 1"
+                placeholder={t("inventory:bedConfig.roomNamePlaceholder")}
                 autoComplete="off"
               />
             </Field>
@@ -135,7 +143,10 @@ export function BedConfigField({
                 variant="ghost"
                 size="icon-sm"
                 className="mt-6 shrink-0"
-                aria-label={`Remove ${room.room || "room"}`}
+                aria-label={t("inventory:bedConfig.removeRoomAria", {
+                  room:
+                    room.room || t("inventory:bedConfig.removeRoomFallback"),
+                })}
                 onClick={() => {
                   removeRoom(roomIndex);
                 }}
@@ -146,14 +157,18 @@ export function BedConfigField({
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-muted-foreground">Beds in this room</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              {t("inventory:bedConfig.bedsInRoom")}
+            </p>
             {room.beds.map((bed, bedIndex) => (
               <div
                 key={`bed-${roomIndex}-${bedIndex}`}
                 className="grid grid-cols-[1fr_5rem_auto] items-end gap-2"
               >
                 <Field>
-                  <FieldLabel className="sr-only">Bed type</FieldLabel>
+                  <FieldLabel className="sr-only">
+                    {t("inventory:bedConfig.bedTypeLabel")}
+                  </FieldLabel>
                   <Select
                     value={bed.type}
                     disabled={readOnly}
@@ -168,7 +183,7 @@ export function BedConfigField({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {BED_KIND_OPTIONS.map((option) => (
+                        {bedKindOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
@@ -182,7 +197,7 @@ export function BedConfigField({
                     htmlFor={`bed-count-${roomIndex}-${bedIndex}`}
                     className="sr-only"
                   >
-                    Count
+                    {t("inventory:bedConfig.bedCountLabel")}
                   </FieldLabel>
                   <Input
                     id={`bed-count-${roomIndex}-${bedIndex}`}
@@ -197,7 +212,7 @@ export function BedConfigField({
                         count: Number.isFinite(n) && n >= 1 ? n : 1,
                       });
                     }}
-                    aria-label="Bed count"
+                    aria-label={t("inventory:bedConfig.bedCountAria")}
                   />
                 </Field>
                 {!readOnly && (
@@ -207,7 +222,7 @@ export function BedConfigField({
                     size="icon-sm"
                     className="mb-0.5"
                     disabled={room.beds.length <= 1}
-                    aria-label="Remove bed"
+                    aria-label={t("inventory:bedConfig.removeBedAria")}
                     onClick={() => {
                       removeBed(roomIndex, bedIndex);
                     }}
@@ -228,7 +243,7 @@ export function BedConfigField({
                 }}
               >
                 <PlusIcon data-icon="inline-start" />
-                Add bed
+                {t("inventory:bedConfig.addBed")}
               </Button>
             )}
           </div>
@@ -238,7 +253,7 @@ export function BedConfigField({
       {!readOnly && (
         <Button type="button" variant="outline" size="sm" onClick={addRoom}>
           <PlusIcon data-icon="inline-start" />
-          Add room
+          {t("inventory:bedConfig.addRoom")}
         </Button>
       )}
     </div>

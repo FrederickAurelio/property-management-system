@@ -1,6 +1,7 @@
 /* anchor: Stripe-data period review, diverge: cash Net hero; dense analysis tables */
 import { useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,6 +53,7 @@ function ReportsPageSkeleton() {
 }
 
 export function ReportsPage() {
+  const { t } = useTranslation(["reports", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
   const today = todayYmdLocal();
   const defaults = useMemo(() => defaultMonthToDate(today), [today]);
@@ -160,7 +162,8 @@ export function ReportsPage() {
   });
 
   const propertyName =
-    optionsQuery.data?.find((p) => p.id === propertyId)?.name ?? "Property";
+    optionsQuery.data?.find((p) => p.id === propertyId)?.name ??
+    t("reports:filterBar.propertyPlaceholder");
 
   const compareWindow = useMemo(() => {
     if (!compare) return null;
@@ -174,11 +177,10 @@ export function ReportsPage() {
       compare,
       propertyName,
     });
-    handleSuccess("Report downloaded");
+    handleSuccess(t("reports:page.toastDownloaded"));
   };
 
-  const noProperties =
-    optionsQuery.isSuccess && optionsQuery.data.length === 0;
+  const noProperties = optionsQuery.isSuccess && optionsQuery.data.length === 0;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-0 p-4 pb-20 md:p-5 md:pb-8">
@@ -213,19 +215,19 @@ export function ReportsPage() {
 
       {noProperties && (
         <p className="pt-8 text-sm text-muted-foreground">
-          Add a property before viewing reports.
+          {t("reports:page.addPropertyFirst")}
         </p>
       )}
 
       {!noProperties && !propertyId && (
         <p className="pt-8 text-sm text-muted-foreground">
-          Select a property to see reports.
+          {t("reports:page.selectProperty")}
         </p>
       )}
 
       {propertyId && !rangeOk && (
         <p className="pt-8 text-sm text-muted-foreground">
-          From date must be on or before To date.
+          {t("reports:page.invalidRange")}
         </p>
       )}
 
@@ -236,7 +238,7 @@ export function ReportsPage() {
       {propertyId && rangeOk && summaryQuery.isError && (
         <div className="pt-6">
           <QueryErrorPanel
-            message="Couldn’t load reports for this period."
+            message={t("reports:page.loadError")}
             onRetry={() => {
               void summaryQuery.refetch();
             }}
@@ -256,10 +258,7 @@ export function ReportsPage() {
             </p>
           </header>
 
-          <ReportsCashSection
-            cash={summaryQuery.data.cash}
-            compare={compare}
-          />
+          <ReportsCashSection cash={summaryQuery.data.cash} compare={compare} />
           <ReportsOccupancySection
             occupancy={summaryQuery.data.occupancy}
             byUnitType={summaryQuery.data.occupancyByUnitType}
@@ -273,9 +272,7 @@ export function ReportsPage() {
           />
 
           <p className="border-t border-border pt-3 text-xs text-muted-foreground md:pt-4 md:text-sm">
-            Cash = movements posted in PMS for this period. Not OTA payout or
-            bank reconciliation. Occupancy and source use reservation nights in
-            PMS.
+            {t("reports:page.footerNote")}
           </p>
         </div>
       )}

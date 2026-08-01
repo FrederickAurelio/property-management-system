@@ -6,6 +6,7 @@ import type {
   StaffReservationListItem,
 } from "@cabin/api-contract";
 import { isPlaceholderGuestName } from "@cabin/api-contract";
+import { useTranslation } from "react-i18next";
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ import {
   type ReservationLateCue,
 } from "@/pages/reservations/reservation-format";
 import { reservationDashboardStateFromSearch } from "@/pages/reservations/reservation-nav";
+import i18n from "@/i18n";
 import { cn } from "@/lib/utils";
 import { primaryAttentionLabel } from "./dashboard-format";
 
@@ -56,7 +58,9 @@ function lateCueForOpsDate(
 }
 
 function guestLabel(row: StaffReservationListItem): string {
-  return isPlaceholderGuestName(row.guestName) ? "Needs details" : row.guestName;
+  return isPlaceholderGuestName(row.guestName)
+    ? i18n.t("dashboard:row.needsDetails")
+    : row.guestName;
 }
 
 function GuestSignals({
@@ -113,7 +117,7 @@ function MobileStayCard({
       className={cn(
         "flex min-h-11 flex-col gap-1.5 border-b border-border px-3 py-2.5 last:border-b-0",
         "transition-colors hover:bg-muted/40 active:bg-muted/60",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -148,17 +152,25 @@ function DesktopStayTable({
   attentionById,
   showWhyColumn,
 }: StayListProps) {
+  const { t } = useTranslation("dashboard");
+
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="h-9 pl-3">Guest</TableHead>
-            <TableHead className="h-9">Unit</TableHead>
-            {showWhyColumn && <TableHead className="h-9">Why</TableHead>}
-            <TableHead className="h-9 pr-3 text-right">Due</TableHead>
+            <TableHead className="h-9 pl-3">
+              {t("dashboard:table.guest")}
+            </TableHead>
+            <TableHead className="h-9">{t("dashboard:table.unit")}</TableHead>
+            {showWhyColumn && (
+              <TableHead className="h-9">{t("dashboard:table.why")}</TableHead>
+            )}
+            <TableHead className="h-9 pr-3 text-right">
+              {t("dashboard:table.due")}
+            </TableHead>
             <TableHead className="w-0 p-0">
-              <span className="sr-only">Open</span>
+              <span className="sr-only">{t("dashboard:table.openSr")}</span>
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -206,7 +218,9 @@ function DesktopStayTable({
                     to={`/reservations/${row.id}`}
                     state={reservationDashboardStateFromSearch(dashboardSearch)}
                     className="absolute inset-0"
-                    aria-label={`Open reservation for ${guestLabel(row)}`}
+                    aria-label={t("dashboard:row.openReservationFor", {
+                      guest: guestLabel(row),
+                    })}
                   />
                 </TableCell>
               </TableRow>

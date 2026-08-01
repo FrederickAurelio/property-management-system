@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { OtaRemindDialog } from "@/components/ota/ota-remind-dialog";
 import type { OtaChannelSource } from "@/lib/ota-channels";
 import type {
@@ -27,7 +27,9 @@ type UseOtaRemindDialogOptions = {
 export function useOtaRemindDialog(options?: UseOtaRemindDialogOptions) {
   const [state, setState] = useState<OtaRemindState | null>(null);
   const onDismissedRef = useRef(options?.onDismissed);
-  onDismissedRef.current = options?.onDismissed;
+  useEffect(() => {
+    onDismissedRef.current = options?.onDismissed;
+  });
 
   const showRefreshImports = useCallback((ctx: OtaRefreshImportsContext) => {
     setState({ kind: "refresh", refreshContext: ctx });
@@ -44,12 +46,15 @@ export function useOtaRemindDialog(options?: UseOtaRemindDialogOptions) {
     setState(null);
   }, []);
 
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      dismiss();
-      onDismissedRef.current?.();
-    }
-  }, [dismiss]);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        dismiss();
+        onDismissedRef.current?.();
+      }
+    },
+    [dismiss],
+  );
 
   const remindDialog =
     state?.kind === "refresh" ? (

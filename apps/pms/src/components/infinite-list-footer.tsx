@@ -1,5 +1,6 @@
 /* anchor: Linear infinite list footer, diverge: sentinel vs next-page retry */
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useInView } from "react-intersection-observer";
 import { QueryRetryButton } from "@/components/query-retry-button";
 import { Spinner } from "@/components/ui/spinner";
@@ -23,8 +24,10 @@ export function InfiniteListFooter({
   isFetchingNextPage,
   isFetchNextPageError,
   fetchNextPage,
-  errorMessage = "Couldn’t load more. Try again.",
+  errorMessage,
 }: InfiniteListFooterProps) {
+  const { t } = useTranslation(["common"]);
+  const resolvedErrorMessage = errorMessage ?? t("misc.loadMoreError");
   const { ref, inView } = useInView({
     rootMargin: "200px 0px",
   });
@@ -35,12 +38,7 @@ export function InfiniteListFooter({
   }, [fetchNextPage]);
 
   useEffect(() => {
-    if (
-      !inView ||
-      !hasNextPage ||
-      isFetchingNextPage ||
-      isFetchNextPageError
-    ) {
+    if (!inView || !hasNextPage || isFetchingNextPage || isFetchNextPageError) {
       return;
     }
     fetchNextPageRef.current();
@@ -49,7 +47,7 @@ export function InfiniteListFooter({
   if (isFetchNextPageError) {
     return (
       <div className="flex flex-col items-center gap-3 py-6">
-        <p className="text-sm text-muted-foreground">{errorMessage}</p>
+        <p className="text-sm text-muted-foreground">{resolvedErrorMessage}</p>
         <QueryRetryButton
           onRetry={fetchNextPage}
           isRetrying={isFetchingNextPage}
@@ -66,7 +64,7 @@ export function InfiniteListFooter({
     return (
       <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
         <Spinner className="size-4" />
-        Loading more…
+        {t("misc.loadingMore")}
       </div>
     );
   }

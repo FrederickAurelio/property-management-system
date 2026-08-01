@@ -5,11 +5,14 @@ import {
 } from "@cabin/api-contract";
 import { formatIdr } from "@/pages/properties/inventory-types";
 import { cn } from "@/lib/utils";
+import i18n from "@/i18n";
 
 export { inclusiveDayCount } from "@cabin/api-contract";
 
 export function formatPct(pct: number | null | undefined): string {
-  if (pct == null || Number.isNaN(pct)) return "n/a";
+  if (pct == null || Number.isNaN(pct)) {
+    return i18n.t("reports:format.notAvailable");
+  }
   return `${pct}%`;
 }
 
@@ -22,9 +25,13 @@ export function formatSignedIdr(amount: number): string {
 
 export function formatSignedPts(delta: number | null | undefined): string {
   if (delta == null) return "—";
-  if (delta > 0) return `+${delta} pts`;
-  if (delta < 0) return `${delta} pts`;
-  return "0 pts";
+  if (delta > 0) {
+    return i18n.t("reports:format.pointsPositive", { count: delta });
+  }
+  if (delta < 0) {
+    return i18n.t("reports:format.pointsNegative", { count: delta });
+  }
+  return i18n.t("reports:format.pointsZero");
 }
 
 export function formatSignedNights(delta: number): string {
@@ -100,7 +107,10 @@ export function directVsOta(
     otaNightsPct: pctOfTotal(otaNights, totalNights),
     directCashNetIdr,
     otaCashNetIdr,
-    directCashNetPct: pctOfTotal(directCashNetIdr, Math.abs(periodCashNet) || 0),
+    directCashNetPct: pctOfTotal(
+      directCashNetIdr,
+      Math.abs(periodCashNet) || 0,
+    ),
     otaCashNetPct: pctOfTotal(otaCashNetIdr, Math.abs(periodCashNet) || 0),
   };
 }

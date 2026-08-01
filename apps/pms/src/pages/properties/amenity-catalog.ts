@@ -1,4 +1,5 @@
 /* anchor: Stripe-data catalog, diverge: Booking-style amenity codes from _docs */
+import i18n from "@/i18n";
 import type { Amenities, BedKind } from "./inventory-types";
 
 export type AmenityGroupKey = keyof Amenities;
@@ -8,88 +9,100 @@ export type AmenityOption = {
   label: string;
 };
 
-export const AMENITY_GROUPS: {
+const AMENITY_GROUP_CODES: {
   key: AmenityGroupKey;
-  label: string;
-  options: AmenityOption[];
+  labelKey: string;
+  codes: string[];
 }[] = [
   {
     key: "highlights",
-    label: "Highlights",
-    options: [
-      { code: "PRIVATE_KITCHEN", label: "Private kitchen" },
-      { code: "PRIVATE_BATHROOM", label: "Private bathroom" },
-      { code: "BALCONY", label: "Balcony" },
-      { code: "CITY_VIEW", label: "City view" },
-      { code: "POOL_WITH_A_VIEW", label: "Pool with a view" },
-      { code: "AIR_CONDITIONING", label: "Air conditioning" },
-      { code: "FLAT_SCREEN_TV", label: "Flat-screen TV" },
-      { code: "SOUNDPROOFING", label: "Soundproofing" },
-      { code: "TERRACE", label: "Terrace" },
-      { code: "FREE_WIFI", label: "Free WiFi" },
+    labelKey: "amenities.groups.highlights",
+    codes: [
+      "PRIVATE_KITCHEN",
+      "PRIVATE_BATHROOM",
+      "BALCONY",
+      "CITY_VIEW",
+      "POOL_WITH_A_VIEW",
+      "AIR_CONDITIONING",
+      "FLAT_SCREEN_TV",
+      "SOUNDPROOFING",
+      "TERRACE",
+      "FREE_WIFI",
     ],
   },
   {
     key: "kitchen",
-    label: "Kitchen",
-    options: [
-      { code: "REFRIGERATOR", label: "Refrigerator" },
-      { code: "KITCHENWARE", label: "Kitchenware" },
-      { code: "ELECTRIC_KETTLE", label: "Electric kettle" },
-      { code: "STOVETOP", label: "Stovetop" },
-    ],
+    labelKey: "amenities.groups.kitchen",
+    codes: ["REFRIGERATOR", "KITCHENWARE", "ELECTRIC_KETTLE", "STOVETOP"],
   },
   {
     key: "bathroom",
-    label: "Bathroom",
-    options: [
-      { code: "SHOWER", label: "Shower" },
-      { code: "BIDET", label: "Bidet" },
-    ],
+    labelKey: "amenities.groups.bathroom",
+    codes: ["SHOWER", "BIDET"],
   },
   {
     key: "view",
-    label: "View",
-    options: [
-      { code: "BALCONY", label: "Balcony" },
-      { code: "TERRACE", label: "Terrace" },
-      { code: "CITY_VIEW", label: "City view" },
-    ],
+    labelKey: "amenities.groups.view",
+    codes: ["BALCONY", "TERRACE", "CITY_VIEW"],
   },
   {
     key: "facilities",
-    label: "Facilities",
-    options: [
-      { code: "ELEVATOR_ACCESS", label: "Elevator access" },
-      { code: "FLAT_SCREEN_TV", label: "Flat-screen TV" },
-      { code: "TOWELS", label: "Towels" },
-      { code: "WHEELCHAIR_ACCESSIBLE", label: "Wheelchair accessible" },
-      { code: "SEATING_AREA", label: "Seating area" },
-      { code: "SOCKET_NEAR_BED", label: "Socket near the bed" },
-      { code: "LINEN", label: "Linen" },
-      { code: "TILE_MARBLE_FLOOR", label: "Tile / marble floor" },
-      { code: "WARDROBE", label: "Wardrobe or closet" },
-      { code: "CLEANING_PRODUCTS", label: "Cleaning products" },
-      { code: "SOUNDPROOFING", label: "Soundproofing" },
-      { code: "AIR_CONDITIONING", label: "Air conditioning" },
-      { code: "HARDWOOD_PARQUET", label: "Hardwood or parquet" },
-      { code: "DESK", label: "Desk" },
-      { code: "DINING_AREA", label: "Dining area" },
-      { code: "DINING_TABLE", label: "Dining table" },
-      { code: "SOFA", label: "Sofa" },
+    labelKey: "amenities.groups.facilities",
+    codes: [
+      "ELEVATOR_ACCESS",
+      "FLAT_SCREEN_TV",
+      "TOWELS",
+      "WHEELCHAIR_ACCESSIBLE",
+      "SEATING_AREA",
+      "SOCKET_NEAR_BED",
+      "LINEN",
+      "TILE_MARBLE_FLOOR",
+      "WARDROBE",
+      "CLEANING_PRODUCTS",
+      "SOUNDPROOFING",
+      "AIR_CONDITIONING",
+      "HARDWOOD_PARQUET",
+      "DESK",
+      "DINING_AREA",
+      "DINING_TABLE",
+      "SOFA",
     ],
   },
 ];
 
-export const BED_KIND_OPTIONS: { value: BedKind; label: string }[] = [
-  { value: "SINGLE", label: "Single" },
-  { value: "DOUBLE", label: "Double" },
-  { value: "LARGE_DOUBLE", label: "Large double" },
-  { value: "QUEEN", label: "Queen" },
-  { value: "KING", label: "King" },
-  { value: "SOFA_BED", label: "Sofa bed" },
-  { value: "OTHER", label: "Other" },
+/** Re-reads `i18n.t` on every call so labels follow the current language. */
+export function getAmenityGroups(): {
+  key: AmenityGroupKey;
+  label: string;
+  options: AmenityOption[];
+}[] {
+  return AMENITY_GROUP_CODES.map((group) => ({
+    key: group.key,
+    label: i18n.t(`inventory:${group.labelKey}`),
+    options: group.codes.map((code) => ({
+      code,
+      label: i18n.t(`inventory:amenities.options.${code}`),
+    })),
+  }));
+}
+
+const BED_KIND_CODES: BedKind[] = [
+  "SINGLE",
+  "DOUBLE",
+  "LARGE_DOUBLE",
+  "QUEEN",
+  "KING",
+  "SOFA_BED",
+  "OTHER",
 ];
+
+/** Re-reads `i18n.t` on every call so labels follow the current language. */
+export function getBedKindOptions(): { value: BedKind; label: string }[] {
+  return BED_KIND_CODES.map((value) => ({
+    value,
+    label: i18n.t(`inventory:bedKinds.${value}`),
+  }));
+}
 
 export function countAmenities(amenities: Amenities): number {
   return (
@@ -107,10 +120,11 @@ export function formatBedSummary(
   if (bedConfig.length === 0) {
     return null;
   }
+  const bedKindOptions = getBedKindOptions();
   const parts = bedConfig.flatMap((room) =>
     room.beds.map((bed) => {
       const label =
-        BED_KIND_OPTIONS.find((o) => o.value === bed.type)?.label ?? bed.type;
+        bedKindOptions.find((o) => o.value === bed.type)?.label ?? bed.type;
       return bed.count > 1 ? `${bed.count}× ${label}` : label;
     }),
   );

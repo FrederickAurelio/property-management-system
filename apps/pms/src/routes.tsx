@@ -30,9 +30,7 @@ export function AppRoutes() {
           />
           <Route
             path="check-in"
-            element={
-              <Navigate to="/reservations?board=arrivals" replace />
-            }
+            element={<Navigate to="/reservations?board=arrivals" replace />}
           />
           <Route path="properties" element={<PropertyExplorerLayout />}>
             <Route index element={<PropertiesPage />} />

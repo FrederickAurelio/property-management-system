@@ -8,6 +8,7 @@ import {
 } from "@cabin/api-contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { SearchIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   ExplorerGrid,
   ExplorerGridSkeleton,
@@ -40,6 +41,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import i18n from "@/i18n";
 import {
   getNextPageParamFromPageInfo,
   INFINITE_INITIAL_PAGE,
@@ -81,6 +83,10 @@ function unitLabel(unit: Pick<StaffUnit, "code" | "name">): string {
   return unit.name ? `${unit.code} · ${unit.name}` : unit.code;
 }
 
+function unitCountLabel(count: number): string {
+  return i18n.t("reservations:unitPicker.unitCount", { count });
+}
+
 function blockReasonBadge(
   unit: StaffUnitAvailability,
 ): { label: string; tone: "muted" | "warn" } | null {
@@ -114,13 +120,13 @@ function blockReasonLabel(
 ): string {
   switch (reason) {
     case UnitAvailabilityBlockReason.PROPERTY_INACTIVE:
-      return "Property closed";
+      return i18n.t("reservations:unitPicker.blockReason.propertyClosed");
     case UnitAvailabilityBlockReason.UNIT_TYPE_INACTIVE:
-      return "Type not offered";
+      return i18n.t("reservations:unitPicker.blockReason.typeNotOffered");
     case UnitAvailabilityBlockReason.UNIT_NOT_BOOKABLE:
       return formatUnitStatus(status);
     case UnitAvailabilityBlockReason.DATE_OVERLAP:
-      return "Booked";
+      return i18n.t("reservations:unitPicker.blockReason.booked");
   }
 }
 
@@ -149,6 +155,7 @@ export function UnitInventoryPicker({
   initialUnitId = "",
   excludeReservationId,
 }: UnitInventoryPickerProps) {
+  const { t } = useTranslation(["reservations", "common"]);
   const view: ExplorerView = "list";
   const jumpToUnits = Boolean(
     initialPropertyId && initialUnitTypeId && initialUnitId,
@@ -289,10 +296,10 @@ export function UnitInventoryPicker({
 
   const title =
     layer === "properties"
-      ? "Choose property"
+      ? t("reservations:unitPicker.titleProperties")
       : layer === "types"
-        ? "Choose unit type"
-        : "Choose unit";
+        ? t("reservations:unitPicker.titleTypes")
+        : t("reservations:unitPicker.titleUnits");
 
   const activeQuery =
     layer === "properties"
@@ -308,8 +315,8 @@ export function UnitInventoryPicker({
       title={title}
       description={
         datesReady
-          ? "Open properties · offered types · all units for these dates (Booked rows stay selectable; inactive / not bookable stay visible only)."
-          : "Open properties · offered types · all units. Set stay dates later to see date conflicts."
+          ? t("reservations:unitPicker.descriptionWithDates")
+          : t("reservations:unitPicker.descriptionNoDates")
       }
       size="lg"
       footer={
@@ -321,7 +328,7 @@ export function UnitInventoryPicker({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t("reservations:unitPicker.cancel")}
           </Button>
           {layer === "units" && (
             <Button
@@ -335,7 +342,7 @@ export function UnitInventoryPicker({
                 onOpenChange(false);
               }}
             >
-              Confirm
+              {t("reservations:unitPicker.confirm")}
             </Button>
           )}
         </>
@@ -346,7 +353,9 @@ export function UnitInventoryPicker({
           <BreadcrumbList>
             <BreadcrumbItem>
               {layer === "properties" ? (
-                <BreadcrumbPage>Properties</BreadcrumbPage>
+                <BreadcrumbPage>
+                  {t("reservations:unitPicker.breadcrumbProperties")}
+                </BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
                   <button
@@ -362,7 +371,7 @@ export function UnitInventoryPicker({
                       setUserSelected(null);
                     }}
                   >
-                    Properties
+                    {t("reservations:unitPicker.breadcrumbProperties")}
                   </button>
                 </BreadcrumbLink>
               )}
@@ -373,7 +382,8 @@ export function UnitInventoryPicker({
                 <BreadcrumbItem>
                   {layer === "types" ? (
                     <BreadcrumbPage className="max-w-[10rem] truncate">
-                      {propertyName || "Property"}
+                      {propertyName ||
+                        t("reservations:unitPicker.propertyFallback")}
                     </BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink asChild>
@@ -389,7 +399,8 @@ export function UnitInventoryPicker({
                           setUserSelected(null);
                         }}
                       >
-                        {propertyName || "Property"}
+                        {propertyName ||
+                          t("reservations:unitPicker.propertyFallback")}
                       </button>
                     </BreadcrumbLink>
                   )}
@@ -401,7 +412,7 @@ export function UnitInventoryPicker({
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <BreadcrumbPage className="max-w-[10rem] truncate">
-                    {unitTypeName || "Type"}
+                    {unitTypeName || t("reservations:unitPicker.typeFallback")}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </>
@@ -420,12 +431,12 @@ export function UnitInventoryPicker({
             }}
             placeholder={
               layer === "properties"
-                ? "Search properties…"
+                ? t("reservations:unitPicker.searchPlaceholder.properties")
                 : layer === "types"
-                  ? "Search unit types…"
-                  : "Search units…"
+                  ? t("reservations:unitPicker.searchPlaceholder.types")
+                  : t("reservations:unitPicker.searchPlaceholder.units")
             }
-            aria-label="Search"
+            aria-label={t("reservations:unitPicker.searchAria")}
           />
         </InputGroup>
 
@@ -435,7 +446,7 @@ export function UnitInventoryPicker({
 
         {activeQuery.isError && !activeQuery.data && (
           <QueryErrorPanel
-            message="Couldn’t load inventory. Try again."
+            message={t("reservations:unitPicker.loadError")}
             onRetry={() => {
               void activeQuery.refetch();
             }}
@@ -452,11 +463,13 @@ export function UnitInventoryPicker({
             <Empty className="border border-dashed py-8">
               <EmptyHeader>
                 <EmptyMedia variant="icon" />
-                <EmptyTitle>Nothing here</EmptyTitle>
+                <EmptyTitle>
+                  {t("reservations:unitPicker.emptyTitle")}
+                </EmptyTitle>
                 <EmptyDescription>
                   {layer === "units"
-                    ? "No units in this type."
-                    : "Try another search."}
+                    ? t("reservations:unitPicker.emptyUnitsDescription")
+                    : t("reservations:unitPicker.emptySearchDescription")}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -470,12 +483,15 @@ export function UnitInventoryPicker({
                   key={property.id}
                   view={view}
                   title={property.name}
-                  meta={`${property.unitCount} unit${property.unitCount === 1 ? "" : "s"}`}
+                  meta={unitCountLabel(property.unitCount)}
                   imageUrl={property.coverImage?.url}
                   canManage={false}
                   badge={
                     !property.isActive ? (
-                      <StatusBadge label="Inactive" tone="muted" />
+                      <StatusBadge
+                        label={t("reservations:unitPicker.inactiveBadge")}
+                        tone="muted"
+                      />
                     ) : undefined
                   }
                   onSelect={() => {
@@ -510,12 +526,15 @@ export function UnitInventoryPicker({
                   key={unitType.id}
                   view={view}
                   title={unitType.name}
-                  meta={`${unitType.unitCount} unit${unitType.unitCount === 1 ? "" : "s"} · ${unitType.code}`}
+                  meta={`${unitCountLabel(unitType.unitCount)} · ${unitType.code}`}
                   imageUrl={firstImageUrl(unitType.media)}
                   canManage={false}
                   badge={
                     !unitType.isActive ? (
-                      <StatusBadge label="Inactive" tone="muted" />
+                      <StatusBadge
+                        label={t("reservations:unitPicker.inactiveBadge")}
+                        tone="muted"
+                      />
                     ) : undefined
                   }
                   onSelect={() => {
@@ -566,7 +585,13 @@ export function UnitInventoryPicker({
                   key={unit.id}
                   view={view}
                   title={unitLabel(unit)}
-                  meta={unit.floor ? `Floor ${unit.floor}` : "—"}
+                  meta={
+                    unit.floor
+                      ? t("reservations:unitPicker.floorMeta", {
+                          floor: unit.floor,
+                        })
+                      : "—"
+                  }
                   canManage={false}
                   disabled={!selectable}
                   selected={selectedUnit?.unitId === unit.id}

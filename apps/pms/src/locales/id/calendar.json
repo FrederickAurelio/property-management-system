@@ -1,0 +1,57 @@
+{
+  "page": {
+    "title": "Kalender",
+    "subtitle": "Sibuk dan kosong per unit — stay yang sama dengan Reservasi.",
+    "newBlock": "Blok baru",
+    "newReservation": "Reservasi baru",
+    "propertyPlaceholder": "Properti",
+    "previousPeriod": "Periode sebelumnya",
+    "nextPeriod": "Periode berikutnya",
+    "today": "Hari ini",
+    "loadPropertiesError": "Properti gagal dimuat.",
+    "noProperties": "Belum ada properti. Buat satu di Properti dulu.",
+    "loadCalendarError": "Kalender gagal dimuat."
+  },
+  "grid": {
+    "unitColumn": "Unit",
+    "maintenance": "Perbaikan",
+    "off": "Nonaktif"
+  },
+  "stayBar": {
+    "needsDetails": "Perlu detail ({{source}})",
+    "due": "Sisa {{amount}}",
+    "refund": "Refund {{amount}}",
+    "late": "Telat",
+    "ota": "OTA"
+  },
+  "blockLabels": {
+    "maintenance": "Perbaikan",
+    "owner": "Pemilik",
+    "hold": "Ditahan",
+    "other": "Blok"
+  },
+  "blockSheet": {
+    "editTitle": "Edit blok",
+    "createTitle": "Blok baru",
+    "selectedUnitFallback": "Unit terpilih",
+    "description": "Menutup unit untuk penggunaan non-tamu. Tidak membuat reservasi.",
+    "blockLabel": "Blok",
+    "datesLabel": "Tanggal",
+    "kindLabel": "Jenis",
+    "noteLabel": "Catatan (opsional)",
+    "delete": "Hapus",
+    "cancel": "Batal",
+    "save": "Simpan",
+    "createSubmit": "Buat blok",
+    "dateOverlapError": "Tanggal ini tumpang tindih dengan booking di unit ini — ubah tanggal atau pilih unit lain.",
+    "toastUpdated": "Blok diperbarui",
+    "toastCreated": "Blok dibuat",
+    "toastDeleted": "Blok dihapus"
+  },
+  "zod": {
+    "unitRequired": "Unit wajib diisi",
+    "startDateRequired": "Tanggal mulai wajib diisi",
+    "endDateRequired": "Tanggal akhir wajib diisi",
+    "endAfterStart": "Tanggal akhir harus setelah tanggal mulai"
+  }
+}

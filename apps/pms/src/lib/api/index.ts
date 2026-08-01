@@ -120,10 +120,7 @@ export {
   REPORTS_USE_FIXTURE,
   type GetStaffReportsSummaryParams,
 } from "./reports";
-export {
-  getStaffDashboard,
-  type GetStaffDashboardParams,
-} from "./dashboard";
+export { getStaffDashboard, type GetStaffDashboardParams } from "./dashboard";
 export { invalidateIcalSyncCaches, syncAllIcalFeeds } from "./ical";
 export {
   cloudinaryDeliveryUrl,

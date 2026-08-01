@@ -4,6 +4,7 @@ import axios, {
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from "axios";
+import i18n from "@/i18n";
 import {
   ApiError,
   ApiErrorCode,
@@ -70,7 +71,7 @@ function mapAxiosError(error: AxiosError): ApiError {
       return new ApiError({
         status,
         code: ApiErrorCode.SERVER_UNAVAILABLE,
-        message: "Cannot reach the server",
+        message: i18n.t("errors:serverUnavailableShort"),
       });
     }
 
@@ -97,7 +98,7 @@ function mapAxiosError(error: AxiosError): ApiError {
     return new ApiError({
       status,
       code: ApiErrorCode.INTERNAL_ERROR,
-      message: error.response.statusText || "Request failed",
+      message: error.response.statusText || i18n.t("errors:requestFailed"),
     });
   }
 
@@ -109,7 +110,7 @@ function mapAxiosError(error: AxiosError): ApiError {
     return new ApiError({
       status: 0,
       code: ApiErrorCode.TIMEOUT,
-      message: "Request timed out",
+      message: i18n.t("errors:timeoutShort"),
     });
   }
 
@@ -127,14 +128,16 @@ function mapAxiosError(error: AxiosError): ApiError {
       code: refused
         ? ApiErrorCode.SERVER_UNAVAILABLE
         : ApiErrorCode.NETWORK_ERROR,
-      message: refused ? "Cannot reach the server" : "Network request failed",
+      message: refused
+        ? i18n.t("errors:serverUnavailableShort")
+        : i18n.t("errors:networkErrorShort"),
     });
   }
 
   return new ApiError({
     status: 0,
     code: ApiErrorCode.NETWORK_ERROR,
-    message: "Network request failed",
+    message: i18n.t("errors:networkErrorShort"),
   });
 }
 
@@ -165,7 +168,7 @@ api.interceptors.response.use(
       new ApiError({
         status: response.status,
         code: ApiErrorCode.INTERNAL_ERROR,
-        message: "Invalid API success envelope",
+        message: i18n.t("errors:invalidSuccessEnvelope"),
       }),
     );
   },
@@ -182,7 +185,7 @@ api.interceptors.response.use(
       new ApiError({
         status: 0,
         code: ApiErrorCode.NETWORK_ERROR,
-        message: "Network request failed",
+        message: i18n.t("errors:networkErrorShort"),
       }),
     );
   },

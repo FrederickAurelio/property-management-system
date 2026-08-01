@@ -1,7 +1,4 @@
-import type {
-  StaffDashboard,
-  StaffDashboardParams,
-} from "@cabin/api-contract";
+import type { StaffDashboard, StaffDashboardParams } from "@cabin/api-contract";
 import { api } from "./client";
 
 export type GetStaffDashboardParams = StaffDashboardParams;

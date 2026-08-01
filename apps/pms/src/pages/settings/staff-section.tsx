@@ -13,10 +13,13 @@ import {
   isApiFieldError,
   type StaffAdmin,
 } from "@cabin/api-contract";
+import type { TFunction } from "i18next";
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { QueryErrorPanel } from "@/components/query-error-panel";
+import i18n from "@/i18n";
 import { ReauthPasswordDialog } from "@/components/reauth-password-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,40 +79,50 @@ import {
   type StaffRow,
 } from "./staff-utils";
 
-const createSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(
-      STAFF_USERNAME_MIN,
-      `Username must be at least ${STAFF_USERNAME_MIN} characters`,
-    )
-    .max(
-      STAFF_USERNAME_MAX,
-      `Username must be at most ${STAFF_USERNAME_MAX} characters`,
-    )
-    .regex(
-      STAFF_USERNAME_PATTERN,
-      "Use letters, numbers, dots, hyphens, or underscores",
-    ),
-  password: z
-    .string()
-    .min(
-      STAFF_PASSWORD_MIN,
-      `Password must be at least ${STAFF_PASSWORD_MIN} characters`,
-    )
-    .max(
-      STAFF_PASSWORD_MAX,
-      `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
-    ),
-  role: z.enum([
-    AdminRole.SUPER_ADMIN,
-    AdminRole.ADMIN,
-    AdminRole.FRONT_DESK,
-  ]),
-});
+function createStaffSchema(t: TFunction) {
+  return z.object({
+    username: z
+      .string()
+      .trim()
+      .min(
+        STAFF_USERNAME_MIN,
+        t("settings:staffSection.createDialog.validation.usernameMin", {
+          min: STAFF_USERNAME_MIN,
+        }),
+      )
+      .max(
+        STAFF_USERNAME_MAX,
+        t("settings:staffSection.createDialog.validation.usernameMax", {
+          max: STAFF_USERNAME_MAX,
+        }),
+      )
+      .regex(
+        STAFF_USERNAME_PATTERN,
+        t("settings:staffSection.createDialog.validation.usernamePattern"),
+      ),
+    password: z
+      .string()
+      .min(
+        STAFF_PASSWORD_MIN,
+        t("settings:staffSection.createDialog.validation.passwordMin", {
+          min: STAFF_PASSWORD_MIN,
+        }),
+      )
+      .max(
+        STAFF_PASSWORD_MAX,
+        t("settings:staffSection.createDialog.validation.passwordMax", {
+          max: STAFF_PASSWORD_MAX,
+        }),
+      ),
+    role: z.enum([
+      AdminRole.SUPER_ADMIN,
+      AdminRole.ADMIN,
+      AdminRole.FRONT_DESK,
+    ]),
+  });
+}
 
-type CreateValues = z.infer<typeof createSchema>;
+type CreateValues = z.infer<ReturnType<typeof createStaffSchema>>;
 
 type StaffSectionProps = {
   currentAdmin: StaffAdmin;
@@ -132,10 +145,14 @@ function currentPasswordMessage(error: unknown): string | null {
     return null;
   }
   if (error.details.field !== "currentPassword") return null;
-  return error.message || "Current password is incorrect";
+  return (
+    error.message ||
+    i18n.t("settings:staffSection.reauth.currentPasswordIncorrect")
+  );
 }
 
 export function StaffSection({ currentAdmin }: StaffSectionProps) {
+  const { t } = useTranslation(["settings", "common"]);
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [roleTarget, setRoleTarget] = useState<StaffRow | null>(null);
@@ -144,6 +161,8 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
   const [reauthServerError, setReauthServerError] = useState<string | null>(
     null,
   );
+
+  const createSchema = createStaffSchema(t);
 
   const createForm = useForm<CreateValues>({
     resolver: zodResolver(createSchema as never),
@@ -194,7 +213,11 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       setCreateOpen(false);
       closeReauth();
       syncStaffAdminCaches(queryClient, admin);
-      handleSuccess(`Created ${admin.username}`);
+      handleSuccess(
+        t("settings:staffSection.toasts.created", {
+          username: admin.username,
+        }),
+      );
     },
     onError: (error) => {
       const passwordMsg = currentPasswordMessage(error);
@@ -229,7 +252,12 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       setRoleTarget(null);
       closeReauth();
       syncStaffAdminCaches(queryClient, admin);
-      handleSuccess(`Updated ${admin.username} to ${formatRole(admin.role)}`);
+      handleSuccess(
+        t("settings:staffSection.toasts.roleUpdated", {
+          username: admin.username,
+          role: formatRole(admin.role),
+        }),
+      );
     },
     onError: (error) => {
       const passwordMsg = currentPasswordMessage(error);
@@ -256,8 +284,12 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       syncStaffAdminCaches(queryClient, admin);
       handleSuccess(
         admin.isActive
-          ? `Restored access for ${admin.username}`
-          : `Revoked access for ${admin.username}`,
+          ? t("settings:staffSection.toasts.restored", {
+              username: admin.username,
+            })
+          : t("settings:staffSection.toasts.revoked", {
+              username: admin.username,
+            }),
       );
     },
     onError: (error) => {
@@ -310,76 +342,53 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
   const reauthCopy = useMemo(() => {
     if (!pending) {
       return {
-        title: "Confirm",
-        description: "Enter your current password to confirm.",
-        confirmLabel: "Confirm",
+        title: t("settings:staffSection.reauth.defaultTitle"),
+        description: t("settings:staffSection.reauth.defaultDescription"),
+        confirmLabel: t("settings:staffSection.reauth.defaultConfirm"),
         variant: "default" as const,
       };
     }
     if (pending.kind === "create") {
       return {
-        title: "Create staff?",
-        description: (
-          <>
-            Create{" "}
-            <span className="font-medium text-foreground">
-              {pending.values.username}
-            </span>{" "}
-            as {formatRole(pending.values.role)}. Enter your current password to
-            confirm.
-          </>
-        ),
-        confirmLabel: "Create staff",
+        title: t("settings:staffSection.reauth.createTitle"),
+        description: t("settings:staffSection.reauth.createDescription", {
+          username: pending.values.username,
+          role: formatRole(pending.values.role),
+        }),
+        confirmLabel: t("settings:staffSection.reauth.createConfirm"),
         variant: "default" as const,
       };
     }
     if (pending.kind === "role") {
       return {
-        title: "Change role?",
-        description: (
-          <>
-            Update{" "}
-            <span className="font-medium text-foreground">
-              {pending.target.username}
-            </span>{" "}
-            to {formatRole(pending.role)}. Enter your current password to
-            confirm.
-          </>
-        ),
-        confirmLabel: "Save role",
+        title: t("settings:staffSection.reauth.roleTitle"),
+        description: t("settings:staffSection.reauth.roleDescription", {
+          username: pending.target.username,
+          role: formatRole(pending.role),
+        }),
+        confirmLabel: t("settings:staffSection.reauth.roleConfirm"),
         variant: "default" as const,
       };
     }
     if (pending.kind === "revoke") {
       return {
-        title: "Revoke access?",
-        description: (
-          <>
-            <span className="font-medium text-foreground">
-              {pending.target.username}
-            </span>{" "}
-            will not be able to sign in. The account stays in the list and can
-            be restored later. Enter your current password to confirm.
-          </>
-        ),
-        confirmLabel: "Revoke access",
+        title: t("settings:staffSection.reauth.revokeTitle"),
+        description: t("settings:staffSection.reauth.revokeDescription", {
+          username: pending.target.username,
+        }),
+        confirmLabel: t("settings:staffSection.reauth.revokeConfirm"),
         variant: "destructive" as const,
       };
     }
     return {
-      title: "Restore access?",
-      description: (
-        <>
-          <span className="font-medium text-foreground">
-            {pending.target.username}
-          </span>{" "}
-          will be able to sign in again. Enter your current password to confirm.
-        </>
-      ),
-      confirmLabel: "Restore access",
+      title: t("settings:staffSection.reauth.restoreTitle"),
+      description: t("settings:staffSection.reauth.restoreDescription", {
+        username: pending.target.username,
+      }),
+      confirmLabel: t("settings:staffSection.reauth.restoreConfirm"),
       variant: "default" as const,
     };
-  }, [pending]);
+  }, [pending, t]);
 
   if (listQuery.isPending) {
     return <StaffListSkeleton />;
@@ -388,7 +397,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
   if (listQuery.isError) {
     return (
       <QueryErrorPanel
-        message="Couldn’t load staff. Check your connection and try again."
+        message={t("settings:staffSection.loadError")}
         onRetry={() => {
           void listQuery.refetch();
         }}
@@ -401,8 +410,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-prose text-sm text-muted-foreground">
-          SUPER_ADMIN only. Revoking sets access inactive — the account stays
-          for audit; it is not deleted.
+          {t("settings:staffSection.helperText")}
         </p>
         <Button
           type="button"
@@ -417,7 +425,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
           }}
         >
           <PlusIcon data-icon="inline-start" />
-          Add staff
+          {t("settings:staffSection.addStaff")}
         </Button>
       </div>
 
@@ -425,12 +433,14 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Username</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead>{t("settings:staffSection.table.username")}</TableHead>
+              <TableHead>{t("settings:staffSection.table.role")}</TableHead>
+              <TableHead>{t("settings:staffSection.table.status")}</TableHead>
+              <TableHead>{t("settings:staffSection.table.created")}</TableHead>
               <TableHead className="w-12">
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">
+                  {t("settings:staffSection.table.actions")}
+                </span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -448,17 +458,19 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                     <span className="truncate">{row.username}</span>
                     {isSelf && (
                       <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        you
+                        {t("settings:staffSection.you")}
                       </span>
                     )}
                   </TableCell>
                   <TableCell>{formatRole(row.role)}</TableCell>
                   <TableCell>
                     <Badge variant={row.isActive ? "secondary" : "outline"}>
-                      {row.isActive ? "Active" : "Revoked"}
+                      {row.isActive
+                        ? t("settings:staffSection.active")
+                        : t("settings:staffSection.revoked")}
                     </Badge>
                   </TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">
+                  <TableCell className="text-muted-foreground tabular-nums">
                     {formatDate(row.createdAt)}
                   </TableCell>
                   <TableCell>
@@ -503,7 +515,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                   {row.username}
                   {isSelf && (
                     <span className="ml-2 text-xs font-normal text-muted-foreground">
-                      you
+                      {t("settings:staffSection.you")}
                     </span>
                   )}
                 </p>
@@ -512,7 +524,9 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                 </p>
                 <div className="mt-2">
                   <Badge variant={row.isActive ? "secondary" : "outline"}>
-                    {row.isActive ? "Active" : "Revoked"}
+                    {row.isActive
+                      ? t("settings:staffSection.active")
+                      : t("settings:staffSection.revoked")}
                   </Badge>
                 </div>
               </div>
@@ -545,9 +559,11 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       >
         <DialogContent dismissOnOutsideClick={false}>
           <DialogHeader>
-            <DialogTitle>Add staff</DialogTitle>
+            <DialogTitle>
+              {t("settings:staffSection.createDialog.title")}
+            </DialogTitle>
             <DialogDescription>
-              Creates a new admin account. They can sign in immediately.
+              {t("settings:staffSection.createDialog.description")}
             </DialogDescription>
           </DialogHeader>
           <form
@@ -566,7 +582,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="create-staff-username">
-                      Username
+                      {t("settings:staffSection.createDialog.usernameLabel")}
                     </FieldLabel>
                     <Input
                       {...field}
@@ -574,7 +590,9 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                       autoComplete="off"
                       autoCapitalize="none"
                       spellCheck={false}
-                      placeholder="front.desk"
+                      placeholder={t(
+                        "settings:staffSection.createDialog.usernamePlaceholder",
+                      )}
                       aria-invalid={fieldState.invalid}
                       className="text-base md:text-sm"
                     />
@@ -590,7 +608,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="create-staff-password">
-                      Temporary password
+                      {t("settings:staffSection.createDialog.passwordLabel")}
                     </FieldLabel>
                     <Input
                       {...field}
@@ -612,7 +630,9 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                 control={createForm.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel>Role</FieldLabel>
+                    <FieldLabel>
+                      {t("settings:staffSection.createDialog.roleLabel")}
+                    </FieldLabel>
                     <Select
                       value={field.value}
                       onValueChange={(value) => {
@@ -627,11 +647,13 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={AdminRole.FRONT_DESK}>
-                          Front desk
+                          {t("settings:roles.frontDesk")}
                         </SelectItem>
-                        <SelectItem value={AdminRole.ADMIN}>Admin</SelectItem>
+                        <SelectItem value={AdminRole.ADMIN}>
+                          {t("settings:roles.admin")}
+                        </SelectItem>
                         <SelectItem value={AdminRole.SUPER_ADMIN}>
-                          Super admin
+                          {t("settings:roles.superAdmin")}
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -651,10 +673,10 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                 setCreateOpen(false);
               }}
             >
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button type="submit" form="create-staff">
-              Continue
+              {t("common:actions.continue")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -669,13 +691,20 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
       >
         <DialogContent dismissOnOutsideClick={false}>
           <DialogHeader>
-            <DialogTitle>Change role</DialogTitle>
+            <DialogTitle>
+              {t("settings:staffSection.roleDialog.title")}
+            </DialogTitle>
             <DialogDescription>
-              {roleTarget && `Update access for ${roleTarget.username}.`}
+              {roleTarget &&
+                t("settings:staffSection.roleDialog.description", {
+                  username: roleTarget.username,
+                })}
             </DialogDescription>
           </DialogHeader>
           <Field>
-            <FieldLabel>Role</FieldLabel>
+            <FieldLabel>
+              {t("settings:staffSection.roleDialog.roleLabel")}
+            </FieldLabel>
             <Select
               value={nextRole}
               onValueChange={(value) => {
@@ -687,11 +716,13 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={AdminRole.FRONT_DESK}>
-                  Front desk
+                  {t("settings:roles.frontDesk")}
                 </SelectItem>
-                <SelectItem value={AdminRole.ADMIN}>Admin</SelectItem>
+                <SelectItem value={AdminRole.ADMIN}>
+                  {t("settings:roles.admin")}
+                </SelectItem>
                 <SelectItem value={AdminRole.SUPER_ADMIN}>
-                  Super admin
+                  {t("settings:roles.superAdmin")}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -699,7 +730,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
               isLastActiveSuper(roleTarget) &&
               nextRole !== AdminRole.SUPER_ADMIN && (
                 <p className="text-sm text-destructive">
-                  You cannot demote the last active super admin.
+                  {t("settings:staffSection.roleDialog.lastSuperAdminWarning")}
                 </p>
               )}
           </Field>
@@ -711,7 +742,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                 setRoleTarget(null);
               }}
             >
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button
               type="button"
@@ -731,7 +762,7 @@ export function StaffSection({ currentAdmin }: StaffSectionProps) {
                 setRoleTarget(null);
               }}
             >
-              Continue
+              {t("common:actions.continue")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -804,6 +835,8 @@ function StaffRowMenu({
   onRevoke: () => void;
   onRestore: () => void;
 }) {
+  const { t } = useTranslation("settings");
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -811,7 +844,9 @@ function StaffRowMenu({
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label={`Actions for ${row.username}`}
+          aria-label={t("settings:staffSection.actionsFor", {
+            username: row.username,
+          })}
         >
           <MoreHorizontalIcon />
         </Button>
@@ -821,7 +856,7 @@ function StaffRowMenu({
           disabled={isSelf || !row.isActive}
           onClick={onChangeRole}
         >
-          Change role
+          {t("settings:staffSection.changeRole")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {row.isActive ? (
@@ -830,11 +865,11 @@ function StaffRowMenu({
             disabled={isSelf || lastSuper}
             onClick={onRevoke}
           >
-            Revoke access
+            {t("settings:staffSection.revokeAccess")}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem onClick={onRestore}>
-            Restore access
+            {t("settings:staffSection.restoreAccess")}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

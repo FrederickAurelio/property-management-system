@@ -1,8 +1,6 @@
 /* anchor: Stripe-data money block, diverge: Due/Refund or closed cancel money */
-import {
-  ReservationStatus,
-  type StaffReservation,
-} from "@cabin/api-contract";
+import { ReservationStatus, type StaffReservation } from "@cabin/api-contract";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ReservationBadge } from "./reservation-badges";
 import {
@@ -20,6 +18,7 @@ export function ReservationMoneyBlock({
   reservation: StaffReservation;
   className?: string;
 }) {
+  const { t } = useTranslation(["reservations", "common"]);
   const due = reservationDue(reservation);
   const refund = reservationRefund(reservation);
   const showRefund = refund != null && refund > 0;
@@ -33,7 +32,9 @@ export function ReservationMoneyBlock({
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium">Money</p>
+        <p className="text-sm font-medium">
+          {t("reservations:moneyBlock.title")}
+        </p>
         <ReservationBadge
           label={formatPaymentStatus(reservation.paymentStatus)}
           tone={paymentBadgeTone(reservation.paymentStatus)}
@@ -41,16 +42,20 @@ export function ReservationMoneyBlock({
       </div>
       <dl className="mt-4 flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-4">
-          <dt className="shrink-0 text-sm text-muted-foreground">Total</dt>
-          <dd className="min-w-0 text-right text-base font-medium tabular-nums tracking-tight">
+          <dt className="shrink-0 text-sm text-muted-foreground">
+            {t("reservations:moneyBlock.total")}
+          </dt>
+          <dd className="min-w-0 text-right text-base font-medium tracking-tight tabular-nums">
             {formatMoneyOrDash(reservation.totalAmountIdr)}
           </dd>
         </div>
         <div className="flex items-baseline justify-between gap-4">
           <dt className="shrink-0 text-sm text-muted-foreground">
-            {moneyClosed ? "Collected" : "Paid"}
+            {moneyClosed
+              ? t("reservations:moneyBlock.collected")
+              : t("reservations:moneyBlock.paid")}
           </dt>
-          <dd className="min-w-0 text-right text-base font-medium tabular-nums tracking-tight">
+          <dd className="min-w-0 text-right text-base font-medium tracking-tight tabular-nums">
             {formatMoneyOrDash(reservation.paidAmountIdr)}
           </dd>
         </div>
@@ -58,20 +63,22 @@ export function ReservationMoneyBlock({
           {moneyClosed ? (
             <>
               <dt className="shrink-0 text-sm font-medium text-foreground">
-                Property kept
+                {t("reservations:moneyBlock.propertyKept")}
               </dt>
-              <dd className="min-w-0 text-right text-lg font-semibold tabular-nums tracking-tight">
+              <dd className="min-w-0 text-right text-lg font-semibold tracking-tight tabular-nums">
                 {formatMoneyOrDash(reservation.paidAmountIdr)}
               </dd>
             </>
           ) : (
             <>
               <dt className="shrink-0 text-sm font-medium text-foreground">
-                {showRefund ? "Refund" : "Due"}
+                {showRefund
+                  ? t("reservations:moneyBlock.refund")
+                  : t("reservations:moneyBlock.due")}
               </dt>
               <dd
                 className={cn(
-                  "min-w-0 text-right text-lg font-semibold tabular-nums tracking-tight",
+                  "min-w-0 text-right text-lg font-semibold tracking-tight tabular-nums",
                   showRefund && "text-amber-800 dark:text-amber-200",
                 )}
               >
@@ -81,15 +88,16 @@ export function ReservationMoneyBlock({
           )}
         </div>
       </dl>
-      {moneyClosed ? (
+      {moneyClosed && (
         <p className="mt-3 text-xs text-muted-foreground">
-          Money was settled when the stay was cancelled.
+          {t("reservations:moneyBlock.settledOnCancelHint")}
         </p>
-      ) : showRefund ? (
+      )}
+      {!moneyClosed && showRefund && (
         <p className="mt-3 text-xs text-amber-800 dark:text-amber-200">
-          Guest overpaid — use Refund to return the excess.
+          {t("reservations:moneyBlock.overpaidHint")}
         </p>
-      ) : null}
+      )}
     </div>
   );
 }

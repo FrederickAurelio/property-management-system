@@ -1,7 +1,13 @@
 /* anchor: Linear issues list / Reservations desk table, diverge: bordered panels + one signal chip */
 import { Link } from "react-router";
 import type { ReactNode } from "react";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { useTranslation } from "react-i18next";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 
 type DashboardPanelProps = {
@@ -26,6 +32,7 @@ export function DashboardPanel({
   className,
   children,
 }: DashboardPanelProps) {
+  const { t } = useTranslation("dashboard");
   const showViewAll = Boolean(viewAllHref) && total > 0;
 
   return (
@@ -43,7 +50,7 @@ export function DashboardPanel({
       >
         <h2 className="text-sm font-medium tracking-tight">
           {title}
-          <span className="ml-1.5 tabular-nums text-muted-foreground">
+          <span className="ml-1.5 text-muted-foreground tabular-nums">
             {total}
           </span>
         </h2>
@@ -52,7 +59,7 @@ export function DashboardPanel({
             to={viewAllHref}
             className="shrink-0 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
-            View all
+            {t("dashboard:panel.viewAll")}
           </Link>
         )}
       </div>
@@ -61,10 +68,10 @@ export function DashboardPanel({
         <Empty className="min-h-28 border-0 py-8">
           <EmptyHeader>
             <EmptyTitle className="text-sm font-medium">
-              {emptyMessage ?? "Nothing here"}
+              {emptyMessage ?? t("dashboard:panel.nothingHere")}
             </EmptyTitle>
             <EmptyDescription className="text-xs">
-              Quiet is good — nothing to chase in this list.
+              {t("dashboard:panel.quietHint")}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

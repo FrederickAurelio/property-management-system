@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: unit CRUD + iCal calendars */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,8 +14,10 @@ import {
   type StaffUnit,
   type StaffUnitIcalFeedInput,
 } from "@cabin/api-contract";
+import type { TFunction } from "i18next";
 import { CopyIcon, RefreshCwIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -47,32 +49,38 @@ import {
 } from "@/lib/api";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 
-const feedUrlSchema = z.union([
-  z.literal(""),
-  z.string().trim().max(UNIT_ICAL_IMPORT_URL_MAX).url("Use a full http(s) URL"),
-]);
+function createUnitSchema(t: TFunction) {
+  const feedUrlSchema = z.union([
+    z.literal(""),
+    z
+      .string()
+      .trim()
+      .max(UNIT_ICAL_IMPORT_URL_MAX)
+      .url(t("inventory:units.form.zod.urlInvalid")),
+  ]);
 
-const schema = z.object({
-  code: z
-    .string()
-    .trim()
-    .min(INVENTORY_CODE_MIN, "Code is required")
-    .max(INVENTORY_CODE_MAX)
-    .regex(INVENTORY_CODE_PATTERN, "Use letters, numbers, _ or -"),
-  name: z.union([z.literal(""), z.string().trim().max(INVENTORY_NAME_MAX)]),
-  floor: z.union([z.literal(""), z.string().trim().max(INVENTORY_FLOOR_MAX)]),
-  status: z.enum([
-    UnitStatus.ACTIVE,
-    UnitStatus.INACTIVE,
-    UnitStatus.MAINTENANCE,
-  ]),
-  notes: z.union([z.literal(""), z.string().trim().max(4000)]),
-  bookingComUrl: feedUrlSchema,
-  airbnbUrl: feedUrlSchema,
-  agodaUrl: feedUrlSchema,
-});
+  return z.object({
+    code: z
+      .string()
+      .trim()
+      .min(INVENTORY_CODE_MIN, t("inventory:units.form.zod.codeRequired"))
+      .max(INVENTORY_CODE_MAX)
+      .regex(INVENTORY_CODE_PATTERN, t("inventory:units.form.zod.codePattern")),
+    name: z.union([z.literal(""), z.string().trim().max(INVENTORY_NAME_MAX)]),
+    floor: z.union([z.literal(""), z.string().trim().max(INVENTORY_FLOOR_MAX)]),
+    status: z.enum([
+      UnitStatus.ACTIVE,
+      UnitStatus.INACTIVE,
+      UnitStatus.MAINTENANCE,
+    ]),
+    notes: z.union([z.literal(""), z.string().trim().max(4000)]),
+    bookingComUrl: feedUrlSchema,
+    airbnbUrl: feedUrlSchema,
+    agodaUrl: feedUrlSchema,
+  });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof createUnitSchema>>;
 
 const emptyFormValues: FormValues = {
   code: "",
@@ -133,6 +141,7 @@ export function UnitFormDialog({
   unit,
   readOnly = false,
 }: UnitFormDialogProps) {
+  const { t } = useTranslation(["inventory", "common"]);
   const queryClient = useQueryClient();
   /** After create, keep dialog open on the saved row so staff can copy export URL. */
   const [createdUnit, setCreatedUnit] = useState<StaffUnit | null>(null);
@@ -149,6 +158,7 @@ export function UnitFormDialog({
     unit?.icalExportUrl ??
     "";
 
+  const schema = useMemo(() => createUnitSchema(t), [t]);
   const form = useForm<FormValues>({
     // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
     resolver: zodResolver(schema as never),
@@ -231,15 +241,15 @@ export function UnitFormDialog({
         });
         handleSuccess(
           saved.icalExportUrl
-            ? "Unit created — copy the PMS export link for OTAs"
-            : "Unit created — set PUBLIC_PMS_BASE_URL to show export link",
+            ? t("inventory:units.form.toastCreatedWithLink")
+            : t("inventory:units.form.toastCreatedNoLink"),
         );
         return;
       }
       form.reset(emptyFormValues);
       setCreatedUnit(null);
       setExportUrlOverride(null);
-      handleSuccess("Unit updated");
+      handleSuccess(t("inventory:units.form.toastUpdated"));
       handleOpenChange(false);
     },
     onError: (error) => {
@@ -250,7 +260,7 @@ export function UnitFormDialog({
   const rotateMutation = useMutation({
     mutationFn: async () => {
       if (!effectiveUnit) {
-        throw new Error("Unit required");
+        throw new Error(t("inventory:units.form.errorUnitRequired"));
       }
       return rotateUnitIcalToken(effectiveUnit.id);
     },
@@ -261,7 +271,7 @@ export function UnitFormDialog({
         setCreatedUnit(saved);
       }
       syncUnitCaches(queryClient, saved, { bookabilityChanged: false });
-      handleSuccess("Export link rotated — re-paste into OTAs");
+      handleSuccess(t("inventory:units.form.toastRotated"));
     },
     onError: (error) => {
       handleError(error);
@@ -278,9 +288,9 @@ export function UnitFormDialog({
     }
     try {
       await navigator.clipboard.writeText(exportUrl);
-      handleSuccess("Export link copied");
+      handleSuccess(t("inventory:units.form.toastLinkCopied"));
     } catch {
-      handleError(new Error("Could not copy link"));
+      handleError(new Error(t("inventory:units.form.errorCopyFailed")));
     }
   }
 
@@ -289,8 +299,14 @@ export function UnitFormDialog({
       <ResponsiveFormShell
         open={open}
         onOpenChange={handleOpenChange}
-        title={readOnly ? "View unit" : isEdit ? "Edit unit" : "Add unit"}
-        description="Physical apartment — one calendar each."
+        title={
+          readOnly
+            ? t("inventory:units.form.titleView")
+            : isEdit
+              ? t("inventory:units.form.titleEdit")
+              : t("inventory:units.form.titleCreate")
+        }
+        description={t("inventory:units.form.description")}
         footer={
           readOnly ? (
             <Button
@@ -300,7 +316,7 @@ export function UnitFormDialog({
                 handleOpenChange(false);
               }}
             >
-              Close
+              {t("inventory:units.form.close")}
             </Button>
           ) : (
             <>
@@ -311,14 +327,16 @@ export function UnitFormDialog({
                   handleOpenChange(false);
                 }}
               >
-                Cancel
+                {t("inventory:units.form.cancel")}
               </Button>
               <Button
                 type="submit"
                 form="unit-form"
                 disabled={form.formState.isSubmitting || saveMutation.isPending}
               >
-                {isEdit ? "Save" : "Create"}
+                {isEdit
+                  ? t("inventory:units.form.save")
+                  : t("inventory:units.form.create")}
               </Button>
             </>
           )
@@ -336,12 +354,16 @@ export function UnitFormDialog({
                 name="code"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
-                    <FieldLabel htmlFor="unit-code">Code</FieldLabel>
+                    <FieldLabel htmlFor="unit-code">
+                      {t("inventory:units.form.fields.code")}
+                    </FieldLabel>
                     <Input
                       {...field}
                       id="unit-code"
                       aria-invalid={fieldState.invalid || undefined}
-                      placeholder="B-0801"
+                      placeholder={t(
+                        "inventory:units.form.fields.codePlaceholder",
+                      )}
                       autoComplete="off"
                       className="uppercase"
                     />
@@ -354,12 +376,16 @@ export function UnitFormDialog({
                 name="name"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
-                    <FieldLabel htmlFor="unit-name">Display name</FieldLabel>
+                    <FieldLabel htmlFor="unit-name">
+                      {t("inventory:units.form.fields.displayName")}
+                    </FieldLabel>
                     <Input
                       {...field}
                       id="unit-name"
                       aria-invalid={fieldState.invalid || undefined}
-                      placeholder="Optional"
+                      placeholder={t(
+                        "inventory:units.form.fields.displayNamePlaceholder",
+                      )}
                       autoComplete="off"
                     />
                     <FieldError errors={[fieldState.error]} />
@@ -372,7 +398,9 @@ export function UnitFormDialog({
                   name="floor"
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid || undefined}>
-                      <FieldLabel htmlFor="unit-floor">Floor</FieldLabel>
+                      <FieldLabel htmlFor="unit-floor">
+                        {t("inventory:units.form.fields.floor")}
+                      </FieldLabel>
                       <Input
                         {...field}
                         id="unit-floor"
@@ -388,7 +416,9 @@ export function UnitFormDialog({
                   name="status"
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid || undefined}>
-                      <FieldLabel>Status</FieldLabel>
+                      <FieldLabel>
+                        {t("inventory:units.form.fields.status")}
+                      </FieldLabel>
                       <Select
                         value={field.value}
                         disabled={readOnly}
@@ -403,13 +433,13 @@ export function UnitFormDialog({
                         <SelectContent>
                           <SelectGroup>
                             <SelectItem value={UnitStatus.ACTIVE}>
-                              Active (bookable)
+                              {t("inventory:status.unit.activeBookable")}
                             </SelectItem>
                             <SelectItem value={UnitStatus.INACTIVE}>
-                              Inactive
+                              {t("inventory:status.unit.inactive")}
                             </SelectItem>
                             <SelectItem value={UnitStatus.MAINTENANCE}>
-                              Maintenance
+                              {t("inventory:status.unit.maintenance")}
                             </SelectItem>
                           </SelectGroup>
                         </SelectContent>
@@ -424,7 +454,9 @@ export function UnitFormDialog({
                 name="notes"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
-                    <FieldLabel htmlFor="unit-notes">Internal notes</FieldLabel>
+                    <FieldLabel htmlFor="unit-notes">
+                      {t("inventory:units.form.fields.internalNotes")}
+                    </FieldLabel>
                     <Textarea
                       {...field}
                       id="unit-notes"
@@ -438,17 +470,18 @@ export function UnitFormDialog({
 
               <div className="flex flex-col gap-3 border-t pt-4">
                 <div>
-                  <p className="text-sm font-medium">Calendars</p>
+                  <p className="text-sm font-medium">
+                    {t("inventory:units.form.calendarsSectionTitle")}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Paste OTA export URLs here. Copy the PMS link into each OTA
-                    import calendar.
+                    {t("inventory:units.form.calendarsSectionDescription")}
                   </p>
                 </div>
 
                 {exportUrl ? (
                   <Field>
                     <FieldLabel htmlFor="unit-ical-export">
-                      PMS export link
+                      {t("inventory:units.form.exportLinkLabel")}
                     </FieldLabel>
                     <div className="flex gap-2">
                       <Input
@@ -461,7 +494,9 @@ export function UnitFormDialog({
                         type="button"
                         variant="outline"
                         size="icon"
-                        aria-label="Copy export link"
+                        aria-label={t(
+                          "inventory:units.form.copyExportLinkAria",
+                        )}
                         onClick={() => {
                           void copyExportUrl();
                         }}
@@ -473,7 +508,9 @@ export function UnitFormDialog({
                           type="button"
                           variant="outline"
                           size="icon"
-                          aria-label="Rotate export link"
+                          aria-label={t(
+                            "inventory:units.form.rotateExportLinkAria",
+                          )}
                           disabled={rotateMutation.isPending}
                           onClick={() => {
                             setRotateConfirmOpen(true);
@@ -484,15 +521,12 @@ export function UnitFormDialog({
                       )}
                     </div>
                     <FieldDescription>
-                      Paste into Booking / Airbnb / Agoda calendar import.
-                      Rotate only if the link leaked — it breaks every OTA
-                      import until you paste the new URL.
+                      {t("inventory:units.form.exportLinkHint")}
                     </FieldDescription>
                   </Field>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Export link appears after you create the unit. Set
-                    PUBLIC_PMS_BASE_URL if missing.
+                    {t("inventory:units.form.exportLinkMissing")}
                   </p>
                 )}
 
@@ -502,13 +536,15 @@ export function UnitFormDialog({
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid || undefined}>
                       <FieldLabel htmlFor="unit-ical-booking">
-                        Booking.com import URL
+                        {t("inventory:units.form.fields.bookingComUrl")}
                       </FieldLabel>
                       <Input
                         {...field}
                         id="unit-ical-booking"
                         aria-invalid={fieldState.invalid || undefined}
-                        placeholder="https://…"
+                        placeholder={t(
+                          "inventory:units.form.fields.urlPlaceholder",
+                        )}
                         autoComplete="off"
                         className="font-mono text-xs"
                       />
@@ -518,11 +554,12 @@ export function UnitFormDialog({
                         UnitIcalFeedSource.BOOKING_COM,
                       ) && (
                         <p className="text-xs text-destructive">
-                          Last sync failed:{" "}
-                          {feedErrorFromUnit(
-                            effectiveUnit,
-                            UnitIcalFeedSource.BOOKING_COM,
-                          )}
+                          {t("inventory:units.form.lastSyncFailed", {
+                            error: feedErrorFromUnit(
+                              effectiveUnit,
+                              UnitIcalFeedSource.BOOKING_COM,
+                            ),
+                          })}
                         </p>
                       )}
                     </Field>
@@ -534,13 +571,15 @@ export function UnitFormDialog({
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid || undefined}>
                       <FieldLabel htmlFor="unit-ical-airbnb">
-                        Airbnb import URL
+                        {t("inventory:units.form.fields.airbnbUrl")}
                       </FieldLabel>
                       <Input
                         {...field}
                         id="unit-ical-airbnb"
                         aria-invalid={fieldState.invalid || undefined}
-                        placeholder="https://…"
+                        placeholder={t(
+                          "inventory:units.form.fields.urlPlaceholder",
+                        )}
                         autoComplete="off"
                         className="font-mono text-xs"
                       />
@@ -550,11 +589,12 @@ export function UnitFormDialog({
                         UnitIcalFeedSource.AIRBNB,
                       ) && (
                         <p className="text-xs text-destructive">
-                          Last sync failed:{" "}
-                          {feedErrorFromUnit(
-                            effectiveUnit,
-                            UnitIcalFeedSource.AIRBNB,
-                          )}
+                          {t("inventory:units.form.lastSyncFailed", {
+                            error: feedErrorFromUnit(
+                              effectiveUnit,
+                              UnitIcalFeedSource.AIRBNB,
+                            ),
+                          })}
                         </p>
                       )}
                     </Field>
@@ -566,13 +606,15 @@ export function UnitFormDialog({
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid || undefined}>
                       <FieldLabel htmlFor="unit-ical-agoda">
-                        Agoda import URL
+                        {t("inventory:units.form.fields.agodaUrl")}
                       </FieldLabel>
                       <Input
                         {...field}
                         id="unit-ical-agoda"
                         aria-invalid={fieldState.invalid || undefined}
-                        placeholder="https://…"
+                        placeholder={t(
+                          "inventory:units.form.fields.urlPlaceholder",
+                        )}
                         autoComplete="off"
                         className="font-mono text-xs"
                       />
@@ -582,11 +624,12 @@ export function UnitFormDialog({
                         UnitIcalFeedSource.AGODA,
                       ) && (
                         <p className="text-xs text-destructive">
-                          Last sync failed:{" "}
-                          {feedErrorFromUnit(
-                            effectiveUnit,
-                            UnitIcalFeedSource.AGODA,
-                          )}
+                          {t("inventory:units.form.lastSyncFailed", {
+                            error: feedErrorFromUnit(
+                              effectiveUnit,
+                              UnitIcalFeedSource.AGODA,
+                            ),
+                          })}
                         </p>
                       )}
                     </Field>
@@ -606,16 +649,10 @@ export function UnitFormDialog({
           }
           setRotateConfirmOpen(nextOpen);
         }}
-        title="Rotate export link?"
-        description={
-          <>
-            This immediately invalidates the current link. Booking.com, Airbnb,
-            and Agoda imports using the old URL will stop syncing until you
-            paste the new link into each OTA.
-          </>
-        }
-        confirmLabel="Rotate link"
-        cancelLabel="Keep current link"
+        title={t("inventory:units.form.rotateConfirmTitle")}
+        description={t("inventory:units.form.rotateConfirmDescription")}
+        confirmLabel={t("inventory:units.form.rotateConfirmLabel")}
+        cancelLabel={t("inventory:units.form.rotateCancelLabel")}
         variant="destructive"
         confirmDisabled={rotateMutation.isPending}
         onConfirm={() => {

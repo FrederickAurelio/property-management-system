@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import { ApiError, ApiErrorCode } from "./types";
 
 function validationMessage(error: ApiError): string {
@@ -10,7 +11,7 @@ function validationMessage(error: ApiError): string {
       return parts.join(". ");
     }
   }
-  return error.message || "Validation failed";
+  return error.message || i18n.t("errors:validationFailed");
 }
 
 function messageForApiError(error: ApiError): string {
@@ -18,15 +19,15 @@ function messageForApiError(error: ApiError): string {
     case ApiErrorCode.VALIDATION_FAILED:
       return validationMessage(error);
     case ApiErrorCode.TIMEOUT:
-      return "Request timed out. Please try again.";
+      return i18n.t("errors:timeout");
     case ApiErrorCode.NETWORK_ERROR:
-      return "Network request failed. Check your connection.";
+      return i18n.t("errors:networkError");
     case ApiErrorCode.SERVER_UNAVAILABLE:
-      return "Cannot reach the server. It may be down — try again shortly.";
+      return i18n.t("errors:serverUnavailable");
     case ApiErrorCode.INTERNAL_ERROR: {
       const msg = error.message?.trim() ?? "";
       if (/does not exist in the current database/i.test(msg)) {
-        return "Database is out of date — run prisma migrate, then restart the API.";
+        return i18n.t("errors:databaseOutOfDate");
       }
       // Prefer short server message; avoid dumping full Prisma stacks in the toast.
       if (msg && !msg.includes("\nInvalid `")) {
@@ -34,9 +35,9 @@ function messageForApiError(error: ApiError): string {
       }
       if (msg.includes("\nInvalid `")) {
         const first = msg.split("\n").find((line) => line.trim().length > 0);
-        return first?.trim() || "Something went wrong. Please try again.";
+        return first?.trim() || i18n.t("errors:somethingWentWrongRetry");
       }
-      return "Something went wrong. Please try again.";
+      return i18n.t("errors:somethingWentWrongRetry");
     }
     case ApiErrorCode.AUTH_UNAUTHORIZED:
     case ApiErrorCode.AUTH_FORBIDDEN:
@@ -45,7 +46,7 @@ function messageForApiError(error: ApiError): string {
     case ApiErrorCode.BAD_REQUEST:
       return error.message;
     default:
-      return error.message || "Something went wrong";
+      return error.message || i18n.t("errors:somethingWentWrong");
   }
 }
 
@@ -66,5 +67,5 @@ export function handleError(error: unknown): void {
     return;
   }
 
-  toast.error("Something went wrong");
+  toast.error(i18n.t("errors:somethingWentWrong"));
 }

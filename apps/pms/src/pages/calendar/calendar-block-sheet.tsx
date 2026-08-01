@@ -9,7 +9,9 @@ import {
 } from "@cabin/api-contract";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 import { Button } from "@/components/ui/button";
@@ -59,33 +61,35 @@ const KIND_OPTIONS = [
   CalendarBlockKind.OTHER,
 ] as const;
 
-const schema = z
-  .object({
-    unitId: z.string().min(1, "Unit is required"),
-    kind: z.enum([
-      CalendarBlockKind.MAINTENANCE,
-      CalendarBlockKind.OWNER,
-      CalendarBlockKind.HOLD,
-      CalendarBlockKind.OTHER,
-    ]),
-    startDate: z.string().min(1, "Start date is required"),
-    endDate: z.string().min(1, "End date is required"),
-    note: z.union([
-      z.literal(""),
-      z.string().trim().max(CALENDAR_BLOCK_NOTE_MAX),
-    ]),
-  })
-  .superRefine((values, ctx) => {
-    if (values.endDate <= values.startDate) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["endDate"],
-        message: "End must be after start",
-      });
-    }
-  });
+function createBlockSchema(t: TFunction) {
+  return z
+    .object({
+      unitId: z.string().min(1, t("calendar:zod.unitRequired")),
+      kind: z.enum([
+        CalendarBlockKind.MAINTENANCE,
+        CalendarBlockKind.OWNER,
+        CalendarBlockKind.HOLD,
+        CalendarBlockKind.OTHER,
+      ]),
+      startDate: z.string().min(1, t("calendar:zod.startDateRequired")),
+      endDate: z.string().min(1, t("calendar:zod.endDateRequired")),
+      note: z.union([
+        z.literal(""),
+        z.string().trim().max(CALENDAR_BLOCK_NOTE_MAX),
+      ]),
+    })
+    .superRefine((values, ctx) => {
+      if (values.endDate <= values.startDate) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["endDate"],
+          message: t("calendar:zod.endAfterStart"),
+        });
+      }
+    });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof createBlockSchema>>;
 
 function emptyFormValues(): FormValues {
   return {
@@ -102,6 +106,7 @@ function chosenFromCalendar(
   unitId: string,
   propertyId: string,
   propertyName: string,
+  t: TFunction,
 ): ChosenUnit | null {
   if (!unitId) return null;
   const unit = calendar?.units.find((u) => u.id === unitId);
@@ -112,7 +117,7 @@ function chosenFromCalendar(
       unitTypeId: "",
       unitTypeName: "",
       unitId,
-      unitCode: unit?.code ?? "Selected unit",
+      unitCode: unit?.code ?? t("calendar:blockSheet.selectedUnitFallback"),
       unitName: unit?.name ?? null,
     };
   }
@@ -156,13 +161,16 @@ export function CalendarBlockSheet({
   block = null,
   onBlockSaved,
 }: CalendarBlockSheetProps) {
+  const { t } = useTranslation("calendar");
   const queryClient = useQueryClient();
   const isEdit = Boolean(block);
   const [pickerOpen, setPickerOpen] = useState(false);
   const lockedUnitId = block?.unitId ?? initialUnitId;
   const [picked, setPicked] = useState<ChosenUnit | null>(() =>
-    chosenFromCalendar(calendar, lockedUnitId, propertyId, propertyName),
+    chosenFromCalendar(calendar, lockedUnitId, propertyId, propertyName, t),
   );
+
+  const schema = createBlockSchema(t);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
@@ -226,10 +234,7 @@ export function CalendarBlockSheet({
   ]);
 
   const dateOverlapError = dateOverlapConflict
-    ? {
-        message:
-          "These dates overlap a booking on this unit — change dates or choose another unit.",
-      }
+    ? { message: t("calendar:blockSheet.dateOverlapError") }
     : undefined;
 
   const extraOccupancyBlocks = useMemo(
@@ -272,7 +277,11 @@ export function CalendarBlockSheet({
       setPicked(null);
       setPickerOpen(false);
       invalidatePropertyCalendarCaches(queryClient);
-      handleSuccess(isEdit ? "Block updated" : "Block created");
+      handleSuccess(
+        isEdit
+          ? t("calendar:blockSheet.toastUpdated")
+          : t("calendar:blockSheet.toastCreated"),
+      );
       onOpenChange(false);
     },
     onError: (error) => {
@@ -287,7 +296,7 @@ export function CalendarBlockSheet({
       setPicked(null);
       setPickerOpen(false);
       invalidatePropertyCalendarCaches(queryClient);
-      handleSuccess("Block deleted");
+      handleSuccess(t("calendar:blockSheet.toastDeleted"));
       onOpenChange(false);
     },
     onError: (error) => {
@@ -311,8 +320,12 @@ export function CalendarBlockSheet({
           if (pickerOpen) return;
           handleOpenChange(next);
         }}
-        title={isEdit ? "Edit block" : "New block"}
-        description="Closes the unit for non-guest use. Does not create a reservation."
+        title={
+          isEdit
+            ? t("calendar:blockSheet.editTitle")
+            : t("calendar:blockSheet.createTitle")
+        }
+        description={t("calendar:blockSheet.description")}
         size="lg"
         footer={
           <div className="flex w-full flex-wrap items-center gap-2">
@@ -323,7 +336,7 @@ export function CalendarBlockSheet({
                 disabled={deleteMutation.isPending || saveMutation.isPending}
                 onClick={() => deleteMutation.mutate()}
               >
-                Delete
+                {t("calendar:blockSheet.delete")}
               </Button>
             )}
             <div className="ml-auto flex gap-2">
@@ -333,7 +346,7 @@ export function CalendarBlockSheet({
                 onClick={() => handleOpenChange(false)}
                 disabled={saveMutation.isPending}
               >
-                Cancel
+                {t("calendar:blockSheet.cancel")}
               </Button>
               <Button
                 type="submit"
@@ -345,7 +358,9 @@ export function CalendarBlockSheet({
                   dateOverlapConflict
                 }
               >
-                {isEdit ? "Save" : "Create block"}
+                {isEdit
+                  ? t("calendar:blockSheet.save")
+                  : t("calendar:blockSheet.createSubmit")}
               </Button>
             </div>
           </div>
@@ -357,7 +372,9 @@ export function CalendarBlockSheet({
           onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
         >
           <FieldGroup className="gap-4">
-            <p className="text-sm font-medium text-foreground">Block</p>
+            <p className="text-sm font-medium text-foreground">
+              {t("calendar:blockSheet.blockLabel")}
+            </p>
             <ChosenUnitField
               chosen={chosen}
               onChoose={() => {
@@ -375,7 +392,9 @@ export function CalendarBlockSheet({
                 dateOverlapConflict,
               )}
             >
-              <FieldLabel htmlFor="block-dates">Dates</FieldLabel>
+              <FieldLabel htmlFor="block-dates">
+                {t("calendar:blockSheet.datesLabel")}
+              </FieldLabel>
               <StayDateRangePicker
                 id="block-dates"
                 copy="block"
@@ -416,7 +435,7 @@ export function CalendarBlockSheet({
               name="kind"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel>Kind</FieldLabel>
+                  <FieldLabel>{t("calendar:blockSheet.kindLabel")}</FieldLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger aria-invalid={fieldState.invalid}>
                       <SelectValue />
@@ -441,7 +460,7 @@ export function CalendarBlockSheet({
               name="note"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel>Note (optional)</FieldLabel>
+                  <FieldLabel>{t("calendar:blockSheet.noteLabel")}</FieldLabel>
                   <Textarea
                     rows={2}
                     maxLength={CALENDAR_BLOCK_NOTE_MAX}

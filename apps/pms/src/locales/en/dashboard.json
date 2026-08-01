@@ -1,0 +1,55 @@
+{
+  "toolbar": {
+    "title": "Today",
+    "subtitle": "Arrivals, departures, and exceptions for this property.",
+    "propertyAriaLabel": "Property",
+    "selectPropertyPlaceholder": "Select property",
+    "syncAll": "Sync all",
+    "otaFailingOne": "1 OTA calendar failing ({{unitCode}} · {{source}})",
+    "otaFailingMany": "{{count}} OTA calendars failing",
+    "escalateOpenCalendars": "open unit Calendars",
+    "escalateAskAdmin": "ask an admin to fix the calendar URL"
+  },
+  "noProperties": "No properties yet. Add one under Properties to use the desk.",
+  "loadError": "Couldn’t load today’s desk.",
+  "panel": {
+    "viewAll": "View all",
+    "nothingHere": "Nothing here",
+    "quietHint": "Quiet is good — nothing to chase in this list."
+  },
+  "arrivals": {
+    "title": "Arrivals",
+    "empty": "No arrivals today"
+  },
+  "departures": {
+    "title": "Departures",
+    "empty": "No departures today"
+  },
+  "needsAttention": {
+    "title": "Needs attention"
+  },
+  "table": {
+    "guest": "Guest",
+    "unit": "Unit",
+    "why": "Why",
+    "due": "Due",
+    "openSr": "Open"
+  },
+  "row": {
+    "needsDetails": "Needs details",
+    "openReservationFor": "Open reservation for {{guest}}"
+  },
+  "attention": {
+    "cancelNoShow": "Cancel / no-show",
+    "otaIssue": "OTA issue",
+    "needsDetails": "Needs details",
+    "refund": "Refund",
+    "due": "Due"
+  },
+  "sync": {
+    "noneActive": "No active OTA calendars to sync",
+    "partial": "Synced {{ok}} of {{attempted}} calendars ({{failed}} failed)",
+    "ok_one": "Synced {{count}} OTA calendar",
+    "ok_other": "Synced {{count}} OTA calendars"
+  }
+}

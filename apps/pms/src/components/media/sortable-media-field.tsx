@@ -31,17 +31,15 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { FieldDescription } from "@/components/ui/field";
 import { handleError, uploadMediaFile } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { MediaPreviewDialog } from "./media-preview-dialog";
 import { MediaThumb } from "./media-thumb";
-import {
-  mediaKindFromMime,
-  revokeIfBlobUrl,
-  type MediaItem,
-} from "./types";
+import { mediaKindFromMime, revokeIfBlobUrl, type MediaItem } from "./types";
 
 const ACCEPT = [
   ...MEDIA_IMAGE_MIME_TYPES,
@@ -74,13 +72,18 @@ function assertFileAllowed(file: File, imagesOnly = false): MediaKind | null {
   if (!kind) {
     handleError(
       new Error(
-        `Unsupported file type: ${file.name || file.type}. Allowed: JPEG, PNG, WebP${imagesOnly ? "" : ", MP4, WebM"}`,
+        i18n.t("inventory:media.errors.unsupportedType", {
+          name: file.name || file.type,
+          extra: imagesOnly
+            ? ""
+            : i18n.t("inventory:media.errors.unsupportedTypeVideoSuffix"),
+        }),
       ),
     );
     return null;
   }
   if (imagesOnly && kind !== MediaKind.IMAGE) {
-    handleError(new Error("Cover must be an image"));
+    handleError(new Error(i18n.t("inventory:media.errors.coverMustBeImage")));
     return null;
   }
   const max =
@@ -88,7 +91,11 @@ function assertFileAllowed(file: File, imagesOnly = false): MediaKind | null {
   if (file.size > max) {
     handleError(
       new Error(
-        `${file.name || "File"} is too large (${formatBytes(file.size)}). Max ${formatBytes(max)}.`,
+        i18n.t("inventory:media.errors.fileTooLarge", {
+          name: file.name || i18n.t("inventory:media.errors.defaultFileName"),
+          size: formatBytes(file.size),
+          max: formatBytes(max),
+        }),
       ),
     );
     return null;
@@ -109,6 +116,7 @@ function SortableTile({
   onRemove,
   readOnly = false,
 }: SortableTileProps) {
+  const { t } = useTranslation(["inventory", "common"]);
   const {
     attributes,
     listeners,
@@ -140,7 +148,7 @@ function SortableTile({
                 variant="secondary"
                 size="icon-xs"
                 className="cursor-grab touch-none active:cursor-grabbing"
-                aria-label="Drag to reorder"
+                aria-label={t("inventory:media.dragToReorder")}
                 {...attributes}
                 {...listeners}
               >
@@ -150,7 +158,9 @@ function SortableTile({
                 type="button"
                 variant="secondary"
                 size="icon-xs"
-                aria-label={`Remove ${item.name}`}
+                aria-label={t("inventory:media.removeItem", {
+                  name: item.name,
+                })}
                 onClick={(event) => {
                   event.stopPropagation();
                   onRemove();
@@ -182,6 +192,7 @@ export function SortableMediaField({
   readOnly = false,
   onUploadingChange,
 }: SortableMediaFieldProps) {
+  const { t } = useTranslation(["inventory", "common"]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [uploadingCount, setUploadingCount] = useState(0);
@@ -220,7 +231,11 @@ export function SortableMediaField({
     const remaining = MEDIA_GALLERY_MAX_ITEMS - next.length;
     if (remaining <= 0) {
       handleError(
-        new Error(`Gallery is limited to ${MEDIA_GALLERY_MAX_ITEMS} items`),
+        new Error(
+          t("inventory:media.errors.galleryLimit", {
+            max: MEDIA_GALLERY_MAX_ITEMS,
+          }),
+        ),
       );
       return;
     }
@@ -229,7 +244,10 @@ export function SortableMediaField({
     if (files.length > remaining) {
       handleError(
         new Error(
-          `Only ${remaining} more item${remaining === 1 ? "" : "s"} can be added (max ${MEDIA_GALLERY_MAX_ITEMS})`,
+          t("inventory:media.errors.galleryRemaining", {
+            count: remaining,
+            max: MEDIA_GALLERY_MAX_ITEMS,
+          }),
         ),
       );
     }
@@ -254,11 +272,11 @@ export function SortableMediaField({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm font-medium">Media</p>
+        <p className="text-sm font-medium">{t("inventory:media.fieldTitle")}</p>
         <FieldDescription>
           {readOnly
-            ? "Images and videos attached to this unit type."
-            : "Images and videos (JPEG/PNG/WebP, MP4/WebM). Drag to set order — the first image is the card thumbnail. Desktop: hover eye to preview. Mobile: long-press to preview."}
+            ? t("inventory:media.descriptionReadOnly")
+            : t("inventory:media.descriptionEditable")}
         </FieldDescription>
       </div>
 
@@ -280,7 +298,7 @@ export function SortableMediaField({
           ))}
           {value.length === 0 && (
             <p className="col-span-full text-sm text-muted-foreground">
-              No media
+              {t("inventory:media.noMedia")}
             </p>
           )}
         </div>
@@ -309,13 +327,17 @@ export function SortableMediaField({
               {uploading && (
                 <div className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground">
                   <Loader2Icon className="size-5 animate-spin" />
-                  <span className="text-xs">Uploading…</span>
+                  <span className="text-xs">
+                    {t("inventory:media.uploading")}
+                  </span>
                 </div>
               )}
               {!uploading && value.length < MEDIA_GALLERY_MAX_ITEMS && (
                 <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground">
                   <PlusIcon className="size-5" />
-                  <span className="text-xs">Add media</span>
+                  <span className="text-xs">
+                    {t("inventory:media.addMedia")}
+                  </span>
                   <input
                     type="file"
                     accept={ACCEPT}
@@ -357,6 +379,7 @@ export function CoverImageField({
   readOnly = false,
   onUploadingChange,
 }: CoverImageFieldProps) {
+  const { t } = useTranslation(["inventory", "common"]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const items = value ? [value] : [];
@@ -394,17 +417,18 @@ export function CoverImageField({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm font-medium">Cover image</p>
+        <p className="text-sm font-medium">
+          {t("inventory:media.cover.fieldTitle")}
+        </p>
         <FieldDescription>
-          One image used on the properties list for quick recognition
-          (JPEG/PNG/WebP).
+          {t("inventory:media.cover.description")}
         </FieldDescription>
       </div>
 
       {uploading ? (
         <div className="flex h-28 w-full flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground sm:w-48">
           <Loader2Icon className="size-5 animate-spin" />
-          <span className="text-xs">Uploading…</span>
+          <span className="text-xs">{t("inventory:media.uploading")}</span>
         </div>
       ) : value ? (
         <div className="flex items-start gap-3">
@@ -420,7 +444,7 @@ export function CoverImageField({
                   type="button"
                   variant="secondary"
                   size="icon-xs"
-                  aria-label="Remove cover"
+                  aria-label={t("inventory:media.cover.removeAria")}
                   onClick={() => {
                     revokeIfBlobUrl(value.url);
                     onChange(null);
@@ -435,7 +459,7 @@ export function CoverImageField({
             {!readOnly && (
               <label className="inline-flex cursor-pointer">
                 <span className="inline-flex h-7 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium hover:bg-muted">
-                  Replace
+                  {t("inventory:media.cover.replace")}
                 </span>
                 <input
                   type="file"
@@ -452,11 +476,13 @@ export function CoverImageField({
           </div>
         </div>
       ) : readOnly ? (
-        <p className="text-sm text-muted-foreground">No cover image</p>
+        <p className="text-sm text-muted-foreground">
+          {t("inventory:media.cover.noCover")}
+        </p>
       ) : (
         <label className="flex h-28 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground sm:w-48">
           <PlusIcon className="size-5" />
-          <span className="text-xs">Upload cover</span>
+          <span className="text-xs">{t("inventory:media.cover.upload")}</span>
           <input
             type="file"
             accept={COVER_ACCEPT}

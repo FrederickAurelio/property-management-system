@@ -1,6 +1,7 @@
 /* anchor: Stripe activity list, diverge: cash movement timeline */
 import type { StaffReservation } from "@cabin/api-contract";
 import { PaymentMovementDirection } from "@cabin/api-contract";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import {
   formatCollectedVia,
@@ -17,19 +18,23 @@ export function PaymentMovementsTimeline({
   reservation: StaffReservation;
   className?: string;
 }) {
+  const { t } = useTranslation(["reservations", "common"]);
   const items = movementsNewestFirst(reservation.movements);
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <div>
-        <h2 className="text-sm font-medium">Cash timeline</h2>
+        <h2 className="text-sm font-medium">
+          {t("reservations:timeline.title")}
+        </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Paid is the sum of these movements. Quote (Total) changes are not
-          listed here.
+          {t("reservations:timeline.subtitle")}
         </p>
       </div>
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No cash movements yet.</p>
+        <p className="text-sm text-muted-foreground">
+          {t("reservations:timeline.empty")}
+        </p>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border">
           {items.map((m) => {

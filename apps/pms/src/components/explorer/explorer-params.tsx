@@ -38,11 +38,7 @@ type ExplorerParams = {
   view: ExplorerView;
   /** Domain-specific filter value; `"all"` clears the URL param. */
   status: string;
-  patch: (next: {
-    q?: string;
-    view?: ExplorerView;
-    status?: string;
-  }) => void;
+  patch: (next: { q?: string; view?: ExplorerView; status?: string }) => void;
 };
 
 const ExplorerParamsContext = createContext<ExplorerParams | null>(null);
@@ -65,11 +61,7 @@ export function ExplorerParamsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const patch = useCallback(
-    (next: {
-      q?: string;
-      view?: ExplorerView;
-      status?: string;
-    }) => {
+    (next: { q?: string; view?: ExplorerView; status?: string }) => {
       if (next.view !== undefined) {
         setView(next.view);
       }

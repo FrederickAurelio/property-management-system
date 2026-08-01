@@ -1,5 +1,6 @@
 /* anchor: Linear confirm modal, diverge: destructive vs default actions */
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,14 +35,17 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   variant = "default",
   confirmClassName,
   confirmDisabled = false,
   onConfirm,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation("common");
   const isDestructive = variant === "destructive";
+  const resolvedConfirm = confirmLabel ?? t("actions.confirm");
+  const resolvedCancel = cancelLabel ?? t("actions.cancel");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,7 +63,7 @@ export function ConfirmDialog({
               onOpenChange(false);
             }}
           >
-            {cancelLabel}
+            {resolvedCancel}
           </Button>
           <Button
             type="button"
@@ -70,7 +74,7 @@ export function ConfirmDialog({
               onConfirm();
             }}
           >
-            {confirmLabel}
+            {resolvedConfirm}
           </Button>
         </DialogFooter>
       </DialogContent>

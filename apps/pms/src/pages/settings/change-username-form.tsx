@@ -11,8 +11,10 @@ import {
   STAFF_USERNAME_PATTERN,
   isApiFieldError,
 } from "@cabin/api-contract";
+import type { TFunction } from "i18next";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,38 +47,48 @@ import {
   staffSessionQueryKey,
 } from "@/lib/api";
 
-const usernameSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(
-      STAFF_USERNAME_MIN,
-      `Username must be at least ${STAFF_USERNAME_MIN} characters`,
-    )
-    .max(
-      STAFF_USERNAME_MAX,
-      `Username must be at most ${STAFF_USERNAME_MAX} characters`,
-    )
-    .regex(
-      STAFF_USERNAME_PATTERN,
-      "Use letters, numbers, dots, hyphens, or underscores",
-    ),
-  currentPassword: z.union([
-    z.literal(""),
-    z
+function createUsernameSchema(t: TFunction) {
+  return z.object({
+    username: z
       .string()
+      .trim()
       .min(
-        STAFF_PASSWORD_MIN,
-        `Password must be at least ${STAFF_PASSWORD_MIN} characters`,
+        STAFF_USERNAME_MIN,
+        t("settings:changeUsername.validation.usernameMin", {
+          min: STAFF_USERNAME_MIN,
+        }),
       )
       .max(
-        STAFF_PASSWORD_MAX,
-        `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
+        STAFF_USERNAME_MAX,
+        t("settings:changeUsername.validation.usernameMax", {
+          max: STAFF_USERNAME_MAX,
+        }),
+      )
+      .regex(
+        STAFF_USERNAME_PATTERN,
+        t("settings:changeUsername.validation.usernamePattern"),
       ),
-  ]),
-});
+    currentPassword: z.union([
+      z.literal(""),
+      z
+        .string()
+        .min(
+          STAFF_PASSWORD_MIN,
+          t("settings:changeUsername.validation.currentPasswordMin", {
+            min: STAFF_PASSWORD_MIN,
+          }),
+        )
+        .max(
+          STAFF_PASSWORD_MAX,
+          t("settings:changeUsername.validation.currentPasswordMax", {
+            max: STAFF_PASSWORD_MAX,
+          }),
+        ),
+    ]),
+  });
+}
 
-type UsernameValues = z.infer<typeof usernameSchema>;
+type UsernameValues = z.infer<ReturnType<typeof createUsernameSchema>>;
 
 type ChangeUsernameFormProps = {
   currentUsername: string;
@@ -85,10 +97,13 @@ type ChangeUsernameFormProps = {
 export function ChangeUsernameForm({
   currentUsername,
 }: ChangeUsernameFormProps) {
+  const { t } = useTranslation(["settings", "common", "auth"]);
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [pendingUsername, setPendingUsername] = useState<string | null>(null);
+
+  const usernameSchema = createUsernameSchema(t);
 
   const form = useForm<UsernameValues>({
     resolver: zodResolver(usernameSchema as never),
@@ -107,7 +122,7 @@ export function ChangeUsernameForm({
       setConfirmOpen(false);
       setShowPassword(false);
       queryClient.setQueryData(staffSessionQueryKey, admin);
-      handleSuccess("Username updated");
+      handleSuccess(t("settings:changeUsername.updated"));
     },
     onError: (error) => {
       const handled = applyApiFieldError(error, form.setError);
@@ -130,7 +145,7 @@ export function ChangeUsernameForm({
         noValidate
         onSubmit={form.handleSubmit((values) => {
           if (values.username === currentUsername) {
-            handleSuccess("Username unchanged");
+            handleSuccess(t("settings:changeUsername.unchanged"));
             return;
           }
           setPendingUsername(values.username);
@@ -145,9 +160,11 @@ export function ChangeUsernameForm({
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="settings-username">Username</FieldLabel>
+                <FieldLabel htmlFor="settings-username">
+                  {t("settings:changeUsername.usernameLabel")}
+                </FieldLabel>
                 <FieldDescription>
-                  Used to sign in. Letters, numbers, and . _ - only.
+                  {t("settings:changeUsername.usernameDescription")}
                 </FieldDescription>
                 <Input
                   {...field}
@@ -157,7 +174,7 @@ export function ChangeUsernameForm({
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="front.desk"
+                  placeholder={t("settings:changeUsername.usernamePlaceholder")}
                   aria-invalid={fieldState.invalid}
                   disabled={isPending}
                   className="max-w-sm text-base md:text-sm"
@@ -169,7 +186,7 @@ export function ChangeUsernameForm({
             )}
           />
           <Button type="submit" className="w-fit" disabled={isPending}>
-            Save username
+            {t("settings:changeUsername.save")}
           </Button>
         </FieldGroup>
       </form>
@@ -189,23 +206,16 @@ export function ChangeUsernameForm({
       >
         <DialogContent showCloseButton={false} dismissOnOutsideClick={false}>
           <DialogHeader>
-            <DialogTitle>Change username?</DialogTitle>
+            <DialogTitle>
+              {t("settings:changeUsername.confirmTitle")}
+            </DialogTitle>
             <DialogDescription>
-              {pendingUsername ? (
-                <>
-                  Your sign-in name will change from{" "}
-                  <span className="font-medium text-foreground">
-                    {currentUsername}
-                  </span>{" "}
-                  to{" "}
-                  <span className="font-medium text-foreground">
-                    {pendingUsername}
-                  </span>
-                  . Enter your current password to confirm.
-                </>
-              ) : (
-                "Enter your current password to confirm."
-              )}
+              {pendingUsername
+                ? t("settings:changeUsername.confirmDescriptionWithPending", {
+                    from: currentUsername,
+                    to: pendingUsername,
+                  })
+                : t("settings:changeUsername.confirmDescriptionDefault")}
             </DialogDescription>
           </DialogHeader>
 
@@ -215,7 +225,7 @@ export function ChangeUsernameForm({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="settings-username-current-password">
-                  Current password
+                  {t("settings:changeUsername.currentPasswordLabel")}
                 </FieldLabel>
                 <InputGroup>
                   <InputGroupInput
@@ -232,7 +242,9 @@ export function ChangeUsernameForm({
                     <InputGroupButton
                       size="icon-xs"
                       aria-label={
-                        showPassword ? "Hide password" : "Show password"
+                        showPassword
+                          ? t("auth:form.hidePassword")
+                          : t("auth:form.showPassword")
                       }
                       disabled={isPending}
                       onClick={() => {
@@ -259,7 +271,7 @@ export function ChangeUsernameForm({
                 setConfirmOpen(false);
               }}
             >
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button
               type="button"
@@ -270,7 +282,9 @@ export function ChangeUsernameForm({
                   const currentPassword = form.getValues("currentPassword");
                   if (!currentPassword) {
                     form.setError("currentPassword", {
-                      message: "Current password is required",
+                      message: t(
+                        "settings:changeUsername.currentPasswordRequired",
+                      ),
                     });
                     return;
                   }
@@ -284,10 +298,10 @@ export function ChangeUsernameForm({
               {isPending ? (
                 <>
                   <Spinner data-icon="inline-start" />
-                  Changing…
+                  {t("settings:changeUsername.changing")}
                 </>
               ) : (
-                "Change username"
+                t("settings:changeUsername.confirm")
               )}
             </Button>
           </DialogFooter>

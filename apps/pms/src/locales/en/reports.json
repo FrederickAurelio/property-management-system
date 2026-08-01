@@ -1,0 +1,104 @@
+{
+  "page": {
+    "addPropertyFirst": "Add a property before viewing reports.",
+    "selectProperty": "Select a property to see reports.",
+    "invalidRange": "From date must be on or before To date.",
+    "loadError": "Couldn’t load reports for this period.",
+    "footerNote": "Cash = movements posted in PMS for this period. Not OTA payout or bank reconciliation. Occupancy and source use reservation nights in PMS.",
+    "toastDownloaded": "Report downloaded"
+  },
+  "filterBar": {
+    "propertyPlaceholder": "Property",
+    "fromLabel": "From",
+    "toLabel": "To",
+    "compare": "Compare",
+    "export": "Export",
+    "exportExcel": "Export Excel",
+    "presets": {
+      "mtd": "This month",
+      "lastMonth": "Last month",
+      "last7": "Last 7 days",
+      "last30": "Last 30 days"
+    },
+    "chromeDays_one": "{{count}} day",
+    "chromeDays_other": "{{count}} days",
+    "chromeVs": "vs {{range}}"
+  },
+  "cash": {
+    "title": "Cash",
+    "subtitle": "Movements posted in this period",
+    "net": "Net",
+    "vsPrev": "vs prev",
+    "in": "In",
+    "out": "Out",
+    "prevInOut": "Prev in {{inAmount}} · Prev out {{outAmount}}",
+    "empty": "No cash posted in this period.",
+    "table": {
+      "in": "In",
+      "out": "Out",
+      "net": "Net",
+      "pctOfNet": "% of net",
+      "bySource": "By source",
+      "byUnitType": "By unit type",
+      "byMethod": "By method"
+    },
+    "methodUnspecified": "Unspecified"
+  },
+  "occupancy": {
+    "title": "Occupancy",
+    "subtitle": "Occupied unit-nights ÷ available (blocks excluded)",
+    "vs": "vs {{pct}}",
+    "nights": "{{occupied}} / {{available}} nights",
+    "prevNights": " · prev {{occupied}} / {{available}}",
+    "emptyStaysHint": "No overlapping stays in this period — check calendar or iCal feeds.",
+    "byUnitType": "By unit type",
+    "expandHint": "Expand a type to see each unit",
+    "table": {
+      "typeUnit": "Type / unit",
+      "occupied": "Occupied",
+      "available": "Available",
+      "pct": "%",
+      "prevPct": "Prev %",
+      "deltaPct": "Δ%"
+    }
+  },
+  "sourceMix": {
+    "title": "Source mix",
+    "subtitle": "Stays by check-in in period · nights overlapping period · cash net share",
+    "empty": "No overlapping stay nights in this period.",
+    "table": {
+      "source": "Source",
+      "stays": "Stays",
+      "nights": "Nights",
+      "pctNights": "% nights",
+      "cashNet": "Cash net",
+      "pctOfNet": "% of net",
+      "prevNights": "Prev nights",
+      "prevPct": "Prev %",
+      "deltaShare": "Δ share",
+      "deltaNights": "Δ nights"
+    },
+    "directVsOtaSummary": "Direct (Manual + Website) {{directNightsPct}} of nights · {{directCashPct}} of cash net · OTA {{otaNightsPct}} of nights · {{otaCashPct}} of cash net"
+  },
+  "format": {
+    "notAvailable": "n/a",
+    "pointsZero": "0 pts",
+    "pointsPositive": "+{{count}} pts",
+    "pointsNegative": "{{count}} pts"
+  },
+  "csv": {
+    "reportTitle": "Cabin PMS Reports",
+    "propertyLabel": "Property",
+    "periodLabel": "Period",
+    "comparePeriodLabel": "Compare period",
+    "sectionCashSummary": "cash-summary",
+    "sectionCashBySource": "cash-by-source",
+    "sectionCashByUnitType": "cash-by-unit-type",
+    "sectionCashByMethod": "cash-by-method",
+    "sectionOccupancy": "occupancy",
+    "sectionSourceMix": "source-mix",
+    "propertyRowLabel": "property",
+    "methodUnspecified": "Unspecified",
+    "note": "Column keys (e.g. amountIdr, pctOfNet) inside the CSV file are data-schema identifiers, not display text — kept identical in every locale so downloaded files stay consistent."
+  }
+}

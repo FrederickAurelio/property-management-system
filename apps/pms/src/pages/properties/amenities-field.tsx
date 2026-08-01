@@ -1,4 +1,5 @@
 /* anchor: Linear-dense form groups, diverge: amenity checkbox catalog */
+import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
@@ -8,7 +9,7 @@ import {
 } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import type { Amenities } from "./inventory-types";
-import { AMENITY_GROUPS, type AmenityGroupKey } from "./amenity-catalog";
+import { getAmenityGroups, type AmenityGroupKey } from "./amenity-catalog";
 
 type AmenitiesFieldProps = {
   value: Amenities;
@@ -16,11 +17,7 @@ type AmenitiesFieldProps = {
   readOnly?: boolean;
 };
 
-function toggleCode(
-  list: string[],
-  code: string,
-  checked: boolean,
-): string[] {
+function toggleCode(list: string[], code: string, checked: boolean): string[] {
   if (checked) {
     return list.includes(code) ? list : [...list, code];
   }
@@ -32,6 +29,8 @@ export function AmenitiesField({
   onChange,
   readOnly = false,
 }: AmenitiesFieldProps) {
+  const { t } = useTranslation(["inventory", "common"]);
+
   function setGroup(key: AmenityGroupKey, code: string, checked: boolean) {
     onChange({
       ...value,
@@ -42,12 +41,14 @@ export function AmenitiesField({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <p className="text-sm font-medium">Amenities</p>
+        <p className="text-sm font-medium">
+          {t("inventory:amenities.fieldTitle")}
+        </p>
         <p className="text-xs text-muted-foreground">
-          Shared for every unit of this type. Codes match the inventory contract.
+          {t("inventory:amenities.fieldDescription")}
         </p>
       </div>
-      {AMENITY_GROUPS.map((group) => (
+      {getAmenityGroups().map((group) => (
         <FieldSet key={group.key} className="gap-2.5">
           <FieldLegend variant="label">{group.label}</FieldLegend>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -78,7 +79,7 @@ export function AmenitiesField({
         </FieldSet>
       ))}
       <FieldDescription>
-        Unknown future codes stay in data; this form edits the known catalog.
+        {t("inventory:amenities.unknownCodesHint")}
       </FieldDescription>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LogOutIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { handleError, handleSuccess, staffLogout } from "@/lib/api";
@@ -17,6 +18,7 @@ export function StaffLogoutButton({
   variant = "ghost",
   showLabel = true,
 }: StaffLogoutButtonProps) {
+  const { t } = useTranslation(["common", "auth"]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -24,13 +26,15 @@ export function StaffLogoutButton({
     mutationFn: () => staffLogout(),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: staffSessionQueryKey });
-      handleSuccess("Signed out");
+      handleSuccess(t("auth:toasts.signedOut"));
       void navigate("/login", { replace: true });
     },
     onError: (error) => {
       handleError(error);
     },
   });
+
+  const label = t("signOut");
 
   return (
     <Button
@@ -44,7 +48,7 @@ export function StaffLogoutButton({
       }}
     >
       <LogOutIcon data-icon={showLabel ? "inline-start" : undefined} />
-      {showLabel ? "Sign out" : <span className="sr-only">Sign out</span>}
+      {showLabel ? label : <span className="sr-only">{label}</span>}
     </Button>
   );
 }

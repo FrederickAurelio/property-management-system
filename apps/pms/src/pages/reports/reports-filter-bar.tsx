@@ -2,6 +2,7 @@
 import { format } from "date-fns";
 import { CalendarIcon, DownloadIcon } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { StaffPropertyOption } from "@cabin/api-contract";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -28,6 +29,7 @@ import {
   previousEqualPeriod,
   rangeForPreset,
   REPORTS_PERIOD_PRESETS,
+  reportsPeriodPresetLabel,
   type ReportsPeriodPresetId,
   todayYmdLocal,
   ymdToDate,
@@ -130,7 +132,7 @@ function PresetRow({
   return (
     <div
       className={cn(
-        "flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "flex [scrollbar-width:none] gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden",
         className,
       )}
     >
@@ -145,7 +147,7 @@ function PresetRow({
             onPick(p.id);
           }}
         >
-          {p.label}
+          {reportsPeriodPresetLabel(p.id)}
         </Button>
       ))}
     </div>
@@ -167,6 +169,7 @@ function PropertySelect({
   triggerClassName?: string;
   size?: "sm" | "default";
 }) {
+  const { t } = useTranslation(["reports", "common"]);
   return (
     <Select
       value={propertyId || undefined}
@@ -176,7 +179,7 @@ function PropertySelect({
       disabled={propertiesLoading || properties.length === 0}
     >
       <SelectTrigger size={size} className={triggerClassName}>
-        <SelectValue placeholder="Property" />
+        <SelectValue placeholder={t("reports:filterBar.propertyPlaceholder")} />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
@@ -207,6 +210,7 @@ export function ReportsFilterBar({
   onCompareChange,
   onExport,
 }: ReportsFilterBarProps) {
+  const { t } = useTranslation(["reports", "common"]);
   const today = todayYmdLocal();
   const preset = activePresetId(from, to, today);
   const resolvedCompare =
@@ -234,7 +238,9 @@ export function ReportsFilterBar({
         />
 
         <div className="flex min-w-0 flex-col gap-0.5">
-          <Label className="text-xs text-muted-foreground">Property</Label>
+          <Label className="text-xs text-muted-foreground">
+            {t("reports:filterBar.propertyPlaceholder")}
+          </Label>
           <PropertySelect
             propertyId={propertyId}
             properties={properties}
@@ -248,14 +254,14 @@ export function ReportsFilterBar({
         <div className="grid grid-cols-2 gap-1.5">
           <DatePickerField
             id="reports-from"
-            label="From"
+            label={t("reports:filterBar.fromLabel")}
             value={from}
             maxYmd={to}
             onChange={onFromChange}
           />
           <DatePickerField
             id="reports-to"
-            label="To"
+            label={t("reports:filterBar.toLabel")}
             value={to}
             minYmd={from}
             onChange={onToChange}
@@ -274,7 +280,7 @@ export function ReportsFilterBar({
               htmlFor="reports-compare"
               className="cursor-pointer text-xs font-normal"
             >
-              Compare
+              {t("reports:filterBar.compare")}
             </Label>
           </div>
           <Button
@@ -286,7 +292,7 @@ export function ReportsFilterBar({
             onClick={onExport}
           >
             <DownloadIcon data-icon="inline-start" />
-            Export
+            {t("reports:filterBar.export")}
           </Button>
         </div>
 
@@ -310,19 +316,19 @@ export function ReportsFilterBar({
         <div className="flex flex-nowrap items-center gap-2">
           <DatePickerField
             id="reports-from-md"
-            label="From"
+            label={t("reports:filterBar.fromLabel")}
             value={from}
             maxYmd={to}
             onChange={onFromChange}
-            className="gap-0 shrink-0"
+            className="shrink-0 gap-0"
           />
           <DatePickerField
             id="reports-to-md"
-            label="To"
+            label={t("reports:filterBar.toLabel")}
             value={to}
             minYmd={from}
             onChange={onToChange}
-            className="gap-0 shrink-0"
+            className="shrink-0 gap-0"
           />
 
           <div className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden />
@@ -336,9 +342,9 @@ export function ReportsFilterBar({
             />
             <Label
               htmlFor="reports-compare-md"
-              className="cursor-pointer whitespace-nowrap text-sm font-normal"
+              className="cursor-pointer text-sm font-normal whitespace-nowrap"
             >
-              Compare
+              {t("reports:filterBar.compare")}
             </Label>
           </div>
 
@@ -351,7 +357,7 @@ export function ReportsFilterBar({
             onClick={onExport}
           >
             <DownloadIcon data-icon="inline-start" />
-            Export Excel
+            {t("reports:filterBar.exportExcel")}
           </Button>
         </div>
       </div>

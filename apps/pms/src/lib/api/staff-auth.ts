@@ -33,10 +33,7 @@ export async function staffChangeUsername(input: {
   username: string;
   currentPassword: string;
 }): Promise<StaffAdmin> {
-  const { data } = await api.patch<StaffAdmin>(
-    "/auth/username",
-    input,
-  );
+  const { data } = await api.patch<StaffAdmin>("/auth/username", input);
   return data;
 }
 
@@ -44,9 +41,6 @@ export async function staffChangePassword(input: {
   currentPassword: string;
   newPassword: string;
 }): Promise<{ ok: true }> {
-  const { data } = await api.patch<{ ok: true }>(
-    "/auth/password",
-    input,
-  );
+  const { data } = await api.patch<{ ok: true }>("/auth/password", input);
   return data;
 }

@@ -18,6 +18,7 @@ import {
   type ReservationSource as ReservationSourceType,
   type StaffReservation,
 } from "@cabin/api-contract";
+import i18n from "@/i18n";
 import { formatIdr } from "@/pages/properties/inventory-types";
 import { icalWarningTitle } from "./ical-playbooks";
 
@@ -42,6 +43,18 @@ export function formatDateYmd(ymd: string): string {
   return mediumDateFormat.format(new Date(y, m - 1, d));
 }
 
+function periodUnitKey(
+  billingPeriod: StayBillingPeriod,
+): "month" | "year" | "night" {
+  if (billingPeriod === StayBillingPeriod.MONTHLY) {
+    return "month";
+  }
+  if (billingPeriod === StayBillingPeriod.YEARLY) {
+    return "year";
+  }
+  return "night";
+}
+
 /** Inclusive check-in → exclusive check-out as a readable range + period count. */
 export function formatStayRange(
   checkInDate: string,
@@ -50,17 +63,14 @@ export function formatStayRange(
 ): string {
   const count = periodCountFromRange(billingPeriod, checkInDate, checkOutDate);
   const nights = nightCount(checkInDate, checkOutDate);
-  let periodLabel: string;
-  if (billingPeriod === StayBillingPeriod.MONTHLY && count != null) {
-    periodLabel = count === 1 ? "1 month" : `${count} months`;
-  } else if (billingPeriod === StayBillingPeriod.YEARLY && count != null) {
-    periodLabel = count === 1 ? "1 year" : `${count} years`;
-  } else {
-    periodLabel = nights === 1 ? "1 night" : `${nights} nights`;
-  }
+  const unit = periodUnitKey(billingPeriod);
+  const periodLabel =
+    unit === "night" || count == null
+      ? i18n.t("reservations:format.units.night", { count: nights })
+      : i18n.t(`reservations:format.units.${unit}`, { count });
   const suffix =
-    billingPeriod !== StayBillingPeriod.DAILY && count != null
-      ? ` · ${nights} nights`
+    unit !== "night" && count != null
+      ? ` · ${i18n.t("reservations:format.units.night", { count: nights })}`
       : "";
   return `${formatDateYmd(checkInDate)} → ${formatDateYmd(checkOutDate)} · ${periodLabel}${suffix}`;
 }
@@ -107,59 +117,58 @@ export function reservationLateCue(
   ) {
     return "arrival";
   }
-  if (
-    row.status === ReservationStatus.CHECKED_IN &&
-    row.checkOutDate < today
-  ) {
+  if (row.status === ReservationStatus.CHECKED_IN && row.checkOutDate < today) {
     return "departure";
   }
   return null;
 }
 
 export function formatReservationLateCue(cue: ReservationLateCue): string {
-  return cue === "arrival" ? "Late arrival" : "Late departure";
+  return cue === "arrival"
+    ? i18n.t("reservations:format.lateArrival")
+    : i18n.t("reservations:format.lateDeparture");
 }
 
 export function formatReservationStatus(status: ReservationStatus): string {
   switch (status) {
     case ReservationStatus.UNCONFIRMED:
-      return "Needs details";
+      return i18n.t("reservations:format.status.unconfirmed");
     case ReservationStatus.CONFIRMED:
-      return "Confirmed";
+      return i18n.t("reservations:format.status.confirmed");
     case ReservationStatus.CHECKED_IN:
-      return "In-house";
+      return i18n.t("reservations:format.status.checkedIn");
     case ReservationStatus.CHECKED_OUT:
-      return "Checked out";
+      return i18n.t("reservations:format.status.checkedOut");
     case ReservationStatus.CANCELLED:
-      return "Cancelled";
+      return i18n.t("reservations:format.status.cancelled");
   }
 }
 
 export function formatReservationSource(source: ReservationSource): string {
   switch (source) {
     case ReservationSource.MANUAL:
-      return "Manual";
+      return i18n.t("reservations:format.source.manual");
     case ReservationSource.WEBSITE:
-      return "Website";
+      return i18n.t("reservations:format.source.website");
     case ReservationSource.BOOKING_COM:
-      return "Booking.com";
+      return i18n.t("reservations:format.source.bookingCom");
     case ReservationSource.AIRBNB:
-      return "Airbnb";
+      return i18n.t("reservations:format.source.airbnb");
     case ReservationSource.AGODA:
-      return "Agoda";
+      return i18n.t("reservations:format.source.agoda");
   }
 }
 
 export function formatPaymentStatus(status: PaymentStatus): string {
   switch (status) {
     case PaymentStatus.UNPAID:
-      return "Unpaid";
+      return i18n.t("reservations:format.paymentStatus.unpaid");
     case PaymentStatus.DEPOSIT:
-      return "Deposit";
+      return i18n.t("reservations:format.paymentStatus.deposit");
     case PaymentStatus.PAID:
-      return "Paid";
+      return i18n.t("reservations:format.paymentStatus.paid");
     case PaymentStatus.REFUNDED:
-      return "Refunded";
+      return i18n.t("reservations:format.paymentStatus.refunded");
   }
 }
 
@@ -172,7 +181,7 @@ export function formatIcalWarning(
 
 export function formatMoneyOrDash(amount: number | null): string {
   if (amount == null) {
-    return "—";
+    return i18n.t("reservations:format.moneyDash");
   }
   return formatIdr(amount);
 }
@@ -216,27 +225,28 @@ export function reservationBalance(
 
 /** Desk cell copy — Due / Refund for live money; cancelled is closed (no collect). */
 export function formatReservationBalanceCell(
-  row: Pick<
-    StaffReservation,
-    "status" | "totalAmountIdr" | "paidAmountIdr"
-  >,
+  row: Pick<StaffReservation, "status" | "totalAmountIdr" | "paidAmountIdr">,
 ): {
   text: string;
   kind: "due" | "refund" | "settled" | "closed";
 } {
   if (row.status === ReservationStatus.CANCELLED) {
-    return { text: "—", kind: "closed" };
+    return { text: i18n.t("reservations:format.moneyDash"), kind: "closed" };
   }
   const balance = reservationBalance(row);
   if (balance.kind === "refund") {
     return {
-      text: `Refund ${formatMoneyOrDash(balance.amount)}`,
+      text: i18n.t("reservations:format.refund", {
+        amount: formatMoneyOrDash(balance.amount),
+      }),
       kind: "refund",
     };
   }
   if (balance.kind === "due") {
     return {
-      text: `Due ${formatMoneyOrDash(balance.amount)}`,
+      text: i18n.t("reservations:format.due", {
+        amount: formatMoneyOrDash(balance.amount),
+      }),
       kind: "due",
     };
   }
@@ -249,15 +259,15 @@ export function formatReservationBalanceCell(
 export function formatPaymentMovementKind(kind: PaymentMovementKind): string {
   switch (kind) {
     case PaymentMovementKind.DEPOSIT:
-      return "Deposit";
+      return i18n.t("reservations:format.movementKind.deposit");
     case PaymentMovementKind.TOP_UP:
-      return "Top-up";
+      return i18n.t("reservations:format.movementKind.topUp");
     case PaymentMovementKind.REFUND:
-      return "Refund";
+      return i18n.t("reservations:format.movementKind.refund");
     case PaymentMovementKind.CANCEL_REFUND:
-      return "Cancel refund";
+      return i18n.t("reservations:format.movementKind.cancelRefund");
     case PaymentMovementKind.CHANNEL_SETTLED:
-      return "Channel settled";
+      return i18n.t("reservations:format.movementKind.channelSettled");
   }
 }
 
@@ -267,17 +277,16 @@ export function formatCollectedVia(via: CollectedVia | null): string | null {
   }
   switch (via) {
     case CollectedVia.PROPERTY:
-      return "Property";
+      return i18n.t("reservations:format.collectedVia.property");
     case CollectedVia.CHANNEL:
-      return "Channel";
+      return i18n.t("reservations:format.collectedVia.channel");
     case CollectedVia.MIXED:
-      return "Mixed";
+      return i18n.t("reservations:format.collectedVia.mixed");
   }
 }
 
 export function formatPaymentMovementSigned(m: PaymentMovement): string {
-  const sign =
-    m.direction === PaymentMovementDirection.IN ? "+" : "−";
+  const sign = m.direction === PaymentMovementDirection.IN ? "+" : "−";
   return `${sign}${formatIdr(m.amountIdr)}`;
 }
 
@@ -383,22 +392,22 @@ export function canCollectPayment(row: StaffReservation): boolean {
 }
 
 /** Detail CTA label: Collect (guest owes) vs Refund (property owes). */
-export function collectPaymentLabel(row: StaffReservation): "Collect" | "Refund" {
+export function collectPaymentLabel(row: StaffReservation): string {
   const refund = reservationRefund(row);
   if (refund != null && refund > 0) {
-    return "Refund";
+    return i18n.t("reservations:format.refundLabel");
   }
-  return "Collect";
+  return i18n.t("reservations:format.collectLabel");
 }
 
 export function primaryActionLabel(action: PrimaryAction): string {
   switch (action) {
     case "confirm":
-      return "Confirm";
+      return i18n.t("reservations:format.primaryAction.confirm");
     case "check-in":
-      return "Check in";
+      return i18n.t("reservations:format.primaryAction.checkIn");
     case "check-out":
-      return "Check out";
+      return i18n.t("reservations:format.primaryAction.checkOut");
   }
 }
 
@@ -431,19 +440,19 @@ export function confirmReadinessFromReservation(row: StaffReservation) {
 export function formatConfirmFieldGap(gap: ConfirmFieldGap): string {
   switch (gap) {
     case "unit":
-      return "unit";
+      return i18n.t("reservations:format.confirmGap.unit");
     case "dates":
-      return "stay dates";
+      return i18n.t("reservations:format.confirmGap.dates");
     case "guestName":
-      return "real guest name";
+      return i18n.t("reservations:format.confirmGap.guestName");
     case "guestContact":
-      return "phone or email";
+      return i18n.t("reservations:format.confirmGap.guestContact");
     case "guestCount":
-      return "guest count";
+      return i18n.t("reservations:format.confirmGap.guestCount");
     case "totalAmountIdr":
-      return "total amount";
+      return i18n.t("reservations:format.confirmGap.totalAmountIdr");
     case "paidAmountIdr":
-      return "paid amount";
+      return i18n.t("reservations:format.confirmGap.paidAmountIdr");
   }
 }
 
@@ -453,9 +462,14 @@ export function formatConfirmGapsMessage(gaps: ConfirmFieldGap[]): string {
   }
   const labels = gaps.map(formatConfirmFieldGap);
   if (labels.length === 1) {
-    return `Add ${labels[0]} before confirming.`;
+    return i18n.t("reservations:format.confirmGapsMessageOne", {
+      item: labels[0],
+    });
   }
   const head = labels.slice(0, -1).join(", ");
   const last = labels[labels.length - 1];
-  return `Add ${head}, and ${last} before confirming.`;
+  return i18n.t("reservations:format.confirmGapsMessageMany", {
+    items: head,
+    last,
+  });
 }

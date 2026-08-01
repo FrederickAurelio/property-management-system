@@ -9,6 +9,8 @@ import {
   XIcon,
 } from "lucide-react";
 import type { DateRange, Matcher } from "react-day-picker";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   StayBillingPeriod,
   checkoutFromPeriodCount,
@@ -146,16 +148,17 @@ function rangeHasBlockedNight(
 }
 
 function durationUnitLabel(
+  t: TFunction,
   period: StayBillingPeriodType,
   count: number,
 ): string {
   if (period === StayBillingPeriod.MONTHLY) {
-    return count === 1 ? "month" : "months";
+    return t("reservations:format.units.month", { count });
   }
   if (period === StayBillingPeriod.YEARLY) {
-    return count === 1 ? "year" : "years";
+    return t("reservations:format.units.year", { count });
   }
-  return count === 1 ? "night" : "nights";
+  return t("reservations:format.units.night", { count });
 }
 
 type StayDateRangePickerProps = {
@@ -175,46 +178,48 @@ type StayDateRangePickerProps = {
   copy?: "stay" | "block";
 };
 
-const COPY = {
-  stay: {
-    panelLabel: "Stay dates",
-    emptyTrigger: "Pick check-in and check-out",
-    bookedNight: "Booked night",
-    bookedNightHint: " · can’t check in",
-    turnaround: "Turnaround",
-    turnaroundHint: " · OK as check-out (same-day)",
-    chooseUnit: "Choose a unit to see booked nights on this calendar.",
-    pickStartDaily: "Pick check-in, then check-out",
-    pickEndDaily: "Pick check-out to finish the range",
-    pickStartMonthly: "Set start day, then pick start month → end month",
-    pickEndMonthly: "Pick end month to finish the range",
-    pickStartYearly: "Set start month/day, then pick start year → end year",
-    pickEndYearly: "Pick end year to finish the range",
-    exclusive: " · check-out is exclusive",
-    busyNoun: "a booked night",
-    clearDates: "Clear dates",
-    sameDateHint: " · same calendar date next period",
-  },
-  block: {
-    panelLabel: "Block dates",
-    emptyTrigger: "Pick start and end",
-    bookedNight: "Busy night",
-    bookedNightHint: " · can’t start here",
-    turnaround: "Turnaround",
-    turnaroundHint: " · OK as exclusive end (same-day)",
-    chooseUnit: "Choose a unit to see busy nights on this calendar.",
-    pickStartDaily: "Pick start, then end",
-    pickEndDaily: "Pick end to finish the range",
-    pickStartMonthly: "Set start day, then pick start month → end month",
-    pickEndMonthly: "Pick end month to finish the range",
-    pickStartYearly: "Set start month/day, then pick start year → end year",
-    pickEndYearly: "Pick end year to finish the range",
-    exclusive: " · end is exclusive",
-    busyNoun: "a busy night",
-    clearDates: "Clear dates",
-    sameDateHint: "",
-  },
-} as const;
+type StayDatePickerLabels = {
+  panelLabel: string;
+  emptyTrigger: string;
+  bookedNight: string;
+  bookedNightHint: string;
+  turnaround: string;
+  turnaroundHint: string;
+  chooseUnit: string;
+  pickStartDaily: string;
+  pickEndDaily: string;
+  pickStartMonthly: string;
+  pickEndMonthly: string;
+  pickStartYearly: string;
+  pickEndYearly: string;
+  exclusive: string;
+  busyNoun: string;
+  clearDates: string;
+  sameDateHint: string;
+};
+
+function buildLabels(t: TFunction, copy: "stay" | "block"): StayDatePickerLabels {
+  const base = `reservations:stayDatePicker.${copy}` as const;
+  return {
+    panelLabel: t(`${base}.panelLabel`),
+    emptyTrigger: t(`${base}.emptyTrigger`),
+    bookedNight: t(`${base}.bookedNight`),
+    bookedNightHint: t(`${base}.bookedNightHint`),
+    turnaround: t(`${base}.turnaround`),
+    turnaroundHint: t(`${base}.turnaroundHint`),
+    chooseUnit: t(`${base}.chooseUnit`),
+    pickStartDaily: t(`${base}.pickStartDaily`),
+    pickEndDaily: t(`${base}.pickEndDaily`),
+    pickStartMonthly: t(`${base}.pickStartMonthly`),
+    pickEndMonthly: t(`${base}.pickEndMonthly`),
+    pickStartYearly: t(`${base}.pickStartYearly`),
+    pickEndYearly: t(`${base}.pickEndYearly`),
+    exclusive: t(`${base}.exclusive`),
+    busyNoun: t(`${base}.busyNoun`),
+    clearDates: t(`${base}.clearDates`),
+    sameDateHint: t(`${base}.sameDateHint`),
+  };
+}
 
 const MONTH_SHORT = [
   "Jan",
@@ -246,7 +251,8 @@ export function StayDateRangePicker({
   excludeOccupancyId,
   copy = "stay",
 }: StayDateRangePickerProps) {
-  const labels = COPY[copy];
+  const { t } = useTranslation(["reservations", "common"]);
+  const labels = useMemo(() => buildLabels(t, copy), [t, copy]);
   const isMobile = useIsMobile();
   const period = billingPeriodProp ?? StayBillingPeriod.DAILY;
   const [open, setOpen] = useState(false);
@@ -696,7 +702,7 @@ export function StayDateRangePicker({
         htmlFor={`${id}-duration`}
         className="text-xs font-medium text-muted-foreground"
       >
-        Duration
+        {t("reservations:stayDatePicker.durationLabel")}
       </label>
       <div className="flex items-center gap-1.5">
         <Input
@@ -723,7 +729,7 @@ export function StayDateRangePicker({
           }}
         />
         <span className="text-xs text-muted-foreground">
-          {durationUnitLabel(period, duration)}
+          {durationUnitLabel(t, period, duration)}
         </span>
       </div>
     </div>
@@ -739,7 +745,7 @@ export function StayDateRangePicker({
               htmlFor={`${id}-start-month`}
               className="text-xs font-medium text-muted-foreground"
             >
-              Start month
+              {t("reservations:stayDatePicker.startMonthLabel")}
             </label>
             <Select
               value={String(periodStartMonth)}
@@ -775,7 +781,7 @@ export function StayDateRangePicker({
             htmlFor={`${id}-start-day`}
             className="text-xs font-medium text-muted-foreground"
           >
-            Start day
+            {t("reservations:stayDatePicker.startDayLabel")}
           </label>
           <Select
             value={String(periodStartDay)}
@@ -812,7 +818,9 @@ export function StayDateRangePicker({
   const triggerButton = (
     <div className="flex min-w-0 flex-1 flex-col gap-1">
       <span className="text-xs font-medium text-muted-foreground">
-        {copy === "block" ? "Dates" : "Range"}
+        {copy === "block"
+          ? t("reservations:stayDatePicker.triggerLabelDates")
+          : t("reservations:stayDatePicker.triggerLabelRange")}
       </span>
       <div className="flex w-full gap-1.5">
         <Button
@@ -887,7 +895,7 @@ export function StayDateRangePicker({
           variant="ghost"
           size="icon"
           className="size-8"
-          aria-label="Previous year"
+          aria-label={t("reservations:stayDatePicker.previousYearAria")}
           onClick={() => {
             setMonthPickerYear((y) => y - 1);
           }}
@@ -907,7 +915,7 @@ export function StayDateRangePicker({
           variant="ghost"
           size="icon"
           className="size-8"
-          aria-label="Next year"
+          aria-label={t("reservations:stayDatePicker.nextYearAria")}
           onClick={() => {
             setMonthPickerYear((y) => y + 1);
           }}
@@ -918,7 +926,7 @@ export function StayDateRangePicker({
       <div
         className="grid grid-cols-3 gap-0 sm:grid-cols-4"
         role="grid"
-        aria-label="Select month range"
+        aria-label={t("reservations:stayDatePicker.durationLabel")}
       >
         {MONTH_SHORT.map((label, idx) => {
           const month = idx + 1;
@@ -941,9 +949,10 @@ export function StayDateRangePicker({
         })}
       </div>
       <p className="text-xs text-muted-foreground">
-        Check-in uses start day {periodStartDay}
-        {labels.sameDateHint}. Pick start month, then end. Current month is
-        highlighted.
+        {t("reservations:stayDatePicker.monthGridHint", {
+          day: periodStartDay,
+          sameDateHint: labels.sameDateHint,
+        })}
       </p>
     </div>
   );
@@ -964,20 +973,22 @@ export function StayDateRangePicker({
           variant="ghost"
           size="icon"
           className="size-8"
-          aria-label="Earlier years"
+          aria-label={t("reservations:stayDatePicker.earlierYearsAria")}
           onClick={() => {
             setYearPickerCenter((y) => y - 10);
           }}
         >
           <ChevronLeftIcon className="size-4" />
         </Button>
-        <span className="text-sm font-medium text-muted-foreground">Years</span>
+        <span className="text-sm font-medium text-muted-foreground">
+          {t("reservations:stayDatePicker.yearsLabel")}
+        </span>
         <Button
           type="button"
           variant="ghost"
           size="icon"
           className="size-8"
-          aria-label="Later years"
+          aria-label={t("reservations:stayDatePicker.laterYearsAria")}
           onClick={() => {
             setYearPickerCenter((y) => y + 10);
           }}
@@ -988,7 +999,7 @@ export function StayDateRangePicker({
       <div
         className="grid grid-cols-2 gap-0 sm:grid-cols-5"
         role="grid"
-        aria-label="Select year range"
+        aria-label={t("reservations:stayDatePicker.yearsLabel")}
       >
         {yearList.map((year) => {
           const state = yearCellState(year);
@@ -1010,9 +1021,11 @@ export function StayDateRangePicker({
         })}
       </div>
       <p className="text-xs text-muted-foreground">
-        Check-in uses {MONTH_SHORT[periodStartMonth - 1]} {periodStartDay}
-        {labels.sameDateHint}. Pick start year, then end. Current year is
-        highlighted.
+        {t("reservations:stayDatePicker.yearGridHint", {
+          month: MONTH_SHORT[periodStartMonth - 1],
+          day: periodStartDay,
+          sameDateHint: labels.sameDateHint,
+        })}
       </p>
     </div>
   );
@@ -1109,7 +1122,7 @@ export function StayDateRangePicker({
   const panelBody = occupancyError ? (
     <div className="w-full p-3 sm:w-[22rem]">
       <QueryErrorPanel
-        message="Couldn’t load booked nights for this unit. Try again."
+        message={t("reservations:stayDatePicker.loadBookedNightsError")}
         onRetry={() => {
           for (const q of occupancyQueries) {
             void q.refetch();
@@ -1126,12 +1139,15 @@ export function StayDateRangePicker({
             handleOpenChange(false);
           }}
         >
-          Cancel
+          {t("reservations:stayDatePicker.cancel")}
         </Button>
       </div>
     </div>
   ) : occupancyPending ? (
-    <div aria-busy aria-label="Loading booked nights">
+    <div
+      aria-busy
+      aria-label={t("reservations:stayDatePicker.loadingBookedNightsAria")}
+    >
       <div className="flex justify-center bg-background p-2 [--cell-size:--spacing(7)]">
         <div
           className={cn(
@@ -1190,10 +1206,10 @@ export function StayDateRangePicker({
               handleOpenChange(false);
             }}
           >
-            Cancel
+            {t("reservations:stayDatePicker.cancel")}
           </Button>
           <Button type="button" size="sm" disabled>
-            Confirm dates
+            {t("reservations:stayDatePicker.confirmDates")}
           </Button>
         </div>
       </div>
@@ -1239,15 +1255,21 @@ export function StayDateRangePicker({
             labels.chooseUnit
           ) : draftOverlapsBusy ? (
             <>
-              That range{" "}
-              <span className="font-medium text-destructive">overlaps</span>{" "}
-              {labels.busyNoun} — pick another.
+              {t("reservations:stayDatePicker.overlapsBusy", {
+                busyNoun: labels.busyNoun,
+              })}
             </>
           ) : draftComplete && draftPeriodCount != null ? (
-            `${draftPeriodCount} ${durationUnitLabel(period, draftPeriodCount)}${labels.exclusive}`
+            t("reservations:stayDatePicker.committedSummary", {
+              count: draftPeriodCount,
+              unit: durationUnitLabel(t, period, draftPeriodCount),
+              exclusive: labels.exclusive,
+            })
           ) : draftComplete && draftPeriodCount == null ? (
             <span className="text-destructive">
-              End must land on a valid {durationUnitLabel(period, 2)} boundary
+              {t("reservations:stayDatePicker.invalidBoundary", {
+                unit: durationUnitLabel(t, period, 2),
+              })}
             </span>
           ) : draftFrom ? (
             pickEndHint
@@ -1276,7 +1298,7 @@ export function StayDateRangePicker({
                 handleOpenChange(false);
               }}
             >
-              Cancel
+              {t("reservations:stayDatePicker.cancel")}
             </Button>
             <Button
               type="button"
@@ -1284,7 +1306,7 @@ export function StayDateRangePicker({
               disabled={!canConfirm}
               onClick={handleConfirm}
             >
-              Confirm dates
+              {t("reservations:stayDatePicker.confirmDates")}
             </Button>
           </div>
         </div>
@@ -1307,16 +1329,16 @@ export function StayDateRangePicker({
             }
           }}
           className="w-full"
-          aria-label="Stay billing period"
+          aria-label={t("reservations:stayDatePicker.billingPeriodAria")}
         >
           <ToggleGroupItem value={StayBillingPeriod.DAILY} className="flex-1">
-            Daily
+            {t("reservations:stayDatePicker.periodToggle.daily")}
           </ToggleGroupItem>
           <ToggleGroupItem value={StayBillingPeriod.MONTHLY} className="flex-1">
-            Monthly
+            {t("reservations:stayDatePicker.periodToggle.monthly")}
           </ToggleGroupItem>
           <ToggleGroupItem value={StayBillingPeriod.YEARLY} className="flex-1">
-            Yearly
+            {t("reservations:stayDatePicker.periodToggle.yearly")}
           </ToggleGroupItem>
         </ToggleGroup>
       )}
@@ -1341,11 +1363,15 @@ export function StayDateRangePicker({
 
       {committedCount > 0 && !open && checkInDate && checkOutDate && (
         <p className="text-xs text-muted-foreground">
-          {committedCount} {durationUnitLabel(period, committedCount)}
-          <span className="text-muted-foreground/80">{labels.exclusive}</span>
-          {period !== StayBillingPeriod.DAILY
-            ? ` · ${nightCount(checkInDate, checkOutDate)} nights on calendar`
-            : null}
+          {t("reservations:stayDatePicker.committedSummary", {
+            count: committedCount,
+            unit: durationUnitLabel(t, period, committedCount),
+            exclusive: labels.exclusive,
+          })}
+          {period !== StayBillingPeriod.DAILY &&
+            t("reservations:stayDatePicker.committedNightsOnCalendar", {
+              count: nightCount(checkInDate, checkOutDate),
+            })}
         </p>
       )}
     </div>

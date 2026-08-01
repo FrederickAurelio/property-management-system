@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: property CRUD fields */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,8 +21,10 @@ import {
   type MediaItem,
   type StaffProperty,
 } from "@cabin/api-contract";
+import type { TFunction } from "i18next";
 import { ExternalLinkIcon } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,108 +54,139 @@ import { googleMapsUrl } from "./inventory-types";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 import { CoverImageField } from "@/components/media/sortable-media-field";
 
-const hhmmOrEmpty = z.union([
-  z.literal(""),
-  z.string().trim().regex(INVENTORY_HHMM_PATTERN, "Use HH:MM"),
-]);
+function createPropertySchema(t: TFunction) {
+  const hhmmOrEmpty = z.union([
+    z.literal(""),
+    z
+      .string()
+      .trim()
+      .regex(
+        INVENTORY_HHMM_PATTERN,
+        t("inventory:properties.form.zod.hhmmPattern"),
+      ),
+  ]);
 
-const schema = z
-  .object({
-    code: z
-      .string()
-      .trim()
-      .min(INVENTORY_CODE_MIN, "Code is required")
-      .max(INVENTORY_CODE_MAX, `Max ${INVENTORY_CODE_MAX} characters`)
-      .regex(INVENTORY_CODE_PATTERN, "Use letters, numbers, _ or -"),
-    name: z
-      .string()
-      .trim()
-      .min(INVENTORY_NAME_MIN, "Name is required")
-      .max(INVENTORY_NAME_MAX),
-    timezone: z
-      .string()
-      .trim()
-      .min(1, "Timezone is required")
-      .max(INVENTORY_TIMEZONE_MAX),
-    city: z.union([
-      z.literal(""),
-      z.string().trim().max(INVENTORY_CITY_MAX),
-    ]),
-    countryCode: z.union([
-      z.literal(""),
-      z
+  return z
+    .object({
+      code: z
         .string()
         .trim()
-        .length(INVENTORY_COUNTRY_CODE_LENGTH, "Use a 2-letter code")
-        .regex(/^[A-Za-z]{2}$/, "Use a 2-letter code"),
-    ]),
-    addressLine: z.union([
-      z.literal(""),
-      z.string().trim().max(INVENTORY_ADDRESS_MAX),
-    ]),
-    latitude: z.string().trim(),
-    longitude: z.string().trim(),
-    googlePlaceId: z.union([
-      z.literal(""),
-      z
+        .min(
+          INVENTORY_CODE_MIN,
+          t("inventory:properties.form.zod.codeRequired"),
+        )
+        .max(
+          INVENTORY_CODE_MAX,
+          t("inventory:properties.form.zod.codeMax", {
+            max: INVENTORY_CODE_MAX,
+          }),
+        )
+        .regex(
+          INVENTORY_CODE_PATTERN,
+          t("inventory:properties.form.zod.codePattern"),
+        ),
+      name: z
         .string()
         .trim()
-        .min(10, "Place ID looks too short")
-        .max(INVENTORY_GOOGLE_PLACE_ID_MAX)
-        .regex(/^[\w-]+$/, "Use the Place ID only (e.g. ChIJ…)"),
-    ]),
-    checkInFrom: hhmmOrEmpty,
-    checkInUntil: hhmmOrEmpty,
-    checkOutFrom: hhmmOrEmpty,
-    checkOutUntil: hhmmOrEmpty,
-    isActive: z.enum(["true", "false"]),
-    coverImage: z.custom<MediaItem | null>(),
-  })
-  .superRefine((values, ctx) => {
-    const latRaw = values.latitude;
-    const lngRaw = values.longitude;
-    const latEmpty = latRaw === "";
-    const lngEmpty = lngRaw === "";
+        .min(
+          INVENTORY_NAME_MIN,
+          t("inventory:properties.form.zod.nameRequired"),
+        )
+        .max(INVENTORY_NAME_MAX),
+      timezone: z
+        .string()
+        .trim()
+        .min(1, t("inventory:properties.form.zod.timezoneRequired"))
+        .max(INVENTORY_TIMEZONE_MAX),
+      city: z.union([z.literal(""), z.string().trim().max(INVENTORY_CITY_MAX)]),
+      countryCode: z.union([
+        z.literal(""),
+        z
+          .string()
+          .trim()
+          .length(
+            INVENTORY_COUNTRY_CODE_LENGTH,
+            t("inventory:properties.form.zod.countryCodePattern"),
+          )
+          .regex(
+            /^[A-Za-z]{2}$/,
+            t("inventory:properties.form.zod.countryCodePattern"),
+          ),
+      ]),
+      addressLine: z.union([
+        z.literal(""),
+        z.string().trim().max(INVENTORY_ADDRESS_MAX),
+      ]),
+      latitude: z.string().trim(),
+      longitude: z.string().trim(),
+      googlePlaceId: z.union([
+        z.literal(""),
+        z
+          .string()
+          .trim()
+          .min(10, t("inventory:properties.form.zod.placeIdShort"))
+          .max(INVENTORY_GOOGLE_PLACE_ID_MAX)
+          .regex(/^[\w-]+$/, t("inventory:properties.form.zod.placeIdPattern")),
+      ]),
+      checkInFrom: hhmmOrEmpty,
+      checkInUntil: hhmmOrEmpty,
+      checkOutFrom: hhmmOrEmpty,
+      checkOutUntil: hhmmOrEmpty,
+      isActive: z.enum(["true", "false"]),
+      coverImage: z.custom<MediaItem | null>(),
+    })
+    .superRefine((values, ctx) => {
+      const latRaw = values.latitude;
+      const lngRaw = values.longitude;
+      const latEmpty = latRaw === "";
+      const lngEmpty = lngRaw === "";
 
-    if (latEmpty && lngEmpty) {
-      return;
-    }
-    if (latEmpty || lngEmpty) {
-      ctx.addIssue({
-        code: "custom",
-        path: [latEmpty ? "latitude" : "longitude"],
-        message: "Enter both latitude and longitude",
-      });
-      return;
-    }
+      if (latEmpty && lngEmpty) {
+        return;
+      }
+      if (latEmpty || lngEmpty) {
+        ctx.addIssue({
+          code: "custom",
+          path: [latEmpty ? "latitude" : "longitude"],
+          message: t("inventory:properties.form.zod.latLngBothRequired"),
+        });
+        return;
+      }
 
-    const lat = Number(latRaw);
-    const lng = Number(lngRaw);
-    if (
-      Number.isNaN(lat) ||
-      lat < INVENTORY_LAT_MIN ||
-      lat > INVENTORY_LAT_MAX
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["latitude"],
-        message: `Enter a latitude between ${INVENTORY_LAT_MIN} and ${INVENTORY_LAT_MAX}`,
-      });
-    }
-    if (
-      Number.isNaN(lng) ||
-      lng < INVENTORY_LNG_MIN ||
-      lng > INVENTORY_LNG_MAX
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["longitude"],
-        message: `Enter a longitude between ${INVENTORY_LNG_MIN} and ${INVENTORY_LNG_MAX}`,
-      });
-    }
-  });
+      const lat = Number(latRaw);
+      const lng = Number(lngRaw);
+      if (
+        Number.isNaN(lat) ||
+        lat < INVENTORY_LAT_MIN ||
+        lat > INVENTORY_LAT_MAX
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["latitude"],
+          message: t("inventory:properties.form.zod.latitudeRange", {
+            min: INVENTORY_LAT_MIN,
+            max: INVENTORY_LAT_MAX,
+          }),
+        });
+      }
+      if (
+        Number.isNaN(lng) ||
+        lng < INVENTORY_LNG_MIN ||
+        lng > INVENTORY_LNG_MAX
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["longitude"],
+          message: t("inventory:properties.form.zod.longitudeRange", {
+            min: INVENTORY_LNG_MIN,
+            max: INVENTORY_LNG_MAX,
+          }),
+        });
+      }
+    });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof createPropertySchema>>;
 
 const emptyDefaults: FormValues = {
   code: "",
@@ -186,9 +219,11 @@ export function PropertyFormDialog({
   property,
   readOnly = false,
 }: PropertyFormDialogProps) {
+  const { t } = useTranslation(["inventory", "common"]);
   const isEdit = Boolean(property);
   const queryClient = useQueryClient();
   const [mediaUploading, setMediaUploading] = useState(false);
+  const schema = useMemo(() => createPropertySchema(t), [t]);
   const form = useForm<FormValues>({
     // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
     resolver: zodResolver(schema as never),
@@ -198,7 +233,7 @@ export function PropertyFormDialog({
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
       if (values.coverImage?.url.startsWith("blob:")) {
-        throw new Error("Cover image is still uploading — wait and try again");
+        throw new Error(t("inventory:properties.form.coverImageUploading"));
       }
       const payload = {
         code: values.code,
@@ -226,7 +261,11 @@ export function PropertyFormDialog({
       form.reset(structuredClone(emptyDefaults));
       setMediaUploading(false);
       syncPropertyCaches(queryClient, saved);
-      handleSuccess(property ? "Property updated" : "Property created");
+      handleSuccess(
+        property
+          ? t("inventory:properties.form.toastUpdated")
+          : t("inventory:properties.form.toastCreated"),
+      );
       onOpenChange(false);
     },
     onError: (error) => {
@@ -303,9 +342,13 @@ export function PropertyFormDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={
-        readOnly ? "View property" : isEdit ? "Edit property" : "Add property"
+        readOnly
+          ? t("inventory:properties.form.titleView")
+          : isEdit
+            ? t("inventory:properties.form.titleEdit")
+            : t("inventory:properties.form.titleCreate")
       }
-      description="Place-level settings for inventory and check-in times."
+      description={t("inventory:properties.form.description")}
       footer={
         readOnly ? (
           <Button
@@ -315,7 +358,7 @@ export function PropertyFormDialog({
               onOpenChange(false);
             }}
           >
-            Close
+            {t("inventory:properties.form.close")}
           </Button>
         ) : (
           <>
@@ -326,7 +369,7 @@ export function PropertyFormDialog({
                 onOpenChange(false);
               }}
             >
-              Cancel
+              {t("inventory:properties.form.cancel")}
             </Button>
             <Button
               type="submit"
@@ -337,7 +380,9 @@ export function PropertyFormDialog({
                 mediaUploading
               }
             >
-              {isEdit ? "Save" : "Create"}
+              {isEdit
+                ? t("inventory:properties.form.save")
+                : t("inventory:properties.form.create")}
             </Button>
           </>
         )
@@ -358,7 +403,9 @@ export function PropertyFormDialog({
               name="name"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel htmlFor="property-name">Name</FieldLabel>
+                  <FieldLabel htmlFor="property-name">
+                    {t("inventory:properties.form.fields.name")}
+                  </FieldLabel>
                   <Input
                     {...field}
                     id="property-name"
@@ -374,7 +421,9 @@ export function PropertyFormDialog({
               name="code"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel htmlFor="property-code">Code</FieldLabel>
+                  <FieldLabel htmlFor="property-code">
+                    {t("inventory:properties.form.fields.code")}
+                  </FieldLabel>
                   <Input
                     {...field}
                     id="property-code"
@@ -391,12 +440,16 @@ export function PropertyFormDialog({
               name="timezone"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel htmlFor="property-tz">Timezone</FieldLabel>
+                  <FieldLabel htmlFor="property-tz">
+                    {t("inventory:properties.form.fields.timezone")}
+                  </FieldLabel>
                   <Input
                     {...field}
                     id="property-tz"
                     aria-invalid={fieldState.invalid || undefined}
-                    placeholder="Asia/Jakarta"
+                    placeholder={t(
+                      "inventory:properties.form.fields.timezonePlaceholder",
+                    )}
                     autoComplete="off"
                   />
                   <FieldError errors={[fieldState.error]} />
@@ -409,7 +462,9 @@ export function PropertyFormDialog({
                 name="city"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
-                    <FieldLabel htmlFor="property-city">City</FieldLabel>
+                    <FieldLabel htmlFor="property-city">
+                      {t("inventory:properties.form.fields.city")}
+                    </FieldLabel>
                     <Input
                       {...field}
                       id="property-city"
@@ -425,12 +480,16 @@ export function PropertyFormDialog({
                 name="countryCode"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
-                    <FieldLabel htmlFor="property-country">Country</FieldLabel>
+                    <FieldLabel htmlFor="property-country">
+                      {t("inventory:properties.form.fields.country")}
+                    </FieldLabel>
                     <Input
                       {...field}
                       id="property-country"
                       aria-invalid={fieldState.invalid || undefined}
-                      placeholder="ID"
+                      placeholder={t(
+                        "inventory:properties.form.fields.countryPlaceholder",
+                      )}
                       autoComplete="off"
                       className="uppercase"
                     />
@@ -444,7 +503,9 @@ export function PropertyFormDialog({
               name="addressLine"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel htmlFor="property-address">Address</FieldLabel>
+                  <FieldLabel htmlFor="property-address">
+                    {t("inventory:properties.form.fields.address")}
+                  </FieldLabel>
                   <Input
                     {...field}
                     id="property-address"
@@ -461,19 +522,20 @@ export function PropertyFormDialog({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
                   <FieldLabel htmlFor="property-place-id">
-                    Google Place ID
+                    {t("inventory:properties.form.fields.googlePlaceId")}
                   </FieldLabel>
                   <Input
                     {...field}
                     id="property-place-id"
                     aria-invalid={fieldState.invalid || undefined}
-                    placeholder="ChIJ…"
+                    placeholder={t(
+                      "inventory:properties.form.fields.googlePlaceIdPlaceholder",
+                    )}
                     autoComplete="off"
                     className="font-mono text-sm"
                   />
                   <p className="text-xs text-muted-foreground">
-                    From Place ID Finder. Open in Maps uses this so Google shows
-                    the real place name.
+                    {t("inventory:properties.form.fields.googlePlaceIdHint")}
                   </p>
                   <FieldError errors={[fieldState.error]} />
                 </Field>
@@ -485,7 +547,9 @@ export function PropertyFormDialog({
                 name="latitude"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
-                    <FieldLabel htmlFor="property-lat">Latitude</FieldLabel>
+                    <FieldLabel htmlFor="property-lat">
+                      {t("inventory:properties.form.fields.latitude")}
+                    </FieldLabel>
                     <Input
                       {...field}
                       id="property-lat"
@@ -493,7 +557,9 @@ export function PropertyFormDialog({
                       inputMode="decimal"
                       step="any"
                       aria-invalid={fieldState.invalid || undefined}
-                      placeholder="-6.200000"
+                      placeholder={t(
+                        "inventory:properties.form.fields.latitudePlaceholder",
+                      )}
                       autoComplete="off"
                       className="tabular-nums"
                     />
@@ -506,7 +572,9 @@ export function PropertyFormDialog({
                 name="longitude"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
-                    <FieldLabel htmlFor="property-lng">Longitude</FieldLabel>
+                    <FieldLabel htmlFor="property-lng">
+                      {t("inventory:properties.form.fields.longitude")}
+                    </FieldLabel>
                     <Input
                       {...field}
                       id="property-lng"
@@ -514,7 +582,9 @@ export function PropertyFormDialog({
                       inputMode="decimal"
                       step="any"
                       aria-invalid={fieldState.invalid || undefined}
-                      placeholder="106.816666"
+                      placeholder={t(
+                        "inventory:properties.form.fields.longitudePlaceholder",
+                      )}
                       autoComplete="off"
                       className="tabular-nums"
                     />
@@ -524,7 +594,7 @@ export function PropertyFormDialog({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Lat/lng power our own map later (pins + property titles).
+              {t("inventory:properties.form.fields.coordinatesHint")}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <Controller
@@ -533,7 +603,7 @@ export function PropertyFormDialog({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
                     <FieldLabel htmlFor="property-checkin-from">
-                      Check-in from
+                      {t("inventory:properties.form.fields.checkInFrom")}
                     </FieldLabel>
                     <Input
                       {...field}
@@ -552,7 +622,7 @@ export function PropertyFormDialog({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
                     <FieldLabel htmlFor="property-checkin-until">
-                      Check-in until
+                      {t("inventory:properties.form.fields.checkInUntil")}
                     </FieldLabel>
                     <Input
                       {...field}
@@ -573,7 +643,7 @@ export function PropertyFormDialog({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
                     <FieldLabel htmlFor="property-checkout-from">
-                      Check-out from
+                      {t("inventory:properties.form.fields.checkOutFrom")}
                     </FieldLabel>
                     <Input
                       {...field}
@@ -592,7 +662,7 @@ export function PropertyFormDialog({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid || undefined}>
                     <FieldLabel htmlFor="property-checkout-until">
-                      Check-out until
+                      {t("inventory:properties.form.fields.checkOutUntil")}
                     </FieldLabel>
                     <Input
                       {...field}
@@ -611,7 +681,9 @@ export function PropertyFormDialog({
               name="isActive"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid || undefined}>
-                  <FieldLabel>Open for ops</FieldLabel>
+                  <FieldLabel>
+                    {t("inventory:properties.form.fields.openForOps")}
+                  </FieldLabel>
                   <Select
                     value={field.value}
                     disabled={readOnly}
@@ -622,8 +694,12 @@ export function PropertyFormDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="true">Yes</SelectItem>
-                        <SelectItem value="false">No</SelectItem>
+                        <SelectItem value="true">
+                          {t("inventory:properties.form.fields.yes")}
+                        </SelectItem>
+                        <SelectItem value="false">
+                          {t("inventory:properties.form.fields.no")}
+                        </SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>
@@ -647,12 +723,12 @@ export function PropertyFormDialog({
           {mapsHref ? (
             <a href={mapsHref} target="_blank" rel="noreferrer">
               <ExternalLinkIcon data-icon="inline-start" />
-              Open in Google Maps
+              {t("inventory:properties.form.openInGoogleMaps")}
             </a>
           ) : (
             <>
               <ExternalLinkIcon data-icon="inline-start" />
-              Open in Google Maps
+              {t("inventory:properties.form.openInGoogleMaps")}
             </>
           )}
         </Button>

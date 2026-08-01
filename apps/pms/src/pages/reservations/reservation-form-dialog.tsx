@@ -18,7 +18,9 @@ import {
 } from "@cabin/api-contract";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 import { Button } from "@/components/ui/button";
@@ -69,95 +71,126 @@ const SOURCE_OPTIONS = [
   ReservationSource.WEBSITE,
 ] as const;
 
-const schema = z
-  .object({
-    unitId: z.string().min(1, "Unit is required"),
-    billingPeriod: z.enum([
-      StayBillingPeriod.DAILY,
-      StayBillingPeriod.MONTHLY,
-      StayBillingPeriod.YEARLY,
-    ]),
-    checkInDate: z.string().min(1, "Check-in is required"),
-    checkOutDate: z.string().min(1, "Check-out is required"),
-    guestName: z
-      .string()
-      .trim()
-      .min(RESERVATION_GUEST_NAME_MIN, "Guest name is required")
-      .max(RESERVATION_GUEST_NAME_MAX)
-      .refine((name) => !isPlaceholderGuestName(name), {
-        message: "Replace the iCal placeholder with the real guest name",
-      }),
-    guestEmail: z.union([
-      z.literal(""),
-      z.string().trim().email("Invalid email").max(RESERVATION_GUEST_EMAIL_MAX),
-    ]),
-    guestPhone: z.union([
-      z.literal(""),
-      z.string().trim().max(RESERVATION_GUEST_PHONE_MAX),
-    ]),
-    guestCount: z.coerce.number().int().min(1, "At least 1 guest"),
-    source: z.enum([
-      ReservationSource.MANUAL,
-      ReservationSource.WEBSITE,
-      ReservationSource.BOOKING_COM,
-      ReservationSource.AIRBNB,
-      ReservationSource.AGODA,
-    ]),
-    totalDigits: z.string().min(1, "Total is required"),
-    paidDigits: z.string(),
-    notes: z.union([
-      z.literal(""),
-      z.string().trim().max(RESERVATION_NOTES_MAX),
-    ]),
-  })
-  .superRefine((values, ctx) => {
-    if (values.checkOutDate <= values.checkInDate) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["checkOutDate"],
-        message: "Check-out must be after check-in",
-      });
-    } else if (
-      !isValidStayPeriodRange(
-        values.billingPeriod,
-        values.checkInDate,
-        values.checkOutDate,
-      )
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["checkOutDate"],
-        message:
-          "Check-out must match a full daily, monthly, or yearly period from check-in",
-      });
-    }
-    if (!values.guestEmail && !values.guestPhone) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["guestPhone"],
-        message: "Phone or email is required",
-      });
-    }
-    const total = Number(values.totalDigits || "0");
-    const paid = Number(values.paidDigits || "0");
-    if (!Number.isFinite(total) || total < 0) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["totalDigits"],
-        message: "Enter a valid total",
-      });
-    }
-    if (!Number.isFinite(paid) || paid < 0) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["paidDigits"],
-        message: "Enter a valid paid amount",
-      });
-    }
-    // paid > total is allowed (overpay / pending refund after shrink).
-  });
+function createReservationSchema(t: TFunction) {
+  return z
+    .object({
+      unitId: z.string().min(1, t("reservations:formDialog.zod.unitRequired")),
+      billingPeriod: z.enum([
+        StayBillingPeriod.DAILY,
+        StayBillingPeriod.MONTHLY,
+        StayBillingPeriod.YEARLY,
+      ]),
+      checkInDate: z
+        .string()
+        .min(1, t("reservations:formDialog.zod.checkInRequired")),
+      checkOutDate: z
+        .string()
+        .min(1, t("reservations:formDialog.zod.checkOutRequired")),
+      guestName: z
+        .string()
+        .trim()
+        .min(
+          RESERVATION_GUEST_NAME_MIN,
+          t("reservations:formDialog.zod.guestNameRequired"),
+        )
+        .max(RESERVATION_GUEST_NAME_MAX)
+        .refine((name) => !isPlaceholderGuestName(name), {
+          message: t("reservations:formDialog.zod.guestNamePlaceholderError"),
+        }),
+      guestEmail: z.union([
+        z.literal(""),
+        z
+          .string()
+          .trim()
+          .email(t("reservations:formDialog.zod.invalidEmail"))
+          .max(RESERVATION_GUEST_EMAIL_MAX),
+      ]),
+      guestPhone: z.union([
+        z.literal(""),
+        z.string().trim().max(RESERVATION_GUEST_PHONE_MAX),
+      ]),
+      guestCount: z.coerce
+        .number()
+        .int()
+        .min(1, t("reservations:formDialog.zod.atLeastOneGuest")),
+      source: z.enum([
+        ReservationSource.MANUAL,
+        ReservationSource.WEBSITE,
+        ReservationSource.BOOKING_COM,
+        ReservationSource.AIRBNB,
+        ReservationSource.AGODA,
+      ]),
+      totalDigits: z
+        .string()
+        .min(1, t("reservations:formDialog.zod.totalRequired")),
+      paidDigits: z.string(),
+      notes: z.union([
+        z.literal(""),
+        z.string().trim().max(RESERVATION_NOTES_MAX),
+      ]),
+    })
+    .superRefine((values, ctx) => {
+      if (values.checkOutDate <= values.checkInDate) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["checkOutDate"],
+          message: t("reservations:formDialog.zod.checkOutAfterCheckIn"),
+        });
+      } else if (
+        !isValidStayPeriodRange(
+          values.billingPeriod,
+          values.checkInDate,
+          values.checkOutDate,
+        )
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["checkOutDate"],
+          message: t("reservations:formDialog.zod.invalidPeriodRange"),
+        });
+      }
+      if (!values.guestEmail && !values.guestPhone) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["guestPhone"],
+          message: t("reservations:formDialog.zod.contactRequired"),
+        });
+      }
+      const total = Number(values.totalDigits || "0");
+      const paid = Number(values.paidDigits || "0");
+      if (!Number.isFinite(total) || total < 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["totalDigits"],
+          message: t("reservations:formDialog.zod.invalidTotal"),
+        });
+      }
+      if (!Number.isFinite(paid) || paid < 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["paidDigits"],
+          message: t("reservations:formDialog.zod.invalidPaid"),
+        });
+      }
+      // paid > total is allowed (overpay / pending refund after shrink).
+    });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof createReservationSchema>>;
+
+function periodUnitLabel(
+  t: TFunction,
+  billingPeriod: StayBillingPeriod,
+  count: number,
+): string {
+  if (billingPeriod === StayBillingPeriod.MONTHLY) {
+    return t("reservations:format.units.month", { count });
+  }
+  if (billingPeriod === StayBillingPeriod.YEARLY) {
+    return t("reservations:format.units.year", { count });
+  }
+  return t("reservations:format.units.night", { count });
+}
 
 function emptyFormValues(): FormValues {
   return {
@@ -214,6 +247,8 @@ export function ReservationFormDialog({
   intent = "edit",
   onSaved,
 }: ReservationFormDialogProps) {
+  const { t } = useTranslation(["reservations", "common"]);
+  const schema = useMemo(() => createReservationSchema(t), [t]);
   const isEdit = Boolean(reservation);
   const isConfirmEnrich = intent === "confirm-enrich";
   const queryClient = useQueryClient();
@@ -447,10 +482,7 @@ export function ReservationFormDialog({
   ]);
 
   const dateOverlapError = dateOverlapConflict
-    ? {
-        message:
-          "These dates overlap a booking on this unit — change dates or choose another unit.",
-      }
+    ? { message: t("reservations:formDialog.dateOverlapError") }
     : undefined;
 
   useEffect(() => {
@@ -473,7 +505,7 @@ export function ReservationFormDialog({
     setPicked(null);
     form.setValue("unitId", "", { shouldDirty: true, shouldValidate: true });
     handleError(
-      new Error("That unit isn’t bookable for these dates — choose another."),
+      new Error(t("reservations:formDialog.unitNotBookableError")),
     );
   }, [
     open,
@@ -483,9 +515,9 @@ export function ReservationFormDialog({
     unitAvailabilityQuery.isSuccess,
     unitAvailabilityQuery.data,
     form,
+    t,
   ]);
-  const rack =
-    rackFromChosen ?? rackFromCache ?? rackQuery.data ?? undefined;
+  const rack = rackFromChosen ?? rackFromCache ?? rackQuery.data ?? undefined;
   const rackPriceIdr =
     rack != null ? rackPriceForPeriod(billingPeriod, rack) : undefined;
   const suggestedTotal =
@@ -566,7 +598,7 @@ export function ReservationFormDialog({
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
       if (!chosen || chosen.unitId !== values.unitId) {
-        throw new Error("Choose a unit");
+        throw new Error(t("reservations:formDialog.zod.unitRequired"));
       }
       const total = Number(values.totalDigits);
       const paid = Number(values.paidDigits || "0");
@@ -625,10 +657,10 @@ export function ReservationFormDialog({
       syncReservationCaches(queryClient, saved, { occupancyChanged });
       handleSuccess(
         isConfirmEnrich
-          ? "Details saved"
+          ? t("reservations:formDialog.toastDetailsSaved")
           : isEdit
-            ? "Reservation updated"
-            : "Reservation created",
+            ? t("reservations:formDialog.toastUpdated")
+            : t("reservations:formDialog.toastCreated"),
       );
 
       const finish = () => {
@@ -685,16 +717,16 @@ export function ReservationFormDialog({
   });
 
   const title = isConfirmEnrich
-    ? "Complete details to confirm"
+    ? t("reservations:formDialog.titleConfirmEnrich")
     : isEdit
-      ? "Edit reservation"
-      : "New reservation";
+      ? t("reservations:formDialog.titleEdit")
+      : t("reservations:formDialog.titleCreate");
 
   const description = isConfirmEnrich
-    ? "Fill guest contact, guest count, and stay total — then save to confirm."
+    ? t("reservations:formDialog.descriptionConfirmEnrich")
     : isEdit
-      ? "Update stay, guest, or quote. Money in/out stays on Collect or Refund."
-      : "Walk-in / manual stay. Choose unit and dates, then guest and money.";
+      ? t("reservations:formDialog.descriptionEdit")
+      : t("reservations:formDialog.descriptionCreate");
 
   return (
     <>
@@ -719,7 +751,7 @@ export function ReservationFormDialog({
               }}
               disabled={saveMutation.isPending}
             >
-              Cancel
+              {t("reservations:formDialog.buttons.cancel")}
             </Button>
             <Button
               type="submit"
@@ -731,12 +763,12 @@ export function ReservationFormDialog({
               }
             >
               {saveMutation.isPending
-                ? "Saving…"
+                ? t("reservations:formDialog.buttons.saving")
                 : isConfirmEnrich
-                  ? "Save & confirm"
+                  ? t("reservations:formDialog.buttons.saveAndConfirm")
                   : isEdit
-                    ? "Save changes"
-                    : "Create"}
+                    ? t("reservations:formDialog.buttons.saveChanges")
+                    : t("reservations:formDialog.buttons.create")}
             </Button>
           </>
         }
@@ -747,7 +779,9 @@ export function ReservationFormDialog({
           onSubmit={onSubmit}
         >
           <FieldGroup className="gap-4">
-            <p className="text-sm font-medium text-foreground">Stay</p>
+            <p className="text-sm font-medium text-foreground">
+              {t("reservations:formDialog.sections.stay")}
+            </p>
             <ChosenUnitField
               chosen={chosen}
               onChoose={() => {
@@ -765,7 +799,9 @@ export function ReservationFormDialog({
                 dateOverlapConflict,
               )}
             >
-              <FieldLabel htmlFor="stay-dates">Stay</FieldLabel>
+              <FieldLabel htmlFor="stay-dates">
+                {t("reservations:formDialog.stayFieldLabel")}
+              </FieldLabel>
               <StayDateRangePicker
                 id="stay-dates"
                 checkInDate={checkInDate}
@@ -807,18 +843,24 @@ export function ReservationFormDialog({
           </FieldGroup>
 
           <FieldGroup className="gap-4">
-            <p className="text-sm font-medium text-foreground">Guest</p>
+            <p className="text-sm font-medium text-foreground">
+              {t("reservations:formDialog.sections.guest")}
+            </p>
             <Controller
               control={form.control}
               name="guestName"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="guest-name">Guest name</FieldLabel>
+                  <FieldLabel htmlFor="guest-name">
+                    {t("reservations:formDialog.fields.guestName")}
+                  </FieldLabel>
                   <Input
                     id="guest-name"
                     autoComplete="name"
                     autoFocus={isConfirmEnrich}
-                    placeholder="Full name"
+                    placeholder={t(
+                      "reservations:formDialog.fields.guestNamePlaceholder",
+                    )}
                     maxLength={RESERVATION_GUEST_NAME_MAX}
                     aria-invalid={fieldState.invalid}
                     {...field}
@@ -834,13 +876,17 @@ export function ReservationFormDialog({
                 name="guestPhone"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="guest-phone">Phone</FieldLabel>
+                    <FieldLabel htmlFor="guest-phone">
+                      {t("reservations:formDialog.fields.phone")}
+                    </FieldLabel>
                     <Input
                       id="guest-phone"
                       type="tel"
                       inputMode="tel"
                       autoComplete="tel"
-                      placeholder="08…"
+                      placeholder={t(
+                        "reservations:formDialog.fields.phonePlaceholder",
+                      )}
                       maxLength={RESERVATION_GUEST_PHONE_MAX}
                       aria-invalid={fieldState.invalid}
                       {...field}
@@ -854,12 +900,16 @@ export function ReservationFormDialog({
                 name="guestEmail"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="guest-email">Email</FieldLabel>
+                    <FieldLabel htmlFor="guest-email">
+                      {t("reservations:formDialog.fields.email")}
+                    </FieldLabel>
                     <Input
                       id="guest-email"
                       type="email"
                       autoComplete="email"
-                      placeholder="Optional if phone set"
+                      placeholder={t(
+                        "reservations:formDialog.fields.emailPlaceholder",
+                      )}
                       maxLength={RESERVATION_GUEST_EMAIL_MAX}
                       aria-invalid={fieldState.invalid}
                       {...field}
@@ -870,7 +920,7 @@ export function ReservationFormDialog({
               />
             </div>
             <p className="-mt-2 text-xs text-muted-foreground">
-              Phone or email required — phone first is fine for walk-ins.
+              {t("reservations:formDialog.contactRequiredHint")}
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -879,7 +929,9 @@ export function ReservationFormDialog({
                 name="guestCount"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="guest-count">Guests</FieldLabel>
+                    <FieldLabel htmlFor="guest-count">
+                      {t("reservations:formDialog.fields.guests")}
+                    </FieldLabel>
                     <Input
                       id="guest-count"
                       type="number"
@@ -887,7 +939,9 @@ export function ReservationFormDialog({
                       step={1}
                       inputMode="numeric"
                       autoComplete="off"
-                      placeholder="1"
+                      placeholder={t(
+                        "reservations:formDialog.fields.guestsPlaceholder",
+                      )}
                       aria-invalid={fieldState.invalid}
                       value={field.value}
                       onChange={(e) => {
@@ -912,7 +966,9 @@ export function ReservationFormDialog({
                 name="source"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel>Source</FieldLabel>
+                    <FieldLabel>
+                      {t("reservations:formDialog.fields.source")}
+                    </FieldLabel>
                     <Select
                       value={field.value}
                       onValueChange={field.onChange}
@@ -933,8 +989,7 @@ export function ReservationFormDialog({
                     </Select>
                     {sourceLocked ? (
                       <p className="text-xs text-muted-foreground">
-                        Channel is locked while this stay is linked to an OTA
-                        calendar UID.
+                        {t("reservations:formDialog.sourceLockedHint")}
                       </p>
                     ) : null}
                     <FieldError errors={[fieldState.error]} />
@@ -945,7 +1000,9 @@ export function ReservationFormDialog({
           </FieldGroup>
 
           <FieldGroup className="gap-4">
-            <p className="text-sm font-medium text-foreground">Money</p>
+            <p className="text-sm font-medium text-foreground">
+              {t("reservations:formDialog.sections.money")}
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Controller
                 control={form.control}
@@ -958,10 +1015,16 @@ export function ReservationFormDialog({
                     currentTotal != null &&
                     Number.isFinite(currentTotal) &&
                     currentTotal !== suggestedTotal;
+                  const unitLabel =
+                    suggestedTotal != null
+                      ? periodUnitLabel(t, billingPeriod, periodCount)
+                      : "";
 
                   return (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="stay-total">Total (IDR)</FieldLabel>
+                      <FieldLabel htmlFor="stay-total">
+                        {t("reservations:formDialog.fields.totalIdr")}
+                      </FieldLabel>
                       <IdrAmountInput
                         id="stay-total"
                         placeholder={
@@ -979,53 +1042,42 @@ export function ReservationFormDialog({
                       {suggestedTotal != null &&
                         rackPriceIdr != null &&
                         periodCount >= 1 && (
-                        <p className="text-xs text-muted-foreground">
-                          {periodCount}{" "}
-                          {billingPeriod === StayBillingPeriod.MONTHLY
-                            ? periodCount === 1
-                              ? "month"
-                              : "months"
-                            : billingPeriod === StayBillingPeriod.YEARLY
-                              ? periodCount === 1
-                                ? "year"
-                                : "years"
-                              : periodCount === 1
-                                ? "night"
-                                : "nights"}{" "}
-                          × {formatIdr(rackPriceIdr)}/
-                          {billingPeriod === StayBillingPeriod.MONTHLY
-                            ? "month"
-                            : billingPeriod === StayBillingPeriod.YEARLY
-                              ? "year"
-                              : "night"}{" "}
-                          = {formatIdr(suggestedTotal)}
-                          {nights > 0 &&
-                          billingPeriod !== StayBillingPeriod.DAILY
-                            ? ` · ${nights} nights`
-                            : null}
-                          {divergedFromSuggest ? (
-                            <>
-                              {" · "}
-                              <button
-                                type="button"
-                                className="underline underline-offset-2 hover:text-foreground"
-                                onClick={() => {
-                                  form.setValue(
-                                    "totalDigits",
-                                    String(suggestedTotal),
-                                    {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    },
-                                  );
-                                }}
-                              >
-                                Use suggested
-                              </button>
-                            </>
-                          ) : null}
-                        </p>
-                      )}
+                          <p className="text-xs text-muted-foreground">
+                            {t("reservations:formDialog.rackSuggestLine", {
+                              count: periodCount,
+                              unit: unitLabel,
+                              price: formatIdr(rackPriceIdr),
+                              total: formatIdr(suggestedTotal),
+                            })}
+                            {nights > 0 &&
+                              billingPeriod !== StayBillingPeriod.DAILY &&
+                              t(
+                                "reservations:formDialog.rackSuggestNightsSuffix",
+                                { count: nights },
+                              )}
+                            {divergedFromSuggest ? (
+                              <>
+                                {" · "}
+                                <button
+                                  type="button"
+                                  className="underline underline-offset-2 hover:text-foreground"
+                                  onClick={() => {
+                                    form.setValue(
+                                      "totalDigits",
+                                      String(suggestedTotal),
+                                      {
+                                        shouldDirty: true,
+                                        shouldValidate: true,
+                                      },
+                                    );
+                                  }}
+                                >
+                                  {t("reservations:formDialog.useSuggested")}
+                                </button>
+                              </>
+                            ) : null}
+                          </p>
+                        )}
                       <FieldError errors={[fieldState.error]} />
                     </Field>
                   );
@@ -1037,7 +1089,9 @@ export function ReservationFormDialog({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="stay-deposit">
-                      {isEdit ? "Paid (IDR)" : "Deposit now (IDR)"}
+                      {isEdit
+                        ? t("reservations:formDialog.fields.paidIdrEdit")
+                        : t("reservations:formDialog.fields.paidIdrCreate")}
                     </FieldLabel>
                     <IdrAmountInput
                       id="stay-deposit"
@@ -1057,18 +1111,18 @@ export function ReservationFormDialog({
                     />
                     {isEdit ? (
                       <p className="text-xs text-muted-foreground">
-                        Use Collect or Refund on the reservation for money in or
-                        out.
+                        {t("reservations:formDialog.paidEditHint")}
                       </p>
                     ) : (
                       <p className="text-xs text-muted-foreground">
-                        Optional opening deposit. Leave 0 if paying later.
+                        {t("reservations:formDialog.paidCreateHint")}
                       </p>
                     )}
                     {refundAmount > 0 ? (
                       <p className="text-xs text-amber-800 dark:text-amber-200">
-                        Refund {formatIdr(refundAmount)} — Paid is above Total.
-                        Save the quote, then use Refund to return the excess.
+                        {t("reservations:formDialog.refundAbovePaidHint", {
+                          amount: formatIdr(refundAmount),
+                        })}
                       </p>
                     ) : null}
                     <FieldError errors={[fieldState.error]} />
@@ -1084,12 +1138,16 @@ export function ReservationFormDialog({
               name="notes"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="stay-notes">Notes</FieldLabel>
+                  <FieldLabel htmlFor="stay-notes">
+                    {t("reservations:formDialog.fields.notes")}
+                  </FieldLabel>
                   <Textarea
                     id="stay-notes"
                     rows={2}
                     maxLength={RESERVATION_NOTES_MAX}
-                    placeholder="Optional — special requests, channel ref…"
+                    placeholder={t(
+                      "reservations:formDialog.fields.notesPlaceholder",
+                    )}
                     aria-invalid={fieldState.invalid}
                     {...field}
                   />

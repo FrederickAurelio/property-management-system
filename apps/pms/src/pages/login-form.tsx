@@ -2,8 +2,10 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -34,36 +36,41 @@ import {
   staffSessionQueryKey,
 } from "@/lib/api";
 
-const loginSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(
-      STAFF_USERNAME_MIN,
-      `Username must be at least ${STAFF_USERNAME_MIN} characters`,
-    )
-    .max(
-      STAFF_USERNAME_MAX,
-      `Username must be at most ${STAFF_USERNAME_MAX} characters`,
-    ),
-  password: z
-    .string()
-    .min(
-      STAFF_PASSWORD_MIN,
-      `Password must be at least ${STAFF_PASSWORD_MIN} characters`,
-    )
-    .max(
-      STAFF_PASSWORD_MAX,
-      `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
-    ),
-});
+function createLoginSchema(t: TFunction<"auth">) {
+  return z.object({
+    username: z
+      .string()
+      .trim()
+      .min(
+        STAFF_USERNAME_MIN,
+        t("validation.usernameMin", { min: STAFF_USERNAME_MIN }),
+      )
+      .max(
+        STAFF_USERNAME_MAX,
+        t("validation.usernameMax", { max: STAFF_USERNAME_MAX }),
+      ),
+    password: z
+      .string()
+      .min(
+        STAFF_PASSWORD_MIN,
+        t("validation.passwordMin", { min: STAFF_PASSWORD_MIN }),
+      )
+      .max(
+        STAFF_PASSWORD_MAX,
+        t("validation.passwordMax", { max: STAFF_PASSWORD_MAX }),
+      ),
+  });
+}
 
-type LoginValues = z.infer<typeof loginSchema>;
+type LoginValues = z.infer<ReturnType<typeof createLoginSchema>>;
 
 export function LoginForm() {
+  const { t } = useTranslation(["auth"]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
+
+  const loginSchema = createLoginSchema(t);
 
   // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
   const form = useForm<LoginValues>({
@@ -81,7 +88,7 @@ export function LoginForm() {
       form.reset({ username: "", password: "" });
       setShowPassword(false);
       queryClient.setQueryData(staffSessionQueryKey, admin);
-      handleSuccess("Signed in");
+      handleSuccess(t("toasts.signedIn"));
       void navigate("/", { replace: true });
     },
     onError: handleError,
@@ -103,7 +110,9 @@ export function LoginForm() {
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="staff-login-username">Username</FieldLabel>
+              <FieldLabel htmlFor="staff-login-username">
+                {t("form.usernameLabel")}
+              </FieldLabel>
               <Input
                 {...field}
                 id="staff-login-username"
@@ -112,7 +121,7 @@ export function LoginForm() {
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                placeholder="front.desk"
+                placeholder={t("form.usernamePlaceholder")}
                 aria-invalid={fieldState.invalid}
                 disabled={isPending}
               />
@@ -126,14 +135,16 @@ export function LoginForm() {
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="staff-login-password">Password</FieldLabel>
+              <FieldLabel htmlFor="staff-login-password">
+                {t("form.passwordLabel")}
+              </FieldLabel>
               <InputGroup>
                 <InputGroupInput
                   {...field}
                   id="staff-login-password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
-                  placeholder="••••••••"
+                  placeholder={t("form.passwordPlaceholder")}
                   aria-invalid={fieldState.invalid}
                   disabled={isPending}
                 />
@@ -141,7 +152,9 @@ export function LoginForm() {
                   <InputGroupButton
                     size="icon-xs"
                     aria-label={
-                      showPassword ? "Hide password" : "Show password"
+                      showPassword
+                        ? t("form.hidePassword")
+                        : t("form.showPassword")
                     }
                     onClick={() => {
                       setShowPassword((prev) => !prev);
@@ -161,10 +174,10 @@ export function LoginForm() {
           {isPending ? (
             <>
               <Spinner data-icon="inline-start" />
-              Signing in…
+              {t("form.submitting")}
             </>
           ) : (
-            "Sign in"
+            t("form.submit")
           )}
         </Button>
       </FieldGroup>

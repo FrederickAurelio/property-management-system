@@ -7,7 +7,11 @@ import { canViewReports } from "@/lib/staff-permissions";
 
 /** ADMIN / SUPER_ADMIN only — FRONT_DESK deep links redirect home. */
 export function ReportsRoute() {
-  const { data: staff, isPending, isSuccess } = useQuery({
+  const {
+    data: staff,
+    isPending,
+    isSuccess,
+  } = useQuery({
     queryKey: staffSessionQueryKey,
     queryFn: () => staffSession(),
     retry: false,

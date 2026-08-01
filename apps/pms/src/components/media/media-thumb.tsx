@@ -1,6 +1,7 @@
 /* anchor: Linear media thumb, diverge: hover eye desktop / long-press mobile */
 import { useRef, useState, type ReactNode } from "react";
 import { EyeIcon, FilmIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { MediaItem } from "./types";
@@ -25,6 +26,7 @@ export function MediaThumb({
   overlay,
   previewDisabled = false,
 }: MediaThumbProps) {
+  const { t } = useTranslation(["inventory", "common"]);
   const isMobile = useIsMobile();
   const timerRef = useRef<number | null>(null);
   const [pressed, setPressed] = useState(false);
@@ -91,7 +93,7 @@ export function MediaThumb({
       {!previewDisabled && onPreview && !isMobile && (
         <button
           type="button"
-          aria-label={`Preview ${item.name}`}
+          aria-label={t("inventory:media.previewAria", { name: item.name })}
           className="absolute inset-0 flex items-center justify-center bg-foreground/0 opacity-0 transition-opacity group-hover/thumb:bg-foreground/35 group-hover/thumb:opacity-100"
           onClick={(event) => {
             event.preventDefault();

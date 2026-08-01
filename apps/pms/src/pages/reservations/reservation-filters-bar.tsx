@@ -6,6 +6,7 @@ import {
   ReservationStatus,
 } from "@cabin/api-contract";
 import { SearchIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 import {
   InputGroup,
@@ -24,7 +25,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { ReservationBoard } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { RESERVATION_BOARDS } from "./reservation-boards";
+import { reservationBoards } from "./reservation-boards";
 import {
   formatReservationSource,
   formatReservationStatus,
@@ -62,6 +63,7 @@ export function ReservationFiltersBar({
   propertyOptions,
   onPatch,
 }: ReservationFiltersBarProps) {
+  const { t } = useTranslation(["reservations", "common"]);
   const [, setSearchParams] = useSearchParams();
   const [qDraft, setQDraft] = useState(q);
   const [prevQ, setPrevQ] = useState(q);
@@ -105,7 +107,7 @@ export function ReservationFiltersBar({
           }}
           className="flex w-max flex-nowrap justify-start gap-0.5 rounded-lg border border-border bg-muted/60 p-0.5 dark:bg-muted/40"
         >
-          {RESERVATION_BOARDS.map((b) => (
+          {reservationBoards().map((b) => (
             <ToggleGroupItem
               key={b.id}
               value={b.id}
@@ -133,8 +135,8 @@ export function ReservationFiltersBar({
             onChange={(e) => {
               setQDraft(e.target.value);
             }}
-            placeholder="Search guest, unit, phone…"
-            aria-label="Search reservations"
+            placeholder={t("reservations:filtersBar.searchPlaceholder")}
+            aria-label={t("reservations:filtersBar.searchAria")}
           />
         </InputGroup>
 
@@ -148,13 +150,15 @@ export function ReservationFiltersBar({
             <SelectTrigger
               size="sm"
               className="w-[10.5rem] shrink-0"
-              aria-label="Property"
+              aria-label={t("reservations:filtersBar.propertyAria")}
             >
-              <SelectValue placeholder="Property" />
+              <SelectValue placeholder={t("reservations:filtersBar.propertyAria")} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="all">All properties</SelectItem>
+                <SelectItem value="all">
+                  {t("reservations:filtersBar.allProperties")}
+                </SelectItem>
                 {propertyOptions.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
@@ -173,13 +177,15 @@ export function ReservationFiltersBar({
               <SelectTrigger
                 size="sm"
                 className="w-[8.75rem] shrink-0"
-                aria-label="Status"
+                aria-label={t("reservations:filtersBar.statusAria")}
               >
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("reservations:filtersBar.statusAria")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="all">Any status</SelectItem>
+                  <SelectItem value="all">
+                    {t("reservations:filtersBar.anyStatus")}
+                  </SelectItem>
                   {Object.values(ReservationStatus).map((s) => (
                     <SelectItem key={s} value={s}>
                       {formatReservationStatus(s)}
@@ -198,13 +204,15 @@ export function ReservationFiltersBar({
             <SelectTrigger
               size="sm"
               className="w-[8.75rem] shrink-0"
-              aria-label="Source"
+              aria-label={t("reservations:filtersBar.sourceAria")}
             >
-              <SelectValue placeholder="Source" />
+              <SelectValue placeholder={t("reservations:filtersBar.sourceAria")} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="all">Any source</SelectItem>
+                <SelectItem value="all">
+                  {t("reservations:filtersBar.anySource")}
+                </SelectItem>
                 {Object.values(ReservationSource).map((s) => (
                   <SelectItem key={s} value={s}>
                     {formatReservationSource(s)}
@@ -224,17 +232,17 @@ export function ReservationFiltersBar({
             <SelectTrigger
               size="sm"
               className="w-[8.75rem] shrink-0"
-              aria-label="Sort"
+              aria-label={t("reservations:filtersBar.sortAria")}
             >
-              <SelectValue placeholder="Sort" />
+              <SelectValue placeholder={t("reservations:filtersBar.sortAria")} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectItem value={ReservationListSort.checkIn}>
-                  Stay date
+                  {t("reservations:filtersBar.sortStayDate")}
                 </SelectItem>
                 <SelectItem value={ReservationListSort.createdAt}>
-                  Created
+                  {t("reservations:filtersBar.sortCreated")}
                 </SelectItem>
               </SelectGroup>
             </SelectContent>

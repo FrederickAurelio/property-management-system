@@ -1,0 +1,64 @@
+{
+  "appName": "Cabin PMS",
+  "nav": {
+    "dashboard": "Dashboard",
+    "calendar": "Calendar",
+    "reservations": "Reservations",
+    "properties": "Properties",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "sidebar": {
+    "operations": "Operations",
+    "manage": "Manage",
+    "account": "Account"
+  },
+  "bottomNav": {
+    "more": "More",
+    "mainAriaLabel": "Main",
+    "moreSheetTitle": "More",
+    "moreSheetDescription": "Units, reports, and settings"
+  },
+  "auth": {
+    "checkingSession": "Checking session…"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode"
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "continue": "Continue",
+    "gotIt": "Got it",
+    "retry": "Retry",
+    "retrying": "Retrying…",
+    "create": "Create",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "export": "Export",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "misc": {
+    "optional": "Optional",
+    "loading": "Loading…",
+    "loadingMore": "Loading more…",
+    "loadMoreError": "Couldn’t load more. Try again.",
+    "comingSoon": "Coming soon…"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "id": "Bahasa Indonesia"
+  },
+  "signOut": "Sign out"
+}

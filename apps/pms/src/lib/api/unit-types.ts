@@ -59,9 +59,7 @@ export async function getUnitType(id: string): Promise<StaffUnitType> {
 }
 
 export async function getUnitTypeRack(id: string): Promise<StaffUnitTypeRack> {
-  const { data } = await api.get<StaffUnitTypeRack>(
-    `/unit-types/${id}/rack`,
-  );
+  const { data } = await api.get<StaffUnitTypeRack>(`/unit-types/${id}/rack`);
   return data;
 }
 
@@ -80,10 +78,7 @@ export async function updateUnitType(
   id: string,
   input: Partial<UnitTypeWriteInput>,
 ): Promise<StaffUnitType> {
-  const { data } = await api.patch<StaffUnitType>(
-    `/unit-types/${id}`,
-    input,
-  );
+  const { data } = await api.patch<StaffUnitType>(`/unit-types/${id}`, input);
   return data;
 }
 

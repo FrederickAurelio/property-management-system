@@ -19,7 +19,10 @@ export type ReservationBoard =
   | "all";
 
 /** Prefix — use with `invalidateQueries` to refresh all reservation lists. */
-export const staffReservationsQueryKeyPrefix = ["staff", "reservations"] as const;
+export const staffReservationsQueryKeyPrefix = [
+  "staff",
+  "reservations",
+] as const;
 
 /** List queries only — does not match detail keys (safe with `setQueryData` on detail). */
 export const staffReservationsListQueryKeyPrefix = [
@@ -65,7 +68,9 @@ export type StaffPropertiesListFilters = {
   isActive?: boolean;
 };
 
-export function staffPropertiesQueryKey(filters: StaffPropertiesListFilters = {}) {
+export function staffPropertiesQueryKey(
+  filters: StaffPropertiesListFilters = {},
+) {
   return [...staffPropertiesListQueryKeyPrefix, filters] as const;
 }
 

@@ -1,4 +1,5 @@
 /* anchor: Stripe-data source mix, diverge: share Δ + cash net % + Direct vs OTA */
+import { useTranslation } from "react-i18next";
 import type {
   StaffReportsCashSourceRow,
   StaffReportsSourceMixRow,
@@ -42,6 +43,7 @@ export function ReportsSourceMixSection({
   periodCashNet,
   compare,
 }: ReportsSourceMixSectionProps) {
+  const { t } = useTranslation(["reports", "common"]);
   const cashMap = new Map(cashBySource.map((r) => [r.source, r]));
   const sorted = [...rows].sort((a, b) => b.nights - a.nights);
   const totalNights = rows.reduce((s, r) => s + r.nights, 0);
@@ -51,16 +53,17 @@ export function ReportsSourceMixSection({
   return (
     <section className="flex flex-col gap-3 border-b border-border pb-6 md:pb-5">
       <div>
-        <h2 className="text-sm font-medium text-foreground">Source mix</h2>
+        <h2 className="text-sm font-medium text-foreground">
+          {t("reports:sourceMix.title")}
+        </h2>
         <p className="text-xs text-muted-foreground md:text-sm">
-          Stays by check-in in period · nights overlapping period · cash net
-          share
+          {t("reports:sourceMix.subtitle")}
         </p>
       </div>
 
       {empty && (
         <p className="text-sm text-muted-foreground">
-          No overlapping stay nights in this period.
+          {t("reports:sourceMix.empty")}
         </p>
       )}
 
@@ -71,19 +74,39 @@ export function ReportsSourceMixSection({
               <TableHeader>
                 <TableRow>
                   <TableHead className={stickyLabelCellClass()}>
-                    <span className={stickyLabelInnerClass()}>Source</span>
+                    <span className={stickyLabelInnerClass()}>
+                      {t("reports:sourceMix.table.source")}
+                    </span>
                   </TableHead>
-                  <TableHead className="text-right">Stays</TableHead>
-                  <TableHead className="text-right">Nights</TableHead>
-                  <TableHead className="text-right">% nights</TableHead>
-                  <TableHead className="text-right">Cash net</TableHead>
-                  <TableHead className="text-right">% of net</TableHead>
+                  <TableHead className="text-right">
+                    {t("reports:sourceMix.table.stays")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("reports:sourceMix.table.nights")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("reports:sourceMix.table.pctNights")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("reports:sourceMix.table.cashNet")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("reports:sourceMix.table.pctOfNet")}
+                  </TableHead>
                   {compare && (
                     <>
-                      <TableHead className="text-right">Prev nights</TableHead>
-                      <TableHead className="text-right">Prev %</TableHead>
-                      <TableHead className="text-right">Δ share</TableHead>
-                      <TableHead className="text-right">Δ nights</TableHead>
+                      <TableHead className="text-right">
+                        {t("reports:sourceMix.table.prevNights")}
+                      </TableHead>
+                      <TableHead className="text-right">
+                        {t("reports:sourceMix.table.prevPct")}
+                      </TableHead>
+                      <TableHead className="text-right">
+                        {t("reports:sourceMix.table.deltaShare")}
+                      </TableHead>
+                      <TableHead className="text-right">
+                        {t("reports:sourceMix.table.deltaNights")}
+                      </TableHead>
                     </>
                   )}
                 </TableRow>
@@ -126,15 +149,15 @@ export function ReportsSourceMixSection({
                       <TableCell className="text-right tabular-nums">
                         {formatIdr(cashNet)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="text-right text-muted-foreground tabular-nums">
                         {formatPct(cashPct)}
                       </TableCell>
                       {compare && (
                         <>
-                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                          <TableCell className="text-right text-muted-foreground tabular-nums">
                             {row.compare?.nights ?? "—"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                          <TableCell className="text-right text-muted-foreground tabular-nums">
                             {prevPct != null ? formatPct(prevPct) : "—"}
                           </TableCell>
                           <TableCell
@@ -159,11 +182,12 @@ export function ReportsSourceMixSection({
           </div>
 
           <p className="text-xs text-muted-foreground md:text-sm">
-            Direct (Manual + Website) {formatPct(rollup.directNightsPct)} of
-            nights · {formatPct(rollup.directCashNetPct)} of cash net
-            {" · "}
-            OTA {formatPct(rollup.otaNightsPct)} of nights ·{" "}
-            {formatPct(rollup.otaCashNetPct)} of cash net
+            {t("reports:sourceMix.directVsOtaSummary", {
+              directNightsPct: formatPct(rollup.directNightsPct),
+              directCashPct: formatPct(rollup.directCashNetPct),
+              otaNightsPct: formatPct(rollup.otaNightsPct),
+              otaCashPct: formatPct(rollup.otaCashNetPct),
+            })}
           </p>
         </>
       )}

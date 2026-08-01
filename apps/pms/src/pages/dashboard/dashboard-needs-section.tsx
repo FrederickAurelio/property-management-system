@@ -1,12 +1,10 @@
 /* anchor: Linear exception strip, diverge: same bordered panel; muted header wash only */
 import { useMemo } from "react";
 import type { StaffDashboardListItem } from "@cabin/api-contract";
+import { useTranslation } from "react-i18next";
 import { DashboardStayList } from "./dashboard-row";
 import { DashboardPanel } from "./dashboard-section";
-import {
-  dominantNeedsBoard,
-  reservationsBoardHref,
-} from "./dashboard-format";
+import { dominantNeedsBoard, reservationsBoardHref } from "./dashboard-format";
 
 type DashboardNeedsSectionProps = {
   total: number;
@@ -23,6 +21,7 @@ export function DashboardNeedsSection({
   opsDate,
   dashboardSearch,
 }: DashboardNeedsSectionProps) {
+  const { t } = useTranslation("dashboard");
   const attentionById = useMemo(() => {
     const map: Record<string, StaffDashboardListItem["attentionKinds"]> = {};
     for (const row of items) {
@@ -39,7 +38,7 @@ export function DashboardNeedsSection({
 
   return (
     <DashboardPanel
-      title="Needs attention"
+      title={t("dashboard:needsAttention.title")}
       total={total}
       viewAllHref={viewAllHref}
       attention

@@ -1,0 +1,161 @@
+{
+  "dialog": {
+    "gotIt": "Got it"
+  },
+  "refreshImports": {
+    "titles": {
+      "blockCreate": "Block is on Cabin — refresh OTAs",
+      "blockUpdate": "Block changed — refresh OTAs",
+      "stayUpdate": "Stay changed — refresh OTAs",
+      "default": "Refresh other OTAs"
+    },
+    "steps": {
+      "exportLive": "Cabin updated the calendar we send out (export is live).",
+      "confirmWithChannel": "{{channel}} already has this guest — refresh the other channels below.",
+      "walkIn": "OTAs do not know about this stay yet until they pull our calendar.",
+      "stayUpdate": "OTAs still show the old dates/unit until they pull our calendar.",
+      "blockClosure": "OTAs do not know about this closure yet until they pull our calendar."
+    },
+    "peerStep": {
+      "bookingCom": "{{channel}}: Sync calendars → Import now",
+      "airbnb": "{{channel}}: Calendar → Availability → Connect calendars → Refresh",
+      "agoda": "{{channel}}: Calendar connections → Refresh connections"
+    },
+    "footer": "Auto sync can take hours. Refresh when check-in is soon."
+  },
+  "updateChannel": {
+    "cancel": {
+      "title": "Cancel on {{channel}} too",
+      "steps": [
+        "Cabin cancelled this stay and freed the unit on our calendar.",
+        "{{channel}} does not cancel the guest booking by itself — open {{channel}} and cancel (or modify) that reservation.",
+        "If you leave it active on {{channel}}, the next sync may warn that it is still listed."
+      ]
+    },
+    "checkOut": {
+      "title": "Update {{channel}} if needed",
+      "steps": [
+        "Cabin checked the guest out and updated the busy calendar we send out.",
+        "If they left early, or the booking on {{channel}} should end, edit or cancel that reservation on {{channel}}.",
+        "{{channel}} will not change the guest booking automatically."
+      ]
+    },
+    "datesOrUnit": {
+      "title": "Update {{channel}} too",
+      "steps": [
+        "Cabin already saved the new dates/unit and updated the busy calendar we send out.",
+        "{{channel}} does not update the guest’s booking by itself — you must edit that reservation on {{channel}}.",
+        "Make dates and unit match Cabin, or the next sync will warn that the two sides disagree."
+      ]
+    }
+  },
+  "playbooks": {
+    "titles": {
+      "missingFromFeedWithChannel": "Gone from {{channel}}",
+      "missingFromFeedGeneric": "Gone from OTA",
+      "datesDiffer": "Dates don’t match",
+      "otaStillListedWithChannel": "Still on {{channel}}",
+      "otaStillListedGeneric": "Still on OTA",
+      "importOverlap": "Double-booked nights",
+      "unitDiffer": "Wrong unit"
+    },
+    "missingFromFeed": {
+      "what": "{{channel}} no longer shows this booking in its calendar.",
+      "pickOne": [
+        "Guest cancelled on {{channel}} → cancel this stay in Cabin too.",
+        "Feed looks wrong / temporary → dismiss for now and check again after the next sync."
+      ],
+      "verify": "Look up this guest on {{channel}}. Is the booking still there?",
+      "cabin": "If it’s gone for real, cancel this stay. That frees the unit and closes money if needed.",
+      "primaryLabel": "Cancel this stay",
+      "dismissLabel": "Dismiss for now",
+      "dismissHint": "Only hides the alert until the next sync. It will come back if the booking is still missing."
+    },
+    "datesDiffer": {
+      "otaDatesFallback": "different dates",
+      "what": "{{channel}} has {{otaDates}}. Cabin still has {{stayDates}}.",
+      "pickOne": [
+        "{{channel}} is correct → use their dates in Cabin (revisit Total after).",
+        "Cabin is correct → change the booking dates on {{channel}} to match."
+      ],
+      "verify": "Open the guest reservation on {{channel}} and compare the stay dates.",
+      "cabin": "To match {{channel}}, tap Use {{channel}} dates. Or edit this stay in Cabin, then update {{channel}}.",
+      "primaryLabel": "Use {{channel}} dates",
+      "otaStep": "If Cabin should win, edit the reservation on {{channel}} so dates match {{stayDates}}.",
+      "dismissLabel": "Dismiss for now",
+      "dismissHint": "Keeps Cabin’s dates. The alert returns on the next sync until both sides match."
+    },
+    "unitDiffer": {
+      "observedFallback": "another unit",
+      "whatWithDates": "{{channel}} has this on unit {{observed}} ({{otaCheckIn}} → {{otaCheckOut}}). Cabin has unit {{unitCode}} ({{stayDates}}).",
+      "whatUnitOnly": "{{channel}} has this on unit {{observed}}. Cabin still has unit {{unitCode}}.",
+      "pickOne": [
+        "{{channel}} is correct → move this stay to unit {{observed}} in Cabin.",
+        "Cabin is correct → move the booking back to unit {{unitCode}} on {{channel}}."
+      ],
+      "verify": "On {{channel}}, which unit did the guest actually book?",
+      "cabin": "To match {{channel}}, tap Move to {{channel}}’s unit (fails if that unit is already busy).",
+      "primaryLabel": "Move to {{channel}}’s unit",
+      "otaStep": "If Cabin should win, change the listing/unit on {{channel}} back to {{unitCode}}.",
+      "dismissLabel": "Dismiss for now",
+      "dismissHint": "Leaves the stay on this unit. The alert returns on the next sync until both sides match."
+    },
+    "importOverlap": {
+      "what": "These nights ({{stayDates}}) on unit {{unitCode}} are already taken by another stay or block. This {{channel}} booking is waiting — it does not block the calendar yet.",
+      "pickOne": [
+        "Keep the other stay → cancel this {{channel}} booking in Cabin (and on {{channel}} if it isn’t a real guest).",
+        "Keep this {{channel}} guest → free {{stayDates}} on the other stay first (cancel or move it), then tap below."
+      ],
+      "verify": "Check the calendar for unit {{unitCode}} and the booking on {{channel}}. Who should keep these nights?",
+      "cabin": "After the other stay is gone or moved, tap Nights are free now. Then fill guest details and Confirm. Or cancel this booking if the other stay wins.",
+      "primaryLabel": "Nights are free now",
+      "secondaryLabel": "Cancel this booking",
+      "otaStep": "If you cancel here because {{channel}} double-sold, fix or cancel the booking on {{channel}} too.",
+      "dismissHint": "“Nights are free now” only works after the conflict is gone. If nights are still busy, cancel this booking or free the other stay first."
+    },
+    "otaStillListed": {
+      "what": "Cabin already marked this stay as {{statusLabel}}, but {{channel}} still shows it as booked.",
+      "pickOne": [
+        "Intentional (early checkout, local cancel) → cancel or update the booking on {{channel}}, then dismiss.",
+        "Already fixed on {{channel}} → dismiss."
+      ],
+      "verify": "Open {{channel}} and check whether this booking is still active.",
+      "cabin": "Cabin is already closed for this stay. Nothing to change here except dismiss after you verify.",
+      "otaStep": "If {{channel}} should not list this guest anymore, cancel or change that booking there.",
+      "dismissLabel": "Dismiss — I checked",
+      "dismissHint": "Won’t warn again while this booking stays on the feed. If it disappears and comes back later, the alert can return."
+    },
+    "card": {
+      "pickOneLabel": "Pick one",
+      "checkOnChannel": "Check on {{channel}}: ",
+      "inCabin": "In Cabin: ",
+      "onChannel": "On {{channel}}: "
+    }
+  },
+  "actionConfirm": {
+    "acceptDates": {
+      "title": "Use {{channel}} dates?",
+      "otaDatesFallback": "the dates from the OTA",
+      "description": "Cabin will change this stay from {{checkIn}} → {{checkOut}} to {{otaDates}}. Revisit Total if the length of stay changed.",
+      "confirmLabel": "Use {{channel}} dates"
+    },
+    "acceptUnit": {
+      "title": "Move to {{observed}}?",
+      "observedFallback": "the OTA unit",
+      "description": "This stay will move from unit {{unitCode}} to {{observed}}. It fails if {{observed}} already has overlapping nights.",
+      "confirmLabel": "Move to {{observed}}"
+    },
+    "clearHold": {
+      "title": "Mark nights free?",
+      "description": "Only continue if {{checkIn}} → {{checkOut}} on unit {{unitCode}} are actually free. This clears the double-book alert so you can Confirm the {{channel}} booking.",
+      "confirmLabel": "Nights are free now"
+    },
+    "dismiss": {
+      "titleChecked": "Dismiss this alert?",
+      "titleForNow": "Dismiss for now?",
+      "descriptionChecked": "Hides this alert. It will not come back on the next sync unless {{channel}} drops the booking and lists it again later.",
+      "descriptionForNow": "Hides this alert until the next sync. If nothing changed on {{channel}}, it will likely come back.",
+      "confirmLabelFallback": "Dismiss"
+    }
+  }
+}

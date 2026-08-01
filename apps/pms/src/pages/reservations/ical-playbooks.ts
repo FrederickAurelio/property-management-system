@@ -3,15 +3,11 @@ import {
   type IcalSyncWarning as IcalSyncWarningType,
   type ReservationSource as ReservationSourceType,
 } from "@cabin/api-contract";
+import i18n from "@/i18n";
 import { channelLabel } from "@/lib/ota-channels";
 
 export type IcalPlaybookPrimaryKind =
-  | "accept-dates"
-  | "accept-unit"
-  | "cancel"
-  | "confirm"
-  | "clear-hold"
-  | "none";
+  "accept-dates" | "accept-unit" | "cancel" | "confirm" | "clear-hold" | "none";
 
 export type IcalPlaybook = {
   title: string;
@@ -51,18 +47,26 @@ export function icalWarningTitle(
   warning: IcalSyncWarningType,
   source?: ReservationSourceType | null,
 ): string {
-  const channel = source ? channelLabel(source) : "OTA";
+  const channel = source ? channelLabel(source) : undefined;
   switch (warning) {
     case IcalSyncWarning.MISSING_FROM_FEED:
-      return source ? `Gone from ${channel}` : "Gone from OTA";
+      return channel
+        ? i18n.t("ota:playbooks.titles.missingFromFeedWithChannel", {
+            channel,
+          })
+        : i18n.t("ota:playbooks.titles.missingFromFeedGeneric");
     case IcalSyncWarning.DATES_DIFFER:
-      return "Dates don’t match";
+      return i18n.t("ota:playbooks.titles.datesDiffer");
     case IcalSyncWarning.OTA_STILL_LISTED:
-      return source ? `Still on ${channel}` : "Still on OTA";
+      return channel
+        ? i18n.t("ota:playbooks.titles.otaStillListedWithChannel", {
+            channel,
+          })
+        : i18n.t("ota:playbooks.titles.otaStillListedGeneric");
     case IcalSyncWarning.IMPORT_OVERLAP:
-      return "Double-booked nights";
+      return i18n.t("ota:playbooks.titles.importOverlap");
     case IcalSyncWarning.UNIT_DIFFER:
-      return "Wrong unit";
+      return i18n.t("ota:playbooks.titles.unitDiffer");
   }
 }
 
@@ -78,126 +82,158 @@ export function icalPlaybook(
     case IcalSyncWarning.MISSING_FROM_FEED:
       return {
         title,
-        what: `${channel} no longer shows this booking in its calendar.`,
-        pickOne: [
-          `Guest cancelled on ${channel} → cancel this stay in Cabin too.`,
-          `Feed looks wrong / temporary → dismiss for now and check again after the next sync.`,
-        ],
-        verify: `Look up this guest on ${channel}. Is the booking still there?`,
-        cabin:
-          "If it’s gone for real, cancel this stay. That frees the unit and closes money if needed.",
+        what: i18n.t("ota:playbooks.missingFromFeed.what", { channel }),
+        pickOne: i18n.t("ota:playbooks.missingFromFeed.pickOne", {
+          returnObjects: true,
+          channel,
+        }) as string[],
+        verify: i18n.t("ota:playbooks.missingFromFeed.verify", { channel }),
+        cabin: i18n.t("ota:playbooks.missingFromFeed.cabin"),
         primaryKind: "cancel",
-        primaryLabel: "Cancel this stay",
+        primaryLabel: i18n.t("ota:playbooks.missingFromFeed.primaryLabel"),
         otaRequired: false,
         otaStep: null,
         showDismiss: true,
-        dismissLabel: "Dismiss for now",
-        dismissHint:
-          "Only hides the alert until the next sync. It will come back if the booking is still missing.",
+        dismissLabel: i18n.t("ota:playbooks.missingFromFeed.dismissLabel"),
+        dismissHint: i18n.t("ota:playbooks.missingFromFeed.dismissHint"),
       };
     case IcalSyncWarning.DATES_DIFFER: {
       const otaDates =
         ctx.icalObservedCheckInDate && ctx.icalObservedCheckOutDate
           ? `${ctx.icalObservedCheckInDate} → ${ctx.icalObservedCheckOutDate}`
-          : "different dates";
+          : i18n.t("ota:playbooks.datesDiffer.otaDatesFallback");
       return {
         title,
-        what: `${channel} has ${otaDates}. Cabin still has ${stayDates}.`,
-        pickOne: [
-          `${channel} is correct → use their dates in Cabin (revisit Total after).`,
-          `Cabin is correct → change the booking dates on ${channel} to match.`,
-        ],
-        verify: `Open the guest reservation on ${channel} and compare the stay dates.`,
-        cabin: `To match ${channel}, tap Use ${channel} dates. Or edit this stay in Cabin, then update ${channel}.`,
+        what: i18n.t("ota:playbooks.datesDiffer.what", {
+          channel,
+          otaDates,
+          stayDates,
+        }),
+        pickOne: i18n.t("ota:playbooks.datesDiffer.pickOne", {
+          returnObjects: true,
+          channel,
+        }) as string[],
+        verify: i18n.t("ota:playbooks.datesDiffer.verify", { channel }),
+        cabin: i18n.t("ota:playbooks.datesDiffer.cabin", { channel }),
         primaryKind: "accept-dates",
-        primaryLabel: `Use ${channel} dates`,
+        primaryLabel: i18n.t("ota:playbooks.datesDiffer.primaryLabel", {
+          channel,
+        }),
         otaRequired: true,
-        otaStep: `If Cabin should win, edit the reservation on ${channel} so dates match ${stayDates}.`,
+        otaStep: i18n.t("ota:playbooks.datesDiffer.otaStep", {
+          channel,
+          stayDates,
+        }),
         showDismiss: true,
-        dismissLabel: "Dismiss for now",
-        dismissHint:
-          "Keeps Cabin’s dates. The alert returns on the next sync until both sides match.",
+        dismissLabel: i18n.t("ota:playbooks.datesDiffer.dismissLabel"),
+        dismissHint: i18n.t("ota:playbooks.datesDiffer.dismissHint"),
       };
     }
     case IcalSyncWarning.UNIT_DIFFER: {
-      const observed = ctx.icalObservedUnitCode ?? "another unit";
+      const observed =
+        ctx.icalObservedUnitCode ??
+        i18n.t("ota:playbooks.unitDiffer.observedFallback");
       const datesAlsoDiffer =
         Boolean(ctx.icalObservedCheckInDate) &&
         Boolean(ctx.icalObservedCheckOutDate) &&
         (ctx.icalObservedCheckInDate !== ctx.checkInDate ||
           ctx.icalObservedCheckOutDate !== ctx.checkOutDate);
       const what = datesAlsoDiffer
-        ? `${channel} has this on unit ${observed} (${ctx.icalObservedCheckInDate} → ${ctx.icalObservedCheckOutDate}). Cabin has unit ${ctx.unitCode} (${stayDates}).`
-        : `${channel} has this on unit ${observed}. Cabin still has unit ${ctx.unitCode}.`;
+        ? i18n.t("ota:playbooks.unitDiffer.whatWithDates", {
+            channel,
+            observed,
+            otaCheckIn: ctx.icalObservedCheckInDate,
+            otaCheckOut: ctx.icalObservedCheckOutDate,
+            unitCode: ctx.unitCode,
+            stayDates,
+          })
+        : i18n.t("ota:playbooks.unitDiffer.whatUnitOnly", {
+            channel,
+            observed,
+            unitCode: ctx.unitCode,
+          });
       return {
         title,
         what,
-        pickOne: [
-          `${channel} is correct → move this stay to unit ${observed} in Cabin.`,
-          `Cabin is correct → move the booking back to unit ${ctx.unitCode} on ${channel}.`,
-        ],
-        verify: `On ${channel}, which unit did the guest actually book?`,
-        cabin: `To match ${channel}, tap Move to ${channel}’s unit (fails if that unit is already busy).`,
+        pickOne: i18n.t("ota:playbooks.unitDiffer.pickOne", {
+          returnObjects: true,
+          channel,
+          observed,
+          unitCode: ctx.unitCode,
+        }) as string[],
+        verify: i18n.t("ota:playbooks.unitDiffer.verify", { channel }),
+        cabin: i18n.t("ota:playbooks.unitDiffer.cabin", { channel }),
         primaryKind: "accept-unit",
-        primaryLabel: `Move to ${channel}’s unit`,
+        primaryLabel: i18n.t("ota:playbooks.unitDiffer.primaryLabel", {
+          channel,
+        }),
         otaRequired: true,
-        otaStep: `If Cabin should win, change the listing/unit on ${channel} back to ${ctx.unitCode}.`,
+        otaStep: i18n.t("ota:playbooks.unitDiffer.otaStep", {
+          channel,
+          unitCode: ctx.unitCode,
+        }),
         showDismiss: true,
-        dismissLabel: "Dismiss for now",
-        dismissHint:
-          "Leaves the stay on this unit. The alert returns on the next sync until both sides match.",
+        dismissLabel: i18n.t("ota:playbooks.unitDiffer.dismissLabel"),
+        dismissHint: i18n.t("ota:playbooks.unitDiffer.dismissHint"),
       };
     }
-    case IcalSyncWarning.IMPORT_OVERLAP:
+    case IcalSyncWarning.IMPORT_OVERLAP: {
+      const primaryLabel = i18n.t("ota:playbooks.importOverlap.primaryLabel");
       return {
         title,
-        what: `These nights (${stayDates}) on unit ${ctx.unitCode} are already taken by another stay or block. This ${channel} booking is waiting — it does not block the calendar yet.`,
-        pickOne: [
-          `Keep the other stay → cancel this ${channel} booking in Cabin (and on ${channel} if it isn’t a real guest).`,
-          `Keep this ${channel} guest → free ${stayDates} on the other stay first (cancel or move it), then tap below.`,
-        ],
-        verify: `Check the calendar for unit ${ctx.unitCode} and the booking on ${channel}. Who should keep these nights?`,
-        cabin:
-          "After the other stay is gone or moved, tap Nights are free now. Then fill guest details and Confirm. Or cancel this booking if the other stay wins.",
+        what: i18n.t("ota:playbooks.importOverlap.what", {
+          stayDates,
+          unitCode: ctx.unitCode,
+          channel,
+        }),
+        pickOne: i18n.t("ota:playbooks.importOverlap.pickOne", {
+          returnObjects: true,
+          channel,
+          stayDates,
+        }) as string[],
+        verify: i18n.t("ota:playbooks.importOverlap.verify", {
+          unitCode: ctx.unitCode,
+          channel,
+        }),
+        cabin: i18n.t("ota:playbooks.importOverlap.cabin"),
         primaryKind: "clear-hold",
-        primaryLabel: "Nights are free now",
+        primaryLabel,
         secondaryKind: "cancel",
-        secondaryLabel: "Cancel this booking",
+        secondaryLabel: i18n.t("ota:playbooks.importOverlap.secondaryLabel"),
         otaRequired: true,
-        otaStep: `If you cancel here because ${channel} double-sold, fix or cancel the booking on ${channel} too.`,
+        otaStep: i18n.t("ota:playbooks.importOverlap.otaStep", { channel }),
         showDismiss: false,
-        dismissLabel: "Nights are free now",
-        dismissHint:
-          "“Nights are free now” only works after the conflict is gone. If nights are still busy, cancel this booking or free the other stay first.",
+        // Same copy as the primary CTA — this playbook has no separate dismiss action.
+        dismissLabel: primaryLabel,
+        dismissHint: i18n.t("ota:playbooks.importOverlap.dismissHint"),
       };
+    }
     case IcalSyncWarning.OTA_STILL_LISTED:
       return {
         title,
-        what: `Cabin already marked this stay as ${ctx.statusLabel}, but ${channel} still shows it as booked.`,
-        pickOne: [
-          `Intentional (early checkout, local cancel) → cancel or update the booking on ${channel}, then dismiss.`,
-          `Already fixed on ${channel} → dismiss.`,
-        ],
-        verify: `Open ${channel} and check whether this booking is still active.`,
-        cabin:
-          "Cabin is already closed for this stay. Nothing to change here except dismiss after you verify.",
+        what: i18n.t("ota:playbooks.otaStillListed.what", {
+          statusLabel: ctx.statusLabel,
+          channel,
+        }),
+        pickOne: i18n.t("ota:playbooks.otaStillListed.pickOne", {
+          returnObjects: true,
+          channel,
+        }) as string[],
+        verify: i18n.t("ota:playbooks.otaStillListed.verify", { channel }),
+        cabin: i18n.t("ota:playbooks.otaStillListed.cabin"),
         primaryKind: "none",
         primaryLabel: null,
         otaRequired: true,
-        otaStep: `If ${channel} should not list this guest anymore, cancel or change that booking there.`,
+        otaStep: i18n.t("ota:playbooks.otaStillListed.otaStep", { channel }),
         showDismiss: true,
-        dismissLabel: "Dismiss — I checked",
-        dismissHint:
-          "Won’t warn again while this booking stays on the feed. If it disappears and comes back later, the alert can return.",
+        dismissLabel: i18n.t("ota:playbooks.otaStillListed.dismissLabel"),
+        dismissHint: i18n.t("ota:playbooks.otaStillListed.dismissHint"),
       };
   }
 }
 
 export type IcalPendingAction =
-  | "accept-dates"
-  | "accept-unit"
-  | "clear-hold"
-  | "dismiss";
+  "accept-dates" | "accept-unit" | "clear-hold" | "dismiss";
 
 export function icalActionConfirmCopy(
   action: IcalPendingAction,
@@ -210,6 +246,8 @@ export function icalActionConfirmCopy(
     icalObservedCheckInDate?: string | null;
     icalObservedCheckOutDate?: string | null;
     dismissLabel?: string;
+    /** OTA_STILL_LISTED playbooks use the "already checked" copy; others use "for now". */
+    checked?: boolean;
   },
 ): { title: string; description: string; confirmLabel: string } {
   const channel = channelLabel(ctx.source);
@@ -218,36 +256,60 @@ export function icalActionConfirmCopy(
       const otaDates =
         ctx.icalObservedCheckInDate && ctx.icalObservedCheckOutDate
           ? `${ctx.icalObservedCheckInDate} → ${ctx.icalObservedCheckOutDate}`
-          : "the dates from the OTA";
+          : i18n.t("ota:actionConfirm.acceptDates.otaDatesFallback");
       return {
-        title: `Use ${channel} dates?`,
-        description: `Cabin will change this stay from ${ctx.checkInDate} → ${ctx.checkOutDate} to ${otaDates}. Revisit Total if the length of stay changed.`,
-        confirmLabel: `Use ${channel} dates`,
+        title: i18n.t("ota:actionConfirm.acceptDates.title", { channel }),
+        description: i18n.t("ota:actionConfirm.acceptDates.description", {
+          checkIn: ctx.checkInDate,
+          checkOut: ctx.checkOutDate,
+          otaDates,
+        }),
+        confirmLabel: i18n.t("ota:actionConfirm.acceptDates.confirmLabel", {
+          channel,
+        }),
       };
     }
     case "accept-unit": {
-      const observed = ctx.icalObservedUnitCode ?? "the OTA unit";
+      const observed =
+        ctx.icalObservedUnitCode ??
+        i18n.t("ota:actionConfirm.acceptUnit.observedFallback");
       return {
-        title: `Move to ${observed}?`,
-        description: `This stay will move from unit ${ctx.unitCode} to ${observed}. It fails if ${observed} already has overlapping nights.`,
-        confirmLabel: `Move to ${observed}`,
+        title: i18n.t("ota:actionConfirm.acceptUnit.title", { observed }),
+        description: i18n.t("ota:actionConfirm.acceptUnit.description", {
+          unitCode: ctx.unitCode,
+          observed,
+        }),
+        confirmLabel: i18n.t("ota:actionConfirm.acceptUnit.confirmLabel", {
+          observed,
+        }),
       };
     }
     case "clear-hold":
       return {
-        title: "Mark nights free?",
-        description: `Only continue if ${ctx.checkInDate} → ${ctx.checkOutDate} on unit ${ctx.unitCode} are actually free. This clears the double-book alert so you can Confirm the ${channel} booking.`,
-        confirmLabel: "Nights are free now",
+        title: i18n.t("ota:actionConfirm.clearHold.title"),
+        description: i18n.t("ota:actionConfirm.clearHold.description", {
+          checkIn: ctx.checkInDate,
+          checkOut: ctx.checkOutDate,
+          unitCode: ctx.unitCode,
+          channel,
+        }),
+        confirmLabel: i18n.t("ota:actionConfirm.clearHold.confirmLabel"),
       };
     case "dismiss":
       return {
-        title: ctx.dismissLabel?.includes("checked")
-          ? "Dismiss this alert?"
-          : "Dismiss for now?",
-        description: ctx.dismissLabel?.includes("checked")
-          ? `Hides this alert. It will not come back on the next sync unless ${channel} drops the booking and lists it again later.`
-          : `Hides this alert until the next sync. If nothing changed on ${channel}, it will likely come back.`,
-        confirmLabel: ctx.dismissLabel ?? "Dismiss",
+        title: ctx.checked
+          ? i18n.t("ota:actionConfirm.dismiss.titleChecked")
+          : i18n.t("ota:actionConfirm.dismiss.titleForNow"),
+        description: ctx.checked
+          ? i18n.t("ota:actionConfirm.dismiss.descriptionChecked", {
+              channel,
+            })
+          : i18n.t("ota:actionConfirm.dismiss.descriptionForNow", {
+              channel,
+            }),
+        confirmLabel:
+          ctx.dismissLabel ??
+          i18n.t("ota:actionConfirm.dismiss.confirmLabelFallback"),
       };
   }
 }

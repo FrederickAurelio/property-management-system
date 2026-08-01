@@ -2,6 +2,7 @@ import {
   ReservationSource,
   type ReservationSource as ReservationSourceType,
 } from "@cabin/api-contract";
+import i18n from "@/i18n";
 import {
   channelLabel,
   isOtaChannelSource,
@@ -10,22 +11,12 @@ import {
 } from "@/lib/ota-channels";
 
 export type OtaRemindReason =
-  | "dates-or-unit"
-  | "cancel"
-  | "check-out"
-  | "refresh-imports";
+  "dates-or-unit" | "cancel" | "check-out" | "refresh-imports";
 
-export type OtaSourceRemindReason = Exclude<
-  OtaRemindReason,
-  "refresh-imports"
->;
+export type OtaSourceRemindReason = Exclude<OtaRemindReason, "refresh-imports">;
 
 export type OtaRefreshTrigger =
-  | "confirm"
-  | "walk-in"
-  | "stay-update"
-  | "block-create"
-  | "block-update";
+  "confirm" | "walk-in" | "stay-update" | "block-create" | "block-update";
 
 export type OtaRefreshImportsContext = {
   trigger: OtaRefreshTrigger;
@@ -63,16 +54,17 @@ export function otaPeerRefreshStep(source: OtaChannelSource): string {
   const channel = channelLabel(source);
   switch (source) {
     case ReservationSource.BOOKING_COM:
-      return `${channel}: Sync calendars → Import now`;
+      return i18n.t("ota:refreshImports.peerStep.bookingCom", { channel });
     case ReservationSource.AIRBNB:
-      return `${channel}: Calendar → Availability → Connect calendars → Refresh`;
+      return i18n.t("ota:refreshImports.peerStep.airbnb", { channel });
     case ReservationSource.AGODA:
-      return `${channel}: Calendar connections → Refresh connections`;
+      return i18n.t("ota:refreshImports.peerStep.agoda", { channel });
   }
 }
 
-const PEER_REFRESH_FOOTER =
-  "Auto sync can take hours. Refresh when check-in is soon.";
+function peerRefreshFooter(): string {
+  return i18n.t("ota:refreshImports.footer");
+}
 
 export function otaRefreshImportsChecklist(ctx: {
   trigger: OtaRefreshTrigger;
@@ -83,21 +75,19 @@ export function otaRefreshImportsChecklist(ctx: {
   let title: string;
   switch (ctx.trigger) {
     case "block-create":
-      title = "Block is on Cabin — refresh OTAs";
+      title = i18n.t("ota:refreshImports.titles.blockCreate");
       break;
     case "block-update":
-      title = "Block changed — refresh OTAs";
+      title = i18n.t("ota:refreshImports.titles.blockUpdate");
       break;
     case "stay-update":
-      title = "Stay changed — refresh OTAs";
+      title = i18n.t("ota:refreshImports.titles.stayUpdate");
       break;
     default:
-      title = "Refresh other OTAs";
+      title = i18n.t("ota:refreshImports.titles.default");
   }
 
-  const steps: string[] = [
-    "Cabin updated the calendar we send out (export is live).",
-  ];
+  const steps: string[] = [i18n.t("ota:refreshImports.steps.exportLive")];
 
   if (
     ctx.trigger === "confirm" &&
@@ -105,30 +95,23 @@ export function otaRefreshImportsChecklist(ctx: {
     isOtaChannelSource(ctx.bookingSource)
   ) {
     steps.push(
-      `${channelLabel(ctx.bookingSource)} already has this guest — refresh the other channels below.`,
+      i18n.t("ota:refreshImports.steps.confirmWithChannel", {
+        channel: channelLabel(ctx.bookingSource),
+      }),
     );
   } else if (ctx.trigger === "walk-in") {
-    steps.push(
-      "OTAs do not know about this stay yet until they pull our calendar.",
-    );
+    steps.push(i18n.t("ota:refreshImports.steps.walkIn"));
   } else if (ctx.trigger === "stay-update") {
-    steps.push(
-      "OTAs still show the old dates/unit until they pull our calendar.",
-    );
-  } else if (
-    ctx.trigger === "block-create" ||
-    ctx.trigger === "block-update"
-  ) {
-    steps.push(
-      "OTAs do not know about this closure yet until they pull our calendar.",
-    );
+    steps.push(i18n.t("ota:refreshImports.steps.stayUpdate"));
+  } else if (ctx.trigger === "block-create" || ctx.trigger === "block-update") {
+    steps.push(i18n.t("ota:refreshImports.steps.blockClosure"));
   }
 
   for (const peer of peers) {
     steps.push(otaPeerRefreshStep(peer));
   }
 
-  steps.push(PEER_REFRESH_FOOTER);
+  steps.push(peerRefreshFooter());
 
   return { title, steps };
 }
@@ -138,44 +121,46 @@ export function otaUpdateChecklist(
   reason: OtaSourceRemindReason = "dates-or-unit",
 ): { title: string; steps: string[] } {
   const channel = channelLabel(source);
-  const peerSteps = peerOtaSources(source).map((peer) => otaPeerRefreshStep(peer));
+  const peerSteps = peerOtaSources(source).map((peer) =>
+    otaPeerRefreshStep(peer),
+  );
 
   switch (reason) {
     case "cancel":
       return {
-        title: `Cancel on ${channel} too`,
-        steps: [
-          "Cabin cancelled this stay and freed the unit on our calendar.",
-          `${channel} does not cancel the guest booking by itself — open ${channel} and cancel (or modify) that reservation.`,
-          `If you leave it active on ${channel}, the next sync may warn that it is still listed.`,
-        ],
+        title: i18n.t("ota:updateChannel.cancel.title", { channel }),
+        steps: i18n.t("ota:updateChannel.cancel.steps", {
+          returnObjects: true,
+          channel,
+        }) as string[],
       };
     case "check-out":
       return {
-        title: `Update ${channel} if needed`,
-        steps: [
-          "Cabin checked the guest out and updated the busy calendar we send out.",
-          `If they left early, or the booking on ${channel} should end, edit or cancel that reservation on ${channel}.`,
-          `${channel} will not change the guest booking automatically.`,
-        ],
+        title: i18n.t("ota:updateChannel.checkOut.title", { channel }),
+        steps: i18n.t("ota:updateChannel.checkOut.steps", {
+          returnObjects: true,
+          channel,
+        }) as string[],
       };
     case "dates-or-unit":
       return {
-        title: `Update ${channel} too`,
+        title: i18n.t("ota:updateChannel.datesOrUnit.title", { channel }),
         steps: [
-          "Cabin already saved the new dates/unit and updated the busy calendar we send out.",
-          `${channel} does not update the guest’s booking by itself — you must edit that reservation on ${channel}.`,
-          "Make dates and unit match Cabin, or the next sync will warn that the two sides disagree.",
+          ...(i18n.t("ota:updateChannel.datesOrUnit.steps", {
+            returnObjects: true,
+            channel,
+          }) as string[]),
           ...peerSteps,
-          PEER_REFRESH_FOOTER,
+          peerRefreshFooter(),
         ],
       };
   }
 }
 
-export function otaRemindChecklist(
-  input: OtaRemindChecklistInput,
-): { title: string; steps: string[] } {
+export function otaRemindChecklist(input: OtaRemindChecklistInput): {
+  title: string;
+  steps: string[];
+} {
   if (input.reason === "refresh-imports") {
     return otaRefreshImportsChecklist(input.refreshContext);
   }

@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { formatChosenUnitLabel, type ChosenUnit } from "./chosen-unit";
@@ -20,19 +21,22 @@ export function ChosenUnitField({
   error,
   unitIdInputProps,
 }: ChosenUnitFieldProps) {
+  const { t } = useTranslation(["reservations", "common"]);
   return (
     <Field data-invalid={invalid}>
-      <FieldLabel>Unit</FieldLabel>
+      <FieldLabel>{t("reservations:chosenUnitField.label")}</FieldLabel>
       <div className="flex items-center gap-2">
         <div
           className={
             chosen
-              ? "bg-muted/40 flex min-h-8 min-w-0 flex-1 items-center rounded-lg border px-2.5 text-sm"
-              : "bg-muted/40 text-muted-foreground flex min-h-8 min-w-0 flex-1 items-center rounded-lg border border-dashed px-2.5 text-sm"
+              ? "flex min-h-8 min-w-0 flex-1 items-center rounded-lg border bg-muted/40 px-2.5 text-sm"
+              : "flex min-h-8 min-w-0 flex-1 items-center rounded-lg border border-dashed bg-muted/40 px-2.5 text-sm text-muted-foreground"
           }
         >
           <span className="truncate">
-            {chosen ? formatChosenUnitLabel(chosen) : "No unit chosen"}
+            {chosen
+              ? formatChosenUnitLabel(chosen)
+              : t("reservations:chosenUnitField.noneChosen")}
           </span>
         </div>
         <Button
@@ -41,7 +45,9 @@ export function ChosenUnitField({
           size="sm"
           onClick={onChoose}
         >
-          {chosen ? "Change" : "Choose"}
+          {chosen
+            ? t("reservations:chosenUnitField.change")
+            : t("reservations:chosenUnitField.choose")}
         </Button>
       </div>
       <input type="hidden" {...unitIdInputProps} />

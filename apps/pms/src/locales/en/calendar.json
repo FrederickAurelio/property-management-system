@@ -1,0 +1,57 @@
+{
+  "page": {
+    "title": "Calendar",
+    "subtitle": "Busy and free by unit — same stays as Reservations.",
+    "newBlock": "New block",
+    "newReservation": "New reservation",
+    "propertyPlaceholder": "Property",
+    "previousPeriod": "Previous period",
+    "nextPeriod": "Next period",
+    "today": "Today",
+    "loadPropertiesError": "Could not load properties.",
+    "noProperties": "No properties yet. Create one under Properties first.",
+    "loadCalendarError": "Could not load calendar."
+  },
+  "grid": {
+    "unitColumn": "Unit",
+    "maintenance": "Maint.",
+    "off": "Off"
+  },
+  "stayBar": {
+    "needsDetails": "Needs details ({{source}})",
+    "due": "Due {{amount}}",
+    "refund": "Refund {{amount}}",
+    "late": "Late",
+    "ota": "OTA"
+  },
+  "blockLabels": {
+    "maintenance": "Maintenance",
+    "owner": "Owner",
+    "hold": "Hold",
+    "other": "Block"
+  },
+  "blockSheet": {
+    "editTitle": "Edit block",
+    "createTitle": "New block",
+    "selectedUnitFallback": "Selected unit",
+    "description": "Closes the unit for non-guest use. Does not create a reservation.",
+    "blockLabel": "Block",
+    "datesLabel": "Dates",
+    "kindLabel": "Kind",
+    "noteLabel": "Note (optional)",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "createSubmit": "Create block",
+    "dateOverlapError": "These dates overlap a booking on this unit — change dates or choose another unit.",
+    "toastUpdated": "Block updated",
+    "toastCreated": "Block created",
+    "toastDeleted": "Block deleted"
+  },
+  "zod": {
+    "unitRequired": "Unit is required",
+    "startDateRequired": "Start date is required",
+    "endDateRequired": "End date is required",
+    "endAfterStart": "End must be after start"
+  }
+}

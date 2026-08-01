@@ -1,4 +1,5 @@
 /* anchor: Linear confirm dialog, diverge: OTA checklist — must ack so desk doesn’t skip channel */
+import { useTranslation } from "react-i18next";
 import type { OtaChannelSource } from "@/lib/ota-channels";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +37,7 @@ export type OtaRemindDialogProps = OtaRemindDialogBaseProps &
 
 export function OtaRemindDialog(props: OtaRemindDialogProps) {
   const { open, onOpenChange, reason } = props;
+  const { t } = useTranslation("ota");
   const checklist =
     reason === "refresh-imports"
       ? otaRemindChecklist({
@@ -64,7 +66,7 @@ export function OtaRemindDialog(props: OtaRemindDialogProps) {
               onOpenChange(false);
             }}
           >
-            Got it
+            {t("ota:dialog.gotIt")}
           </Button>
         </DialogFooter>
       </DialogContent>

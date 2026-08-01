@@ -5,11 +5,8 @@ import type {
   StaffCalendarUnit,
 } from "@cabin/api-contract";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  PlusIcon,
-} from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Button } from "@/components/ui/button";
@@ -74,6 +71,7 @@ function chosenFromCalendarUnit(
 }
 
 export function CalendarPage() {
+  const { t } = useTranslation("calendar");
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -187,20 +185,18 @@ export function CalendarPage() {
 
   const emptyRangeChosen =
     createIntent?.mode === "empty-range"
-      ? chosenFromCalendarUnit(
-          createIntent.unit,
-          propertyId,
-          propertyName,
-        )
+      ? chosenFromCalendarUnit(createIntent.unit, propertyId, propertyName)
       : null;
 
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 p-4 md:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Calendar</h1>
+          <h1 className="text-xl font-semibold tracking-tight">
+            {t("calendar:page.title")}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Busy and free by unit — same stays as Reservations.
+            {t("calendar:page.subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -211,7 +207,7 @@ export function CalendarPage() {
             disabled={!propertyId}
             onClick={() => setBlockIntent({ mode: "create" })}
           >
-            New block
+            {t("calendar:page.newBlock")}
           </Button>
           <Button
             type="button"
@@ -220,12 +216,12 @@ export function CalendarPage() {
             onClick={() => setCreateIntent({ mode: "toolbar" })}
           >
             <PlusIcon data-icon="inline-start" />
-            New reservation
+            {t("calendar:page.newReservation")}
           </Button>
         </div>
       </div>
 
-      <div className="sticky top-0 z-30 -mx-4 flex flex-col gap-2 border-b border-border bg-background/95 px-4 py-2 backdrop-blur md:-mx-6 md:px-6 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="sticky top-0 z-30 -mx-4 flex flex-col gap-2 border-b border-border bg-background/95 px-4 py-2 backdrop-blur sm:flex-row sm:flex-wrap sm:items-center md:-mx-6 md:px-6">
         <Select
           value={propertyId || undefined}
           onValueChange={(id) => {
@@ -234,7 +230,7 @@ export function CalendarPage() {
           disabled={!optionsQuery.isSuccess || optionsQuery.data.length === 0}
         >
           <SelectTrigger className="min-h-11 w-full sm:min-h-9 sm:w-[220px]">
-            <SelectValue placeholder="Property" />
+            <SelectValue placeholder={t("calendar:page.propertyPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
@@ -253,7 +249,7 @@ export function CalendarPage() {
             variant="outline"
             size="icon"
             className="size-11 sm:size-9"
-            aria-label="Previous period"
+            aria-label={t("calendar:page.previousPeriod")}
             onClick={() => {
               const next = shiftRange(range.from, range.to, -1);
               setChrome(next);
@@ -269,7 +265,7 @@ export function CalendarPage() {
             variant="outline"
             size="icon"
             className="size-11 sm:size-9"
-            aria-label="Next period"
+            aria-label={t("calendar:page.nextPeriod")}
             onClick={() => {
               const next = shiftRange(range.from, range.to, 1);
               setChrome(next);
@@ -286,14 +282,14 @@ export function CalendarPage() {
               setChrome(next);
             }}
           >
-            Today
+            {t("calendar:page.today")}
           </Button>
         </div>
       </div>
 
       {optionsQuery.isError && (
         <QueryErrorPanel
-          message="Could not load properties."
+          message={t("calendar:page.loadPropertiesError")}
           onRetry={() => void optionsQuery.refetch()}
           isRetrying={optionsQuery.isRefetching}
         />
@@ -301,7 +297,7 @@ export function CalendarPage() {
 
       {optionsQuery.isSuccess && optionsQuery.data.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No properties yet. Create one under Properties first.
+          {t("calendar:page.noProperties")}
         </p>
       )}
 
@@ -314,7 +310,7 @@ export function CalendarPage() {
 
       {propertyId && calendarQuery.isError && (
         <QueryErrorPanel
-          message="Could not load calendar."
+          message={t("calendar:page.loadCalendarError")}
           onRetry={() => void calendarQuery.refetch()}
           isRetrying={calendarQuery.isRefetching}
         />
@@ -325,9 +321,7 @@ export function CalendarPage() {
           data={calendarQuery.data}
           todayYmd={today}
           onStayClick={onStayClick}
-          onBlockClick={(block) =>
-            setBlockIntent({ mode: "edit", block })
-          }
+          onBlockClick={(block) => setBlockIntent({ mode: "edit", block })}
           onEmptyRange={onEmptyRange}
         />
       )}

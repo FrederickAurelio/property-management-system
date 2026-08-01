@@ -1,0 +1,143 @@
+{
+  "profile": {
+    "title": "Profile",
+    "description": "How you appear when signing in."
+  },
+  "password": {
+    "title": "Password",
+    "description": "Change the password for this account."
+  },
+  "appearance": {
+    "title": "Appearance",
+    "description": "Display preference.",
+    "themeLabel": "Theme",
+    "themeDescription": "Light, dark, or match the system",
+    "themeSelectAriaLabel": "Theme",
+    "themeSelectPlaceholder": "Theme"
+  },
+  "staff": {
+    "title": "Staff",
+    "description": "Create accounts, change roles, and revoke access."
+  },
+  "session": {
+    "title": "Session",
+    "description": "Sign out on this device.",
+    "signOut": "Sign out"
+  },
+  "changeUsername": {
+    "usernameLabel": "Username",
+    "usernameDescription": "Used to sign in. Letters, numbers, and . _ - only.",
+    "usernamePlaceholder": "front.desk",
+    "save": "Save username",
+    "unchanged": "Username unchanged",
+    "confirmTitle": "Change username?",
+    "confirmDescriptionWithPending": "Your sign-in name will change from {{from}} to {{to}}. Enter your current password to confirm.",
+    "confirmDescriptionDefault": "Enter your current password to confirm.",
+    "currentPasswordLabel": "Current password",
+    "currentPasswordRequired": "Current password is required",
+    "changing": "Changing…",
+    "confirm": "Change username",
+    "updated": "Username updated",
+    "validation": {
+      "usernameMin": "Username must be at least {{min}} characters",
+      "usernameMax": "Username must be at most {{max}} characters",
+      "usernamePattern": "Use letters, numbers, dots, hyphens, or underscores",
+      "currentPasswordMin": "Password must be at least {{min}} characters",
+      "currentPasswordMax": "Password must be at most {{max}} characters"
+    }
+  },
+  "changePassword": {
+    "currentPasswordLabel": "Current password",
+    "newPasswordLabel": "New password",
+    "newPasswordDescription": "At least {{min}} characters.",
+    "confirmPasswordLabel": "Confirm new password",
+    "submit": "Update password",
+    "submitting": "Updating…",
+    "confirmTitle": "Update password?",
+    "confirmDescription": "Your password will change immediately. You’ll stay signed in on this device; other sessions may need the new password.",
+    "confirmLabel": "Update password",
+    "updated": "Password updated",
+    "validation": {
+      "currentRequired": "Current password is required",
+      "currentMax": "Password must be at most {{max}} characters",
+      "newMin": "New password must be at least {{min}} characters",
+      "newMax": "Password must be at most {{max}} characters",
+      "confirmRequired": "Confirm your new password",
+      "mismatch": "Passwords do not match",
+      "sameAsCurrent": "New password must differ from the current one"
+    }
+  },
+  "roles": {
+    "superAdmin": "Super admin",
+    "admin": "Admin",
+    "frontDesk": "Front desk"
+  },
+  "staffSection": {
+    "helperText": "SUPER_ADMIN only. Revoking sets access inactive — the account stays for audit; it is not deleted.",
+    "addStaff": "Add staff",
+    "table": {
+      "username": "Username",
+      "role": "Role",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "you": "you",
+    "active": "Active",
+    "revoked": "Revoked",
+    "actionsFor": "Actions for {{username}}",
+    "changeRole": "Change role",
+    "revokeAccess": "Revoke access",
+    "restoreAccess": "Restore access",
+    "loadError": "Couldn’t load staff. Check your connection and try again.",
+    "createDialog": {
+      "title": "Add staff",
+      "description": "Creates a new admin account. They can sign in immediately.",
+      "usernameLabel": "Username",
+      "usernamePlaceholder": "front.desk",
+      "passwordLabel": "Temporary password",
+      "roleLabel": "Role",
+      "validation": {
+        "usernameMin": "Username must be at least {{min}} characters",
+        "usernameMax": "Username must be at most {{max}} characters",
+        "usernamePattern": "Use letters, numbers, dots, hyphens, or underscores",
+        "passwordMin": "Password must be at least {{min}} characters",
+        "passwordMax": "Password must be at most {{max}} characters"
+      }
+    },
+    "roleDialog": {
+      "title": "Change role",
+      "description": "Update access for {{username}}.",
+      "roleLabel": "Role",
+      "lastSuperAdminWarning": "You cannot demote the last active super admin."
+    },
+    "reauth": {
+      "defaultTitle": "Confirm",
+      "defaultDescription": "Enter your current password to confirm.",
+      "defaultConfirm": "Confirm",
+      "currentPasswordIncorrect": "Current password is incorrect",
+      "createTitle": "Create staff?",
+      "createDescription": "Create {{username}} as {{role}}. Enter your current password to confirm.",
+      "createConfirm": "Create staff",
+      "roleTitle": "Change role?",
+      "roleDescription": "Update {{username}} to {{role}}. Enter your current password to confirm.",
+      "roleConfirm": "Save role",
+      "revokeTitle": "Revoke access?",
+      "revokeDescription": "{{username}} will not be able to sign in. The account stays in the list and can be restored later. Enter your current password to confirm.",
+      "revokeConfirm": "Revoke access",
+      "restoreTitle": "Restore access?",
+      "restoreDescription": "{{username}} will be able to sign in again. Enter your current password to confirm.",
+      "restoreConfirm": "Restore access"
+    },
+    "toasts": {
+      "created": "Created {{username}}",
+      "roleUpdated": "Updated {{username}} to {{role}}",
+      "restored": "Restored access for {{username}}",
+      "revoked": "Revoked access for {{username}}"
+    }
+  },
+  "reauthPasswordDialog": {
+    "currentPasswordLabel": "Current password",
+    "confirming": "Confirming…"
+  }
+}

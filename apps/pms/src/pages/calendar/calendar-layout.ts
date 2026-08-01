@@ -179,7 +179,12 @@ export function groupUnitsByType<
     value.units.sort(
       (a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code),
     );
-    return { key, label: value.label, sortOrder: value.sortOrder, units: value.units };
+    return {
+      key,
+      label: value.label,
+      sortOrder: value.sortOrder,
+      units: value.units,
+    };
   });
 
   groups.sort(

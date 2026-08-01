@@ -1,6 +1,7 @@
 /* anchor: Stripe-data occupancy, diverge: type rows expand to units */
 import { Fragment, useState } from "react";
 import { ChevronRightIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type {
   StaffReportsOccupancy,
   StaffReportsOccupancyByUnit,
@@ -20,11 +21,7 @@ import {
   stickyLabelInnerClass,
 } from "@/lib/sticky-label-col";
 import { cn } from "@/lib/utils";
-import {
-  deltaToneClass,
-  formatPct,
-  formatSignedPts,
-} from "./reports-format";
+import { deltaToneClass, formatPct, formatSignedPts } from "./reports-format";
 
 function OccupancyTrack({ pct }: { pct: number | null }) {
   const width = pct == null ? 0 : Math.min(100, Math.max(0, pct));
@@ -84,7 +81,7 @@ function OccupancyMetricCells({
       </TableCell>
       {showCompare && (
         <>
-          <TableCell className="text-right tabular-nums text-muted-foreground">
+          <TableCell className="text-right text-muted-foreground tabular-nums">
             {formatPct(compare?.occupancyPct ?? null)}
           </TableCell>
           <TableCell
@@ -109,6 +106,7 @@ export function ReportsOccupancySection({
   byUnitType,
   compare,
 }: ReportsOccupancySectionProps) {
+  const { t } = useTranslation(["reports", "common"]);
   const showCompare = compare && occupancy.compare != null;
   const sorted = [...byUnitType].sort((a, b) => a.sortOrder - b.sortOrder);
   const emptyStays =
@@ -130,9 +128,11 @@ export function ReportsOccupancySection({
     <section className="flex flex-col gap-4 border-b border-border pb-6 md:gap-4 md:pb-5">
       <div className="flex flex-col gap-3">
         <div>
-          <h2 className="text-sm font-medium text-foreground">Occupancy</h2>
+          <h2 className="text-sm font-medium text-foreground">
+            {t("reports:occupancy.title")}
+          </h2>
           <p className="text-xs text-muted-foreground md:text-sm">
-            Occupied unit-nights ÷ available (blocks excluded)
+            {t("reports:occupancy.subtitle")}
           </p>
         </div>
 
@@ -143,7 +143,11 @@ export function ReportsOccupancySection({
             </p>
             {showCompare && occupancy.compare && (
               <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
-                <span>vs {formatPct(occupancy.compare.occupancyPct)}</span>
+                <span>
+                  {t("reports:occupancy.vs", {
+                    pct: formatPct(occupancy.compare.occupancyPct),
+                  })}
+                </span>
                 {occupancy.compare.occupancyPctDelta != null && (
                   <span
                     className={deltaToneClass(
@@ -157,20 +161,23 @@ export function ReportsOccupancySection({
             )}
           </div>
           <p className="text-sm text-muted-foreground tabular-nums">
-            {occupancy.occupiedNights} / {occupancy.availableNights} nights
+            {t("reports:occupancy.nights", {
+              occupied: occupancy.occupiedNights,
+              available: occupancy.availableNights,
+            })}
             {showCompare && occupancy.compare && (
               <span>
-                {" "}
-                · prev {occupancy.compare.occupiedNights} /{" "}
-                {occupancy.compare.availableNights}
+                {t("reports:occupancy.prevNights", {
+                  occupied: occupancy.compare.occupiedNights,
+                  available: occupancy.compare.availableNights,
+                })}
               </span>
             )}
           </p>
           <OccupancyTrack pct={occupancy.occupancyPct} />
           {emptyStays && (
             <p className="pt-1 text-sm text-muted-foreground">
-              No overlapping stays in this period — check calendar or iCal
-              feeds.
+              {t("reports:occupancy.emptyStaysHint")}
             </p>
           )}
         </div>
@@ -178,9 +185,11 @@ export function ReportsOccupancySection({
 
       <div className="flex flex-col gap-2">
         <div>
-          <h3 className="text-sm font-medium text-foreground">By unit type</h3>
+          <h3 className="text-sm font-medium text-foreground">
+            {t("reports:occupancy.byUnitType")}
+          </h3>
           <p className="text-xs text-muted-foreground">
-            Expand a type to see each unit
+            {t("reports:occupancy.expandHint")}
           </p>
         </div>
         <div className="overflow-x-auto rounded-lg border">
@@ -188,15 +197,27 @@ export function ReportsOccupancySection({
             <TableHeader>
               <TableRow>
                 <TableHead className={stickyLabelCellClass()}>
-                  <span className={stickyLabelInnerClass()}>Type / unit</span>
+                  <span className={stickyLabelInnerClass()}>
+                    {t("reports:occupancy.table.typeUnit")}
+                  </span>
                 </TableHead>
-                <TableHead className="text-right">Occupied</TableHead>
-                <TableHead className="text-right">Available</TableHead>
-                <TableHead className="text-right">%</TableHead>
+                <TableHead className="text-right">
+                  {t("reports:occupancy.table.occupied")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("reports:occupancy.table.available")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("reports:occupancy.table.pct")}
+                </TableHead>
                 {compare && (
                   <>
-                    <TableHead className="text-right">Prev %</TableHead>
-                    <TableHead className="text-right">Δ%</TableHead>
+                    <TableHead className="text-right">
+                      {t("reports:occupancy.table.prevPct")}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {t("reports:occupancy.table.deltaPct")}
+                    </TableHead>
                   </>
                 )}
               </TableRow>

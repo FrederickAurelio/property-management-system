@@ -2,12 +2,11 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import {
-  STAFF_PASSWORD_MAX,
-  STAFF_PASSWORD_MIN,
-} from "@cabin/api-contract";
+import { STAFF_PASSWORD_MAX, STAFF_PASSWORD_MIN } from "@cabin/api-contract";
+import type { TFunction } from "i18next";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -31,43 +30,56 @@ import {
   staffChangePassword,
 } from "@/lib/api";
 
-const passwordSchema = z
-  .object({
-    currentPassword: z
-      .string()
-      .min(1, "Current password is required")
-      .max(
-        STAFF_PASSWORD_MAX,
-        `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
-      ),
-    newPassword: z
-      .string()
-      .min(
-        STAFF_PASSWORD_MIN,
-        `New password must be at least ${STAFF_PASSWORD_MIN} characters`,
-      )
-      .max(
-        STAFF_PASSWORD_MAX,
-        `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
-      ),
-    confirmPassword: z.string().min(1, "Confirm your new password"),
-  })
-  .refine((values) => values.newPassword === values.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  })
-  .refine((values) => values.newPassword !== values.currentPassword, {
-    message: "New password must differ from the current one",
-    path: ["newPassword"],
-  });
+function createPasswordSchema(t: TFunction) {
+  return z
+    .object({
+      currentPassword: z
+        .string()
+        .min(1, t("settings:changePassword.validation.currentRequired"))
+        .max(
+          STAFF_PASSWORD_MAX,
+          t("settings:changePassword.validation.currentMax", {
+            max: STAFF_PASSWORD_MAX,
+          }),
+        ),
+      newPassword: z
+        .string()
+        .min(
+          STAFF_PASSWORD_MIN,
+          t("settings:changePassword.validation.newMin", {
+            min: STAFF_PASSWORD_MIN,
+          }),
+        )
+        .max(
+          STAFF_PASSWORD_MAX,
+          t("settings:changePassword.validation.newMax", {
+            max: STAFF_PASSWORD_MAX,
+          }),
+        ),
+      confirmPassword: z
+        .string()
+        .min(1, t("settings:changePassword.validation.confirmRequired")),
+    })
+    .refine((values) => values.newPassword === values.confirmPassword, {
+      message: t("settings:changePassword.validation.mismatch"),
+      path: ["confirmPassword"],
+    })
+    .refine((values) => values.newPassword !== values.currentPassword, {
+      message: t("settings:changePassword.validation.sameAsCurrent"),
+      path: ["newPassword"],
+    });
+}
 
-type PasswordValues = z.infer<typeof passwordSchema>;
+type PasswordValues = z.infer<ReturnType<typeof createPasswordSchema>>;
 
 export function ChangePasswordForm() {
+  const { t } = useTranslation(["settings", "auth"]);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const passwordSchema = createPasswordSchema(t);
 
   const form = useForm<PasswordValues>({
     resolver: zodResolver(passwordSchema as never),
@@ -86,7 +98,7 @@ export function ChangePasswordForm() {
       setShowNew(false);
       setShowConfirm(false);
       setConfirmOpen(false);
-      handleSuccess("Password updated");
+      handleSuccess(t("settings:changePassword.updated"));
     },
     onError: (error) => {
       setConfirmOpen(false);
@@ -111,7 +123,7 @@ export function ChangePasswordForm() {
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="settings-current-password">
-                  Current password
+                  {t("settings:changePassword.currentPasswordLabel")}
                 </FieldLabel>
                 <InputGroup className="max-w-sm">
                   <InputGroupInput
@@ -128,7 +140,9 @@ export function ChangePasswordForm() {
                     <InputGroupButton
                       size="icon-xs"
                       aria-label={
-                        showCurrent ? "Hide password" : "Show password"
+                        showCurrent
+                          ? t("auth:form.hidePassword")
+                          : t("auth:form.showPassword")
                       }
                       disabled={isPending}
                       onClick={() => {
@@ -151,10 +165,12 @@ export function ChangePasswordForm() {
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="settings-new-password">
-                  New password
+                  {t("settings:changePassword.newPasswordLabel")}
                 </FieldLabel>
                 <FieldDescription>
-                  At least {STAFF_PASSWORD_MIN} characters.
+                  {t("settings:changePassword.newPasswordDescription", {
+                    min: STAFF_PASSWORD_MIN,
+                  })}
                 </FieldDescription>
                 <InputGroup className="max-w-sm">
                   <InputGroupInput
@@ -170,7 +186,11 @@ export function ChangePasswordForm() {
                   <InputGroupAddon align="inline-end">
                     <InputGroupButton
                       size="icon-xs"
-                      aria-label={showNew ? "Hide password" : "Show password"}
+                      aria-label={
+                        showNew
+                          ? t("auth:form.hidePassword")
+                          : t("auth:form.showPassword")
+                      }
                       disabled={isPending}
                       onClick={() => {
                         setShowNew((prev) => !prev);
@@ -192,7 +212,7 @@ export function ChangePasswordForm() {
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="settings-confirm-password">
-                  Confirm new password
+                  {t("settings:changePassword.confirmPasswordLabel")}
                 </FieldLabel>
                 <InputGroup className="max-w-sm">
                   <InputGroupInput
@@ -209,7 +229,9 @@ export function ChangePasswordForm() {
                     <InputGroupButton
                       size="icon-xs"
                       aria-label={
-                        showConfirm ? "Hide password" : "Show password"
+                        showConfirm
+                          ? t("auth:form.hidePassword")
+                          : t("auth:form.showPassword")
                       }
                       disabled={isPending}
                       onClick={() => {
@@ -230,10 +252,10 @@ export function ChangePasswordForm() {
             {isPending ? (
               <>
                 <Spinner data-icon="inline-start" />
-                Updating…
+                {t("settings:changePassword.submitting")}
               </>
             ) : (
-              "Update password"
+              t("settings:changePassword.submit")
             )}
           </Button>
         </FieldGroup>
@@ -245,9 +267,9 @@ export function ChangePasswordForm() {
           if (isPending) return;
           setConfirmOpen(open);
         }}
-        title="Update password?"
-        description="Your password will change immediately. You’ll stay signed in on this device; other sessions may need the new password."
-        confirmLabel="Update password"
+        title={t("settings:changePassword.confirmTitle")}
+        description={t("settings:changePassword.confirmDescription")}
+        confirmLabel={t("settings:changePassword.confirmLabel")}
         confirmDisabled={isPending}
         onConfirm={() => {
           const values = form.getValues();

@@ -5,6 +5,7 @@ import type {
   StaffDashboardIcalFeedHealth,
   StaffPropertyOption,
 } from "@cabin/api-contract";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -53,21 +54,26 @@ export function DashboardToolbar({
   onPropertyChange,
   onSyncAll,
 }: DashboardToolbarProps) {
+  const { t } = useTranslation("dashboard");
   const failingCount = icalFeedHealth?.failingCount ?? 0;
   const sample = icalFeedHealth?.feeds[0];
-  const calendarsHref = propertyId ? `/properties/${propertyId}` : "/properties";
+  const calendarsHref = propertyId
+    ? `/properties/${propertyId}`
+    : "/properties";
   const escalateHint = canManageFeeds
-    ? "open unit Calendars"
-    : "ask an admin to fix the calendar URL";
+    ? t("dashboard:toolbar.escalateOpenCalendars")
+    : t("dashboard:toolbar.escalateAskAdmin");
 
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold tracking-tight">Today</h1>
+        <h1 className="text-lg font-semibold tracking-tight">
+          {t("dashboard:toolbar.title")}
+        </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {date
             ? formatDashboardTodayLabel(date)
-            : "Arrivals, departures, and exceptions for this property."}
+            : t("dashboard:toolbar.subtitle")}
         </p>
         {failingCount > 0 && (
           <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
@@ -76,8 +82,13 @@ export function DashboardToolbar({
               className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-50"
             >
               {failingCount === 1 && sample
-                ? `1 OTA calendar failing (${sample.unitCode} · ${formatFeedSource(sample.source)})`
-                : `${failingCount} OTA calendars failing`}
+                ? t("dashboard:toolbar.otaFailingOne", {
+                    unitCode: sample.unitCode,
+                    source: formatFeedSource(sample.source),
+                  })
+                : t("dashboard:toolbar.otaFailingMany", {
+                    count: failingCount,
+                  })}
             </Link>
             {" — "}
             {escalateHint}
@@ -93,9 +104,11 @@ export function DashboardToolbar({
         >
           <SelectTrigger
             className="h-9 w-full min-w-44 sm:w-56"
-            aria-label="Property"
+            aria-label={t("dashboard:toolbar.propertyAriaLabel")}
           >
-            <SelectValue placeholder="Select property" />
+            <SelectValue
+              placeholder={t("dashboard:toolbar.selectPropertyPlaceholder")}
+            />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
@@ -120,7 +133,7 @@ export function DashboardToolbar({
             data-icon="inline-start"
             className={syncPending ? "animate-spin" : undefined}
           />
-          Sync all
+          {t("dashboard:toolbar.syncAll")}
         </Button>
       </div>
     </header>

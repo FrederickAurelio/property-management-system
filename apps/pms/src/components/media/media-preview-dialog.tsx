@@ -1,6 +1,7 @@
 /* anchor: Linear media lightbox, diverge: image + basic video + prev/next */
 import { useEffect, useCallback } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +27,7 @@ export function MediaPreviewDialog({
   index,
   onIndexChange,
 }: MediaPreviewDialogProps) {
+  const { t } = useTranslation(["inventory", "common"]);
   const safeIndex = items.length === 0 ? 0 : Math.min(index, items.length - 1);
   const current = items[safeIndex] ?? null;
   const hasPrev = safeIndex > 0;
@@ -72,19 +74,22 @@ export function MediaPreviewDialog({
         <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
           <div className="min-w-0">
             <DialogTitle className="truncate text-sm font-medium">
-              {current?.name ?? "Preview"}
+              {current?.name ?? t("inventory:media.preview.titleFallback")}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
               {items.length > 0
-                ? `${safeIndex + 1} of ${items.length}`
-                : "No media"}
+                ? t("inventory:media.preview.counter", {
+                    index: safeIndex + 1,
+                    total: items.length,
+                  })
+                : t("inventory:media.preview.noMedia")}
             </DialogDescription>
           </div>
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label="Close preview"
+            aria-label={t("inventory:media.preview.closeAria")}
             onClick={() => {
               onOpenChange(false);
             }}
@@ -100,7 +105,7 @@ export function MediaPreviewDialog({
               variant="secondary"
               size="icon"
               className="absolute left-2 z-10"
-              aria-label="Previous"
+              aria-label={t("inventory:media.preview.previousAria")}
               onClick={goPrev}
             >
               <ChevronLeftIcon />
@@ -126,7 +131,9 @@ export function MediaPreviewDialog({
             </video>
           )}
           {!current && (
-            <p className="text-sm text-muted-foreground">Nothing to preview</p>
+            <p className="text-sm text-muted-foreground">
+              {t("inventory:media.preview.nothingToPreview")}
+            </p>
           )}
 
           {hasNext && (
@@ -135,7 +142,7 @@ export function MediaPreviewDialog({
               variant="secondary"
               size="icon"
               className={cn("absolute right-2 z-10")}
-              aria-label="Next"
+              aria-label={t("inventory:media.preview.nextAria")}
               onClick={goNext}
             >
               <ChevronRightIcon />

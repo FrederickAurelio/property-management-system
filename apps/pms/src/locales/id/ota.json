@@ -1,0 +1,161 @@
+{
+  "dialog": {
+    "gotIt": "Mengerti"
+  },
+  "refreshImports": {
+    "titles": {
+      "blockCreate": "Blok tersimpan di Cabin — refresh OTA",
+      "blockUpdate": "Blok berubah — refresh OTA",
+      "stayUpdate": "Stay berubah — refresh OTA",
+      "default": "Refresh OTA lain"
+    },
+    "steps": {
+      "exportLive": "Cabin sudah memperbarui kalender yang kita kirim keluar (export sudah live).",
+      "confirmWithChannel": "{{channel}} sudah punya tamu ini — refresh channel lain di bawah.",
+      "walkIn": "OTA belum tahu soal stay ini sampai mereka menarik kalender kita.",
+      "stayUpdate": "OTA masih menampilkan tanggal/unit lama sampai mereka menarik kalender kita.",
+      "blockClosure": "OTA belum tahu soal penutupan ini sampai mereka menarik kalender kita."
+    },
+    "peerStep": {
+      "bookingCom": "{{channel}}: Sync calendars → Import now",
+      "airbnb": "{{channel}}: Calendar → Availability → Connect calendars → Refresh",
+      "agoda": "{{channel}}: Calendar connections → Refresh connections"
+    },
+    "footer": "Sinkronisasi otomatis bisa memakan waktu berjam-jam. Refresh kalau check-in sudah dekat."
+  },
+  "updateChannel": {
+    "cancel": {
+      "title": "Batalkan juga di {{channel}}",
+      "steps": [
+        "Cabin sudah membatalkan stay ini dan membebaskan unit di kalender kita.",
+        "{{channel}} tidak otomatis membatalkan booking tamu — buka {{channel}} dan batalkan (atau ubah) reservasi itu.",
+        "Kalau dibiarkan aktif di {{channel}}, sync berikutnya bisa memperingatkan bahwa itu masih tercatat."
+      ]
+    },
+    "checkOut": {
+      "title": "Perbarui {{channel}} jika perlu",
+      "steps": [
+        "Cabin sudah check-out tamu dan memperbarui kalender sibuk yang kita kirim keluar.",
+        "Kalau tamu pergi lebih cepat, atau booking di {{channel}} harus berakhir, ubah atau batalkan reservasi itu di {{channel}}.",
+        "{{channel}} tidak akan mengubah booking tamu secara otomatis."
+      ]
+    },
+    "datesOrUnit": {
+      "title": "Perbarui {{channel}} juga",
+      "steps": [
+        "Cabin sudah menyimpan tanggal/unit baru dan memperbarui kalender sibuk yang kita kirim keluar.",
+        "{{channel}} tidak otomatis memperbarui booking tamu — kamu harus mengubah reservasi itu di {{channel}}.",
+        "Samakan tanggal dan unit dengan Cabin, atau sync berikutnya akan memperingatkan bahwa kedua sisi tidak cocok."
+      ]
+    }
+  },
+  "playbooks": {
+    "titles": {
+      "missingFromFeedWithChannel": "Hilang dari {{channel}}",
+      "missingFromFeedGeneric": "Hilang dari OTA",
+      "datesDiffer": "Tanggal tidak cocok",
+      "otaStillListedWithChannel": "Masih ada di {{channel}}",
+      "otaStillListedGeneric": "Masih ada di OTA",
+      "importOverlap": "Malam double-booked",
+      "unitDiffer": "Unit salah"
+    },
+    "missingFromFeed": {
+      "what": "{{channel}} tidak lagi menampilkan booking ini di kalendernya.",
+      "pickOne": [
+        "Tamu membatalkan di {{channel}} → batalkan juga stay ini di Cabin.",
+        "Feed sepertinya salah / sementara → dismiss dulu dan cek lagi setelah sync berikutnya."
+      ],
+      "verify": "Cari tamu ini di {{channel}}. Apakah bookingnya masih ada?",
+      "cabin": "Kalau memang hilang, batalkan stay ini. Itu membebaskan unit dan menutup uang jika perlu.",
+      "primaryLabel": "Batalkan stay ini",
+      "dismissLabel": "Dismiss dulu",
+      "dismissHint": "Hanya menyembunyikan alert sampai sync berikutnya. Alert akan muncul lagi jika booking masih hilang."
+    },
+    "datesDiffer": {
+      "otaDatesFallback": "tanggal yang berbeda",
+      "what": "{{channel}} punya {{otaDates}}. Cabin masih punya {{stayDates}}.",
+      "pickOne": [
+        "{{channel}} yang benar → pakai tanggal mereka di Cabin (cek ulang Total setelahnya).",
+        "Cabin yang benar → ubah tanggal booking di {{channel}} agar sama."
+      ],
+      "verify": "Buka reservasi tamu di {{channel}} dan bandingkan tanggal stay-nya.",
+      "cabin": "Untuk menyamakan dengan {{channel}}, tap Pakai tanggal {{channel}}. Atau ubah stay ini di Cabin, lalu perbarui {{channel}}.",
+      "primaryLabel": "Pakai tanggal {{channel}}",
+      "otaStep": "Kalau Cabin yang harus menang, ubah reservasi di {{channel}} agar tanggalnya sama dengan {{stayDates}}.",
+      "dismissLabel": "Dismiss dulu",
+      "dismissHint": "Mempertahankan tanggal Cabin. Alert muncul lagi di sync berikutnya sampai kedua sisi cocok."
+    },
+    "unitDiffer": {
+      "observedFallback": "unit lain",
+      "whatWithDates": "{{channel}} mencatat ini di unit {{observed}} ({{otaCheckIn}} → {{otaCheckOut}}). Cabin punya unit {{unitCode}} ({{stayDates}}).",
+      "whatUnitOnly": "{{channel}} mencatat ini di unit {{observed}}. Cabin masih punya unit {{unitCode}}.",
+      "pickOne": [
+        "{{channel}} yang benar → pindahkan stay ini ke unit {{observed}} di Cabin.",
+        "Cabin yang benar → pindahkan booking kembali ke unit {{unitCode}} di {{channel}}."
+      ],
+      "verify": "Di {{channel}}, unit mana yang sebenarnya dipesan tamu?",
+      "cabin": "Untuk menyamakan dengan {{channel}}, tap Pindah ke unit {{channel}} (gagal jika unit itu sudah sibuk).",
+      "primaryLabel": "Pindah ke unit {{channel}}",
+      "otaStep": "Kalau Cabin yang harus menang, ubah listing/unit di {{channel}} kembali ke {{unitCode}}.",
+      "dismissLabel": "Dismiss dulu",
+      "dismissHint": "Membiarkan stay di unit ini. Alert muncul lagi di sync berikutnya sampai kedua sisi cocok."
+    },
+    "importOverlap": {
+      "what": "Malam ini ({{stayDates}}) di unit {{unitCode}} sudah dipakai stay atau blok lain. Booking {{channel}} ini masih menunggu — belum memblokir kalender.",
+      "pickOne": [
+        "Pertahankan stay lain → batalkan booking {{channel}} ini di Cabin (dan di {{channel}} kalau bukan tamu sungguhan).",
+        "Pertahankan tamu {{channel}} ini → bebaskan {{stayDates}} di stay lain dulu (batalkan atau pindahkan), lalu tap di bawah."
+      ],
+      "verify": "Cek kalender untuk unit {{unitCode}} dan booking di {{channel}}. Siapa yang seharusnya mendapat malam ini?",
+      "cabin": "Setelah stay lain hilang atau dipindahkan, tap Malam sudah bebas. Lalu isi detail tamu dan Konfirmasi. Atau batalkan booking ini jika stay lain menang.",
+      "primaryLabel": "Malam sudah bebas",
+      "secondaryLabel": "Batalkan booking ini",
+      "otaStep": "Kalau kamu batalkan di sini karena {{channel}} double-sold, perbaiki atau batalkan juga booking di {{channel}}.",
+      "dismissHint": "“Malam sudah bebas” hanya berfungsi setelah konfliknya hilang. Kalau malam masih sibuk, batalkan booking ini atau bebaskan stay lain dulu."
+    },
+    "otaStillListed": {
+      "what": "Cabin sudah menandai stay ini sebagai {{statusLabel}}, tapi {{channel}} masih menampilkannya sebagai terbooking.",
+      "pickOne": [
+        "Memang disengaja (checkout lebih cepat, batal lokal) → batalkan atau perbarui booking di {{channel}}, lalu dismiss.",
+        "Sudah diperbaiki di {{channel}} → dismiss."
+      ],
+      "verify": "Buka {{channel}} dan cek apakah booking ini masih aktif.",
+      "cabin": "Cabin sudah ditutup untuk stay ini. Tidak ada yang perlu diubah kecuali dismiss setelah kamu memeriksanya.",
+      "otaStep": "Kalau {{channel}} tidak seharusnya lagi mencantumkan tamu ini, batalkan atau ubah booking itu di sana.",
+      "dismissLabel": "Dismiss — sudah dicek",
+      "dismissHint": "Tidak akan memperingatkan lagi selama booking ini masih ada di feed. Kalau hilang dan muncul lagi nanti, alert bisa kembali."
+    },
+    "card": {
+      "pickOneLabel": "Pilih salah satu",
+      "checkOnChannel": "Cek di {{channel}}: ",
+      "inCabin": "Di Cabin: ",
+      "onChannel": "Di {{channel}}: "
+    }
+  },
+  "actionConfirm": {
+    "acceptDates": {
+      "title": "Pakai tanggal {{channel}}?",
+      "otaDatesFallback": "tanggal dari OTA",
+      "description": "Cabin akan mengubah stay ini dari {{checkIn}} → {{checkOut}} menjadi {{otaDates}}. Cek ulang Total jika lama stay berubah.",
+      "confirmLabel": "Pakai tanggal {{channel}}"
+    },
+    "acceptUnit": {
+      "title": "Pindah ke {{observed}}?",
+      "observedFallback": "unit OTA",
+      "description": "Stay ini akan pindah dari unit {{unitCode}} ke {{observed}}. Gagal jika {{observed}} sudah punya malam yang tumpang tindih.",
+      "confirmLabel": "Pindah ke {{observed}}"
+    },
+    "clearHold": {
+      "title": "Tandai malam bebas?",
+      "description": "Lanjutkan hanya jika {{checkIn}} → {{checkOut}} di unit {{unitCode}} memang benar-benar bebas. Ini menghapus alert double-book agar kamu bisa Konfirmasi booking {{channel}}.",
+      "confirmLabel": "Malam sudah bebas"
+    },
+    "dismiss": {
+      "titleChecked": "Dismiss alert ini?",
+      "titleForNow": "Dismiss dulu?",
+      "descriptionChecked": "Menyembunyikan alert ini. Tidak akan muncul lagi di sync berikutnya kecuali {{channel}} melepas booking ini dan mencantumkannya lagi nanti.",
+      "descriptionForNow": "Menyembunyikan alert ini sampai sync berikutnya. Kalau tidak ada yang berubah di {{channel}}, kemungkinan akan muncul lagi.",
+      "confirmLabelFallback": "Dismiss"
+    }
+  }
+}

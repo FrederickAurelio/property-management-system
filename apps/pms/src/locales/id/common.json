@@ -1,0 +1,64 @@
+{
+  "appName": "Cabin PMS",
+  "nav": {
+    "dashboard": "Dasbor",
+    "calendar": "Kalender",
+    "reservations": "Reservasi",
+    "properties": "Properti",
+    "reports": "Laporan",
+    "settings": "Pengaturan"
+  },
+  "sidebar": {
+    "operations": "Operasional",
+    "manage": "Kelola",
+    "account": "Akun"
+  },
+  "bottomNav": {
+    "more": "Lainnya",
+    "mainAriaLabel": "Utama",
+    "moreSheetTitle": "Lainnya",
+    "moreSheetDescription": "Unit, laporan, dan pengaturan"
+  },
+  "auth": {
+    "checkingSession": "Memeriksa sesi…"
+  },
+  "theme": {
+    "light": "Terang",
+    "dark": "Gelap",
+    "system": "Sistem",
+    "switchToLight": "Beralih ke mode terang",
+    "switchToDark": "Beralih ke mode gelap"
+  },
+  "actions": {
+    "cancel": "Batal",
+    "save": "Simpan",
+    "delete": "Hapus",
+    "close": "Tutup",
+    "confirm": "Konfirmasi",
+    "back": "Kembali",
+    "continue": "Lanjutkan",
+    "gotIt": "Mengerti",
+    "retry": "Coba lagi",
+    "retrying": "Mencoba lagi…",
+    "create": "Buat",
+    "edit": "Ubah",
+    "add": "Tambah",
+    "search": "Cari",
+    "export": "Ekspor",
+    "yes": "Ya",
+    "no": "Tidak"
+  },
+  "misc": {
+    "optional": "Opsional",
+    "loading": "Memuat…",
+    "loadingMore": "Memuat lagi…",
+    "loadMoreError": "Gagal memuat lebih banyak. Coba lagi.",
+    "comingSoon": "Segera hadir…"
+  },
+  "language": {
+    "label": "Bahasa",
+    "en": "English",
+    "id": "Bahasa Indonesia"
+  },
+  "signOut": "Keluar"
+}

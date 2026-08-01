@@ -1,6 +1,7 @@
 /* anchor: Linear issues home / Stripe desk, diverge: Today title; bordered Arrivals|Departures + Needs; no KPI strip */
 import { useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -38,6 +39,7 @@ function DashboardPageSkeleton() {
 }
 
 export function DashboardPage() {
+  const { t } = useTranslation("dashboard");
   const [searchParams, setSearchParams] = useSearchParams();
   const propertyId = searchParams.get("propertyId") ?? "";
   const dashboardSearch = searchParams.toString()
@@ -107,28 +109,27 @@ export function DashboardPage() {
     onSuccess: (result) => {
       invalidateIcalSyncCaches(queryClient);
       if (result.feedsAttempted === 0) {
-        handleSuccess("No active OTA calendars to sync");
+        handleSuccess(t("dashboard:sync.noneActive"));
         return;
       }
       if (result.feedsFailed > 0) {
         handleSuccess(
-          `Synced ${result.feedsOk} of ${result.feedsAttempted} calendars (${result.feedsFailed} failed)`,
+          t("dashboard:sync.partial", {
+            ok: result.feedsOk,
+            attempted: result.feedsAttempted,
+            failed: result.feedsFailed,
+          }),
         );
         return;
       }
-      handleSuccess(
-        result.feedsOk === 1
-          ? "Synced 1 OTA calendar"
-          : `Synced ${result.feedsOk} OTA calendars`,
-      );
+      handleSuccess(t("dashboard:sync.ok", { count: result.feedsOk }));
     },
     onError: (error) => {
       handleError(error);
     },
   });
 
-  const noProperties =
-    optionsQuery.isSuccess && optionsQuery.data.length === 0;
+  const noProperties = optionsQuery.isSuccess && optionsQuery.data.length === 0;
 
   const onSyncAll = () => {
     syncMutation.mutate();
@@ -150,7 +151,7 @@ export function DashboardPage() {
 
       {noProperties && (
         <p className="text-sm text-muted-foreground">
-          No properties yet. Add one under Properties to use the desk.
+          {t("dashboard:noProperties")}
         </p>
       )}
 
@@ -162,7 +163,7 @@ export function DashboardPage() {
 
       {propertyId && dashboardQuery.isError && (
         <QueryErrorPanel
-          message="Couldn’t load today’s desk."
+          message={t("dashboard:loadError")}
           onRetry={() => {
             void dashboardQuery.refetch();
           }}
@@ -174,7 +175,7 @@ export function DashboardPage() {
         <div className="flex flex-col gap-4">
           <div className="grid items-start gap-4 md:grid-cols-2">
             <DashboardPanel
-              title="Arrivals"
+              title={t("dashboard:arrivals.title")}
               total={dashboardQuery.data.arrivals.total}
               viewAllHref={
                 dashboardQuery.data.arrivals.total > 0
@@ -182,7 +183,7 @@ export function DashboardPage() {
                   : null
               }
               isEmpty={dashboardQuery.data.arrivals.total === 0}
-              emptyMessage="No arrivals today"
+              emptyMessage={t("dashboard:arrivals.empty")}
             >
               <DashboardStayList
                 items={dashboardQuery.data.arrivals.items}
@@ -192,7 +193,7 @@ export function DashboardPage() {
             </DashboardPanel>
 
             <DashboardPanel
-              title="Departures"
+              title={t("dashboard:departures.title")}
               total={dashboardQuery.data.departures.total}
               viewAllHref={
                 dashboardQuery.data.departures.total > 0
@@ -200,7 +201,7 @@ export function DashboardPage() {
                   : null
               }
               isEmpty={dashboardQuery.data.departures.total === 0}
-              emptyMessage="No departures today"
+              emptyMessage={t("dashboard:departures.empty")}
             >
               <DashboardStayList
                 items={dashboardQuery.data.departures.items}

@@ -1,4 +1,6 @@
 /** Inventory display helpers — wire types come from `@cabin/api-contract`. */
+import i18n from "@/i18n";
+
 export type {
   Amenities,
   BedConfigRoom,
@@ -24,33 +26,29 @@ export {
   mediaKindFromMime,
 } from "@/components/media/types";
 
-import type {
-  MediaItem,
-  UnitLayout,
-  UnitStatus,
-} from "@cabin/api-contract";
+import type { MediaItem, UnitLayout, UnitStatus } from "@cabin/api-contract";
 
 export function formatUnitStatus(status: UnitStatus): string {
   switch (status) {
     case "ACTIVE":
-      return "Active";
+      return i18n.t("inventory:status.unit.active");
     case "INACTIVE":
-      return "Inactive";
+      return i18n.t("inventory:status.unit.inactive");
     case "MAINTENANCE":
-      return "Maintenance";
+      return i18n.t("inventory:status.unit.maintenance");
   }
 }
 
 export function formatLayout(layout: UnitLayout): string {
   switch (layout) {
     case "STUDIO":
-      return "Studio";
+      return i18n.t("inventory:status.layout.studio");
     case "APARTMENT":
-      return "Apartment";
+      return i18n.t("inventory:status.layout.apartment");
     case "CABIN":
-      return "Cabin";
+      return i18n.t("inventory:status.layout.cabin");
     case "OTHER":
-      return "Other";
+      return i18n.t("inventory:status.layout.other");
   }
 }
 
@@ -147,12 +145,7 @@ export function googleMapsUrl(input: {
     return `https://www.google.com/maps?q=${input.latitude},${input.longitude}`;
   }
 
-  const query = [
-    input.name,
-    input.addressLine,
-    input.city,
-    input.countryCode,
-  ]
+  const query = [input.name, input.addressLine, input.city, input.countryCode]
     .map((part) => part?.trim())
     .filter((part, index, all) => Boolean(part) && all.indexOf(part) === index)
     .join(", ");

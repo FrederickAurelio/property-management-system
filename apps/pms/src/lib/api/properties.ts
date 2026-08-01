@@ -48,9 +48,7 @@ export async function listProperties(
 
 /** Unpaginated `{ id, name }[]` for filter / select dropdowns. */
 export async function listPropertyOptions(): Promise<StaffPropertyOption[]> {
-  const { data } = await api.get<StaffPropertyOption[]>(
-    "/properties/options",
-  );
+  const { data } = await api.get<StaffPropertyOption[]>("/properties/options");
   return data;
 }
 
@@ -70,10 +68,7 @@ export async function updateProperty(
   id: string,
   input: Partial<PropertyWriteInput>,
 ): Promise<StaffProperty> {
-  const { data } = await api.patch<StaffProperty>(
-    `/properties/${id}`,
-    input,
-  );
+  const { data } = await api.patch<StaffProperty>(`/properties/${id}`, input);
   return data;
 }
 

@@ -1,7 +1,10 @@
 /* anchor: Linear-dense detail, diverge: money always on + confirm before ops CTAs */
 import { useState } from "react";
+import { IcalSyncWarning } from "@cabin/api-contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { ArrowLeftIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router";
 import { toast } from "sonner";
 import { QueryErrorPanel } from "@/components/query-error-panel";
@@ -62,6 +65,7 @@ import {
 import { ReservationSource, type StaffReservation } from "@cabin/api-contract";
 
 function primaryActionDialogCopy(
+  t: TFunction<"reservations">,
   action: PrimaryAction,
   row: StaffReservation,
   today: string,
@@ -73,19 +77,25 @@ function primaryActionDialogCopy(
   switch (action) {
     case "confirm":
       return {
-        title: "Confirm this reservation?",
-        description:
-          "Marks the stay as confirmed and ready for arrival. Guest and money details should already be complete.",
-        confirmLabel: "Confirm stay",
+        title: t("detailPage.primaryDialogs.confirmTitle"),
+        description: t("detailPage.primaryDialogs.confirmDescription"),
+        confirmLabel: t("detailPage.primaryDialogs.confirmLabel"),
       };
     case "check-in": {
       const early = !isCheckInWindow(row, today);
       return {
-        title: early ? "Check in outside stay window?" : "Check guest in?",
+        title: early
+          ? t("detailPage.primaryDialogs.checkInEarlyTitle")
+          : t("detailPage.primaryDialogs.checkInTitle"),
         description: early
-          ? `Scheduled stay is ${row.checkInDate} → ${row.checkOutDate} (property local). Check-in date stays the same unless you edit the stay.`
-          : "Sets status to In-house. You can still collect a balance due afterward.",
-        confirmLabel: early ? "Check in anyway" : "Check in",
+          ? t("detailPage.primaryDialogs.checkInEarlyDescription", {
+              checkIn: row.checkInDate,
+              checkOut: row.checkOutDate,
+            })
+          : t("detailPage.primaryDialogs.checkInDescription"),
+        confirmLabel: early
+          ? t("detailPage.primaryDialogs.checkInEarlyLabel")
+          : t("detailPage.primaryDialogs.checkInLabel"),
       };
     }
     case "check-out": {
@@ -98,23 +108,24 @@ function primaryActionDialogCopy(
       return {
         title: offDay
           ? row.checkOutDate > today
-            ? "Check out early?"
-            : "Check out late?"
-          : "Check guest out?",
+            ? t("detailPage.primaryDialogs.checkOutEarlyTitle")
+            : t("detailPage.primaryDialogs.checkOutLateTitle")
+          : t("detailPage.primaryDialogs.checkOutTitle"),
         description: unpaid
-          ? "Ends the stay. Booked dates stay as history — use Collect afterward if they still owe. OTAs pick up availability from the unit’s iCal feed (may lag)."
-          : "Ends the stay. Booked dates stay as history unless you edited them first. OTAs pick up availability from the unit’s iCal feed (may lag).",
+          ? t("detailPage.primaryDialogs.checkOutUnpaidDescription")
+          : t("detailPage.primaryDialogs.checkOutPaidDescription"),
         confirmLabel: offDay
           ? row.checkOutDate > today
-            ? "Check out early"
-            : "Check out late"
-          : "Check out",
+            ? t("detailPage.primaryDialogs.checkOutEarlyLabel")
+            : t("detailPage.primaryDialogs.checkOutLateLabel")
+          : t("detailPage.primaryDialogs.checkOutLabel"),
       };
     }
   }
 }
 
 export function ReservationDetailPage() {
+  const { t } = useTranslation(["reservations", "common"]);
   const { reservationId = "" } = useParams();
   const location = useLocation();
   const backHref = reservationDetailBackHref(location.state);
@@ -144,7 +155,7 @@ export function ReservationDetailPage() {
     mutationFn: async (action: PrimaryAction) => {
       const current = detailQuery.data;
       if (!current) {
-        throw new Error("Reservation not loaded");
+        throw new Error(t("detailPage.notLoaded"));
       }
       const today = todayYmdInTimezone(current.propertyTimezone);
       switch (action) {
@@ -171,10 +182,10 @@ export function ReservationDetailPage() {
       });
       handleSuccess(
         action === "confirm"
-          ? "Reservation confirmed"
+          ? t("detailPage.toastConfirmed")
           : action === "check-in"
-            ? "Checked in"
-            : "Checked out",
+            ? t("detailPage.toastCheckedIn")
+            : t("detailPage.toastCheckedOut"),
       );
       if (action === "confirm") {
         showRefreshImports({
@@ -209,10 +220,10 @@ export function ReservationDetailPage() {
       });
       handleSuccess(
         action === "accept-dates"
-          ? "OTA dates applied — revisit Total if needed"
+          ? t("detailPage.toastOtaDatesApplied")
           : action === "accept-unit"
-            ? "Moved to OTA unit"
-            : "OTA warning dismissed",
+            ? t("detailPage.toastMovedToOtaUnit")
+            : t("detailPage.toastOtaWarningDismissed"),
       );
     },
     onError: (error) => {
@@ -242,11 +253,11 @@ export function ReservationDetailPage() {
         >
           <Link to={backHref}>
             <ArrowLeftIcon data-icon="inline-start" />
-            Back
+            {t("detailPage.back")}
           </Link>
         </Button>
         <QueryErrorPanel
-          message="Couldn’t load this reservation."
+          message={t("detailPage.loadError")}
           onRetry={() => {
             void detailQuery.refetch();
           }}
@@ -268,7 +279,7 @@ export function ReservationDetailPage() {
   const showRefundWarn = refund != null && refund > 0 && showCollect;
   const showIcalWarn = row.icalSyncWarning != null;
   const pendingCopy = pendingPrimary
-    ? primaryActionDialogCopy(pendingPrimary, row, today)
+    ? primaryActionDialogCopy(t, pendingPrimary, row, today)
     : null;
   const icalPlaybookForRow =
     row.icalSyncWarning != null
@@ -293,6 +304,7 @@ export function ReservationDetailPage() {
         icalObservedCheckInDate: row.icalObservedCheckInDate,
         icalObservedCheckOutDate: row.icalObservedCheckOutDate,
         dismissLabel: icalPlaybookForRow?.dismissLabel,
+        checked: row.icalSyncWarning === IcalSyncWarning.OTA_STILL_LISTED,
       })
     : null;
 
@@ -300,7 +312,7 @@ export function ReservationDetailPage() {
     if (action === "confirm") {
       const gaps = confirmReadinessFromReservation(row);
       if (gaps.length > 0) {
-        toast.message("Complete guest details first", {
+        toast.message(t("detailPage.toastCompleteDetailsFirst"), {
           description: formatConfirmGapsMessage(gaps),
         });
         setEditIntent("confirm-enrich");
@@ -317,7 +329,7 @@ export function ReservationDetailPage() {
         <Button type="button" variant="ghost" size="sm" asChild>
           <Link to={backHref}>
             <ArrowLeftIcon data-icon="inline-start" />
-            Back
+            {t("detailPage.back")}
           </Link>
         </Button>
       </div>
@@ -328,10 +340,17 @@ export function ReservationDetailPage() {
             {row.guestName}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Unit {row.unitCode} · {row.propertyName}
+            {t("detailPage.unitAtProperty", {
+              unitCode: row.unitCode,
+              propertyName: row.propertyName,
+            })}
           </p>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {formatStayRange(row.checkInDate, row.checkOutDate, row.billingPeriod)}
+            {formatStayRange(
+              row.checkInDate,
+              row.checkOutDate,
+              row.billingPeriod,
+            )}
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <ReservationBadge
@@ -342,27 +361,31 @@ export function ReservationDetailPage() {
               source={row.source}
               label={formatReservationSource(row.source)}
             />
-            {lateCue ? (
+            {lateCue && (
               <ReservationBadge
                 label={formatReservationLateCue(lateCue)}
                 tone="warn"
               />
-            ) : null}
+            )}
           </div>
           {(row.guestPhone || row.guestEmail) && (
             <p className="mt-3 text-sm text-muted-foreground">
               {[row.guestPhone, row.guestEmail].filter(Boolean).join(" · ")}
-              {row.guestCount != null && ` · ${row.guestCount} guests`}
+              {row.guestCount != null &&
+                t("detailPage.guestCountSuffix", { count: row.guestCount })}
             </p>
           )}
           {(row.createdByAdminUsername || row.updatedByAdminUsername) && (
             <p className="mt-2 text-xs text-muted-foreground">
               {row.createdByAdminUsername
-                ? `Created by ${row.createdByAdminUsername}`
-                : "Created by system"}
-              {row.updatedByAdminUsername
-                ? ` · Last updated by ${row.updatedByAdminUsername}`
-                : null}
+                ? t("detailPage.createdByAdmin", {
+                    admin: row.createdByAdminUsername,
+                  })
+                : t("detailPage.createdBySystem")}
+              {row.updatedByAdminUsername &&
+                t("detailPage.lastUpdatedBy", {
+                  admin: row.updatedByAdminUsername,
+                })}
             </p>
           )}
           {row.notes && (
@@ -415,16 +438,12 @@ export function ReservationDetailPage() {
               }}
             />
           )}
-          {showRefundWarn && (
-            <p>
-              Guest overpaid — use Refund to record cash returned to the guest.
-            </p>
-          )}
+          {showRefundWarn && <p>{t("detailPage.warnOverpaid")}</p>}
           {showDueWarn && !showRefundWarn && (
             <p>
               {isTerminalStatus(row.status)
-                ? "Balance still due — use Collect to record payment."
-                : "Balance due — collect anytime; check-in/out is not blocked."}
+                ? t("detailPage.warnDueTerminal")
+                : t("detailPage.warnDueLive")}
             </p>
           )}
         </div>
@@ -454,7 +473,7 @@ export function ReservationDetailPage() {
               setEditOpen(true);
             }}
           >
-            Edit
+            {t("detailPage.buttons.edit")}
           </Button>
         )}
         {showCollect && (
@@ -476,7 +495,7 @@ export function ReservationDetailPage() {
               setCancelOpen(true);
             }}
           >
-            Cancel
+            {t("detailPage.buttons.cancel")}
           </Button>
         )}
       </div>
@@ -497,7 +516,7 @@ export function ReservationDetailPage() {
           }
           const gaps = confirmReadinessFromReservation(saved);
           if (gaps.length > 0) {
-            toast.message("Still missing details", {
+            toast.message(t("detailPage.toastStillMissingDetails"), {
               description: formatConfirmGapsMessage(gaps),
             });
             return;
@@ -531,7 +550,7 @@ export function ReservationDetailPage() {
           title={pendingIcalCopy.title}
           description={pendingIcalCopy.description}
           confirmLabel={pendingIcalCopy.confirmLabel}
-          cancelLabel="Go back"
+          cancelLabel={t("detailPage.goBack")}
           confirmDisabled={icalMutation.isPending}
           onConfirm={() => {
             if (pendingIcal === "accept-dates") {
@@ -558,7 +577,7 @@ export function ReservationDetailPage() {
           title={pendingCopy.title}
           description={pendingCopy.description}
           confirmLabel={pendingCopy.confirmLabel}
-          cancelLabel="Go back"
+          cancelLabel={t("detailPage.goBack")}
           confirmClassName={primaryActionButtonClass(pendingPrimary)}
           confirmDisabled={primaryMutation.isPending}
           onConfirm={() => {

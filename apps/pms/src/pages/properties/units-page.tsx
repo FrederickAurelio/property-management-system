@@ -13,6 +13,7 @@ import {
   type UnitStatus as UnitStatusType,
 } from "@cabin/api-contract";
 import { DoorOpenIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { InfiniteListFooter } from "@/components/infinite-list-footer";
 import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ function parseUnitStatus(value: string): UnitStatusType | undefined {
 }
 
 export function UnitsPage() {
+  const { t } = useTranslation(["inventory", "common"]);
   const { propertyId = "", unitTypeId = "" } = useParams();
   const location = useLocation();
   const { canManage } = useInventoryAccess();
@@ -85,17 +87,13 @@ export function UnitsPage() {
   const propertyNameHint = useMemo(
     () =>
       navState.propertyName ??
-      (propertyId
-        ? findStaffPropertyName(queryClient, propertyId)
-        : undefined),
+      (propertyId ? findStaffPropertyName(queryClient, propertyId) : undefined),
     [navState.propertyName, propertyId, queryClient],
   );
   const unitTypeNameHint = useMemo(
     () =>
       navState.unitTypeName ??
-      (unitTypeId
-        ? findStaffUnitTypeName(queryClient, unitTypeId)
-        : undefined),
+      (unitTypeId ? findStaffUnitTypeName(queryClient, unitTypeId) : undefined),
     [navState.unitTypeName, unitTypeId, queryClient],
   );
 
@@ -111,12 +109,9 @@ export function UnitsPage() {
     enabled: Boolean(unitTypeId) && !unitTypeNameHint,
   });
 
-  const propertyReady =
-    Boolean(propertyNameHint) || propertyQuery.isSuccess;
-  const unitTypeReady =
-    Boolean(unitTypeNameHint) || unitTypeQuery.isSuccess;
-  const unitTypeName =
-    unitTypeQuery.data?.name ?? unitTypeNameHint ?? "…";
+  const propertyReady = Boolean(propertyNameHint) || propertyQuery.isSuccess;
+  const unitTypeReady = Boolean(unitTypeNameHint) || unitTypeQuery.isSuccess;
+  const unitTypeName = unitTypeQuery.data?.name ?? unitTypeNameHint ?? "…";
 
   const statusFilter = parseUnitStatus(status);
   const listFilters = useMemo(
@@ -149,7 +144,9 @@ export function UnitsPage() {
     onSuccess: (_data, variables) => {
       setDeleteTarget(null);
       invalidateInventoryCaches(queryClient);
-      handleSuccess(`Deleted ${variables.code}`);
+      handleSuccess(
+        t("inventory:units.page.deletedToast", { code: variables.code }),
+      );
     },
     onError: (error) => {
       handleError(error);
@@ -175,10 +172,7 @@ export function UnitsPage() {
     return <Navigate to="/properties" replace />;
   }
 
-  if (
-    unitTypeQuery.isSuccess &&
-    unitTypeQuery.data.propertyId !== propertyId
-  ) {
+  if (unitTypeQuery.isSuccess && unitTypeQuery.data.propertyId !== propertyId) {
     return <Navigate to="/properties" replace />;
   }
 
@@ -190,7 +184,7 @@ export function UnitsPage() {
       <>
         <ExplorerToolbar
           layer="units"
-          createLabel="Add unit"
+          createLabel={t("inventory:units.page.addLabel")}
           canManage={false}
           onCreate={() => undefined}
         />
@@ -207,12 +201,12 @@ export function UnitsPage() {
       <>
         <ExplorerToolbar
           layer="units"
-          createLabel="Add unit"
+          createLabel={t("inventory:units.page.addLabel")}
           canManage={false}
           onCreate={() => undefined}
         />
         <QueryErrorPanel
-          message="Couldn’t load this page. Check your connection and try again."
+          message={t("inventory:units.page.loadParentsError")}
           onRetry={() => {
             if (propertyQuery.isError) {
               void propertyQuery.refetch();
@@ -239,7 +233,7 @@ export function UnitsPage() {
     <>
       <ExplorerToolbar
         layer="units"
-        createLabel="Add unit"
+        createLabel={t("inventory:units.page.addLabel")}
         canManage={canManage}
         onCreate={openCreate}
       />
@@ -248,7 +242,7 @@ export function UnitsPage() {
 
       {listQuery.isError && !listQuery.data && (
         <QueryErrorPanel
-          message="Couldn’t load units. Check your connection and try again."
+          message={t("inventory:units.page.loadListError")}
           onRetry={() => {
             void listQuery.refetch();
           }}
@@ -263,18 +257,22 @@ export function UnitsPage() {
               <DoorOpenIcon />
             </EmptyMedia>
             <EmptyTitle>
-              {q || status !== "all" ? "No matching units" : "No units yet"}
+              {q || status !== "all"
+                ? t("inventory:units.page.emptyTitleFiltered")
+                : t("inventory:units.page.emptyTitle")}
             </EmptyTitle>
             <EmptyDescription>
               {q || status !== "all"
-                ? "Try a different search or status filter."
-                : `Add physical units for ${unitTypeName}. Each gets its own calendar.`}
+                ? t("inventory:units.page.emptyDescriptionFiltered")
+                : t("inventory:units.page.emptyDescription", {
+                    unitTypeName,
+                  })}
             </EmptyDescription>
           </EmptyHeader>
           {!q && status === "all" && canManage && (
             <EmptyContent>
               <Button type="button" size="sm" onClick={openCreate}>
-                Add unit
+                {t("inventory:units.page.addLabel")}
               </Button>
             </EmptyContent>
           )}
@@ -289,7 +287,9 @@ export function UnitsPage() {
                 ? `${unit.code} · ${unit.name}`
                 : unit.code;
               const metaParts = [
-                unit.floor ? `Floor ${unit.floor}` : null,
+                unit.floor
+                  ? t("inventory:units.page.metaFloor", { floor: unit.floor })
+                  : null,
                 formatUnitStatus(unit.status),
               ].filter(Boolean);
 
@@ -363,13 +363,11 @@ export function UnitsPage() {
               setDeleteTarget(null);
             }
           }}
-          title="Delete unit?"
-          description={
-            <>
-              This permanently removes <strong>{deleteTarget?.code}</strong>.
-            </>
-          }
-          confirmLabel="Delete"
+          title={t("inventory:units.page.deleteTitle")}
+          description={t("inventory:units.page.deleteDescription", {
+            code: deleteTarget?.code ?? "",
+          })}
+          confirmLabel={t("inventory:units.page.confirmDelete")}
           variant="destructive"
           confirmDisabled={deleteMutation.isPending}
           onConfirm={() => {

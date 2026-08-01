@@ -2,6 +2,7 @@
 import type { MouseEvent, ReactNode } from "react";
 import { Link } from "react-router";
 import { EyeIcon, ImageIcon, MoreHorizontalIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,12 +46,7 @@ type ExplorerItemProps = {
 function Thumb({ url, title }: { url?: string | null; title: string }) {
   if (url) {
     return (
-      <img
-        src={url}
-        alt=""
-        className="size-full object-cover"
-        loading="lazy"
-      />
+      <img src={url} alt="" className="size-full object-cover" loading="lazy" />
     );
   }
   return (
@@ -114,6 +110,7 @@ export function ExplorerItem({
   selected = false,
   disabled = false,
 }: ExplorerItemProps) {
+  const { t } = useTranslation(["inventory", "common"]);
   const showActions = Boolean(onEdit);
 
   const actions = !showActions ? null : canManage ? (
@@ -124,7 +121,7 @@ export function ExplorerItem({
           variant="ghost"
           size="icon-sm"
           className="shrink-0"
-          aria-label={`Actions for ${title}`}
+          aria-label={t("inventory:explorer.item.actionsFor", { title })}
           onClick={(event) => {
             stopNav(event);
           }}
@@ -139,7 +136,7 @@ export function ExplorerItem({
               onEdit?.();
             }}
           >
-            Edit
+            {t("inventory:explorer.item.edit")}
           </DropdownMenuItem>
         </DropdownMenuGroup>
         {onDelete && (
@@ -152,7 +149,7 @@ export function ExplorerItem({
                   onDelete();
                 }}
               >
-                Delete
+                {t("inventory:explorer.item.delete")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </>
@@ -161,7 +158,7 @@ export function ExplorerItem({
     </DropdownMenu>
   ) : (
     <IconAction
-      label="View"
+      label={t("inventory:explorer.item.view")}
       onClick={(event) => {
         stopNav(event);
         onEdit?.();
@@ -207,7 +204,11 @@ export function ExplorerItem({
           </div>
           {actions && (
             <div
-              className={href || onSelect ? "pointer-events-auto relative z-10" : undefined}
+              className={
+                href || onSelect
+                  ? "pointer-events-auto relative z-10"
+                  : undefined
+              }
             >
               {actions}
             </div>
@@ -223,9 +224,9 @@ export function ExplorerItem({
             to={href}
             state={linkState}
             className="absolute inset-0 z-0 rounded-lg focus-visible:ring-1 focus-visible:ring-ring"
-            aria-label={`Open ${title}`}
+            aria-label={t("inventory:explorer.item.openAria", { title })}
           />
-          <div className="relative pointer-events-none">{content}</div>
+          <div className="pointer-events-none relative">{content}</div>
         </div>
       );
     }
@@ -236,7 +237,7 @@ export function ExplorerItem({
           type="button"
           className={cn(className, "w-full")}
           aria-pressed={selected}
-          aria-label={`Select ${title}`}
+          aria-label={t("inventory:explorer.item.selectAria", { title })}
           onClick={onSelect}
         >
           {content}
@@ -245,10 +246,7 @@ export function ExplorerItem({
     }
 
     return (
-      <div
-        className={className}
-        aria-disabled={disabled || undefined}
-      >
+      <div className={className} aria-disabled={disabled || undefined}>
         {content}
       </div>
     );
@@ -284,9 +282,9 @@ export function ExplorerItem({
           to={href}
           state={linkState}
           className="absolute inset-0 rounded-lg focus-visible:ring-1 focus-visible:ring-ring"
-          aria-label={`Open ${title}`}
+          aria-label={t("inventory:explorer.item.openAria", { title })}
         />
-        <div className="relative z-10 flex min-w-0 flex-1 items-center gap-3 pointer-events-none">
+        <div className="pointer-events-none relative z-10 flex min-w-0 flex-1 items-center gap-3">
           <div className="size-12 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
             <Thumb url={imageUrl} title={title} />
           </div>
@@ -301,7 +299,7 @@ export function ExplorerItem({
           </div>
         </div>
         {actions && (
-          <div className="relative z-10 pointer-events-auto">{actions}</div>
+          <div className="pointer-events-auto relative z-10">{actions}</div>
         )}
       </div>
     );
@@ -313,7 +311,7 @@ export function ExplorerItem({
         type="button"
         className={cn(rowClass, "w-full text-left")}
         aria-pressed={selected}
-        aria-label={`Select ${title}`}
+        aria-label={t("inventory:explorer.item.selectAria", { title })}
         onClick={onSelect}
       >
         {rowBody}

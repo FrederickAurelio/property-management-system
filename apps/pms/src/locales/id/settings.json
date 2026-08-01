@@ -1,0 +1,143 @@
+{
+  "profile": {
+    "title": "Profil",
+    "description": "Bagaimana Anda muncul saat masuk."
+  },
+  "password": {
+    "title": "Password",
+    "description": "Ubah password untuk akun ini."
+  },
+  "appearance": {
+    "title": "Tampilan",
+    "description": "Preferensi tampilan.",
+    "themeLabel": "Tema",
+    "themeDescription": "Terang, gelap, atau ikuti sistem",
+    "themeSelectAriaLabel": "Tema",
+    "themeSelectPlaceholder": "Tema"
+  },
+  "staff": {
+    "title": "Staf",
+    "description": "Buat akun, ubah peran, dan cabut akses."
+  },
+  "session": {
+    "title": "Sesi",
+    "description": "Keluar dari perangkat ini.",
+    "signOut": "Keluar"
+  },
+  "changeUsername": {
+    "usernameLabel": "Username",
+    "usernameDescription": "Dipakai untuk masuk. Hanya huruf, angka, dan . _ -",
+    "usernamePlaceholder": "front.desk",
+    "save": "Simpan username",
+    "unchanged": "Username tidak berubah",
+    "confirmTitle": "Ubah username?",
+    "confirmDescriptionWithPending": "Nama masuk Anda akan berubah dari {{from}} menjadi {{to}}. Masukkan password saat ini untuk konfirmasi.",
+    "confirmDescriptionDefault": "Masukkan password saat ini untuk konfirmasi.",
+    "currentPasswordLabel": "Password saat ini",
+    "currentPasswordRequired": "Password saat ini wajib diisi",
+    "changing": "Mengubah…",
+    "confirm": "Ubah username",
+    "updated": "Username berhasil diubah",
+    "validation": {
+      "usernameMin": "Username minimal {{min}} karakter",
+      "usernameMax": "Username maksimal {{max}} karakter",
+      "usernamePattern": "Gunakan huruf, angka, titik, tanda hubung, atau garis bawah",
+      "currentPasswordMin": "Password minimal {{min}} karakter",
+      "currentPasswordMax": "Password maksimal {{max}} karakter"
+    }
+  },
+  "changePassword": {
+    "currentPasswordLabel": "Password saat ini",
+    "newPasswordLabel": "Password baru",
+    "newPasswordDescription": "Minimal {{min}} karakter.",
+    "confirmPasswordLabel": "Konfirmasi password baru",
+    "submit": "Perbarui password",
+    "submitting": "Memperbarui…",
+    "confirmTitle": "Perbarui password?",
+    "confirmDescription": "Password Anda akan langsung berubah. Anda tetap masuk di perangkat ini; sesi lain mungkin butuh password baru.",
+    "confirmLabel": "Perbarui password",
+    "updated": "Password berhasil diperbarui",
+    "validation": {
+      "currentRequired": "Password saat ini wajib diisi",
+      "currentMax": "Password maksimal {{max}} karakter",
+      "newMin": "Password baru minimal {{min}} karakter",
+      "newMax": "Password maksimal {{max}} karakter",
+      "confirmRequired": "Konfirmasi password baru Anda",
+      "mismatch": "Password tidak cocok",
+      "sameAsCurrent": "Password baru harus berbeda dari yang sekarang"
+    }
+  },
+  "roles": {
+    "superAdmin": "Super admin",
+    "admin": "Admin",
+    "frontDesk": "Front desk"
+  },
+  "staffSection": {
+    "helperText": "Khusus SUPER_ADMIN. Mencabut akses membuat akun nonaktif — akun tetap ada untuk audit, tidak dihapus.",
+    "addStaff": "Tambah staf",
+    "table": {
+      "username": "Username",
+      "role": "Peran",
+      "status": "Status",
+      "created": "Dibuat",
+      "actions": "Aksi"
+    },
+    "you": "Anda",
+    "active": "Aktif",
+    "revoked": "Dicabut",
+    "actionsFor": "Aksi untuk {{username}}",
+    "changeRole": "Ubah peran",
+    "revokeAccess": "Cabut akses",
+    "restoreAccess": "Pulihkan akses",
+    "loadError": "Gagal memuat staf. Periksa koneksi Anda dan coba lagi.",
+    "createDialog": {
+      "title": "Tambah staf",
+      "description": "Membuat akun admin baru. Mereka bisa langsung masuk.",
+      "usernameLabel": "Username",
+      "usernamePlaceholder": "front.desk",
+      "passwordLabel": "Password sementara",
+      "roleLabel": "Peran",
+      "validation": {
+        "usernameMin": "Username minimal {{min}} karakter",
+        "usernameMax": "Username maksimal {{max}} karakter",
+        "usernamePattern": "Gunakan huruf, angka, titik, tanda hubung, atau garis bawah",
+        "passwordMin": "Password minimal {{min}} karakter",
+        "passwordMax": "Password maksimal {{max}} karakter"
+      }
+    },
+    "roleDialog": {
+      "title": "Ubah peran",
+      "description": "Ubah akses untuk {{username}}.",
+      "roleLabel": "Peran",
+      "lastSuperAdminWarning": "Anda tidak bisa menurunkan super admin aktif terakhir."
+    },
+    "reauth": {
+      "defaultTitle": "Konfirmasi",
+      "defaultDescription": "Masukkan password saat ini untuk konfirmasi.",
+      "defaultConfirm": "Konfirmasi",
+      "currentPasswordIncorrect": "Password saat ini salah",
+      "createTitle": "Buat staf?",
+      "createDescription": "Buat {{username}} sebagai {{role}}. Masukkan password saat ini untuk konfirmasi.",
+      "createConfirm": "Buat staf",
+      "roleTitle": "Ubah peran?",
+      "roleDescription": "Ubah {{username}} menjadi {{role}}. Masukkan password saat ini untuk konfirmasi.",
+      "roleConfirm": "Simpan peran",
+      "revokeTitle": "Cabut akses?",
+      "revokeDescription": "{{username}} tidak akan bisa masuk. Akun tetap ada di daftar dan bisa dipulihkan nanti. Masukkan password saat ini untuk konfirmasi.",
+      "revokeConfirm": "Cabut akses",
+      "restoreTitle": "Pulihkan akses?",
+      "restoreDescription": "{{username}} akan bisa masuk lagi. Masukkan password saat ini untuk konfirmasi.",
+      "restoreConfirm": "Pulihkan akses"
+    },
+    "toasts": {
+      "created": "{{username}} berhasil dibuat",
+      "roleUpdated": "{{username}} diubah menjadi {{role}}",
+      "restored": "Akses untuk {{username}} dipulihkan",
+      "revoked": "Akses untuk {{username}} dicabut"
+    }
+  },
+  "reauthPasswordDialog": {
+    "currentPasswordLabel": "Password saat ini",
+    "confirming": "Mengonfirmasi…"
+  }
+}

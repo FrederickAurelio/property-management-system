@@ -1,5 +1,6 @@
 import type { StaffDashboardAttentionKind } from "@cabin/api-contract";
 import type { ReservationBoard } from "@/lib/api";
+import i18n from "@/i18n";
 
 /** Primary why label for Needs — one chip max (no badge soup). */
 export function primaryAttentionLabel(
@@ -9,20 +10,23 @@ export function primaryAttentionLabel(
   if (!kinds?.length) return null;
 
   if (kinds.includes("STRANDED_CONFIRMED")) {
-    return { label: "Cancel / no-show", tone: "danger" };
+    return {
+      label: i18n.t("dashboard:attention.cancelNoShow"),
+      tone: "danger",
+    };
   }
   if (kinds.includes("ICAL")) {
-    return { label: "OTA issue", tone: "warn" };
+    return { label: i18n.t("dashboard:attention.otaIssue"), tone: "warn" };
   }
   if (kinds.includes("NEEDS_DETAILS")) {
-    return { label: "Needs details", tone: "muted" };
+    return { label: i18n.t("dashboard:attention.needsDetails"), tone: "muted" };
   }
   if (kinds.includes("OPEN_BALANCE")) {
     if (moneyKind === "refund") {
-      return { label: "Refund", tone: "warn" };
+      return { label: i18n.t("dashboard:attention.refund"), tone: "warn" };
     }
     // Due > 0, or DEPOSIT/UNPAID open-balance with no amount gap yet
-    return { label: "Due", tone: "default" };
+    return { label: i18n.t("dashboard:attention.due"), tone: "default" };
   }
   return null;
 }
@@ -56,9 +60,9 @@ export function dominantNeedsBoard(
     }
   }
 
-  const winners = (
-    Object.keys(counts) as StaffDashboardAttentionKind[]
-  ).filter((k) => counts[k] === bestCount);
+  const winners = (Object.keys(counts) as StaffDashboardAttentionKind[]).filter(
+    (k) => counts[k] === bestCount,
+  );
   if (winners.length > 1 || best === "STRANDED_CONFIRMED") {
     return "all";
   }

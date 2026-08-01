@@ -19,18 +19,20 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - **Dashboard** (`/`): today arrivals/departures + needs attention via `GET /staff/dashboard`; Sync all → `POST /ical/sync-all`; FRONT_DESK+
 - **iCal:** unit form — PMS export Copy + OTA import URLs; **hub** = each OTA extranet imports PMS export only (drop peer OTA↔OTA when trusted; see `_docs/reservations-design.md` §9). After confirm / walk-in / block, optional **Refresh other OTAs** Got-it dialog (`OtaRemindDialog` · `lib/ota-remind.ts`). Detail OTA playbook (Accept/Dismiss/Cancel); board **OTA issues** (`ical-alerts`) / Needs details
 - **Design:** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) · [`_docs/calendar-design.md`](../../_docs/calendar-design.md) · [`_docs/dashboard-design.md`](../../_docs/dashboard-design.md) · [`_docs/reports-design.md`](../../_docs/reports-design.md)
+- **i18n:** en/id wired (`src/i18n`, per-feature namespaces in `src/locales/{en,id}/*.json`); screens `useTranslation([ns, "common"])`, pure helpers `import i18n from "@/i18n"` → `i18n.t(...)`
 
 ## Stack (locked)
 
-| Concern      | Choice                                                                            |
-| ------------ | --------------------------------------------------------------------------------- |
-| UI           | React + Vite + TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) · Lucide     |
-| Routing      | `react-router` declarative (`BrowserRouter` + `Routes`)                           |
-| Server state | `@tanstack/react-query`                                                           |
+| Concern      | Choice                                                                              |
+| ------------ | ----------------------------------------------------------------------------------- |
+| UI           | React + Vite + TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) · Lucide       |
+| Routing      | `react-router` declarative (`BrowserRouter` + `Routes`)                             |
+| Server state | `@tanstack/react-query`                                                             |
 | HTTP         | `axios` · `baseURL: "/api"` · paths without `/staff` · proxy `/api` → Nest `/staff` |
-| Forms        | `react-hook-form` + `zod` + `@hookform/resolvers` · shadcn `Field` + `Controller` |
-| Toasts       | Sonner (`handleSuccess` / `handleError`)                                          |
-| Theme        | `next-themes` (`ThemeProvider` + `ThemeToggle`) · class strategy (`.dark`)        |
+| Forms        | `react-hook-form` + `zod` + `@hookform/resolvers` · shadcn `Field` + `Controller`   |
+| Toasts       | Sonner (`handleSuccess` / `handleError`)                                            |
+| Theme        | `next-themes` (`ThemeProvider` + `ThemeToggle`) · class strategy (`.dark`)          |
+| i18n         | i18next · react-i18next · browser detector · en / id                                |
 
 ## API client
 
@@ -55,15 +57,15 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 
 Locked BE→FE wiring (keys, `useQuery` / `useInfiniteQuery` / `useMutation`, cache, toast vs field highlight): [`.cursor/rules/pms-query.mdc`](../../.cursor/rules/pms-query.mdc).
 
-| Concern              | Rule                                                                |
-| -------------------- | ------------------------------------------------------------------- |
-| Query keys           | `src/lib/api/query-keys.ts` — import from `@/lib/api`               |
-| Paginated lists      | `useInfiniteQuery` + `getNextPageParamFromPageInfo`; filters in key |
-| List writes          | `invalidateQueries` on resource prefix + `handleSuccess`            |
+| Concern              | Rule                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------- |
+| Query keys           | `src/lib/api/query-keys.ts` — import from `@/lib/api`                                             |
+| Paginated lists      | `useInfiniteQuery` + `getNextPageParamFromPageInfo`; filters in key                               |
+| List writes          | `invalidateQueries` on resource prefix + `handleSuccess`                                          |
 | Mutation `onSuccess` | Clear local form/pending/picker state **first**, then cache + toast + close — see `pms-query.mdc` |
-| Login / self-profile | `setQueryData(staffSessionQueryKey, …)`                             |
-| Form domain errors   | `applyApiFieldError` → RHF (BE `details: { field, reason }`)        |
-| Everything else      | `handleError` toast (or re-auth dialog / GET retry)                 |
+| Login / self-profile | `setQueryData(staffSessionQueryKey, …)`                                                           |
+| Form domain errors   | `applyApiFieldError` → RHF (BE `details: { field, reason }`)                                      |
+| Everything else      | `handleError` toast (or re-auth dialog / GET retry)                                               |
 
 ## Forms
 

@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { MoreHorizontalIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router";
 import {
   Sheet,
@@ -70,6 +71,7 @@ function BottomNavLink({
 }
 
 export function BottomNav() {
+  const { t } = useTranslation(["common"]);
   const [moreOpen, setMoreOpen] = useState(false);
   const { data: staff } = useQuery({
     queryKey: staffSessionQueryKey,
@@ -89,7 +91,7 @@ export function BottomNav() {
   return (
     <>
       <nav
-        aria-label="Main"
+        aria-label={t("bottomNav.mainAriaLabel")}
         className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <div className="mx-auto flex max-w-lg items-stretch">
@@ -97,7 +99,7 @@ export function BottomNav() {
             <BottomNavLink
               key={item.href}
               to={item.href}
-              label={item.title}
+              label={t(item.titleKey)}
               icon={item.icon}
               end={item.href === "/"}
             />
@@ -109,7 +111,10 @@ export function BottomNav() {
               setMoreOpen(true);
             }}
           >
-            <BottomNavItemContent icon={MoreHorizontalIcon} label="More" />
+            <BottomNavItemContent
+              icon={MoreHorizontalIcon}
+              label={t("bottomNav.more")}
+            />
           </button>
         </div>
       </nav>
@@ -120,9 +125,9 @@ export function BottomNav() {
           className="rounded-t-xl pb-[env(safe-area-inset-bottom)]"
         >
           <SheetHeader>
-            <SheetTitle>More</SheetTitle>
+            <SheetTitle>{t("bottomNav.moreSheetTitle")}</SheetTitle>
             <SheetDescription>
-              Units, reports, and settings
+              {t("bottomNav.moreSheetDescription")}
             </SheetDescription>
           </SheetHeader>
 
@@ -137,7 +142,7 @@ export function BottomNav() {
                 }}
               >
                 <item.icon />
-                <span className="truncate">{item.title}</span>
+                <span className="truncate">{t(item.titleKey)}</span>
               </NavLink>
             ))}
           </div>

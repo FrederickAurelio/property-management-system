@@ -3,12 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UnitStatus } from "@cabin/api-contract";
-import {
-  LayoutGridIcon,
-  ListIcon,
-  PlusIcon,
-  SearchIcon,
-} from "lucide-react";
+import { LayoutGridIcon, ListIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -64,17 +60,18 @@ function ViewModeToggle({
   value: ExplorerView;
   onChange: (view: ExplorerView) => void;
 }) {
+  const { t } = useTranslation(["inventory", "common"]);
   return (
     <div
       role="group"
-      aria-label="View mode"
+      aria-label={t("inventory:explorer.viewMode.groupAria")}
       className="inline-flex h-8 items-center rounded-lg border border-border bg-background p-0.5"
     >
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="List view"
+            aria-label={t("inventory:explorer.viewMode.listAria")}
             aria-pressed={value === "list"}
             onClick={() => {
               onChange("list");
@@ -87,13 +84,13 @@ function ViewModeToggle({
             <ListIcon className="size-3.5" />
           </button>
         </TooltipTrigger>
-        <TooltipContent>List</TooltipContent>
+        <TooltipContent>{t("inventory:explorer.viewMode.list")}</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="Grid view"
+            aria-label={t("inventory:explorer.viewMode.gridAria")}
             aria-pressed={value === "grid"}
             onClick={() => {
               onChange("grid");
@@ -106,7 +103,7 @@ function ViewModeToggle({
             <LayoutGridIcon className="size-3.5" />
           </button>
         </TooltipTrigger>
-        <TooltipContent>Grid</TooltipContent>
+        <TooltipContent>{t("inventory:explorer.viewMode.grid")}</TooltipContent>
       </Tooltip>
     </div>
   );
@@ -125,6 +122,7 @@ export function ExplorerToolbar({
   canManage = true,
   onCreate,
 }: ExplorerToolbarProps) {
+  const { t } = useTranslation(["inventory", "common"]);
   const { propertyId, unitTypeId } = useParams();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -153,8 +151,7 @@ export function ExplorerToolbar({
       return undefined;
     }
     return (
-      navState.propertyName ??
-      findStaffPropertyName(queryClient, propertyId)
+      navState.propertyName ?? findStaffPropertyName(queryClient, propertyId)
     );
   }, [propertyId, layer, navState.propertyName, queryClient]);
 
@@ -163,16 +160,14 @@ export function ExplorerToolbar({
       return undefined;
     }
     return (
-      navState.unitTypeName ??
-      findStaffUnitTypeName(queryClient, unitTypeId)
+      navState.unitTypeName ?? findStaffUnitTypeName(queryClient, unitTypeId)
     );
   }, [unitTypeId, layer, navState.unitTypeName, queryClient]);
 
   const propertyQuery = useQuery({
     queryKey: staffPropertyQueryKey(propertyId ?? ""),
     queryFn: () => getProperty(propertyId!),
-    enabled:
-      Boolean(propertyId) && layer !== "properties" && !propertyNameHint,
+    enabled: Boolean(propertyId) && layer !== "properties" && !propertyNameHint,
   });
 
   const unitTypeQuery = useQuery({
@@ -181,14 +176,11 @@ export function ExplorerToolbar({
     enabled: Boolean(unitTypeId) && layer === "units" && !unitTypeNameHint,
   });
 
-  const propertyName =
-    propertyQuery.data?.name ?? propertyNameHint ?? "…";
-  const unitTypeName =
-    unitTypeQuery.data?.name ?? unitTypeNameHint ?? "…";
+  const propertyName = propertyQuery.data?.name ?? propertyNameHint ?? "…";
+  const unitTypeName = unitTypeQuery.data?.name ?? unitTypeNameHint ?? "…";
 
   const propertyCrumbState: ExplorerNavState = {
-    propertyName:
-      propertyName !== "…" ? propertyName : navState.propertyName,
+    propertyName: propertyName !== "…" ? propertyName : navState.propertyName,
   };
 
   return (
@@ -197,10 +189,14 @@ export function ExplorerToolbar({
         <BreadcrumbList className="gap-2 text-base [&_[data-slot=breadcrumb-separator]>svg]:size-4">
           <BreadcrumbItem>
             {layer === "properties" ? (
-              <BreadcrumbPage>Properties</BreadcrumbPage>
+              <BreadcrumbPage>
+                {t("inventory:explorer.breadcrumbProperties")}
+              </BreadcrumbPage>
             ) : (
               <BreadcrumbLink asChild>
-                <Link to="/properties">Properties</Link>
+                <Link to="/properties">
+                  {t("inventory:explorer.breadcrumbProperties")}
+                </Link>
               </BreadcrumbLink>
             )}
           </BreadcrumbItem>
@@ -251,12 +247,12 @@ export function ExplorerToolbar({
             }}
             placeholder={
               layer === "properties"
-                ? "Search properties…"
+                ? t("inventory:explorer.searchPlaceholder.properties")
                 : layer === "types"
-                  ? "Search types…"
-                  : "Search units…"
+                  ? t("inventory:explorer.searchPlaceholder.types")
+                  : t("inventory:explorer.searchPlaceholder.units")
             }
-            aria-label="Search"
+            aria-label={t("inventory:explorer.searchAria")}
           />
         </InputGroup>
 
@@ -269,15 +265,23 @@ export function ExplorerToolbar({
               }}
             >
               <SelectTrigger className="w-[9.5rem]" size="sm">
-                <SelectValue placeholder="Status" />
+                <SelectValue
+                  placeholder={t("inventory:explorer.statusPlaceholder")}
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value={UnitStatus.ACTIVE}>Active</SelectItem>
-                  <SelectItem value={UnitStatus.INACTIVE}>Inactive</SelectItem>
+                  <SelectItem value="all">
+                    {t("inventory:explorer.statusAll")}
+                  </SelectItem>
+                  <SelectItem value={UnitStatus.ACTIVE}>
+                    {t("inventory:status.unit.active")}
+                  </SelectItem>
+                  <SelectItem value={UnitStatus.INACTIVE}>
+                    {t("inventory:status.unit.inactive")}
+                  </SelectItem>
                   <SelectItem value={UnitStatus.MAINTENANCE}>
-                    Maintenance
+                    {t("inventory:status.unit.maintenance")}
                   </SelectItem>
                 </SelectGroup>
               </SelectContent>

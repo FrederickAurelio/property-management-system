@@ -29,16 +29,13 @@ export async function getStaffReportsSummary(
     return buildReportsFixture(params);
   }
 
-  const { data } = await api.get<StaffReportsSummary>(
-    "/reports/summary",
-    {
-      params: {
-        propertyId: params.propertyId,
-        from: params.from,
-        to: params.to,
-        compare: params.compare === false ? 0 : 1,
-      },
+  const { data } = await api.get<StaffReportsSummary>("/reports/summary", {
+    params: {
+      propertyId: params.propertyId,
+      from: params.from,
+      to: params.to,
+      compare: params.compare === false ? 0 : 1,
     },
-  );
+  });
   return data;
 }

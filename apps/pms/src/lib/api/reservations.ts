@@ -110,19 +110,14 @@ export async function listReservations(
 }
 
 export async function getReservation(id: string): Promise<StaffReservation> {
-  const { data } = await api.get<StaffReservation>(
-    `/reservations/${id}`,
-  );
+  const { data } = await api.get<StaffReservation>(`/reservations/${id}`);
   return data;
 }
 
 export async function createReservation(
   input: CreateReservationInput,
 ): Promise<StaffReservation> {
-  const { data } = await api.post<StaffReservation>(
-    "/reservations",
-    input,
-  );
+  const { data } = await api.post<StaffReservation>("/reservations", input);
   return data;
 }
 

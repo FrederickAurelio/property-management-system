@@ -44,10 +44,7 @@ export async function changeAdminRole(
   id: string,
   input: { role: AdminRole; currentPassword: string },
 ): Promise<StaffAdmin> {
-  const { data } = await api.patch<StaffAdmin>(
-    `/admins/${id}/role`,
-    input,
-  );
+  const { data } = await api.patch<StaffAdmin>(`/admins/${id}/role`, input);
   return data;
 }
 
@@ -55,9 +52,6 @@ export async function setAdminActive(
   id: string,
   input: { isActive: boolean; currentPassword: string },
 ): Promise<StaffAdmin> {
-  const { data } = await api.patch<StaffAdmin>(
-    `/admins/${id}/active`,
-    input,
-  );
+  const { data } = await api.patch<StaffAdmin>(`/admins/${id}/active`, input);
   return data;
 }

@@ -7,6 +7,7 @@ import {
   type StaffCalendarUnit,
   type StaffPropertyCalendar,
 } from "@cabin/api-contract";
+import { useTranslation } from "react-i18next";
 import { STICKY_LABEL_COL_CSS } from "@/lib/sticky-label-col";
 import { cn } from "@/lib/utils";
 import { CalendarBlockBar } from "./calendar-block-bar";
@@ -44,6 +45,7 @@ export function CalendarGrid({
   onBlockClick,
   onEmptyRange,
 }: CalendarGridProps) {
+  const { t } = useTranslation("calendar");
   const days = useMemo(
     () => eachDayYmd(data.from, data.to),
     [data.from, data.to],
@@ -123,7 +125,7 @@ export function CalendarGrid({
           }}
         >
           <div className="sticky left-0 z-30 flex min-w-0 items-end border-r border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground">
-            Unit
+            {t("calendar:grid.unitColumn")}
           </div>
           <div
             className="grid"
@@ -142,7 +144,7 @@ export function CalendarGrid({
                     isToday && "bg-primary/5",
                   )}
                 >
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <span className="text-[10px] tracking-wide text-muted-foreground uppercase">
                     {weekday}
                   </span>
                   <span
@@ -199,7 +201,9 @@ export function CalendarGrid({
                     </span>
                     {!bookable && (
                       <span className="shrink-0 rounded border border-border px-1 text-[10px] text-muted-foreground">
-                        {unit.status === "MAINTENANCE" ? "Maint." : "Off"}
+                        {unit.status === "MAINTENANCE"
+                          ? t("calendar:grid.maintenance")
+                          : t("calendar:grid.off")}
                       </span>
                     )}
                   </div>

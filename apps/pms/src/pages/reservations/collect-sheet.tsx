@@ -12,7 +12,9 @@ import {
 } from "@cabin/api-contract";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 import { Button } from "@/components/ui/button";
@@ -62,42 +64,17 @@ function emptyFormValues(): FormValues {
   };
 }
 
-type CollectSheetProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  reservation: StaffReservation;
-};
-
-export function CollectSheet({
-  open,
-  onOpenChange,
-  reservation,
-}: CollectSheetProps) {
-  const queryClient = useQueryClient();
-  const due = balanceDueIdr(
-    reservation.totalAmountIdr,
-    reservation.paidAmountIdr,
-  );
-  const refund = refundDueIdr(
-    reservation.totalAmountIdr,
-    reservation.paidAmountIdr,
-  );
-  const mode: "collect" | "refund" | "settled" =
-    refund != null && refund > 0
-      ? "refund"
-      : due != null && due > 0
-        ? "collect"
-        : "settled";
-  const maxAmount =
-    mode === "refund"
-      ? (refund ?? 0)
-      : mode === "collect"
-        ? (due ?? 0)
-        : 0;
-
-  const schema = z
+function createCollectSchema(
+  t: TFunction,
+  mode: "collect" | "refund" | "settled",
+  totalAmountIdr: number | null,
+  maxAmount: number,
+) {
+  return z
     .object({
-      amountDigits: z.string().min(1, "Amount is required"),
+      amountDigits: z
+        .string()
+        .min(1, t("reservations:collectSheet.zod.amountRequired")),
       method: z.enum([
         METHOD_NONE,
         CollectedVia.PROPERTY,
@@ -114,15 +91,15 @@ export function CollectSheet({
         ctx.addIssue({
           code: "custom",
           path: ["amountDigits"],
-          message: "Nothing to collect or refund",
+          message: t("reservations:collectSheet.zod.nothingToDo"),
         });
         return;
       }
-      if (reservation.totalAmountIdr == null && mode === "collect") {
+      if (totalAmountIdr == null && mode === "collect") {
         ctx.addIssue({
           code: "custom",
           path: ["amountDigits"],
-          message: "Set Total on Edit stay before collecting",
+          message: t("reservations:collectSheet.zod.setTotalFirst"),
         });
         return;
       }
@@ -131,7 +108,7 @@ export function CollectSheet({
         ctx.addIssue({
           code: "custom",
           path: ["amountDigits"],
-          message: "Enter an amount greater than 0",
+          message: t("reservations:collectSheet.zod.amountAboveZero"),
         });
         return;
       }
@@ -139,10 +116,48 @@ export function CollectSheet({
         ctx.addIssue({
           code: "custom",
           path: ["amountDigits"],
-          message: `Cannot exceed ${maxAmount.toLocaleString("id-ID")}`,
+          message: t("reservations:collectSheet.zod.cannotExceed", {
+            max: maxAmount.toLocaleString("id-ID"),
+          }),
         });
       }
     });
+}
+
+type CollectSheetProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  reservation: StaffReservation;
+};
+
+export function CollectSheet({
+  open,
+  onOpenChange,
+  reservation,
+}: CollectSheetProps) {
+  const { t } = useTranslation(["reservations", "common"]);
+  const queryClient = useQueryClient();
+  const due = balanceDueIdr(
+    reservation.totalAmountIdr,
+    reservation.paidAmountIdr,
+  );
+  const refund = refundDueIdr(
+    reservation.totalAmountIdr,
+    reservation.paidAmountIdr,
+  );
+  const mode: "collect" | "refund" | "settled" =
+    refund != null && refund > 0
+      ? "refund"
+      : due != null && due > 0
+        ? "collect"
+        : "settled";
+  const maxAmount =
+    mode === "refund" ? (refund ?? 0) : mode === "collect" ? (due ?? 0) : 0;
+
+  const schema = useMemo(
+    () => createCollectSchema(t, mode, reservation.totalAmountIdr, maxAmount),
+    [t, mode, reservation.totalAmountIdr, maxAmount],
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
@@ -190,13 +205,17 @@ export function CollectSheet({
         paidAmountIdr: nextPaid,
       }),
     };
-  }, [amountDigits, mode, reservation.paidAmountIdr, reservation.totalAmountIdr]);
+  }, [
+    amountDigits,
+    mode,
+    reservation.paidAmountIdr,
+    reservation.totalAmountIdr,
+  ]);
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {
       const amount = Number(values.amountDigits);
-      const method =
-        values.method === METHOD_NONE ? null : values.method;
+      const method = values.method === METHOD_NONE ? null : values.method;
       if (mode === "collect") {
         const isFullChannelSettle =
           method === CollectedVia.CHANNEL &&
@@ -225,7 +244,11 @@ export function CollectSheet({
     onSuccess: (saved) => {
       form.reset(emptyFormValues());
       syncReservationCaches(queryClient, saved);
-      handleSuccess(mode === "refund" ? "Refund recorded" : "Payment collected");
+      handleSuccess(
+        mode === "refund"
+          ? t("reservations:collectSheet.toastRefundRecorded")
+          : t("reservations:collectSheet.toastPaymentCollected"),
+      );
       onOpenChange(false);
     },
     onError: (error) => {
@@ -235,16 +258,14 @@ export function CollectSheet({
 
   const title =
     mode === "refund"
-      ? "Refund"
-      : mode === "collect"
-        ? "Collect"
-        : "Collect";
+      ? t("reservations:collectSheet.titleRefund")
+      : t("reservations:collectSheet.titleCollect");
   const description =
     mode === "refund"
-      ? "Record cash returned to the guest. Paid updates from the cash timeline."
+      ? t("reservations:collectSheet.descriptionRefund")
       : mode === "collect"
-        ? "Record cash received. Change Total on Edit stay if the quote changed."
-        : "Paid already matches Total. Change Total on Edit stay if the quote changed.";
+        ? t("reservations:collectSheet.descriptionCollect")
+        : t("reservations:collectSheet.descriptionSettled");
 
   return (
     <ResponsiveFormShell
@@ -262,7 +283,7 @@ export function CollectSheet({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t("reservations:collectSheet.cancel")}
           </Button>
           <Button
             type="submit"
@@ -270,10 +291,10 @@ export function CollectSheet({
             disabled={saveMutation.isPending || mode === "settled"}
           >
             {saveMutation.isPending
-              ? "Saving…"
+              ? t("reservations:collectSheet.saving")
               : mode === "refund"
-                ? "Record refund"
-                : "Record collection"}
+                ? t("reservations:collectSheet.recordRefund")
+                : t("reservations:collectSheet.recordCollection")}
           </Button>
         </>
       }
@@ -287,7 +308,9 @@ export function CollectSheet({
       >
         <div className="rounded-lg border border-border bg-muted/30 px-3 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium">After this movement</p>
+            <p className="text-sm font-medium">
+              {t("reservations:collectSheet.afterMovement")}
+            </p>
             <ReservationBadge
               label={formatPaymentStatus(preview.status)}
               tone={paymentBadgeTone(preview.status)}
@@ -295,24 +318,28 @@ export function CollectSheet({
           </div>
           <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
             <div>
-              <dt className="text-xs text-muted-foreground">Total</dt>
-              <dd className="mt-0.5 tabular-nums font-medium">
+              <dt className="text-xs text-muted-foreground">
+                {t("reservations:collectSheet.total")}
+              </dt>
+              <dd className="mt-0.5 font-medium tabular-nums">
                 {formatMoneyOrDash(reservation.totalAmountIdr)}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Paid</dt>
-              <dd className="mt-0.5 tabular-nums font-medium">
+              <dt className="text-xs text-muted-foreground">
+                {t("reservations:collectSheet.paid")}
+              </dt>
+              <dd className="mt-0.5 font-medium tabular-nums">
                 {formatMoneyOrDash(preview.paid)}
               </dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">
                 {preview.refund != null && preview.refund > 0
-                  ? "Refund"
-                  : "Due"}
+                  ? t("reservations:collectSheet.refund")
+                  : t("reservations:collectSheet.due")}
               </dt>
-              <dd className="mt-0.5 tabular-nums font-medium">
+              <dd className="mt-0.5 font-medium tabular-nums">
                 {formatMoneyOrDash(
                   preview.refund != null && preview.refund > 0
                     ? preview.refund
@@ -321,12 +348,13 @@ export function CollectSheet({
               </dd>
             </div>
           </dl>
-          {mode === "refund" ? (
+          {mode === "refund" && (
             <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
-              Guest overpaid by {formatIdr(refund ?? 0)}. Refund up to that
-              amount.
+              {t("reservations:collectSheet.overpaidHint", {
+                amount: formatIdr(refund ?? 0),
+              })}
             </p>
-          ) : null}
+          )}
         </div>
 
         <FieldGroup>
@@ -336,7 +364,9 @@ export function CollectSheet({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="cash-amount">
-                  {mode === "refund" ? "Refund amount (IDR)" : "Collect amount (IDR)"}
+                  {mode === "refund"
+                    ? t("reservations:collectSheet.refundAmountLabel")
+                    : t("reservations:collectSheet.collectAmountLabel")}
                 </FieldLabel>
                 <IdrAmountInput
                   id="cash-amount"
@@ -345,7 +375,9 @@ export function CollectSheet({
                   disabled={mode === "settled"}
                   placeholder={
                     maxAmount > 0
-                      ? `Max ${formatMoneyOrDash(maxAmount)}`
+                      ? t("reservations:collectSheet.maxAmountPlaceholder", {
+                          amount: formatMoneyOrDash(maxAmount),
+                        })
                       : undefined
                   }
                   value={field.value}
@@ -355,7 +387,7 @@ export function CollectSheet({
                   name={field.name}
                   ref={field.ref}
                 />
-                {maxAmount > 0 ? (
+                {maxAmount > 0 && (
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
@@ -369,11 +401,15 @@ export function CollectSheet({
                       }}
                     >
                       {mode === "refund"
-                        ? `Full refund (${formatIdr(maxAmount)})`
-                        : `Collect full Due (${formatIdr(maxAmount)})`}
+                        ? t("reservations:collectSheet.fullRefundButton", {
+                            amount: formatIdr(maxAmount),
+                          })
+                        : t("reservations:collectSheet.collectFullDueButton", {
+                            amount: formatIdr(maxAmount),
+                          })}
                     </Button>
                   </div>
-                ) : null}
+                )}
                 <FieldError errors={[fieldState.error]} />
               </Field>
             )}
@@ -384,25 +420,35 @@ export function CollectSheet({
             name="method"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel>Via</FieldLabel>
+                <FieldLabel>
+                  {t("reservations:collectSheet.viaLabel")}
+                </FieldLabel>
                 <Select
                   value={field.value}
                   onValueChange={field.onChange}
                   disabled={mode === "settled"}
                 >
                   <SelectTrigger aria-invalid={fieldState.invalid}>
-                    <SelectValue placeholder="Where cash moved" />
+                    <SelectValue
+                      placeholder={t(
+                        "reservations:collectSheet.viaPlaceholder",
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value={METHOD_NONE}>Not set</SelectItem>
+                      <SelectItem value={METHOD_NONE}>
+                        {t("reservations:collectSheet.viaOptions.notSet")}
+                      </SelectItem>
                       <SelectItem value={CollectedVia.PROPERTY}>
-                        Property
+                        {t("reservations:collectSheet.viaOptions.property")}
                       </SelectItem>
                       <SelectItem value={CollectedVia.CHANNEL}>
-                        Channel
+                        {t("reservations:collectSheet.viaOptions.channel")}
                       </SelectItem>
-                      <SelectItem value={CollectedVia.MIXED}>Mixed</SelectItem>
+                      <SelectItem value={CollectedVia.MIXED}>
+                        {t("reservations:collectSheet.viaOptions.mixed")}
+                      </SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
@@ -416,14 +462,16 @@ export function CollectSheet({
             name="note"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="cash-note">Note</FieldLabel>
+                <FieldLabel htmlFor="cash-note">
+                  {t("reservations:collectSheet.noteLabel")}
+                </FieldLabel>
                 <Textarea
                   id="cash-note"
                   rows={2}
                   maxLength={PAYMENT_MOVEMENT_NOTE_MAX}
                   aria-invalid={fieldState.invalid}
                   disabled={mode === "settled"}
-                  placeholder="Optional — receipt #, who paid…"
+                  placeholder={t("reservations:collectSheet.notePlaceholder")}
                   {...field}
                 />
                 <FieldError errors={[fieldState.error]} />

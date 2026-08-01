@@ -8,6 +8,7 @@ import {
 } from "@cabin/api-contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { InfiniteListFooter } from "@/components/infinite-list-footer";
 import { QueryErrorPanel } from "@/components/query-error-panel";
@@ -105,8 +106,7 @@ const ReservationRowCells = memo(function ReservationRowCells({
       <TableCell
         className={cn(
           "tabular-nums",
-          openMoney.kind === "refund" &&
-            "text-amber-800 dark:text-amber-200",
+          openMoney.kind === "refund" && "text-amber-800 dark:text-amber-200",
           (openMoney.kind === "settled" || openMoney.kind === "closed") &&
             "text-muted-foreground",
         )}
@@ -153,7 +153,9 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="inline-flex max-w-full items-center gap-1.5">
-            <span className="truncate text-sm font-medium">{row.guestName}</span>
+            <span className="truncate text-sm font-medium">
+              {row.guestName}
+            </span>
             {lateCue ? (
               <ReservationBadge
                 label={formatReservationLateCue(lateCue)}
@@ -165,16 +167,17 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {row.unitCode}
             <span className="text-border"> · </span>
-            {formatStayRange(row.checkInDate, row.checkOutDate, row.billingPeriod)}
+            {formatStayRange(
+              row.checkInDate,
+              row.checkOutDate,
+              row.billingPeriod,
+            )}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           {row.icalSyncWarning && (
             <span className="inline-flex max-w-[9rem] items-center gap-1 text-amber-800 dark:text-amber-200">
-              <AlertTriangleIcon
-                className="size-3.5 shrink-0"
-                aria-hidden
-              />
+              <AlertTriangleIcon className="size-3.5 shrink-0" aria-hidden />
               <span className="truncate text-[11px] leading-tight">
                 {formatIcalWarning(row.icalSyncWarning, row.source)}
               </span>
@@ -194,8 +197,7 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
         <p
           className={cn(
             "shrink-0 text-xs tabular-nums",
-            openMoney.kind === "refund" &&
-              "text-amber-800 dark:text-amber-200",
+            openMoney.kind === "refund" && "text-amber-800 dark:text-amber-200",
             (openMoney.kind === "settled" || openMoney.kind === "closed") &&
               "text-muted-foreground",
             openMoney.kind === "due" && "text-foreground",
@@ -209,6 +211,7 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
 });
 
 export function ReservationsPage() {
+  const { t } = useTranslation(["reservations", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -334,9 +337,11 @@ export function ReservationsPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight">Reservations</h1>
+          <h1 className="text-lg font-semibold tracking-tight">
+            {t("reservations:list.title")}
+          </h1>
           <p className="mt-0.5 hidden text-sm text-muted-foreground sm:block">
-            Desk boards — status, source, and money always visible.
+            {t("reservations:list.subtitle")}
           </p>
         </div>
         <Button
@@ -348,7 +353,7 @@ export function ReservationsPage() {
           }}
         >
           <PlusIcon data-icon="inline-start" />
-          New reservation
+          {t("reservations:list.newReservation")}
         </Button>
       </div>
 
@@ -379,10 +384,10 @@ export function ReservationsPage() {
               ? listQuery.error.message.includes(
                   "does not exist in the current database",
                 )
-                ? "Database is out of date — run prisma migrate, then restart the API."
+                ? t("reservations:list.errors.migrationNeeded")
                 : listQuery.error.message.split("\n")[0] ||
-                  "Couldn’t load reservations. Try again."
-              : "Couldn’t load reservations. Try again."
+                  t("reservations:list.errors.generic")
+              : t("reservations:list.errors.generic")
           }
           onRetry={() => {
             void listQuery.refetch();
@@ -399,17 +404,17 @@ export function ReservationsPage() {
             </EmptyMedia>
             <EmptyTitle>
               {board === "ical-alerts"
-                ? "No OTA issues"
+                ? t("reservations:list.empty.icalAlertsTitle")
                 : board === "needs-details"
-                  ? "No stays need details"
-                  : "No reservations on this board"}
+                  ? t("reservations:list.empty.needsDetailsTitle")
+                  : t("reservations:list.empty.defaultTitle")}
             </EmptyTitle>
             <EmptyDescription>
               {board === "ical-alerts"
-                ? "When an OTA calendar disagrees with a stay, it shows up here — open a row to fix it."
+                ? t("reservations:list.empty.icalAlertsDescription")
                 : board === "needs-details"
-                  ? "New OTA stubs land here until guest details and Total are filled, then Confirm."
-                  : "Try another board or clear filters. Create a walk-in to get started."}
+                  ? t("reservations:list.empty.needsDetailsDescription")
+                  : t("reservations:list.empty.defaultDescription")}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -437,21 +442,29 @@ export function ReservationsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Guest</TableHead>
-                    <TableHead>Unit</TableHead>
-                    <TableHead>Dates</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead title="Stay quote">Total</TableHead>
-                    <TableHead title="Cash received so far">Paid</TableHead>
-                    <TableHead title="Guest owes, or Refund if overpaid">
-                      Due
+                    <TableHead>{t("reservations:list.table.guest")}</TableHead>
+                    <TableHead>{t("reservations:list.table.unit")}</TableHead>
+                    <TableHead>{t("reservations:list.table.dates")}</TableHead>
+                    <TableHead>{t("reservations:list.table.status")}</TableHead>
+                    <TableHead>{t("reservations:list.table.source")}</TableHead>
+                    <TableHead title={t("reservations:list.table.totalTitle")}>
+                      {t("reservations:list.table.total")}
+                    </TableHead>
+                    <TableHead title={t("reservations:list.table.paidTitle")}>
+                      {t("reservations:list.table.paid")}
+                    </TableHead>
+                    <TableHead title={t("reservations:list.table.dueTitle")}>
+                      {t("reservations:list.table.due")}
                     </TableHead>
                     <TableHead className="w-10">
-                      <span className="sr-only">Warning</span>
+                      <span className="sr-only">
+                        {t("reservations:list.table.warningSr")}
+                      </span>
                     </TableHead>
                     <TableHead className="w-0 p-0">
-                      <span className="sr-only">Open</span>
+                      <span className="sr-only">
+                        {t("reservations:list.table.openSr")}
+                      </span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -474,7 +487,10 @@ export function ReservationsPage() {
                             to={`/reservations/${row.id}`}
                             state={reservationListStateFromSearch(listSearch)}
                             className="absolute inset-0"
-                            aria-label={`Open reservation for ${row.guestName}`}
+                            aria-label={t(
+                              "reservations:list.openReservationFor",
+                              { guest: row.guestName },
+                            )}
                           />
                         </TableCell>
                       </TableRow>

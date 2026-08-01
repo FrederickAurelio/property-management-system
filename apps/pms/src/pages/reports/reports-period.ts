@@ -1,8 +1,6 @@
 import { format } from "date-fns";
-import {
-  inclusiveDayCount,
-  previousEqualPeriod,
-} from "@cabin/api-contract";
+import { inclusiveDayCount, previousEqualPeriod } from "@cabin/api-contract";
+import i18n from "@/i18n";
 
 export { inclusiveDayCount, previousEqualPeriod };
 
@@ -48,21 +46,25 @@ export function lastNDaysInclusive(
   return { from: addDaysLocalYmd(today, -(n - 1)), to: today };
 }
 
-export type ReportsPeriodPresetId =
-  | "mtd"
-  | "last-month"
-  | "last-7"
-  | "last-30";
+export type ReportsPeriodPresetId = "mtd" | "last-month" | "last-7" | "last-30";
 
-export const REPORTS_PERIOD_PRESETS: {
-  id: ReportsPeriodPresetId;
-  label: string;
-}[] = [
-  { id: "mtd", label: "This month" },
-  { id: "last-month", label: "Last month" },
-  { id: "last-7", label: "Last 7 days" },
-  { id: "last-30", label: "Last 30 days" },
+export const REPORTS_PERIOD_PRESETS: { id: ReportsPeriodPresetId }[] = [
+  { id: "mtd" },
+  { id: "last-month" },
+  { id: "last-7" },
+  { id: "last-30" },
 ];
+
+const PRESET_LABEL_KEY: Record<ReportsPeriodPresetId, string> = {
+  mtd: "mtd",
+  "last-month": "lastMonth",
+  "last-7": "last7",
+  "last-30": "last30",
+};
+
+export function reportsPeriodPresetLabel(id: ReportsPeriodPresetId): string {
+  return i18n.t(`reports:filterBar.presets.${PRESET_LABEL_KEY[id]}`);
+}
 
 export function rangeForPreset(
   id: ReportsPeriodPresetId,
@@ -124,7 +126,8 @@ export function formatPeriodChrome(
   compareWindow: { from: string; to: string } | null,
 ): string {
   const days = inclusiveDayCount(from, to);
-  const dayLabel = `${days} day${days === 1 ? "" : "s"}`;
+  const dayLabel = i18n.t("reports:filterBar.chromeDays", { count: days });
   if (!compareWindow) return dayLabel;
-  return `${dayLabel} · vs ${formatInclusiveRangeLabel(compareWindow.from, compareWindow.to)}`;
+  const range = formatInclusiveRangeLabel(compareWindow.from, compareWindow.to);
+  return `${dayLabel} · ${i18n.t("reports:filterBar.chromeVs", { range })}`;
 }

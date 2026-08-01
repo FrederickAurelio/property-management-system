@@ -1,4 +1,5 @@
 /* anchor: Linear-dense exception card, diverge: pick-one + ordered steps + one primary CTA */
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import type { IcalPlaybook, IcalPlaybookPrimaryKind } from "./ical-playbooks";
 
@@ -17,6 +18,7 @@ export function IcalPlaybookCard({
   onPrimary,
   onDismiss,
 }: IcalPlaybookCardProps) {
+  const { t } = useTranslation("ota");
   const primaryKind = playbook.primaryKind;
 
   return (
@@ -34,7 +36,7 @@ export function IcalPlaybookCard({
 
       {playbook.pickOne && playbook.pickOne.length > 0 && (
         <div className="text-sm">
-          <p className="font-medium">Pick one</p>
+          <p className="font-medium">{t("ota:playbooks.card.pickOneLabel")}</p>
           <ul className="mt-1 list-disc space-y-1 pl-4">
             {playbook.pickOne.map((line) => (
               <li key={line}>{line}</li>
@@ -45,16 +47,20 @@ export function IcalPlaybookCard({
 
       <ol className="list-decimal space-y-1.5 pl-4 text-sm">
         <li>
-          <span className="font-medium">Check on {channelLabel}: </span>
+          <span className="font-medium">
+            {t("ota:playbooks.card.checkOnChannel", { channel: channelLabel })}
+          </span>
           {playbook.verify}
         </li>
         <li>
-          <span className="font-medium">In Cabin: </span>
+          <span className="font-medium">{t("ota:playbooks.card.inCabin")}</span>
           {playbook.cabin}
         </li>
         {playbook.otaRequired && playbook.otaStep && (
           <li>
-            <span className="font-medium">On {channelLabel}: </span>
+            <span className="font-medium">
+              {t("ota:playbooks.card.onChannel", { channel: channelLabel })}
+            </span>
             {playbook.otaStep}
           </li>
         )}

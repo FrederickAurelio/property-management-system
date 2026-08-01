@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 import type { StaffUnitType } from "@cabin/api-contract";
 import { LayersIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { InfiniteListFooter } from "@/components/infinite-list-footer";
 import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ import { countAmenities, formatBedSummary } from "./amenity-catalog";
 import { UnitTypeFormDialog } from "./unit-type-form-dialog";
 
 export function UnitTypesPage() {
+  const { t } = useTranslation(["inventory", "common"]);
   const { propertyId = "" } = useParams();
   const location = useLocation();
   const { canManage } = useInventoryAccess();
@@ -68,9 +70,7 @@ export function UnitTypesPage() {
   const propertyNameHint = useMemo(
     () =>
       navState.propertyName ??
-      (propertyId
-        ? findStaffPropertyName(queryClient, propertyId)
-        : undefined),
+      (propertyId ? findStaffPropertyName(queryClient, propertyId) : undefined),
     [navState.propertyName, propertyId, queryClient],
   );
 
@@ -80,10 +80,8 @@ export function UnitTypesPage() {
     enabled: Boolean(propertyId) && !propertyNameHint,
   });
 
-  const propertyReady =
-    Boolean(propertyNameHint) || propertyQuery.isSuccess;
-  const propertyName =
-    propertyQuery.data?.name ?? propertyNameHint ?? "…";
+  const propertyReady = Boolean(propertyNameHint) || propertyQuery.isSuccess;
+  const propertyName = propertyQuery.data?.name ?? propertyNameHint ?? "…";
 
   const listFilters = useMemo(() => ({ q: q.trim() || undefined }), [q]);
 
@@ -102,7 +100,9 @@ export function UnitTypesPage() {
     onSuccess: (_data, variables) => {
       setDeleteTarget(null);
       invalidateInventoryCaches(queryClient);
-      handleSuccess(`Deleted ${variables.name}`);
+      handleSuccess(
+        t("inventory:unitTypes.page.deletedToast", { name: variables.name }),
+      );
     },
     onError: (error) => {
       handleError(error);
@@ -129,7 +129,7 @@ export function UnitTypesPage() {
       <>
         <ExplorerToolbar
           layer="types"
-          createLabel="Add type"
+          createLabel={t("inventory:unitTypes.page.addLabel")}
           canManage={false}
           onCreate={() => undefined}
         />
@@ -143,12 +143,12 @@ export function UnitTypesPage() {
       <>
         <ExplorerToolbar
           layer="types"
-          createLabel="Add type"
+          createLabel={t("inventory:unitTypes.page.addLabel")}
           canManage={false}
           onCreate={() => undefined}
         />
         <QueryErrorPanel
-          message="Couldn’t load this property. Check your connection and try again."
+          message={t("inventory:unitTypes.page.loadPropertyError")}
           onRetry={() => {
             void propertyQuery.refetch();
           }}
@@ -173,7 +173,7 @@ export function UnitTypesPage() {
     <>
       <ExplorerToolbar
         layer="types"
-        createLabel="Add type"
+        createLabel={t("inventory:unitTypes.page.addLabel")}
         canManage={canManage}
         onCreate={openCreate}
       />
@@ -182,7 +182,7 @@ export function UnitTypesPage() {
 
       {listQuery.isError && !listQuery.data && (
         <QueryErrorPanel
-          message="Couldn’t load unit types. Check your connection and try again."
+          message={t("inventory:unitTypes.page.loadListError")}
           onRetry={() => {
             void listQuery.refetch();
           }}
@@ -197,18 +197,22 @@ export function UnitTypesPage() {
               <LayersIcon />
             </EmptyMedia>
             <EmptyTitle>
-              {q ? "No matching types" : "No unit types yet"}
+              {q
+                ? t("inventory:unitTypes.page.emptyTitleFiltered")
+                : t("inventory:unitTypes.page.emptyTitle")}
             </EmptyTitle>
             <EmptyDescription>
               {q
-                ? "Try a different search."
-                : `Add types for ${propertyName} — shared beds, size, and guest limits.`}
+                ? t("inventory:unitTypes.page.emptyDescriptionFiltered")
+                : t("inventory:unitTypes.page.emptyDescription", {
+                    propertyName,
+                  })}
             </EmptyDescription>
           </EmptyHeader>
           {!q && canManage && (
             <EmptyContent>
               <Button type="button" size="sm" onClick={openCreate}>
-                Add type
+                {t("inventory:unitTypes.page.addLabel")}
               </Button>
             </EmptyContent>
           )}
@@ -224,14 +228,22 @@ export function UnitTypesPage() {
               const metaParts = [
                 formatLayout(unitType.layout),
                 unitType.sizeSqm != null ? `${unitType.sizeSqm} m²` : null,
-                `Max ${unitType.maxGuests}`,
-                `${formatIdr(unitType.defaultPriceIdr)}/night · ${formatIdr(unitType.monthlyPriceIdr)}/mo`,
+                t("inventory:unitTypes.page.metaMaxGuests", {
+                  count: unitType.maxGuests,
+                }),
+                `${t("inventory:unitTypes.page.metaPricePerNight", { price: formatIdr(unitType.defaultPriceIdr) })} · ${t("inventory:unitTypes.page.metaPricePerMonth", { price: formatIdr(unitType.monthlyPriceIdr) })}`,
                 beds,
                 amenityCount > 0
-                  ? `${amenityCount} amenit${amenityCount === 1 ? "y" : "ies"}`
+                  ? t("inventory:unitTypes.page.metaAmenityCount", {
+                      count: amenityCount,
+                    })
                   : null,
-                unitType.smokingAllowed ? "Smoking OK" : null,
-                `${unitType.unitCount} unit${unitType.unitCount === 1 ? "" : "s"}`,
+                unitType.smokingAllowed
+                  ? t("inventory:unitTypes.page.metaSmokingOk")
+                  : null,
+                t("inventory:unitTypes.page.metaUnitCount", {
+                  count: unitType.unitCount,
+                }),
                 unitType.code,
               ].filter(Boolean);
 
@@ -250,7 +262,10 @@ export function UnitTypesPage() {
                   canManage={canManage}
                   badge={
                     !unitType.isActive && (
-                      <StatusBadge label="Inactive" tone="muted" />
+                      <StatusBadge
+                        label={t("inventory:unitTypes.page.inactiveBadge")}
+                        tone="muted"
+                      />
                     )
                   }
                   onEdit={() => {
@@ -300,21 +315,22 @@ export function UnitTypesPage() {
               setDeleteTarget(null);
             }
           }}
-          title="Delete unit type?"
+          title={t("inventory:unitTypes.page.deleteTitle")}
           description={
-            deleteBlocked ? (
-              <>
-                Cannot delete <strong>{deleteTarget?.name}</strong> while{" "}
-                {deleteUnitCount} unit{deleteUnitCount === 1 ? "" : "s"} still
-                use it. Remove or reassign those units first.
-              </>
-            ) : (
-              <>
-                This permanently removes <strong>{deleteTarget?.name}</strong>.
-              </>
-            )
+            deleteBlocked
+              ? t("inventory:unitTypes.page.deleteDescriptionBlocked", {
+                  count: deleteUnitCount,
+                  name: deleteTarget?.name ?? "",
+                })
+              : t("inventory:unitTypes.page.deleteDescription", {
+                  name: deleteTarget?.name ?? "",
+                })
           }
-          confirmLabel={deleteBlocked ? "Got it" : "Delete"}
+          confirmLabel={
+            deleteBlocked
+              ? t("inventory:unitTypes.page.confirmGotIt")
+              : t("inventory:unitTypes.page.confirmDelete")
+          }
           variant={deleteBlocked ? "default" : "destructive"}
           confirmDisabled={deleteMutation.isPending}
           onConfirm={() => {

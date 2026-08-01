@@ -2,8 +2,10 @@
 import { useId, useState, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { STAFF_PASSWORD_MAX, STAFF_PASSWORD_MIN } from "@cabin/api-contract";
+import type { TFunction } from "i18next";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,20 +25,22 @@ import {
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 
-const reauthSchema = z.object({
-  currentPassword: z
-    .string()
-    .min(
-      STAFF_PASSWORD_MIN,
-      `Password must be at least ${STAFF_PASSWORD_MIN} characters`,
-    )
-    .max(
-      STAFF_PASSWORD_MAX,
-      `Password must be at most ${STAFF_PASSWORD_MAX} characters`,
-    ),
-});
+function createReauthSchema(t: TFunction) {
+  return z.object({
+    currentPassword: z
+      .string()
+      .min(
+        STAFF_PASSWORD_MIN,
+        t("auth:validation.passwordMin", { min: STAFF_PASSWORD_MIN }),
+      )
+      .max(
+        STAFF_PASSWORD_MAX,
+        t("auth:validation.passwordMax", { max: STAFF_PASSWORD_MAX }),
+      ),
+  });
+}
 
-type ReauthValues = z.infer<typeof reauthSchema>;
+type ReauthValues = z.infer<ReturnType<typeof createReauthSchema>>;
 
 type ReauthPasswordDialogProps = {
   open: boolean;
@@ -57,16 +61,19 @@ export function ReauthPasswordDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirm",
+  confirmLabel,
   variant = "default",
   isPending = false,
   serverError = null,
   onClearServerError,
   onConfirm,
 }: ReauthPasswordDialogProps) {
+  const { t } = useTranslation(["settings", "common", "auth"]);
   const passwordId = useId();
   const [showPassword, setShowPassword] = useState(false);
+  const resolvedConfirmLabel = confirmLabel ?? t("common:actions.confirm");
 
+  const reauthSchema = createReauthSchema(t);
   const form = useForm<ReauthValues>({
     resolver: zodResolver(reauthSchema as never),
     defaultValues: { currentPassword: "" },
@@ -105,14 +112,16 @@ export function ReauthPasswordDialog({
 
             return (
               <Field data-invalid={invalid}>
-                <FieldLabel htmlFor={passwordId}>Current password</FieldLabel>
+                <FieldLabel htmlFor={passwordId}>
+                  {t("reauthPasswordDialog.currentPasswordLabel")}
+                </FieldLabel>
                 <InputGroup>
                   <InputGroupInput
                     {...field}
                     id={passwordId}
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
-                    placeholder="••••••••"
+                    placeholder={t("auth:form.passwordPlaceholder")}
                     aria-invalid={invalid}
                     disabled={isPending}
                     className="text-base md:text-sm"
@@ -125,7 +134,9 @@ export function ReauthPasswordDialog({
                     <InputGroupButton
                       size="icon-xs"
                       aria-label={
-                        showPassword ? "Hide password" : "Show password"
+                        showPassword
+                          ? t("auth:form.hidePassword")
+                          : t("auth:form.showPassword")
                       }
                       disabled={isPending}
                       onClick={() => {
@@ -136,9 +147,7 @@ export function ReauthPasswordDialog({
                     </InputGroupButton>
                   </InputGroupAddon>
                 </InputGroup>
-                {invalid && (
-                  <FieldError errors={[{ message }]} />
-                )}
+                {invalid && <FieldError errors={[{ message }]} />}
               </Field>
             );
           }}
@@ -155,7 +164,7 @@ export function ReauthPasswordDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t("common:actions.cancel")}
           </Button>
           <Button
             type="button"
@@ -171,10 +180,10 @@ export function ReauthPasswordDialog({
             {isPending ? (
               <>
                 <Spinner data-icon="inline-start" />
-                Confirming…
+                {t("reauthPasswordDialog.confirming")}
               </>
             ) : (
-              confirmLabel
+              resolvedConfirmLabel
             )}
           </Button>
         </DialogFooter>

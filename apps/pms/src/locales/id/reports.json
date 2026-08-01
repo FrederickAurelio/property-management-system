@@ -1,0 +1,104 @@
+{
+  "page": {
+    "addPropertyFirst": "Tambahkan properti sebelum melihat laporan.",
+    "selectProperty": "Pilih properti untuk melihat laporan.",
+    "invalidRange": "Tanggal Dari harus sebelum atau sama dengan tanggal Sampai.",
+    "loadError": "Laporan periode ini gagal dimuat.",
+    "footerNote": "Cash = pergerakan uang yang tercatat di PMS untuk periode ini. Bukan payout OTA atau rekonsiliasi bank. Okupansi dan sumber memakai malam reservasi di PMS.",
+    "toastDownloaded": "Laporan diunduh"
+  },
+  "filterBar": {
+    "propertyPlaceholder": "Properti",
+    "fromLabel": "Dari",
+    "toLabel": "Sampai",
+    "compare": "Bandingkan",
+    "export": "Export",
+    "exportExcel": "Export Excel",
+    "presets": {
+      "mtd": "Bulan ini",
+      "lastMonth": "Bulan lalu",
+      "last7": "7 hari terakhir",
+      "last30": "30 hari terakhir"
+    },
+    "chromeDays_one": "{{count}} hari",
+    "chromeDays_other": "{{count}} hari",
+    "chromeVs": "vs {{range}}"
+  },
+  "cash": {
+    "title": "Cash",
+    "subtitle": "Pergerakan uang yang tercatat di periode ini",
+    "net": "Net",
+    "vsPrev": "vs periode lalu",
+    "in": "Masuk",
+    "out": "Keluar",
+    "prevInOut": "Masuk lalu {{inAmount}} · Keluar lalu {{outAmount}}",
+    "empty": "Tidak ada pergerakan cash di periode ini.",
+    "table": {
+      "in": "Masuk",
+      "out": "Keluar",
+      "net": "Net",
+      "pctOfNet": "% dari net",
+      "bySource": "Per sumber",
+      "byUnitType": "Per tipe unit",
+      "byMethod": "Per metode"
+    },
+    "methodUnspecified": "Tidak ditentukan"
+  },
+  "occupancy": {
+    "title": "Okupansi",
+    "subtitle": "Malam unit terisi ÷ tersedia (blok tidak dihitung)",
+    "vs": "vs {{pct}}",
+    "nights": "{{occupied}} / {{available}} malam",
+    "prevNights": " · lalu {{occupied}} / {{available}}",
+    "emptyStaysHint": "Tidak ada stay yang tumpang tindih di periode ini — cek kalender atau feed iCal.",
+    "byUnitType": "Per tipe unit",
+    "expandHint": "Perluas tipe untuk melihat tiap unit",
+    "table": {
+      "typeUnit": "Tipe / unit",
+      "occupied": "Terisi",
+      "available": "Tersedia",
+      "pct": "%",
+      "prevPct": "% lalu",
+      "deltaPct": "Δ%"
+    }
+  },
+  "sourceMix": {
+    "title": "Bauran sumber",
+    "subtitle": "Stay berdasarkan check-in di periode ini · malam yang tumpang tindih periode · porsi cash net",
+    "empty": "Tidak ada malam stay yang tumpang tindih di periode ini.",
+    "table": {
+      "source": "Sumber",
+      "stays": "Stay",
+      "nights": "Malam",
+      "pctNights": "% malam",
+      "cashNet": "Cash net",
+      "pctOfNet": "% dari net",
+      "prevNights": "Malam lalu",
+      "prevPct": "% lalu",
+      "deltaShare": "Δ porsi",
+      "deltaNights": "Δ malam"
+    },
+    "directVsOtaSummary": "Langsung (Manual + Website) {{directNightsPct}} dari malam · {{directCashPct}} dari cash net · OTA {{otaNightsPct}} dari malam · {{otaCashPct}} dari cash net"
+  },
+  "format": {
+    "notAvailable": "n/a",
+    "pointsZero": "0 poin",
+    "pointsPositive": "+{{count}} poin",
+    "pointsNegative": "{{count}} poin"
+  },
+  "csv": {
+    "reportTitle": "Cabin PMS Reports",
+    "propertyLabel": "Property",
+    "periodLabel": "Period",
+    "comparePeriodLabel": "Compare period",
+    "sectionCashSummary": "cash-summary",
+    "sectionCashBySource": "cash-by-source",
+    "sectionCashByUnitType": "cash-by-unit-type",
+    "sectionCashByMethod": "cash-by-method",
+    "sectionOccupancy": "occupancy",
+    "sectionSourceMix": "source-mix",
+    "propertyRowLabel": "property",
+    "methodUnspecified": "Tidak ditentukan",
+    "note": "Kunci kolom (misalnya amountIdr, pctOfNet) di dalam file CSV adalah pengenal skema data, bukan teks tampilan — dibiarkan identik di semua bahasa agar file unduhan tetap konsisten."
+  }
+}

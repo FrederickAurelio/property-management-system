@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import type { StaffProperty } from "@cabin/api-contract";
 import { Building2Icon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { InfiniteListFooter } from "@/components/infinite-list-footer";
 import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ import { useInventoryAccess } from "./inventory-access";
 import { PropertyFormDialog } from "./property-form-dialog";
 
 export function PropertiesPage() {
+  const { t } = useTranslation(["inventory", "common"]);
   const { canManage } = useInventoryAccess();
   const { q, view } = useExplorerSearchParams();
   const queryClient = useQueryClient();
@@ -64,7 +66,9 @@ export function PropertiesPage() {
     onSuccess: (_data, variables) => {
       setDeleteTarget(null);
       invalidateInventoryCaches(queryClient);
-      handleSuccess(`Deleted ${variables.name}`);
+      handleSuccess(
+        t("inventory:properties.page.deletedToast", { name: variables.name }),
+      );
     },
     onError: (error) => {
       handleError(error);
@@ -92,7 +96,7 @@ export function PropertiesPage() {
     <>
       <ExplorerToolbar
         layer="properties"
-        createLabel="Add property"
+        createLabel={t("inventory:properties.page.addLabel")}
         canManage={canManage}
         onCreate={openCreate}
       />
@@ -101,7 +105,7 @@ export function PropertiesPage() {
 
       {listQuery.isError && !listQuery.data && (
         <QueryErrorPanel
-          message="Couldn’t load properties. Check your connection and try again."
+          message={t("inventory:properties.page.loadError")}
           onRetry={() => {
             void listQuery.refetch();
           }}
@@ -116,18 +120,20 @@ export function PropertiesPage() {
               <Building2Icon />
             </EmptyMedia>
             <EmptyTitle>
-              {q ? "No matching properties" : "No properties yet"}
+              {q
+                ? t("inventory:properties.page.emptyTitleFiltered")
+                : t("inventory:properties.page.emptyTitle")}
             </EmptyTitle>
             <EmptyDescription>
               {q
-                ? "Try a different search."
-                : "Add a property to start organizing unit types and units."}
+                ? t("inventory:properties.page.emptyDescriptionFiltered")
+                : t("inventory:properties.page.emptyDescription")}
             </EmptyDescription>
           </EmptyHeader>
           {!q && canManage && (
             <EmptyContent>
               <Button type="button" size="sm" onClick={openCreate}>
-                Add property
+                {t("inventory:properties.page.addLabel")}
               </Button>
             </EmptyContent>
           )}
@@ -141,8 +147,12 @@ export function PropertiesPage() {
               const metaParts = [
                 property.city,
                 property.code,
-                `${property.typeCount} type${property.typeCount === 1 ? "" : "s"}`,
-                `${property.unitCount} unit${property.unitCount === 1 ? "" : "s"}`,
+                t("inventory:properties.page.typeCount", {
+                  count: property.typeCount,
+                }),
+                t("inventory:properties.page.unitCount", {
+                  count: property.unitCount,
+                }),
               ].filter(Boolean);
 
               return (
@@ -157,7 +167,10 @@ export function PropertiesPage() {
                   canManage={canManage}
                   badge={
                     !property.isActive && (
-                      <StatusBadge label="Inactive" tone="muted" />
+                      <StatusBadge
+                        label={t("inventory:properties.page.inactiveBadge")}
+                        tone="muted"
+                      />
                     )
                   }
                   onEdit={() => {
@@ -206,22 +219,27 @@ export function PropertiesPage() {
               setDeleteTarget(null);
             }
           }}
-          title="Delete property?"
+          title={t("inventory:properties.page.deleteTitle")}
           description={
-            deleteBlocked ? (
-              <>
-                Cannot delete <strong>{deleteTarget?.name}</strong> while it
-                still has {deleteTypeCount} type
-                {deleteTypeCount === 1 ? "" : "s"} and {deleteUnitCount} unit
-                {deleteUnitCount === 1 ? "" : "s"}. Remove those first.
-              </>
-            ) : (
-              <>
-                This permanently removes <strong>{deleteTarget?.name}</strong>.
-              </>
-            )
+            deleteBlocked
+              ? t("inventory:properties.page.deleteDescriptionBlocked", {
+                  name: deleteTarget?.name ?? "",
+                  typeCount: t("inventory:properties.page.typeCount", {
+                    count: deleteTypeCount,
+                  }),
+                  unitCount: t("inventory:properties.page.unitCount", {
+                    count: deleteUnitCount,
+                  }),
+                })
+              : t("inventory:properties.page.deleteDescription", {
+                  name: deleteTarget?.name ?? "",
+                })
           }
-          confirmLabel={deleteBlocked ? "Got it" : "Delete"}
+          confirmLabel={
+            deleteBlocked
+              ? t("inventory:properties.page.confirmGotIt")
+              : t("inventory:properties.page.confirmDelete")
+          }
           variant={deleteBlocked ? "default" : "destructive"}
           confirmDisabled={deleteMutation.isPending}
           onConfirm={() => {
