@@ -23,8 +23,11 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { IdrAmountInput } from "@/components/form/idr-amount-input";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -303,58 +306,68 @@ export function CollectSheet({
           saveMutation.mutate(values);
         })}
       >
-        <div className="rounded-lg border border-border bg-muted/30 px-3 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium">
-              {t("reservations:collectSheet.afterMovement")}
-            </p>
-            <ReservationBadge
-              label={formatPaymentStatus(preview.status)}
-              tone={paymentBadgeTone(preview.status)}
-            />
+        <FieldSet>
+          <FieldLegend variant="label">
+            {t("reservations:collectSheet.sections.preview")}
+          </FieldLegend>
+          <div className="rounded-lg border border-border bg-muted/30 px-3 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">
+                {t("reservations:collectSheet.afterMovement")}
+              </p>
+              <ReservationBadge
+                label={formatPaymentStatus(preview.status)}
+                tone={paymentBadgeTone(preview.status)}
+              />
+            </div>
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  {t("reservations:collectSheet.total")}
+                </dt>
+                <dd className="mt-0.5 font-medium tabular-nums">
+                  {formatMoneyOrDash(reservation.totalAmountIdr)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  {t("reservations:collectSheet.paid")}
+                </dt>
+                <dd className="mt-0.5 font-medium tabular-nums">
+                  {formatMoneyOrDash(preview.paid)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  {preview.refund != null && preview.refund > 0
+                    ? t("reservations:collectSheet.refund")
+                    : t("reservations:collectSheet.due")}
+                </dt>
+                <dd className="mt-0.5 font-medium tabular-nums">
+                  {formatMoneyOrDash(
+                    preview.refund != null && preview.refund > 0
+                      ? preview.refund
+                      : preview.due,
+                  )}
+                </dd>
+              </div>
+            </dl>
+            {mode === "refund" && (
+              <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
+                {t("reservations:collectSheet.overpaidHint", {
+                  amount: formatIdr(refund ?? 0),
+                })}
+              </p>
+            )}
           </div>
-          <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
-            <div>
-              <dt className="text-xs text-muted-foreground">
-                {t("reservations:collectSheet.total")}
-              </dt>
-              <dd className="mt-0.5 font-medium tabular-nums">
-                {formatMoneyOrDash(reservation.totalAmountIdr)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">
-                {t("reservations:collectSheet.paid")}
-              </dt>
-              <dd className="mt-0.5 font-medium tabular-nums">
-                {formatMoneyOrDash(preview.paid)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">
-                {preview.refund != null && preview.refund > 0
-                  ? t("reservations:collectSheet.refund")
-                  : t("reservations:collectSheet.due")}
-              </dt>
-              <dd className="mt-0.5 font-medium tabular-nums">
-                {formatMoneyOrDash(
-                  preview.refund != null && preview.refund > 0
-                    ? preview.refund
-                    : preview.due,
-                )}
-              </dd>
-            </div>
-          </dl>
-          {mode === "refund" && (
-            <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
-              {t("reservations:collectSheet.overpaidHint", {
-                amount: formatIdr(refund ?? 0),
-              })}
-            </p>
-          )}
-        </div>
+        </FieldSet>
 
-        <FieldGroup>
+        <Separator />
+
+        <FieldSet>
+          <FieldLegend variant="label">
+            {t("reservations:collectSheet.sections.amount")}
+          </FieldLegend>
           <Controller
             control={form.control}
             name="amountDigits"
@@ -411,71 +424,80 @@ export function CollectSheet({
               </Field>
             )}
           />
+        </FieldSet>
 
-          <Controller
-            control={form.control}
-            name="method"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel>
-                  {t("reservations:collectSheet.viaLabel")}
-                </FieldLabel>
-                <Select
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  disabled={mode === "settled"}
-                >
-                  <SelectTrigger aria-invalid={fieldState.invalid}>
-                    <SelectValue
-                      placeholder={t(
-                        "reservations:collectSheet.viaPlaceholder",
-                      )}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value={METHOD_NONE}>
-                        {t("reservations:collectSheet.viaOptions.notSet")}
-                      </SelectItem>
-                      <SelectItem value={CollectedVia.PROPERTY}>
-                        {t("reservations:collectSheet.viaOptions.property")}
-                      </SelectItem>
-                      <SelectItem value={CollectedVia.CHANNEL}>
-                        {t("reservations:collectSheet.viaOptions.channel")}
-                      </SelectItem>
-                      <SelectItem value={CollectedVia.MIXED}>
-                        {t("reservations:collectSheet.viaOptions.mixed")}
-                      </SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
+        <Separator />
 
-          <Controller
-            control={form.control}
-            name="note"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="cash-note">
-                  {t("reservations:collectSheet.noteLabel")}
-                </FieldLabel>
-                <Textarea
-                  id="cash-note"
-                  rows={2}
-                  maxLength={PAYMENT_MOVEMENT_NOTE_MAX}
-                  aria-invalid={fieldState.invalid}
-                  disabled={mode === "settled"}
-                  placeholder={t("reservations:collectSheet.notePlaceholder")}
-                  {...field}
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-        </FieldGroup>
+        <FieldSet>
+          <FieldLegend variant="label">
+            {t("reservations:collectSheet.sections.details")}
+          </FieldLegend>
+          <FieldGroup>
+            <Controller
+              control={form.control}
+              name="method"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel>
+                    {t("reservations:collectSheet.viaLabel")}
+                  </FieldLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={mode === "settled"}
+                  >
+                    <SelectTrigger aria-invalid={fieldState.invalid}>
+                      <SelectValue
+                        placeholder={t(
+                          "reservations:collectSheet.viaPlaceholder",
+                        )}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value={METHOD_NONE}>
+                          {t("reservations:collectSheet.viaOptions.notSet")}
+                        </SelectItem>
+                        <SelectItem value={CollectedVia.PROPERTY}>
+                          {t("reservations:collectSheet.viaOptions.property")}
+                        </SelectItem>
+                        <SelectItem value={CollectedVia.CHANNEL}>
+                          {t("reservations:collectSheet.viaOptions.channel")}
+                        </SelectItem>
+                        <SelectItem value={CollectedVia.MIXED}>
+                          {t("reservations:collectSheet.viaOptions.mixed")}
+                        </SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="note"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="cash-note">
+                    {t("reservations:collectSheet.noteLabel")}
+                  </FieldLabel>
+                  <Textarea
+                    id="cash-note"
+                    rows={2}
+                    maxLength={PAYMENT_MOVEMENT_NOTE_MAX}
+                    aria-invalid={fieldState.invalid}
+                    disabled={mode === "settled"}
+                    placeholder={t("reservations:collectSheet.notePlaceholder")}
+                    {...field}
+                  />
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+          </FieldGroup>
+        </FieldSet>
       </form>
     </ResponsiveFormShell>
   );

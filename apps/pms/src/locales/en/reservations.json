@@ -142,7 +142,8 @@
     "sections": {
       "stay": "Stay",
       "guest": "Guest",
-      "money": "Money"
+      "money": "Money",
+      "notes": "Notes"
     },
     "stayFieldLabel": "Stay",
     "fields": {
@@ -202,10 +203,26 @@
     "loadError": "Couldn’t load this reservation.",
     "notLoaded": "Reservation not loaded",
     "unitAtProperty": "Unit {{unitCode}} · {{propertyName}}",
+    "staySummary": "{{unitCode}} · {{propertyName}} · {{stayRange}}",
     "createdByAdmin": "Created by {{admin}}",
     "createdBySystem": "Created by system",
     "lastUpdatedBy": " · Last updated by {{admin}}",
     "guestCountSuffix": " · {{count}} guests",
+    "sections": {
+      "stay": "Stay",
+      "guest": "Guest",
+      "notes": "Notes"
+    },
+    "rows": {
+      "unit": "Unit",
+      "property": "Property",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "period": "Period",
+      "guests": "Guests",
+      "phone": "Phone",
+      "email": "Email"
+    },
     "warnOverpaid": "Guest overpaid — use Refund to record cash returned to the guest.",
     "warnDueTerminal": "Balance still due — use Collect to record payment.",
     "warnDueLive": "Balance due — collect anytime; check-in/out is not blocked.",
@@ -219,7 +236,7 @@
     "toastStillMissingDetails": "Still missing details",
     "buttons": {
       "edit": "Edit",
-      "cancel": "Cancel"
+      "cancel": "Cancel stay"
     },
     "goBack": "Go back",
     "primaryDialogs": {
@@ -246,6 +263,12 @@
     "title": "Cancel reservation",
     "descriptionPaid": "Cancelling frees the unit. Choose what happens to money already collected.",
     "descriptionUnpaid": "No payment on file. Confirm to cancel this stay.",
+    "sections": {
+      "collected": "Already collected",
+      "disposition": "What happens to the money?",
+      "outcome": "After cancel",
+      "notes": "Notes"
+    },
     "keepStay": "Keep stay",
     "cancelling": "Cancelling…",
     "cancelStay": "Cancel stay",
@@ -287,6 +310,11 @@
     "descriptionRefund": "Record cash returned to the guest. Paid updates from the cash timeline.",
     "descriptionCollect": "Record cash received. Change Total on Edit stay if the quote changed.",
     "descriptionSettled": "Paid already matches Total. Change Total on Edit stay if the quote changed.",
+    "sections": {
+      "preview": "After this movement",
+      "amount": "Amount",
+      "details": "Details"
+    },
     "cancel": "Cancel",
     "saving": "Saving…",
     "recordRefund": "Record refund",

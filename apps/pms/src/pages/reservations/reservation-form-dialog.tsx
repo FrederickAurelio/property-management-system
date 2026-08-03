@@ -1,4 +1,4 @@
-/* anchor: Linear settings form, diverge: reservation create/edit CONFIRMED matrix */
+/* anchor: Linear settings form, diverge: FieldSet Stay/Guest/Money/Notes + Separators */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   RESERVATION_GUEST_EMAIL_MAX,
@@ -27,8 +27,9 @@ import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldError,
-  FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -39,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
   applyApiFieldError,
@@ -777,10 +779,10 @@ export function ReservationFormDialog({
           className="flex flex-col gap-5"
           onSubmit={onSubmit}
         >
-          <FieldGroup className="gap-4">
-            <p className="text-sm font-medium text-foreground">
+          <FieldSet className="gap-4">
+            <FieldLegend variant="label">
               {t("reservations:formDialog.sections.stay")}
-            </p>
+            </FieldLegend>
             <ChosenUnitField
               chosen={chosen}
               onChoose={() => {
@@ -839,12 +841,14 @@ export function ReservationFormDialog({
                 ]}
               />
             </Field>
-          </FieldGroup>
+          </FieldSet>
 
-          <FieldGroup className="gap-4">
-            <p className="text-sm font-medium text-foreground">
+          <Separator />
+
+          <FieldSet className="gap-4">
+            <FieldLegend variant="label">
               {t("reservations:formDialog.sections.guest")}
-            </p>
+            </FieldLegend>
             <Controller
               control={form.control}
               name="guestName"
@@ -996,12 +1000,14 @@ export function ReservationFormDialog({
                 )}
               />
             </div>
-          </FieldGroup>
+          </FieldSet>
 
-          <FieldGroup className="gap-4">
-            <p className="text-sm font-medium text-foreground">
+          <Separator />
+
+          <FieldSet className="gap-4">
+            <FieldLegend variant="label">
               {t("reservations:formDialog.sections.money")}
-            </p>
+            </FieldLegend>
             <div className="grid gap-4 sm:grid-cols-2">
               <Controller
                 control={form.control}
@@ -1129,15 +1135,20 @@ export function ReservationFormDialog({
                 )}
               />
             </div>
-          </FieldGroup>
+          </FieldSet>
 
-          <FieldGroup>
+          <Separator />
+
+          <FieldSet className="gap-4">
+            <FieldLegend variant="label">
+              {t("reservations:formDialog.sections.notes")}
+            </FieldLegend>
             <Controller
               control={form.control}
               name="notes"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="stay-notes">
+                  <FieldLabel htmlFor="stay-notes" className="sr-only">
                     {t("reservations:formDialog.fields.notes")}
                   </FieldLabel>
                   <Textarea
@@ -1154,7 +1165,7 @@ export function ReservationFormDialog({
                 </Field>
               )}
             />
-          </FieldGroup>
+          </FieldSet>
         </form>
       </ResponsiveFormShell>
       {pickerOpen ? (

@@ -1,8 +1,9 @@
-/* anchor: Stripe activity list, diverge: cash movement timeline */
+/* anchor: Stripe activity list, diverge: cash timeline under detail section header */
 import type { StaffReservation } from "@cabin/api-contract";
 import { PaymentMovementDirection } from "@cabin/api-contract";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { ReservationDetailSection } from "./reservation-detail-section";
 import {
   formatCollectedVia,
   formatMovementCreatedAt,
@@ -22,15 +23,11 @@ export function PaymentMovementsTimeline({
   const items = movementsNewestFirst(reservation.movements);
 
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
-      <div>
-        <h2 className="text-sm font-medium">
-          {t("reservations:timeline.title")}
-        </h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {t("reservations:timeline.subtitle")}
-        </p>
-      </div>
+    <ReservationDetailSection
+      className={className}
+      title={t("reservations:timeline.title")}
+      description={t("reservations:timeline.subtitle")}
+    >
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {t("reservations:timeline.empty")}
@@ -76,6 +73,6 @@ export function PaymentMovementsTimeline({
           })}
         </ul>
       )}
-    </div>
+    </ReservationDetailSection>
   );
 }

@@ -142,7 +142,8 @@
     "sections": {
       "stay": "Stay",
       "guest": "Tamu",
-      "money": "Uang"
+      "money": "Uang",
+      "notes": "Catatan"
     },
     "stayFieldLabel": "Stay",
     "fields": {
@@ -202,10 +203,26 @@
     "loadError": "Reservasi ini gagal dimuat.",
     "notLoaded": "Reservasi belum dimuat",
     "unitAtProperty": "Unit {{unitCode}} · {{propertyName}}",
+    "staySummary": "{{unitCode}} · {{propertyName}} · {{stayRange}}",
     "createdByAdmin": "Dibuat oleh {{admin}}",
     "createdBySystem": "Dibuat oleh sistem",
     "lastUpdatedBy": " · Terakhir diperbarui oleh {{admin}}",
     "guestCountSuffix": " · {{count}} tamu",
+    "sections": {
+      "stay": "Stay",
+      "guest": "Tamu",
+      "notes": "Catatan"
+    },
+    "rows": {
+      "unit": "Unit",
+      "property": "Properti",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "period": "Periode",
+      "guests": "Jumlah tamu",
+      "phone": "Telepon",
+      "email": "Email"
+    },
     "warnOverpaid": "Tamu kelebihan bayar — pakai Refund untuk mencatat uang yang dikembalikan ke tamu.",
     "warnDueTerminal": "Masih ada sisa bayar — pakai Collect untuk mencatat pembayaran.",
     "warnDueLive": "Ada sisa bayar — bisa di-collect kapan saja; check-in/out tidak terhalang.",
@@ -219,7 +236,7 @@
     "toastStillMissingDetails": "Masih ada detail yang kurang",
     "buttons": {
       "edit": "Edit",
-      "cancel": "Batal"
+      "cancel": "Batalkan stay"
     },
     "goBack": "Kembali",
     "primaryDialogs": {
@@ -246,6 +263,12 @@
     "title": "Batalkan reservasi",
     "descriptionPaid": "Membatalkan akan membebaskan unit. Pilih apa yang terjadi dengan uang yang sudah terkumpul.",
     "descriptionUnpaid": "Belum ada pembayaran tercatat. Konfirmasi untuk membatalkan stay ini.",
+    "sections": {
+      "collected": "Sudah terkumpul",
+      "disposition": "Apa yang terjadi dengan uangnya?",
+      "outcome": "Setelah dibatalkan",
+      "notes": "Catatan"
+    },
     "keepStay": "Pertahankan stay",
     "cancelling": "Membatalkan…",
     "cancelStay": "Batalkan stay",
@@ -287,6 +310,11 @@
     "descriptionRefund": "Catat uang yang dikembalikan ke tamu. Dibayar terupdate dari cash timeline.",
     "descriptionCollect": "Catat uang yang diterima. Ubah Total di Edit stay jika quote berubah.",
     "descriptionSettled": "Dibayar sudah sesuai Total. Ubah Total di Edit stay jika quote berubah.",
+    "sections": {
+      "preview": "Setelah pergerakan ini",
+      "amount": "Jumlah",
+      "details": "Detail"
+    },
     "cancel": "Batal",
     "saving": "Menyimpan…",
     "recordRefund": "Catat refund",

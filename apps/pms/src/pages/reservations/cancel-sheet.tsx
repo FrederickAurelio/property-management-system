@@ -15,10 +15,12 @@ import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldError,
-  FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { IdrAmountInput } from "@/components/form/idr-amount-input";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -246,190 +248,205 @@ export function CancelSheet({
           })}
         >
           {hasPaid && (
-            <div className="rounded-lg border border-border bg-muted/30 px-3 py-3">
-              <p className="text-sm font-medium">
-                {t("reservations:cancelSheet.alreadyCollected")}
-              </p>
-              <p className="mt-1 text-lg font-semibold tracking-tight tabular-nums">
-                {formatIdr(paid)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t("reservations:cancelSheet.alreadyCollectedHint")}
-              </p>
-            </div>
+            <>
+              <FieldSet>
+                <FieldLegend variant="label">
+                  {t("reservations:cancelSheet.sections.collected")}
+                </FieldLegend>
+                <div className="rounded-lg border border-border bg-muted/30 px-3 py-3">
+                  <p className="text-lg font-semibold tracking-tight tabular-nums">
+                    {formatIdr(paid)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("reservations:cancelSheet.alreadyCollectedHint")}
+                  </p>
+                </div>
+              </FieldSet>
+
+              <Separator />
+
+              <FieldSet>
+                <FieldLegend variant="label">
+                  {t("reservations:cancelSheet.sections.disposition")}
+                </FieldLegend>
+                <Controller
+                  control={form.control}
+                  name="disposition"
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <ToggleGroup
+                        type="single"
+                        variant="outline"
+                        value={field.value}
+                        onValueChange={(value) => {
+                          if (!value) {
+                            return;
+                          }
+                          field.onChange(value);
+                          if (value !== "partial") {
+                            form.setValue("refundToGuestDigits", "", {
+                              shouldDirty: true,
+                            });
+                          }
+                        }}
+                        className="flex w-full flex-col gap-2"
+                      >
+                        <ToggleGroupItem
+                          value="full_refund"
+                          className="h-auto w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left whitespace-normal"
+                        >
+                          <span className="text-sm font-medium">
+                            {t(
+                              "reservations:cancelSheet.options.fullRefundTitle",
+                            )}
+                          </span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {t(
+                              "reservations:cancelSheet.options.fullRefundHint",
+                              {
+                                amount: formatIdr(0),
+                              },
+                            )}
+                          </span>
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="keep"
+                          className="h-auto w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left whitespace-normal"
+                        >
+                          <span className="text-sm font-medium">
+                            {t("reservations:cancelSheet.options.keepTitle")}
+                          </span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {t("reservations:cancelSheet.options.keepHint", {
+                              guestAmount: formatIdr(0),
+                              propertyAmount: formatIdr(paid),
+                            })}
+                          </span>
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="partial"
+                          className="h-auto w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left whitespace-normal"
+                        >
+                          <span className="text-sm font-medium">
+                            {t("reservations:cancelSheet.options.partialTitle")}
+                          </span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {t("reservations:cancelSheet.options.partialHint")}
+                          </span>
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                      <FieldError errors={[fieldState.error]} />
+                    </Field>
+                  )}
+                />
+
+                {disposition === "partial" && (
+                  <Controller
+                    control={form.control}
+                    name="refundToGuestDigits"
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="cancel-refund-amount">
+                          {t("reservations:cancelSheet.refundToGuestLabel")}
+                        </FieldLabel>
+                        <IdrAmountInput
+                          id="cancel-refund-amount"
+                          autoFocus
+                          aria-invalid={fieldState.invalid}
+                          placeholder={t(
+                            "reservations:cancelSheet.refundToGuestPlaceholder",
+                            { amount: formatIdr(paid) },
+                          )}
+                          value={field.value}
+                          max={Math.max(0, paid - 1)}
+                          onValueChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {t("reservations:cancelSheet.refundToGuestMaxHint", {
+                            amount: formatIdr(Math.max(0, paid - 1)),
+                          })}
+                        </p>
+                        <FieldError errors={[fieldState.error]} />
+                      </Field>
+                    )}
+                  />
+                )}
+              </FieldSet>
+
+              <Separator />
+
+              <FieldSet>
+                <FieldLegend variant="label">
+                  {t("reservations:cancelSheet.sections.outcome")}
+                </FieldLegend>
+                <div
+                  className={cn(
+                    "rounded-lg border border-border px-3 py-3",
+                    disposition === "full_refund" &&
+                      "border-amber-500/30 bg-amber-500/5",
+                  )}
+                >
+                  <dl className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        {t("reservations:cancelSheet.guestGetsBack")}
+                      </dt>
+                      <dd
+                        className={cn(
+                          "mt-0.5 text-base font-semibold tracking-tight tabular-nums",
+                          preview.returnToGuest > 0 &&
+                            "text-amber-800 dark:text-amber-200",
+                        )}
+                      >
+                        {formatMoneyOrDash(preview.returnToGuest)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        {t("reservations:cancelSheet.propertyKeeps")}
+                      </dt>
+                      <dd className="mt-0.5 text-base font-semibold tracking-tight tabular-nums">
+                        {formatMoneyOrDash(preview.propertyKeeps)}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {disposition === "full_refund"
+                      ? t("reservations:cancelSheet.explain.fullRefund")
+                      : disposition === "keep"
+                        ? t("reservations:cancelSheet.explain.keep")
+                        : preview.returnToGuest > 0
+                          ? t(
+                              "reservations:cancelSheet.explain.partialWithAmount",
+                              {
+                                guestAmount: formatIdr(preview.returnToGuest),
+                                propertyAmount: formatIdr(
+                                  preview.propertyKeeps,
+                                ),
+                              },
+                            )
+                          : t("reservations:cancelSheet.explain.partialEmpty")}
+                  </p>
+                </div>
+              </FieldSet>
+
+              <Separator />
+            </>
           )}
 
-          <FieldGroup>
-            {hasPaid && (
-              <Controller
-                control={form.control}
-                name="disposition"
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel>
-                      {t("reservations:cancelSheet.moneyQuestion")}
-                    </FieldLabel>
-                    <ToggleGroup
-                      type="single"
-                      variant="outline"
-                      value={field.value}
-                      onValueChange={(value) => {
-                        if (!value) {
-                          return;
-                        }
-                        field.onChange(value);
-                        if (value !== "partial") {
-                          form.setValue("refundToGuestDigits", "", {
-                            shouldDirty: true,
-                          });
-                        }
-                      }}
-                      className="flex w-full flex-col gap-2"
-                    >
-                      <ToggleGroupItem
-                        value="full_refund"
-                        className="h-auto w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left whitespace-normal"
-                      >
-                        <span className="text-sm font-medium">
-                          {t(
-                            "reservations:cancelSheet.options.fullRefundTitle",
-                          )}
-                        </span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {t(
-                            "reservations:cancelSheet.options.fullRefundHint",
-                            {
-                              amount: formatIdr(0),
-                            },
-                          )}
-                        </span>
-                      </ToggleGroupItem>
-                      <ToggleGroupItem
-                        value="keep"
-                        className="h-auto w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left whitespace-normal"
-                      >
-                        <span className="text-sm font-medium">
-                          {t("reservations:cancelSheet.options.keepTitle")}
-                        </span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {t("reservations:cancelSheet.options.keepHint", {
-                            guestAmount: formatIdr(0),
-                            propertyAmount: formatIdr(paid),
-                          })}
-                        </span>
-                      </ToggleGroupItem>
-                      <ToggleGroupItem
-                        value="partial"
-                        className="h-auto w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left whitespace-normal"
-                      >
-                        <span className="text-sm font-medium">
-                          {t("reservations:cancelSheet.options.partialTitle")}
-                        </span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {t("reservations:cancelSheet.options.partialHint")}
-                        </span>
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                    <FieldError errors={[fieldState.error]} />
-                  </Field>
-                )}
-              />
-            )}
-
-            {hasPaid && disposition === "partial" && (
-              <Controller
-                control={form.control}
-                name="refundToGuestDigits"
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="cancel-refund-amount">
-                      {t("reservations:cancelSheet.refundToGuestLabel")}
-                    </FieldLabel>
-                    <IdrAmountInput
-                      id="cancel-refund-amount"
-                      autoFocus
-                      aria-invalid={fieldState.invalid}
-                      placeholder={t(
-                        "reservations:cancelSheet.refundToGuestPlaceholder",
-                        { amount: formatIdr(paid) },
-                      )}
-                      value={field.value}
-                      max={Math.max(0, paid - 1)}
-                      onValueChange={field.onChange}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      ref={field.ref}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {t("reservations:cancelSheet.refundToGuestMaxHint", {
-                        amount: formatIdr(Math.max(0, paid - 1)),
-                      })}
-                    </p>
-                    <FieldError errors={[fieldState.error]} />
-                  </Field>
-                )}
-              />
-            )}
-
-            {hasPaid && (
-              <div
-                className={cn(
-                  "rounded-lg border border-border px-3 py-3",
-                  disposition === "full_refund" &&
-                    "border-amber-500/30 bg-amber-500/5",
-                )}
-              >
-                <p className="text-sm font-medium">
-                  {t("reservations:cancelSheet.afterCancel")}
-                </p>
-                <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <dt className="text-xs text-muted-foreground">
-                      {t("reservations:cancelSheet.guestGetsBack")}
-                    </dt>
-                    <dd
-                      className={cn(
-                        "mt-0.5 text-base font-semibold tracking-tight tabular-nums",
-                        preview.returnToGuest > 0 &&
-                          "text-amber-800 dark:text-amber-200",
-                      )}
-                    >
-                      {formatMoneyOrDash(preview.returnToGuest)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">
-                      {t("reservations:cancelSheet.propertyKeeps")}
-                    </dt>
-                    <dd className="mt-0.5 text-base font-semibold tracking-tight tabular-nums">
-                      {formatMoneyOrDash(preview.propertyKeeps)}
-                    </dd>
-                  </div>
-                </dl>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {disposition === "full_refund"
-                    ? t("reservations:cancelSheet.explain.fullRefund")
-                    : disposition === "keep"
-                      ? t("reservations:cancelSheet.explain.keep")
-                      : preview.returnToGuest > 0
-                        ? t(
-                            "reservations:cancelSheet.explain.partialWithAmount",
-                            {
-                              guestAmount: formatIdr(preview.returnToGuest),
-                              propertyAmount: formatIdr(preview.propertyKeeps),
-                            },
-                          )
-                        : t("reservations:cancelSheet.explain.partialEmpty")}
-                </p>
-              </div>
-            )}
-
+          <FieldSet>
+            <FieldLegend variant="label">
+              {t("reservations:cancelSheet.sections.notes")}
+            </FieldLegend>
             <Controller
               control={form.control}
               name="notes"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="cancel-notes">
+                  <FieldLabel htmlFor="cancel-notes" className="sr-only">
                     {t("reservations:cancelSheet.notesLabel")}
                   </FieldLabel>
                   <Textarea
@@ -444,7 +461,7 @@ export function CancelSheet({
                 </Field>
               )}
             />
-          </FieldGroup>
+          </FieldSet>
         </form>
       </ResponsiveFormShell>
       {otaRemindOpen && isOtaLinkedStay(reservation) && (

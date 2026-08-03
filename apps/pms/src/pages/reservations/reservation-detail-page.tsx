@@ -1,4 +1,4 @@
-/* anchor: Linear-dense detail, diverge: money always on + confirm before ops CTAs */
+/* anchor: Linear-dense detail / Stripe-data money, diverge: titled Stay+Guest dl + ranked ops toolbar */
 import { useState } from "react";
 import { IcalSyncWarning } from "@cabin/api-contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import {
   acceptIcalDates,
   acceptIcalUnit,
@@ -37,16 +38,21 @@ import {
 import { useOtaRemindDialog } from "@/hooks/use-ota-remind-dialog";
 import { PaymentMovementsTimeline } from "./payment-movements-timeline";
 import { ReservationBadge, SourceBadge } from "./reservation-badges";
+import {
+  DetailDl,
+  DetailDlRow,
+  ReservationDetailSection,
+} from "./reservation-detail-section";
 import { ReservationFormDialog } from "./reservation-form-dialog";
 import { ReservationMoneyBlock } from "./reservation-money-block";
 import { reservationDetailBackHref } from "./reservation-nav";
 import {
   confirmReadinessFromReservation,
   formatConfirmGapsMessage,
+  formatDateYmd,
   formatReservationLateCue,
   formatReservationSource,
   formatReservationStatus,
-  formatStayRange,
   canCollectPayment,
   canEditStay,
   isCheckInWindow,
@@ -59,10 +65,24 @@ import {
   reservationRefund,
   collectPaymentLabel,
   statusBadgeTone,
+  StayBillingPeriod,
   todayYmdInTimezone,
   type PrimaryAction,
 } from "./reservation-format";
 import { ReservationSource, type StaffReservation } from "@cabin/api-contract";
+
+function billingPeriodLabel(
+  t: TFunction<"reservations">,
+  period: StaffReservation["billingPeriod"],
+): string {
+  if (period === StayBillingPeriod.MONTHLY) {
+    return t("stayDatePicker.periodToggle.monthly");
+  }
+  if (period === StayBillingPeriod.YEARLY) {
+    return t("stayDatePicker.periodToggle.yearly");
+  }
+  return t("stayDatePicker.periodToggle.daily");
+}
 
 function primaryActionDialogCopy(
   t: TFunction<"reservations">,
@@ -234,7 +254,7 @@ export function ReservationDetailPage() {
 
   if (detailQuery.isLoading) {
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 md:p-6">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-4 pb-16 md:p-6 md:pb-20">
         <Skeleton className="h-8 w-40" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-32 w-full" />
@@ -244,7 +264,7 @@ export function ReservationDetailPage() {
 
   if (detailQuery.isError || !detailQuery.data) {
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 md:p-6">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-4 pb-16 md:p-6 md:pb-20">
         <Button
           type="button"
           variant="ghost"
@@ -324,8 +344,13 @@ export function ReservationDetailPage() {
     setPendingPrimary(action);
   };
 
+  const hasGuestContact = Boolean(row.guestPhone || row.guestEmail);
+  const hasMeta = Boolean(
+    row.createdByAdminUsername || row.updatedByAdminUsername,
+  );
+
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 md:p-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-4 pb-16 md:p-6 md:pb-20">
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="ghost" size="sm" asChild>
           <Link to={backHref}>
@@ -335,49 +360,93 @@ export function ReservationDetailPage() {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold tracking-tight">
-            {row.guestName}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("detailPage.unitAtProperty", {
-              unitCode: row.unitCode,
-              propertyName: row.propertyName,
-            })}
-          </p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {formatStayRange(
-              row.checkInDate,
-              row.checkOutDate,
-              row.billingPeriod,
-            )}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
+      <header className="flex flex-col gap-1.5">
+        <h1 className="text-xl font-semibold tracking-tight">
+          {row.guestName}
+        </h1>
+        <div className="flex flex-wrap gap-1.5">
+          <ReservationBadge
+            label={formatReservationStatus(row.status)}
+            tone={statusBadgeTone(row.status)}
+          />
+          <SourceBadge
+            source={row.source}
+            label={formatReservationSource(row.source)}
+          />
+          {lateCue && (
             <ReservationBadge
-              label={formatReservationStatus(row.status)}
-              tone={statusBadgeTone(row.status)}
+              label={formatReservationLateCue(lateCue)}
+              tone="warn"
             />
-            <SourceBadge
-              source={row.source}
-              label={formatReservationSource(row.source)}
-            />
-            {lateCue && (
-              <ReservationBadge
-                label={formatReservationLateCue(lateCue)}
-                tone="warn"
-              />
-            )}
-          </div>
-          {(row.guestPhone || row.guestEmail) && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              {[row.guestPhone, row.guestEmail].filter(Boolean).join(" · ")}
-              {row.guestCount != null &&
-                t("detailPage.guestCountSuffix", { count: row.guestCount })}
-            </p>
           )}
-          {(row.createdByAdminUsername || row.updatedByAdminUsername) && (
-            <p className="mt-2 text-xs text-muted-foreground">
+        </div>
+      </header>
+
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-10">
+        <ReservationMoneyBlock
+          reservation={row}
+          className="w-full shrink-0 md:order-2 md:sticky md:top-4 md:w-72"
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col gap-4 md:order-1">
+          <ReservationDetailSection title={t("detailPage.sections.stay")}>
+            <DetailDl>
+              <DetailDlRow label={t("detailPage.rows.unit")}>
+                {row.unitCode}
+              </DetailDlRow>
+              <DetailDlRow label={t("detailPage.rows.property")}>
+                {row.propertyName}
+              </DetailDlRow>
+              <DetailDlRow label={t("detailPage.rows.checkIn")}>
+                {formatDateYmd(row.checkInDate)}
+              </DetailDlRow>
+              <DetailDlRow label={t("detailPage.rows.checkOut")}>
+                {formatDateYmd(row.checkOutDate)}
+              </DetailDlRow>
+              <DetailDlRow label={t("detailPage.rows.period")}>
+                {billingPeriodLabel(t, row.billingPeriod)}
+              </DetailDlRow>
+              {row.guestCount != null && (
+                <DetailDlRow label={t("detailPage.rows.guests")} tabular>
+                  {row.guestCount}
+                </DetailDlRow>
+              )}
+            </DetailDl>
+          </ReservationDetailSection>
+
+          {hasGuestContact && (
+            <>
+              <Separator />
+              <ReservationDetailSection title={t("detailPage.sections.guest")}>
+                <DetailDl>
+                  {row.guestPhone && (
+                    <DetailDlRow label={t("detailPage.rows.phone")}>
+                      {row.guestPhone}
+                    </DetailDlRow>
+                  )}
+                  {row.guestEmail && (
+                    <DetailDlRow label={t("detailPage.rows.email")}>
+                      {row.guestEmail}
+                    </DetailDlRow>
+                  )}
+                </DetailDl>
+              </ReservationDetailSection>
+            </>
+          )}
+
+          {row.notes && (
+            <>
+              <Separator />
+              <ReservationDetailSection title={t("detailPage.sections.notes")}>
+                <p className="text-sm whitespace-pre-wrap text-foreground">
+                  {row.notes}
+                </p>
+              </ReservationDetailSection>
+            </>
+          )}
+
+          {hasMeta && (
+            <p className="text-xs text-muted-foreground">
               {row.createdByAdminUsername
                 ? t("detailPage.createdByAdmin", {
                     admin: row.createdByAdminUsername,
@@ -389,57 +458,52 @@ export function ReservationDetailPage() {
                 })}
             </p>
           )}
-          {row.notes && (
-            <p className="mt-2 text-sm whitespace-pre-wrap">{row.notes}</p>
-          )}
         </div>
-
-        <ReservationMoneyBlock
-          reservation={row}
-          className="w-full shrink-0 md:w-80"
-        />
       </div>
 
-      {(showDueWarn || showRefundWarn || showIcalWarn) && (
+      {showIcalWarn && row.icalSyncWarning && icalPlaybookForRow && (
         <div className="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-          {showIcalWarn && row.icalSyncWarning && icalPlaybookForRow && (
-            <IcalPlaybookCard
-              playbook={icalPlaybookForRow}
-              channelLabel={
-                row.source === ReservationSource.BOOKING_COM ||
-                row.source === ReservationSource.AIRBNB ||
-                row.source === ReservationSource.AGODA
-                  ? formatReservationSource(row.source)
-                  : "OTA"
+          <IcalPlaybookCard
+            playbook={icalPlaybookForRow}
+            channelLabel={
+              row.source === ReservationSource.BOOKING_COM ||
+              row.source === ReservationSource.AIRBNB ||
+              row.source === ReservationSource.AGODA
+                ? formatReservationSource(row.source)
+                : "OTA"
+            }
+            pending={icalMutation.isPending}
+            onPrimary={(kind) => {
+              if (kind === "cancel") {
+                setCancelSession((n) => n + 1);
+                setCancelOpen(true);
+                return;
               }
-              pending={icalMutation.isPending}
-              onPrimary={(kind) => {
-                if (kind === "cancel") {
-                  setCancelSession((n) => n + 1);
-                  setCancelOpen(true);
-                  return;
-                }
-                if (kind === "confirm") {
-                  requestPrimary("confirm");
-                  return;
-                }
-                if (kind === "accept-dates") {
-                  setPendingIcal("accept-dates");
-                  return;
-                }
-                if (kind === "accept-unit") {
-                  setPendingIcal("accept-unit");
-                  return;
-                }
-                if (kind === "clear-hold") {
-                  setPendingIcal("clear-hold");
-                }
-              }}
-              onDismiss={() => {
-                setPendingIcal("dismiss");
-              }}
-            />
-          )}
+              if (kind === "confirm") {
+                requestPrimary("confirm");
+                return;
+              }
+              if (kind === "accept-dates") {
+                setPendingIcal("accept-dates");
+                return;
+              }
+              if (kind === "accept-unit") {
+                setPendingIcal("accept-unit");
+                return;
+              }
+              if (kind === "clear-hold") {
+                setPendingIcal("clear-hold");
+              }
+            }}
+            onDismiss={() => {
+              setPendingIcal("dismiss");
+            }}
+          />
+        </div>
+      )}
+
+      {(showDueWarn || showRefundWarn) && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
           {showRefundWarn && <p>{t("detailPage.warnOverpaid")}</p>}
           {showDueWarn && !showRefundWarn && (
             <p>
@@ -453,7 +517,7 @@ export function ReservationDetailPage() {
 
       <PaymentMovementsTimeline reservation={row} />
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
         {primary && (
           <Button
             type="button"
@@ -466,22 +530,10 @@ export function ReservationDetailPage() {
             {primaryActionLabel(primary)}
           </Button>
         )}
-        {editable && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setEditIntent("edit");
-              setEditOpen(true);
-            }}
-          >
-            {t("detailPage.buttons.edit")}
-          </Button>
-        )}
         {showCollect && (
           <Button
             type="button"
-            variant="outline"
+            variant={primary ? "outline" : "default"}
             onClick={() => {
               setCollectOpen(true);
             }}
@@ -489,18 +541,33 @@ export function ReservationDetailPage() {
             {collectPaymentLabel(row)}
           </Button>
         )}
-        {editable && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setCancelSession((n) => n + 1);
-              setCancelOpen(true);
-            }}
-          >
-            {t("detailPage.buttons.cancel")}
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2 md:ms-auto">
+          {editable && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditIntent("edit");
+                setEditOpen(true);
+              }}
+            >
+              {t("detailPage.buttons.edit")}
+            </Button>
+          )}
+          {editable && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => {
+                setCancelSession((n) => n + 1);
+                setCancelOpen(true);
+              }}
+            >
+              {t("detailPage.buttons.cancel")}
+            </Button>
+          )}
+        </div>
       </div>
 
       {editOpen && (
