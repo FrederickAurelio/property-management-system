@@ -102,6 +102,9 @@ export type OverpaidReservationFilters = {
   status?: ReservationStatus;
   checkInDate?: string;
   checkOutDate?: string;
+  /** Inclusive stay-touch (requires both). */
+  from?: string;
+  to?: string;
   hasIcalWarning?: boolean;
   q?: string;
 };
@@ -138,6 +141,10 @@ export async function findOverpaidReservationIds(
     parts.push(
       Prisma.sql`r."checkOutDate" = ${parseYmd(filters.checkOutDate)}`,
     );
+  }
+  if (filters.from && filters.to) {
+    parts.push(Prisma.sql`r."checkInDate" <= ${parseYmd(filters.to)}`);
+    parts.push(Prisma.sql`r."checkOutDate" >= ${parseYmd(filters.from)}`);
   }
   if (filters.hasIcalWarning) {
     parts.push(Prisma.sql`r."icalSyncWarning" IS NOT NULL`);

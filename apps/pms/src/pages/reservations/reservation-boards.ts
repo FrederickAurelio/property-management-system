@@ -49,18 +49,24 @@ export function parseBoard(raw: string | null): ReservationBoard {
 export type BoardFilterLocks = {
   /** Board forces status (or a fixed status set). */
   locksStatus: boolean;
+  /**
+   * Stay-touch `from`/`to` — lookup boards only.
+   * Hidden on Arrivals / Departures (those already mean today).
+   */
+  showDateRangeFilter: boolean;
 };
 
 export function boardFilterLocks(board: ReservationBoard): BoardFilterLocks {
   switch (board) {
     case "arrivals":
-    case "in-house":
     case "departures":
+      return { locksStatus: true, showDateRangeFilter: false };
+    case "in-house":
     case "needs-details":
     case "balance-due":
-      return { locksStatus: true };
+      return { locksStatus: true, showDateRangeFilter: true };
     case "ical-alerts":
     case "all":
-      return { locksStatus: false };
+      return { locksStatus: false, showDateRangeFilter: true };
   }
 }

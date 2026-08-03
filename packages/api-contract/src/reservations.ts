@@ -564,6 +564,12 @@ export type StaffReservationListFilters = {
   sort?: ReservationListSort;
   checkInDate?: string;
   checkOutDate?: string;
+  /**
+   * Inclusive stay-touch window (YYYY-MM-DD). Both required together.
+   * Matches when `checkInDate <= to AND checkOutDate >= from`.
+   */
+  from?: string;
+  to?: string;
   hasIcalWarning?: boolean;
   paymentStatusIn?: PaymentStatus[];
   occupyingOnly?: boolean;

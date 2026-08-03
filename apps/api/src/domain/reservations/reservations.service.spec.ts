@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, BadRequestException } from '@nestjs/common';
 import {
   ApiFieldReason,
   CancelDisposition,
@@ -954,6 +954,97 @@ describe('ReservationsService', () => {
           orderBy: [{ checkOutDate: 'asc' }, { createdAt: 'asc' }],
         }),
       );
+    });
+  });
+
+  describe('list stay-touch from/to', () => {
+    it('ANDs inclusive checkIn ≤ to and checkOut ≥ from', async () => {
+      prisma.reservation.count.mockResolvedValue(0);
+      prisma.reservation.findMany.mockResolvedValue([]);
+
+      await service.list({
+        board: ReservationBoard.all,
+        from: '2026-05-02',
+        to: '2026-05-28',
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(prisma.reservation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              {},
+              {
+                AND: [
+                  {
+                    checkInDate: { lte: new Date('2026-05-28T00:00:00.000Z') },
+                  },
+                  {
+                    checkOutDate: { gte: new Date('2026-05-02T00:00:00.000Z') },
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+    });
+
+    it('ANDs stay-touch with in-house board status', async () => {
+      prisma.reservation.count.mockResolvedValue(0);
+      prisma.reservation.findMany.mockResolvedValue([]);
+
+      await service.list({
+        board: ReservationBoard['in-house'],
+        from: '2026-05-02',
+        to: '2026-05-28',
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(prisma.reservation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              { status: ReservationStatus.CHECKED_IN },
+              {
+                AND: [
+                  {
+                    checkInDate: { lte: new Date('2026-05-28T00:00:00.000Z') },
+                  },
+                  {
+                    checkOutDate: { gte: new Date('2026-05-02T00:00:00.000Z') },
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+    });
+
+    it('rejects from without to', async () => {
+      await expect(
+        service.list({
+          board: ReservationBoard.all,
+          from: '2026-05-02',
+          page: 1,
+          pageSize: 20,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects from after to', async () => {
+      await expect(
+        service.list({
+          board: ReservationBoard.all,
+          from: '2026-05-28',
+          to: '2026-05-02',
+          page: 1,
+          pageSize: 20,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });

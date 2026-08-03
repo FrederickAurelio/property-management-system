@@ -25,6 +25,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { ReservationBoard } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { ReservationDateRangeFilter } from "./reservation-date-range-filter";
 import { reservationBoards } from "./reservation-boards";
 import {
   formatReservationSource,
@@ -46,6 +47,10 @@ type ReservationFiltersBarProps = {
   sort: ReservationListSort;
   /** False when the board owns status (Nest overwrites any client status). */
   showStatusFilter: boolean;
+  /** Stay-touch from/to — lookup boards only. */
+  showDateRangeFilter: boolean;
+  from: string;
+  to: string;
   /** URL `q` — bar owns draft typing; syncs debounced value back. */
   q: string;
   propertyOptions: ReservationPropertyOption[];
@@ -59,6 +64,9 @@ export function ReservationFiltersBar({
   sourceFilter,
   sort,
   showStatusFilter,
+  showDateRangeFilter,
+  from,
+  to,
   q,
   propertyOptions,
   onPatch,
@@ -152,7 +160,9 @@ export function ReservationFiltersBar({
               className="w-[10.5rem] shrink-0"
               aria-label={t("reservations:filtersBar.propertyAria")}
             >
-              <SelectValue placeholder={t("reservations:filtersBar.propertyAria")} />
+              <SelectValue
+                placeholder={t("reservations:filtersBar.propertyAria")}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -167,6 +177,13 @@ export function ReservationFiltersBar({
               </SelectGroup>
             </SelectContent>
           </Select>
+          {showDateRangeFilter && (
+            <ReservationDateRangeFilter
+              from={from}
+              to={to}
+              onPatch={onPatch}
+            />
+          )}
           {showStatusFilter && (
             <Select
               value={statusFilter}
@@ -179,7 +196,9 @@ export function ReservationFiltersBar({
                 className="w-[8.75rem] shrink-0"
                 aria-label={t("reservations:filtersBar.statusAria")}
               >
-                <SelectValue placeholder={t("reservations:filtersBar.statusAria")} />
+                <SelectValue
+                  placeholder={t("reservations:filtersBar.statusAria")}
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -206,7 +225,9 @@ export function ReservationFiltersBar({
               className="w-[8.75rem] shrink-0"
               aria-label={t("reservations:filtersBar.sourceAria")}
             >
-              <SelectValue placeholder={t("reservations:filtersBar.sourceAria")} />
+              <SelectValue
+                placeholder={t("reservations:filtersBar.sourceAria")}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>

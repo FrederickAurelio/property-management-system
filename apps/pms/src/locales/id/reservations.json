@@ -19,7 +19,18 @@
     "anyStatus": "Semua status",
     "anySource": "Semua sumber",
     "sortStayDate": "Tanggal stay",
-    "sortCreated": "Dibuat"
+    "sortCreated": "Dibuat",
+    "allDates": "Semua tanggal",
+    "dateAria": "Rentang tanggal stay",
+    "dateSheetTitle": "Tanggal stay",
+    "dateClear": "Hapus",
+    "dateCancel": "Batal",
+    "dateConfirm": "Konfirmasi",
+    "datePresets": {
+      "thisWeek": "Minggu ini",
+      "thisMonth": "Bulan ini",
+      "next30": "30 hari ke depan"
+    }
   },
   "list": {
     "title": "Reservasi",

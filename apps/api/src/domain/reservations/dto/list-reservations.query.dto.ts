@@ -1,5 +1,11 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Matches,
+} from 'class-validator';
 import {
   ReservationBoard,
   ReservationListSort,
@@ -36,6 +42,18 @@ export class ListReservationsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   checkOutDate?: string;
+
+  /** Inclusive stay-touch start YYYY-MM-DD (requires `to`). */
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from?: string;
+
+  /** Inclusive stay-touch end YYYY-MM-DD (requires `from`). */
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  to?: string;
 
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => {

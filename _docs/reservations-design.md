@@ -67,16 +67,18 @@ Unit ── Reservation   (guest stay / iCal stub)
 
 Phase 1 desk boards live on **Reservations** (`/reservations`) only — **no** separate Check-in page. Check-in / check-out actions run from list → detail (and later calendar).
 
-| Board             | Default filter                                                                   | Primary job                                                      |
-| ----------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| **Arrivals**      | `status = CONFIRMED` and `checkInDate ≤ today < checkOutDate` (includes overdue) | Collect due → Check in                                           |
-| **In-house**      | `status = CHECKED_IN`                                                            | Extend / collect / Check out                                     |
-| **Balance due**   | Due > 0 **or** Refund > 0 (overpay), status occupying **or** `CHECKED_OUT`       | Collect / Refund                                                 |
-| **Departures**    | `status = CHECKED_IN` and `checkOutDate ≤ today` (includes overdue)              | Check out                                                        |
-| **Needs details** | `status = UNCONFIRMED`                                                           | Enrich → Confirm                                                 |
-| **OTA issues**    | `icalSyncWarning IS NOT NULL` (board id `ical-alerts`)                            | Playbook on detail: verify on OTA → primary Cabin action → OTA step if required |
+| Board             | Default filter                                                                   | Primary job                                                                     |
+| ----------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **Arrivals**      | `status = CONFIRMED` and `checkInDate ≤ today < checkOutDate` (includes overdue) | Collect due → Check in                                                          |
+| **In-house**      | `status = CHECKED_IN`                                                            | Extend / collect / Check out                                                    |
+| **Balance due**   | Due > 0 **or** Refund > 0 (overpay), status occupying **or** `CHECKED_OUT`       | Collect / Refund                                                                |
+| **Departures**    | `status = CHECKED_IN` and `checkOutDate ≤ today` (includes overdue)              | Check out                                                                       |
+| **Needs details** | `status = UNCONFIRMED`                                                           | Enrich → Confirm                                                                |
+| **OTA issues**    | `icalSyncWarning IS NOT NULL` (board id `ical-alerts`)                           | Playbook on detail: verify on OTA → primary Cabin action → OTA step if required |
 
 Arrivals matches the check-in window; Departures matches due/overdue checkout (not “today only”). Sort Arrivals by `checkInDate` asc, Departures by `checkOutDate` asc (oldest overdue first). PMS shows **Late arrival** / **Late departure** badges on list + detail wherever the row appears (not only on those boards). Past `checkOutDate` without ever checking in → find under All → **Cancel** (no-show notes); no separate `NO_SHOW` status.
+
+**List stay-touch filter** (`from` / `to`, inclusive YYYY-MM-DD): on lookup boards only (`all`, `needs-details`, `ical-alerts`, `balance-due`, `in-house`). Predicate: `checkInDate ≤ to AND checkOutDate ≥ from` (checkout on the `from` day still matches). Default = no range (all time). Hidden on Arrivals / Departures.
 
 Calendar is the spatial view of the same rows — same badges, same click-through to detail. Full page spec: [`calendar-design.md`](calendar-design.md). Desk home triage (today in/out + exceptions, not full boards): [`dashboard-design.md`](dashboard-design.md).
 
@@ -102,13 +104,13 @@ Only **one primary button** (filled). Everything else secondary. Money block alw
 
 ### 3.3 Roles (locked for Phase 1)
 
-| Action                                       | `FRONT_DESK`         | `ADMIN` / `SUPER_ADMIN` |
-| -------------------------------------------- | -------------------- | ----------------------- |
-| Create / edit / confirm / check-in / out     | Yes                  | Yes                     |
-| Collect / refund via movements               | Yes                  | Yes                     |
-| Cancel                                       | Yes                  | Yes                     |
-| Mid-stay cancel (`CHECKED_IN` → `CANCELLED`) | Yes + confirm dialog | Yes                     |
-| Delete reservation hard                      | **No**               | **No** (cancel only)    |
+| Action                                       | `FRONT_DESK`                           | `ADMIN` / `SUPER_ADMIN` |
+| -------------------------------------------- | -------------------------------------- | ----------------------- |
+| Create / edit / confirm / check-in / out     | Yes                                    | Yes                     |
+| Collect / refund via movements               | Yes                                    | Yes                     |
+| Cancel                                       | Yes                                    | Yes                     |
+| Mid-stay cancel (`CHECKED_IN` → `CANCELLED`) | Yes + confirm dialog                   | Yes                     |
+| Delete reservation hard                      | **No**                                 | **No** (cancel only)    |
 | iCal feed URL settings                       | No (may view unit; escalate URL fixes) | Yes                     |
 
 ---
@@ -315,26 +317,26 @@ Early/late check-out: dates unchanged unless staff **Edit** first; iCal busy fol
 
 ## 8. Table sketch: `Reservation`
 
-| Column                                  | Null | Notes                                                                           |
-| --------------------------------------- | ---- | ------------------------------------------------------------------------------- |
-| `id`                                    | no   | cuid                                                                            |
-| `propertyId` / `unitId` / `unitTypeId`  | no   | type snapshot at create                                                         |
-| `source` / `status`                     | no   |                                                                                 |
-| `billingPeriod`                         | no   | `DAILY` \| `MONTHLY` \| `YEARLY` (default `DAILY`)                              |
-| `checkInDate` / `checkOutDate`          | no   | inclusive / exclusive                                                           |
-| `guestName`                             | no   |                                                                                 |
-| `guestEmail` / `guestPhone`             | yes  | one required when confirmed                                                     |
-| `guestCount`                            | yes  | required when confirmed                                                         |
-| `notes`                                 | yes  |                                                                                 |
-| `totalAmountIdr`                        | yes  |                                                                                 |
-| `paidAmountIdr`                         | no   | default 0; **cache** = sum(`PaymentMovement.signedAmount`)                      |
-| `paymentStatus`                         | no   |                                                                                 |
-| `collectedVia`                          | yes  | optional rollup                                                                 |
-| `externalRef`                           | yes  | OTA id or iCal UID                                                              |
+| Column                                  | Null | Notes                                                                                            |
+| --------------------------------------- | ---- | ------------------------------------------------------------------------------------------------ |
+| `id`                                    | no   | cuid                                                                                             |
+| `propertyId` / `unitId` / `unitTypeId`  | no   | type snapshot at create                                                                          |
+| `source` / `status`                     | no   |                                                                                                  |
+| `billingPeriod`                         | no   | `DAILY` \| `MONTHLY` \| `YEARLY` (default `DAILY`)                                               |
+| `checkInDate` / `checkOutDate`          | no   | inclusive / exclusive                                                                            |
+| `guestName`                             | no   |                                                                                                  |
+| `guestEmail` / `guestPhone`             | yes  | one required when confirmed                                                                      |
+| `guestCount`                            | yes  | required when confirmed                                                                          |
+| `notes`                                 | yes  |                                                                                                  |
+| `totalAmountIdr`                        | yes  |                                                                                                  |
+| `paidAmountIdr`                         | no   | default 0; **cache** = sum(`PaymentMovement.signedAmount`)                                       |
+| `paymentStatus`                         | no   |                                                                                                  |
+| `collectedVia`                          | yes  | optional rollup                                                                                  |
+| `externalRef`                           | yes  | OTA id or iCal UID                                                                               |
 | `icalSyncWarning`                       | yes  | `MISSING_FROM_FEED` \| `DATES_DIFFER` \| `OTA_STILL_LISTED` \| `IMPORT_OVERLAP` \| `UNIT_DIFFER` |
-| `icalSyncWarnedAt`                      | yes  |                                                                                 |
-| lifecycle timestamps                    | yes  |                                                                                 |
-| `createdByAdminId` / `updatedByAdminId` | yes  |                                                                                 |
+| `icalSyncWarnedAt`                      | yes  |                                                                                                  |
+| lifecycle timestamps                    | yes  |                                                                                                  |
+| `createdByAdminId` / `updatedByAdminId` | yes  |                                                                                                  |
 
 ### `PaymentMovement`
 
@@ -424,13 +426,13 @@ Optional later: move the block to a “Calendars” tab if the form feels crowde
 
 Desk copy says **OTA** / channel name — not “iCal”. Shared playbook map (one per `icalSyncWarning`):
 
-| Warning | Primary Cabin CTA | OTA step required? |
-| ------- | ----------------- | ------------------ |
-| `MISSING_FROM_FEED` | Cancel this stay | Verify on channel; dismiss if feed looks wrong |
-| `DATES_DIFFER` | Use {channel} dates | Yes — or change dates on channel |
-| `UNIT_DIFFER` | Move to {channel}’s unit | Yes — or move booking on channel |
-| `IMPORT_OVERLAP` | Nights are free now (+ Cancel this booking) | Yes if you cancel a false OTA sell |
-| `OTA_STILL_LISTED` | Dismiss — I checked | Yes — cancel/update on channel if still listed |
+| Warning             | Primary Cabin CTA                           | OTA step required?                             |
+| ------------------- | ------------------------------------------- | ---------------------------------------------- |
+| `MISSING_FROM_FEED` | Cancel this stay                            | Verify on channel; dismiss if feed looks wrong |
+| `DATES_DIFFER`      | Use {channel} dates                         | Yes — or change dates on channel               |
+| `UNIT_DIFFER`       | Move to {channel}’s unit                    | Yes — or move booking on channel               |
+| `IMPORT_OVERLAP`    | Nights are free now (+ Cancel this booking) | Yes if you cancel a false OTA sell             |
+| `OTA_STILL_LISTED`  | Dismiss — I checked                         | Yes — cancel/update on channel if still listed |
 
 Detail banner: **what happened** → **Pick one** (when two outcomes) → check / Cabin / OTA steps → CTAs. Every mutating playbook CTA opens a **confirm dialog** first (Accept dates/unit, Nights are free now, Dismiss). Cancel opens the Cancel sheet. List titles: Gone from… / Dates don’t match / Still on… / Double-booked nights / Wrong unit.
 
@@ -481,10 +483,10 @@ Staff copy once → paste into each OTA’s **import** calendar. Rotate token = 
 
 **Prod target = hub.** Mesh was a valid bootstrap while PMS was new; migrate unit-by-unit when PMS is trusted.
 
-| Topology | OTA extranet wiring | PMS import (unchanged) | PMS desk |
-| -------- | ------------------- | ---------------------- | -------- |
-| **Hub** (target) | Each OTA imports **only** the PMS export `.ics` per unit | One `UnitIcalFeed` per source (Booking / Airbnb / Agoda) | One `UNCONFIRMED` per real OTA booking |
-| **Mesh** (bootstrap) | OTAs also import each other’s export URLs (peer OTA↔OTA) | Same | Same booking can echo as 2–3 stubs (different UIDs); echoes often get `IMPORT_OVERLAP` hold |
+| Topology             | OTA extranet wiring                                      | PMS import (unchanged)                                   | PMS desk                                                                                    |
+| -------------------- | -------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Hub** (target)     | Each OTA imports **only** the PMS export `.ics` per unit | One `UnitIcalFeed` per source (Booking / Airbnb / Agoda) | One `UNCONFIRMED` per real OTA booking                                                      |
+| **Mesh** (bootstrap) | OTAs also import each other’s export URLs (peer OTA↔OTA) | Same                                                     | Same booking can echo as 2–3 stubs (different UIDs); echoes often get `IMPORT_OVERLAP` hold |
 
 ```text
 HUB (target)
@@ -519,10 +521,10 @@ PMS export updates immediately when nights become busy; OTAs pull on **their** s
 
 Two reminder families in PMS (`OtaRemindDialog`):
 
-| Family | When | Copy |
-| ------ | ---- | ---- |
-| **A — update source** | Staff edit dates/unit, cancel, or check-out on an OTA-linked stay | Fix the **guest booking** on the source channel (existing) |
-| **B — refresh imports** | Staff **confirm** iCal stub, **create** walk-in, **edit** non–OTA-linked stay dates/unit, or **create/update** calendar block (dates/unit) | Pull **PMS export** on peer channels |
+| Family                  | When                                                                                                                                       | Copy                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| **A — update source**   | Staff edit dates/unit, cancel, or check-out on an OTA-linked stay                                                                          | Fix the **guest booking** on the source channel (existing) |
+| **B — refresh imports** | Staff **confirm** iCal stub, **create** walk-in, **edit** non–OTA-linked stay dates/unit, or **create/update** calendar block (dates/unit) | Pull **PMS export** on peer channels                       |
 
 Family **B** triggers (after success, non-blocking **Got it**):
 
@@ -539,32 +541,32 @@ Extranet labels: Booking.com **Import now** · Airbnb **Refresh** · Agoda **Ref
 
 ## 10. Edge-case catalog (prod)
 
-| #   | Situation                                                   | Expected behavior                                                                                                                                                                                                                                |
-| --- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | Save overlaps occupying stay/block                          | **409** `CONFLICT`; FE shows who conflicts (guest/source/dates)                                                                                                                                                                                  |
-| 2   | iCal stub exists; staff creates manual same unit/dates      | Overlap 409 — open stub and Confirm instead                                                                                                                                                                                                      |
-| 3   | Two OTA feeds mark same nights (mesh echo or real double-book) | Second UID → `UNCONFIRMED` with `IMPORT_OVERLAP` + `icalOverlapHold` (not calendar-busy). Hub reduces echoes; edge case stays for true conflicts. Desk: Cancel echo stub or free nights then Confirm real guest                                                                 |
-| 4   | Walk-in while export not yet pulled by OTA                  | Known delay window; SOP refresh OTA if last-minute                                                                                                                                                                                               |
-| 5   | Guest paid Airbnb; Due would confuse check-in               | Mark paid (+ optional CHANNEL) so Due = 0                                                                                                                                                                                                        |
-| 6   | Complimentary / owner friend                                | `total = 0`, Mark paid or leave `PAID` with paid 0→ treat `total=0` and `paid=0` as `PAID` (due 0)                                                                                                                                               |
-| 7   | Overpay `paid > total`                                      | `PAID`, Due = 0                                                                                                                                                                                                                                  |
-| 8   | Extend after full pay                                       | Raise total → Due appears; Collect IN top-up                                                                                                                                                                                                     |
-| 9   | Shrink after full pay                                       | Lower total; Paid stays; Refund = paid − total; Collect OUT                                                                                                                                                                                      |
-| 10  | Move to another unit                                        | PATCH `unitId` if free for range; keep money/guest. If OTA moves the listing (UID on sibling feed) → `UNIT_DIFFER` + observed unit/dates — staff **Accept OTA unit** (overlap-checked) or Dismiss for now. Accept unit may raise `DATES_DIFFER` immediately if dates also drifted. No false `MISSING_FROM_FEED` while the UID still appears on any same-source feed (or while sibling lookup is incomplete after retries) |
-| 11  | Unit set `MAINTENANCE` with future stays                    | Allow unit status change with **warning** listing future occupying rows — do not auto-cancel                                                                                                                                                     |
-| 12  | Early check-in / early check-out                            | Allowed with confirm; dates unchanged unless staff edits                                                                                                                                                                                         |
-| 13  | Guest never arrived                                         | Cancel (notes optional) → frees unit; money via Cancel sheet if paid                                                                                                                                                                             |
-| 14  | Cancel after DP / full pay                                  | Cancel sheet forces refund disposition                                                                                                                                                                                                           |
-| 15  | OTA cancel (UID gone) after Confirm                         | Warning queue → human Cancel + money                                                                                                                                                                                                             |
-| 16  | OTA date change after Confirm                               | `DATES_DIFFER` → Accept/Keep                                                                                                                                                                                                                     |
-| 17  | Re-pull after staff cancelled/checked out; same UID returns | Do **not** revive; set `OTA_STILL_LISTED` on that reservation (OTA issues board / Dashboard / detail). Desk: fix OTA or **Dismiss** (sticky — will not re-warn while UID stays in feed). Clear warning + dismiss ack when UID leaves this unit’s feed |
-| 18  | iCal SUMMARY looks like a person                            | May seed `guestName`; Confirm still requires contact + total                                                                                                                                                                                     |
-| 19  | Same-day turnaround                                         | Exclusive checkout: morning out / evening in OK on same date                                                                                                                                                                                     |
-| 20  | Check-in with Due > 0                                       | Warn + allow (pay-at-property)                                                                                                                                                                                                                   |
-| 21  | Edit guest after check-in                                   | Allowed (typos); money/dates separate                                                                                                                                                                                                            |
-| 22  | Multi-property                                              | All boards scoped by selected `propertyId`                                                                                                                                                                                                       |
-| 23  | Sync now fails / empty feed body                            | Keep last good data; feed `lastError` on unit Calendars + Dashboard `icalFeedHealth`; empty body does **not** MISSING-storm                                                                                                                      |
-| 24  | Export token leaked                                         | Rotate token on unit/feed settings (ADMIN)                                                                                                                                                                                                       |
+| #   | Situation                                                      | Expected behavior                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Save overlaps occupying stay/block                             | **409** `CONFLICT`; FE shows who conflicts (guest/source/dates)                                                                                                                                                                                                                                                                                                                                                           |
+| 2   | iCal stub exists; staff creates manual same unit/dates         | Overlap 409 — open stub and Confirm instead                                                                                                                                                                                                                                                                                                                                                                               |
+| 3   | Two OTA feeds mark same nights (mesh echo or real double-book) | Second UID → `UNCONFIRMED` with `IMPORT_OVERLAP` + `icalOverlapHold` (not calendar-busy). Hub reduces echoes; edge case stays for true conflicts. Desk: Cancel echo stub or free nights then Confirm real guest                                                                                                                                                                                                           |
+| 4   | Walk-in while export not yet pulled by OTA                     | Known delay window; SOP refresh OTA if last-minute                                                                                                                                                                                                                                                                                                                                                                        |
+| 5   | Guest paid Airbnb; Due would confuse check-in                  | Mark paid (+ optional CHANNEL) so Due = 0                                                                                                                                                                                                                                                                                                                                                                                 |
+| 6   | Complimentary / owner friend                                   | `total = 0`, Mark paid or leave `PAID` with paid 0→ treat `total=0` and `paid=0` as `PAID` (due 0)                                                                                                                                                                                                                                                                                                                        |
+| 7   | Overpay `paid > total`                                         | `PAID`, Due = 0                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 8   | Extend after full pay                                          | Raise total → Due appears; Collect IN top-up                                                                                                                                                                                                                                                                                                                                                                              |
+| 9   | Shrink after full pay                                          | Lower total; Paid stays; Refund = paid − total; Collect OUT                                                                                                                                                                                                                                                                                                                                                               |
+| 10  | Move to another unit                                           | PATCH `unitId` if free for range; keep money/guest. If OTA moves the listing (UID on sibling feed) → `UNIT_DIFFER` + observed unit/dates — staff **Accept OTA unit** (overlap-checked) or Dismiss for now. Accept unit may raise `DATES_DIFFER` immediately if dates also drifted. No false `MISSING_FROM_FEED` while the UID still appears on any same-source feed (or while sibling lookup is incomplete after retries) |
+| 11  | Unit set `MAINTENANCE` with future stays                       | Allow unit status change with **warning** listing future occupying rows — do not auto-cancel                                                                                                                                                                                                                                                                                                                              |
+| 12  | Early check-in / early check-out                               | Allowed with confirm; dates unchanged unless staff edits                                                                                                                                                                                                                                                                                                                                                                  |
+| 13  | Guest never arrived                                            | Cancel (notes optional) → frees unit; money via Cancel sheet if paid                                                                                                                                                                                                                                                                                                                                                      |
+| 14  | Cancel after DP / full pay                                     | Cancel sheet forces refund disposition                                                                                                                                                                                                                                                                                                                                                                                    |
+| 15  | OTA cancel (UID gone) after Confirm                            | Warning queue → human Cancel + money                                                                                                                                                                                                                                                                                                                                                                                      |
+| 16  | OTA date change after Confirm                                  | `DATES_DIFFER` → Accept/Keep                                                                                                                                                                                                                                                                                                                                                                                              |
+| 17  | Re-pull after staff cancelled/checked out; same UID returns    | Do **not** revive; set `OTA_STILL_LISTED` on that reservation (OTA issues board / Dashboard / detail). Desk: fix OTA or **Dismiss** (sticky — will not re-warn while UID stays in feed). Clear warning + dismiss ack when UID leaves this unit’s feed                                                                                                                                                                     |
+| 18  | iCal SUMMARY looks like a person                               | May seed `guestName`; Confirm still requires contact + total                                                                                                                                                                                                                                                                                                                                                              |
+| 19  | Same-day turnaround                                            | Exclusive checkout: morning out / evening in OK on same date                                                                                                                                                                                                                                                                                                                                                              |
+| 20  | Check-in with Due > 0                                          | Warn + allow (pay-at-property)                                                                                                                                                                                                                                                                                                                                                                                            |
+| 21  | Edit guest after check-in                                      | Allowed (typos); money/dates separate                                                                                                                                                                                                                                                                                                                                                                                     |
+| 22  | Multi-property                                                 | All boards scoped by selected `propertyId`                                                                                                                                                                                                                                                                                                                                                                                |
+| 23  | Sync now fails / empty feed body                               | Keep last good data; feed `lastError` on unit Calendars + Dashboard `icalFeedHealth`; empty body does **not** MISSING-storm                                                                                                                                                                                                                                                                                               |
+| 24  | Export token leaked                                            | Rotate token on unit/feed settings (ADMIN)                                                                                                                                                                                                                                                                                                                                                                                |
 
 ---
 
@@ -576,19 +578,19 @@ staff/reservations|calendar|calendar-blocks
 public/ical (+ Phase 2 book)
 ```
 
-| Method      | Path                                              | Notes                                                                                                                    |
-| ----------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `GET/POST`  | `/staff/reservations`                             | Filters: property, status, source, dates, warning, q                                                                     |
-| `GET/PATCH` | `/staff/reservations/:id`                         |                                                                                                                          |
-| `POST`      | `.../confirm`                                     | Matrix §7                                                                                                                |
-| `POST`      | `.../check-in` \| `check-out`                     |                                                                                                                          |
-| `POST`      | `.../cancel`                                      | Body: `disposition` + optional `refundAmountIdr` (partial) + `notes` — cash = movement OUT, never remaining-Paid rewrite |
-| `POST`      | `.../payments` (or `.../movements`)               | Body: `direction` · `kind` · `amountIdr` · `method?` · `note?` — Paid = sum                                              |
-| `PATCH`     | `.../` (total quote only)                         | Total on reservation; do not PATCH absolute Paid                                                                         |
-| `POST`      | `.../accept-ical-dates` \| `accept-ical-unit` \| `dismiss-ical-warning` | Accept unit moves to observed sibling feed (overlap-checked) |
-| `GET`       | `/staff/properties/:propertyId/calendar`          |                                                                                                                          |
-| CRUD        | `/staff/calendar-blocks`                          |                                                                                                                          |
-| `GET`       | `/public/ical/units/:unitId.ics`                  | tokenized export                                                                                                         |
+| Method      | Path                                                                    | Notes                                                                                                                    |
+| ----------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `GET/POST`  | `/staff/reservations`                                                   | Filters: property, status, source, dates, warning, q                                                                     |
+| `GET/PATCH` | `/staff/reservations/:id`                                               |                                                                                                                          |
+| `POST`      | `.../confirm`                                                           | Matrix §7                                                                                                                |
+| `POST`      | `.../check-in` \| `check-out`                                           |                                                                                                                          |
+| `POST`      | `.../cancel`                                                            | Body: `disposition` + optional `refundAmountIdr` (partial) + `notes` — cash = movement OUT, never remaining-Paid rewrite |
+| `POST`      | `.../payments` (or `.../movements`)                                     | Body: `direction` · `kind` · `amountIdr` · `method?` · `note?` — Paid = sum                                              |
+| `PATCH`     | `.../` (total quote only)                                               | Total on reservation; do not PATCH absolute Paid                                                                         |
+| `POST`      | `.../accept-ical-dates` \| `accept-ical-unit` \| `dismiss-ical-warning` | Accept unit moves to observed sibling feed (overlap-checked)                                                             |
+| `GET`       | `/staff/properties/:propertyId/calendar`                                |                                                                                                                          |
+| CRUD        | `/staff/calendar-blocks`                                                |                                                                                                                          |
+| `GET`       | `/public/ical/units/:unitId.ics`                                        | tokenized export                                                                                                         |
 
 ---
 
@@ -618,17 +620,17 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservati
 
 ## 14. Build order
 
-| #   | Slice                                   |
-| --- | --------------------------------------- |
-| 1   | Schema + overlap + enums + sync warning |
-| 2   | Staff CRUD + field matrix + money       |
-| 3   | Calendar read + boards                  |
-| 4   | Check-in/out/cancel + date/unit PATCH   |
-| 5   | **iCal export**                         |
-| 6   | Enrich queues                           |
-| 7   | **iCal import** + Sync now + warnings   |
-| Ph1 prod | **Hub** topology when PMS trusted (mesh bootstrap OK until then) |
-| Ph2 | Public book — **hub required** (website + walk-in + OTA share PMS export) |
+| #        | Slice                                                                     |
+| -------- | ------------------------------------------------------------------------- |
+| 1        | Schema + overlap + enums + sync warning                                   |
+| 2        | Staff CRUD + field matrix + money                                         |
+| 3        | Calendar read + boards                                                    |
+| 4        | Check-in/out/cancel + date/unit PATCH                                     |
+| 5        | **iCal export**                                                           |
+| 6        | Enrich queues                                                             |
+| 7        | **iCal import** + Sync now + warnings                                     |
+| Ph1 prod | **Hub** topology when PMS trusted (mesh bootstrap OK until then)          |
+| Ph2      | Public book — **hub required** (website + walk-in + OTA share PMS export) |
 
 ---
 

@@ -19,7 +19,18 @@
     "anyStatus": "Any status",
     "anySource": "Any source",
     "sortStayDate": "Stay date",
-    "sortCreated": "Created"
+    "sortCreated": "Created",
+    "allDates": "All dates",
+    "dateAria": "Stay date range",
+    "dateSheetTitle": "Stay dates",
+    "dateClear": "Clear",
+    "dateCancel": "Cancel",
+    "dateConfirm": "Confirm",
+    "datePresets": {
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "next30": "Next 30 days"
+    }
   },
   "list": {
     "title": "Reservations",

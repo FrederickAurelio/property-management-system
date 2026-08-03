@@ -1381,6 +1381,8 @@ export class ReservationsService {
       status: query.status,
       checkInDate: query.checkInDate,
       checkOutDate: query.checkOutDate,
+      from: query.from,
+      to: query.to,
       hasIcalWarning: query.hasIcalWarning,
       q: query.q,
     });
@@ -1405,6 +1407,8 @@ export class ReservationsService {
   private async buildListWhere(
     query: ListReservationsQueryDto,
   ): Promise<Prisma.ReservationWhereInput> {
+    this.assertStayTouchQuery(query.from, query.to);
+
     const where: Prisma.ReservationWhereInput = {};
     if (query.propertyId) {
       where.propertyId = query.propertyId;
@@ -1478,10 +1482,50 @@ export class ReservationsService {
       ];
     }
 
+    const withStayTouch = this.applyStayTouchRange(where, query.from, query.to);
+
     if (balanceDue) {
-      return this.balanceDueMoneyFilter(where, query);
+      return this.balanceDueMoneyFilter(withStayTouch, query);
     }
 
-    return where;
+    return withStayTouch;
+  }
+
+  /**
+   * Inclusive stay-touch: checkInDate ≤ to AND checkOutDate ≥ from.
+   * Applied as AND so board date windows are not overwritten.
+   */
+  private applyStayTouchRange(
+    where: Prisma.ReservationWhereInput,
+    from: string | undefined,
+    to: string | undefined,
+  ): Prisma.ReservationWhereInput {
+    if (!from || !to) {
+      return where;
+    }
+    const stayTouch: Prisma.ReservationWhereInput = {
+      AND: [
+        { checkInDate: { lte: parseYmd(to) } },
+        { checkOutDate: { gte: parseYmd(from) } },
+      ],
+    };
+    return { AND: [where, stayTouch] };
+  }
+
+  private assertStayTouchQuery(
+    from: string | undefined,
+    to: string | undefined,
+  ): void {
+    if (!from && !to) {
+      return;
+    }
+    if (!from || !to) {
+      throw new BadRequestException(
+        'Both from and to are required for the stay date filter',
+      );
+    }
+    if (from > to) {
+      throw new BadRequestException('from must be on or before to');
+    }
   }
 }

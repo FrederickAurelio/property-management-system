@@ -273,6 +273,7 @@ model Reservation {
   movements       PaymentMovement[]
 
   @@index([unitId, checkInDate, checkOutDate])
+  @@index([propertyId, checkInDate, checkOutDate])
   @@index([propertyId, checkInDate])
   @@index([propertyId, checkOutDate])
   @@index([propertyId, status])

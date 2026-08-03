@@ -46,6 +46,7 @@ import { parseBoard, boardFilterLocks } from "./reservation-boards";
 import { ReservationFiltersBar } from "./reservation-filters-bar";
 import { ReservationFormDialog } from "./reservation-form-dialog";
 import { reservationListStateFromSearch } from "./reservation-nav";
+import { parseStayTouchRange } from "./reservation-stay-range";
 import {
   formatIcalWarning,
   formatMoneyOrDash,
@@ -230,6 +231,11 @@ export function ReservationsPage() {
       ? ReservationListSort.createdAt
       : ReservationListSort.checkIn;
   const q = searchParams.get("q") ?? "";
+  const stayTouch = filterLocks.showDateRangeFilter
+    ? parseStayTouchRange(searchParams.get("from"), searchParams.get("to"))
+    : null;
+  const from = stayTouch?.from ?? "";
+  const to = stayTouch?.to ?? "";
 
   useEffect(() => {
     if (!filterLocks.locksStatus || !searchParams.has("status")) {
@@ -244,6 +250,24 @@ export function ReservationsPage() {
       { replace: true },
     );
   }, [filterLocks.locksStatus, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (
+      filterLocks.showDateRangeFilter ||
+      (!searchParams.has("from") && !searchParams.has("to"))
+    ) {
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("from");
+        next.delete("to");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [filterLocks.showDateRangeFilter, searchParams, setSearchParams]);
 
   const patchParams = useCallback(
     (patch: Record<string, string | null>) => {
@@ -260,8 +284,13 @@ export function ReservationsPage() {
                 next.set(key, value);
               }
               const nextBoard = parseBoard(value);
-              if (boardFilterLocks(nextBoard).locksStatus) {
+              const nextLocks = boardFilterLocks(nextBoard);
+              if (nextLocks.locksStatus) {
                 next.delete("status");
+              }
+              if (!nextLocks.showDateRangeFilter) {
+                next.delete("from");
+                next.delete("to");
               }
               continue;
             }
@@ -287,6 +316,7 @@ export function ReservationsPage() {
       ...(sort === ReservationListSort.createdAt
         ? { sort: ReservationListSort.createdAt }
         : {}),
+      ...(from && to ? { from, to } : {}),
     };
     if (!filterLocks.locksStatus && statusFilter !== "all") {
       filters.status = statusFilter as ReservationStatus;
@@ -303,6 +333,8 @@ export function ReservationsPage() {
     statusFilter,
     sourceFilter,
     filterLocks.locksStatus,
+    from,
+    to,
   ]);
 
   const propertiesQuery = useQuery({
@@ -364,6 +396,9 @@ export function ReservationsPage() {
         sourceFilter={sourceFilter}
         sort={sort}
         showStatusFilter={!filterLocks.locksStatus}
+        showDateRangeFilter={filterLocks.showDateRangeFilter}
+        from={from}
+        to={to}
         q={q}
         propertyOptions={propertyOptions}
         onPatch={patchParams}

@@ -97,6 +97,8 @@ export async function listReservations(
         ...(filters.sort ? { sort: filters.sort } : {}),
         ...(filters.checkInDate ? { checkInDate: filters.checkInDate } : {}),
         ...(filters.checkOutDate ? { checkOutDate: filters.checkOutDate } : {}),
+        ...(filters.from ? { from: filters.from } : {}),
+        ...(filters.to ? { to: filters.to } : {}),
         ...(filters.hasIcalWarning !== undefined
           ? { hasIcalWarning: filters.hasIcalWarning }
           : {}),

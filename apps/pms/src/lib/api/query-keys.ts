@@ -39,6 +39,8 @@ export type StaffReservationsListFilters = {
   sort?: ReservationListSort;
   checkInDate?: string;
   checkOutDate?: string;
+  from?: string;
+  to?: string;
   hasIcalWarning?: boolean;
   paymentStatusIn?: PaymentStatus[];
   occupyingOnly?: boolean;
