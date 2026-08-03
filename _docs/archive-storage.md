@@ -125,7 +125,7 @@ After first start:
 # Local
 pnpm archive:bootstrap
 
-# VPS (no pnpm)
+# VPS (no pnpm) — prefers cabin-api image; no Docker Hub node pull
 ./deploy/garage/bootstrap-vps.sh
 ```
 
