@@ -54,7 +54,10 @@ export function SettingsPage() {
         title={t("settings:profile.title")}
         description={t("settings:profile.description")}
       >
-        <ChangeUsernameForm currentUsername={staff.username} />
+        <ChangeUsernameForm
+          key={staff.username}
+          currentUsername={staff.username}
+        />
       </SettingsSection>
 
       <Separator />

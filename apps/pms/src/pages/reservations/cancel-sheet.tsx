@@ -1,5 +1,5 @@
 /* anchor: Stripe cancel + refund, diverge: guest vs property money preview */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   RESERVATION_NOTES_MAX,
   type StaffReservation,
@@ -46,6 +46,14 @@ function emptyFormValues(): FormValues {
     disposition: "keep",
     refundToGuestDigits: "",
     notes: "",
+  };
+}
+
+function cancelDefaults(reservation: StaffReservation): FormValues {
+  return {
+    disposition: "keep",
+    refundToGuestDigits: "",
+    notes: reservation.notes ?? "",
   };
 }
 
@@ -142,23 +150,8 @@ export function CancelSheet({
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
-    defaultValues: {
-      disposition: "keep",
-      refundToGuestDigits: "",
-      notes: "",
-    },
+    defaultValues: cancelDefaults(reservation),
   });
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    form.reset({
-      disposition: "keep",
-      refundToGuestDigits: "",
-      notes: reservation.notes ?? "",
-    });
-  }, [open, reservation.notes, form]);
 
   const disposition = useWatch({
     control: form.control,

@@ -1,5 +1,5 @@
 /* anchor: Notion media grid / Linear attachments, diverge: dnd-kit sort + Cloudinary upload */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -196,12 +196,16 @@ export function SortableMediaField({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [uploadingCount, setUploadingCount] = useState(0);
+  const uploadingCountRef = useRef(0);
   const ids = useMemo(() => value.map((item) => item.id), [value]);
   const uploading = uploadingCount > 0;
 
-  useEffect(() => {
-    onUploadingChange?.(uploading);
-  }, [uploading, onUploadingChange]);
+  function adjustUploading(delta: number) {
+    const next = Math.max(0, uploadingCountRef.current + delta);
+    uploadingCountRef.current = next;
+    setUploadingCount(next);
+    onUploadingChange?.(next > 0);
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -256,7 +260,7 @@ export function SortableMediaField({
       if (!assertFileAllowed(file)) {
         continue;
       }
-      setUploadingCount((n) => n + 1);
+      adjustUploading(1);
       try {
         const item = await uploadMediaFile(file);
         next = [...next, item];
@@ -264,7 +268,7 @@ export function SortableMediaField({
       } catch (error) {
         handleError(error);
       } finally {
-        setUploadingCount((n) => Math.max(0, n - 1));
+        adjustUploading(-1);
       }
     }
   }
@@ -384,10 +388,6 @@ export function CoverImageField({
   const [uploading, setUploading] = useState(false);
   const items = value ? [value] : [];
 
-  useEffect(() => {
-    onUploadingChange?.(uploading);
-  }, [uploading, onUploadingChange]);
-
   async function onPick(files: FileList | null) {
     if (!files || files.length === 0) {
       return;
@@ -401,6 +401,7 @@ export function CoverImageField({
     }
 
     setUploading(true);
+    onUploadingChange?.(true);
     try {
       const item = await uploadMediaFile(file);
       if (value) {
@@ -411,6 +412,7 @@ export function CoverImageField({
       handleError(error);
     } finally {
       setUploading(false);
+      onUploadingChange?.(false);
     }
   }
 

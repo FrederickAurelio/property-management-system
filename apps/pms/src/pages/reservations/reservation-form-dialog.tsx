@@ -209,6 +209,80 @@ function emptyFormValues(): FormValues {
   };
 }
 
+function formValuesFromOpen(args: {
+  reservation: StaffReservation | null;
+  initialChosen: ChosenUnit | null;
+  initialCheckInDate: string;
+  initialCheckOutDate: string;
+}): FormValues {
+  const { reservation, initialChosen, initialCheckInDate, initialCheckOutDate } =
+    args;
+  if (reservation) {
+    return {
+      unitId: reservation.unitId,
+      billingPeriod: reservation.billingPeriod,
+      checkInDate: reservation.checkInDate,
+      checkOutDate: reservation.checkOutDate,
+      guestName: reservation.guestName,
+      guestEmail: reservation.guestEmail ?? "",
+      guestPhone: reservation.guestPhone ?? "",
+      guestCount: reservation.guestCount ?? 1,
+      source: reservation.source,
+      totalDigits:
+        reservation.totalAmountIdr != null
+          ? String(reservation.totalAmountIdr)
+          : "",
+      paidDigits: String(reservation.paidAmountIdr),
+      notes: reservation.notes ?? "",
+    };
+  }
+  if (initialChosen) {
+    return {
+      unitId: initialChosen.unitId,
+      billingPeriod: StayBillingPeriod.DAILY,
+      checkInDate: initialCheckInDate,
+      checkOutDate: initialCheckOutDate,
+      guestName: "",
+      guestEmail: "",
+      guestPhone: "",
+      guestCount: 1,
+      source: ReservationSource.MANUAL,
+      totalDigits: "",
+      paidDigits: "0",
+      notes: "",
+    };
+  }
+  return {
+    unitId: "",
+    billingPeriod: StayBillingPeriod.DAILY,
+    checkInDate: initialCheckInDate,
+    checkOutDate: initialCheckOutDate,
+    guestName: "",
+    guestEmail: "",
+    guestPhone: "",
+    guestCount: 1,
+    source: ReservationSource.MANUAL,
+    totalDigits: "",
+    paidDigits: "0",
+    notes: "",
+  };
+}
+
+function editStayKeyFromReservation(
+  reservation: StaffReservation | null,
+): string | null {
+  if (!reservation) {
+    return null;
+  }
+  const openCount =
+    periodCountFromRange(
+      reservation.billingPeriod,
+      reservation.checkInDate,
+      reservation.checkOutDate,
+    ) ?? 0;
+  return `${reservation.unitTypeId}:${reservation.billingPeriod}:${openCount}`;
+}
+
 type ReservationFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -278,104 +352,22 @@ export function ReservationFormDialog({
   /** Last full suggest key we applied (or seeded on edit when stay unchanged). */
   const appliedSuggestKeyRef = useRef<string | null>(null);
   /**
-   * Edit open: stay fingerprint at reset (`unitTypeId:billingPeriod:periodCount`).
+   * Edit open: stay fingerprint at mount (`unitTypeId:billingPeriod:periodCount`).
    * Used so a late rack load does not lock Total after staff already changed stay.
    */
-  const editOpenStayKeyRef = useRef<string | null>(null);
+  const editOpenStayKeyRef = useRef<string | null>(
+    editStayKeyFromReservation(reservation),
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
-    defaultValues: {
-      unitId: initialChosen?.unitId ?? "",
-      billingPeriod: StayBillingPeriod.DAILY,
-      checkInDate: initialCheckInDate,
-      checkOutDate: initialCheckOutDate,
-      guestName: "",
-      guestEmail: "",
-      guestPhone: "",
-      guestCount: 1,
-      source: ReservationSource.MANUAL,
-      totalDigits: "",
-      paidDigits: "0",
-      notes: "",
-    },
+    defaultValues: formValuesFromOpen({
+      reservation,
+      initialChosen,
+      initialCheckInDate,
+      initialCheckOutDate,
+    }),
   });
-
-  useEffect(() => {
-    if (!open) {
-      appliedSuggestKeyRef.current = null;
-      editOpenStayKeyRef.current = null;
-      return;
-    }
-    if (reservation) {
-      const openCount =
-        periodCountFromRange(
-          reservation.billingPeriod,
-          reservation.checkInDate,
-          reservation.checkOutDate,
-        ) ?? 0;
-      editOpenStayKeyRef.current = `${reservation.unitTypeId}:${reservation.billingPeriod}:${openCount}`;
-      appliedSuggestKeyRef.current = null;
-      form.reset({
-        unitId: reservation.unitId,
-        billingPeriod: reservation.billingPeriod,
-        checkInDate: reservation.checkInDate,
-        checkOutDate: reservation.checkOutDate,
-        guestName: reservation.guestName,
-        guestEmail: reservation.guestEmail ?? "",
-        guestPhone: reservation.guestPhone ?? "",
-        guestCount: reservation.guestCount ?? 1,
-        source: reservation.source,
-        totalDigits:
-          reservation.totalAmountIdr != null
-            ? String(reservation.totalAmountIdr)
-            : "",
-        paidDigits: String(reservation.paidAmountIdr),
-        notes: reservation.notes ?? "",
-      });
-      return;
-    }
-    editOpenStayKeyRef.current = null;
-    appliedSuggestKeyRef.current = null;
-    if (initialChosen) {
-      form.reset({
-        unitId: initialChosen.unitId,
-        billingPeriod: StayBillingPeriod.DAILY,
-        checkInDate: initialCheckInDate,
-        checkOutDate: initialCheckOutDate,
-        guestName: "",
-        guestEmail: "",
-        guestPhone: "",
-        guestCount: 1,
-        source: ReservationSource.MANUAL,
-        totalDigits: "",
-        paidDigits: "0",
-        notes: "",
-      });
-      return;
-    }
-    form.reset({
-      unitId: "",
-      billingPeriod: StayBillingPeriod.DAILY,
-      checkInDate: initialCheckInDate,
-      checkOutDate: initialCheckOutDate,
-      guestName: "",
-      guestEmail: "",
-      guestPhone: "",
-      guestCount: 1,
-      source: ReservationSource.MANUAL,
-      totalDigits: "",
-      paidDigits: "0",
-      notes: "",
-    });
-  }, [
-    open,
-    reservation,
-    form,
-    initialChosen,
-    initialCheckInDate,
-    initialCheckOutDate,
-  ]);
 
   const checkInDate = useWatch({ control: form.control, name: "checkInDate" });
   const checkOutDate = useWatch({
@@ -638,8 +630,6 @@ export function ReservationFormDialog({
       });
     },
     onSuccess: (saved) => {
-      appliedSuggestKeyRef.current = null;
-      editOpenStayKeyRef.current = null;
       const prev = reservation;
       const occupancyChanged =
         prev == null ||
@@ -654,6 +644,15 @@ export function ReservationFormDialog({
         (prev.unitId !== saved.unitId ||
           prev.checkInDate !== saved.checkInDate ||
           prev.checkOutDate !== saved.checkOutDate);
+      // Stay-open (OTA / refresh remind): re-seed like the old open-reset Effect —
+      // edit stay fingerprint from saved row + clear applied key so the suggest
+      // Effect takes the "seed, don't overwrite Total" branch. Do not clear
+      // editOpenStayKeyRef to null (that forced applySuggested over the saved Total).
+      // Next open remounts and re-seeds via useRef / defaultValues.
+      if (isEdit) {
+        editOpenStayKeyRef.current = editStayKeyFromReservation(saved);
+        appliedSuggestKeyRef.current = null;
+      }
       syncReservationCaches(queryClient, saved, { occupancyChanged });
       handleSuccess(
         isConfirmEnrich

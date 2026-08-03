@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: password re-auth in confirm Dialog */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -109,10 +109,6 @@ export function ChangeUsernameForm({
     resolver: zodResolver(usernameSchema as never),
     defaultValues: { username: currentUsername, currentPassword: "" },
   });
-
-  useEffect(() => {
-    form.reset({ username: currentUsername, currentPassword: "" });
-  }, [currentUsername, form]);
 
   const mutation = useMutation({
     mutationFn: staffChangeUsername,

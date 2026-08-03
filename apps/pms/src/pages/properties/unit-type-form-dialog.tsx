@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: unit type + beds + amenities per _docs */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -239,6 +239,31 @@ const emptyDefaults: FormValues = {
   media: [],
 };
 
+function formValuesFromUnitType(
+  unitType: StaffUnitType | null | undefined,
+): FormValues {
+  if (!unitType) {
+    return structuredClone(emptyDefaults);
+  }
+  return {
+    code: unitType.code,
+    name: unitType.name,
+    layout: unitType.layout,
+    sizeSqm: unitType.sizeSqm != null ? String(unitType.sizeSqm) : "",
+    bathroomCount: String(unitType.bathroomCount),
+    maxGuests: String(unitType.maxGuests),
+    defaultPriceIdr: String(unitType.defaultPriceIdr),
+    monthlyPriceIdr: String(unitType.monthlyPriceIdr),
+    yearlyPriceIdr: String(unitType.yearlyPriceIdr),
+    description: unitType.description ?? "",
+    smokingAllowed: unitType.smokingAllowed ? "true" : "false",
+    isActive: unitType.isActive ? "true" : "false",
+    bedConfig: structuredClone(unitType.bedConfig),
+    amenities: structuredClone(unitType.amenities),
+    media: structuredClone(unitType.media),
+  };
+}
+
 type UnitTypeFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -262,35 +287,8 @@ export function UnitTypeFormDialog({
   // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
-    defaultValues: emptyDefaults,
+    defaultValues: formValuesFromUnitType(unitType),
   });
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    form.reset(
-      unitType
-        ? {
-            code: unitType.code,
-            name: unitType.name,
-            layout: unitType.layout,
-            sizeSqm: unitType.sizeSqm != null ? String(unitType.sizeSqm) : "",
-            bathroomCount: String(unitType.bathroomCount),
-            maxGuests: String(unitType.maxGuests),
-            defaultPriceIdr: String(unitType.defaultPriceIdr),
-            monthlyPriceIdr: String(unitType.monthlyPriceIdr),
-            yearlyPriceIdr: String(unitType.yearlyPriceIdr),
-            description: unitType.description ?? "",
-            smokingAllowed: unitType.smokingAllowed ? "true" : "false",
-            isActive: unitType.isActive ? "true" : "false",
-            bedConfig: structuredClone(unitType.bedConfig),
-            amenities: structuredClone(unitType.amenities),
-            media: structuredClone(unitType.media),
-          }
-        : structuredClone(emptyDefaults),
-    );
-  }, [open, unitType, form]);
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {

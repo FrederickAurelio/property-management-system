@@ -69,19 +69,7 @@ Keep `? :` when both branches render real UI (`isActive ? "Active" : "Revoked"`)
 
 ## React Effects (`useEffect`)
 
-Follow [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect). Effects synchronize with **external** systems (DOM, window listeners, URL, sessionStorage, subscriptions). They are not for deriving UI state or reacting to user actions.
-
-| Need | Do | Don’t |
-|------|----|-------|
-| Reset dialog/sheet form when opening create vs edit | Remount with `key` (`property?.id ?? "create"`, `open` session id) so RHF defaults apply | `useEffect(() => { if (open) form.reset(…) }, [open, entity])` |
-| Clear local UI when dialog closes | Event handler: `onOpenChange(false)` / Cancel — same place as close | Effect watching `open === false` then `setState` / `form.reset` |
-| Derived value (filter, label, total) | Compute during render (or `useMemo` if expensive) | `useEffect` + `setState` from props/state |
-| Notify parent of child state | Call parent in the **event** that changed it (or lift state / derive) | `useEffect(() => onChange(x), [x])` |
-| Keyboard, pointerup, focus, scrollIntoView, debounce timer | Effect (subscribe + cleanup) | — |
-| Sync search params / sessionStorage | Effect OK when the source of truth is outside React | — |
-| Data fetch for screen | TanStack Query — not raw `useEffect` + `fetch` | — |
-
-`react-hooks/set-state-in-effect` is an error — treat cascading `setState` in Effects as a smell; prefer key remount, render-time calc, or event handlers.
+Locked patterns (key remount vs `onSuccess` clear vs URL hygiene): **[`pms-effects.mdc`](pms-effects.mdc)**. Short version: Effects sync **external** systems only — not form reset on `open`, not post-mutate clear (that’s `onSuccess` in [`pms-query.mdc`](pms-query.mdc)), not derive-then-`setState`.
 
 ## GET / list loading & errors
 

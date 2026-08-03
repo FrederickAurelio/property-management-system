@@ -199,17 +199,20 @@ export function PropertiesPage() {
         </>
       )}
 
-      <PropertyFormDialog
-        open={formOpen}
-        readOnly={!canManage}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) {
-            setEditTarget(null);
-          }
-        }}
-        property={editTarget}
-      />
+      {formOpen && (
+        <PropertyFormDialog
+          key={editTarget?.id ?? "create"}
+          open
+          readOnly={!canManage}
+          onOpenChange={(open) => {
+            setFormOpen(open);
+            if (!open) {
+              setEditTarget(null);
+            }
+          }}
+          property={editTarget}
+        />
+      )}
 
       {canManage && (
         <ConfirmDialog

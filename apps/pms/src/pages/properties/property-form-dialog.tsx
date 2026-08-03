@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: property CRUD fields */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -206,6 +206,31 @@ const emptyDefaults: FormValues = {
   coverImage: null,
 };
 
+function formValuesFromProperty(
+  property: StaffProperty | null | undefined,
+): FormValues {
+  if (!property) {
+    return structuredClone(emptyDefaults);
+  }
+  return {
+    code: property.code,
+    name: property.name,
+    timezone: property.timezone,
+    city: property.city ?? "",
+    countryCode: property.countryCode ?? "",
+    addressLine: property.addressLine ?? "",
+    latitude: property.latitude != null ? String(property.latitude) : "",
+    longitude: property.longitude != null ? String(property.longitude) : "",
+    googlePlaceId: property.googlePlaceId ?? "",
+    checkInFrom: property.checkInFrom ?? "",
+    checkInUntil: property.checkInUntil ?? "",
+    checkOutFrom: property.checkOutFrom ?? "",
+    checkOutUntil: property.checkOutUntil ?? "",
+    isActive: property.isActive ? "true" : "false",
+    coverImage: property.coverImage,
+  };
+}
+
 type PropertyFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -227,7 +252,7 @@ export function PropertyFormDialog({
   const form = useForm<FormValues>({
     // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
     resolver: zodResolver(schema as never),
-    defaultValues: emptyDefaults,
+    defaultValues: formValuesFromProperty(property),
   });
 
   const saveMutation = useMutation({
@@ -272,35 +297,6 @@ export function PropertyFormDialog({
       applyApiFieldError(error, form.setError);
     },
   });
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    form.reset(
-      property
-        ? {
-            code: property.code,
-            name: property.name,
-            timezone: property.timezone,
-            city: property.city ?? "",
-            countryCode: property.countryCode ?? "",
-            addressLine: property.addressLine ?? "",
-            latitude:
-              property.latitude != null ? String(property.latitude) : "",
-            longitude:
-              property.longitude != null ? String(property.longitude) : "",
-            googlePlaceId: property.googlePlaceId ?? "",
-            checkInFrom: property.checkInFrom ?? "",
-            checkInUntil: property.checkInUntil ?? "",
-            checkOutFrom: property.checkOutFrom ?? "",
-            checkOutUntil: property.checkOutUntil ?? "",
-            isActive: property.isActive ? "true" : "false",
-            coverImage: property.coverImage,
-          }
-        : structuredClone(emptyDefaults),
-    );
-  }, [open, property, form]);
 
   const [
     name,

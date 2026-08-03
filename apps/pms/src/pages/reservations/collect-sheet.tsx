@@ -1,5 +1,5 @@
 /* anchor: Stripe Collect sheet, diverge: cash-first IN/OUT movements */
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   CollectedVia,
   PAYMENT_MOVEMENT_NOTE_MAX,
@@ -60,6 +60,20 @@ function emptyFormValues(): FormValues {
   return {
     amountDigits: "",
     method: METHOD_NONE,
+    note: "",
+  };
+}
+
+function collectDefaults(
+  reservation: StaffReservation,
+  mode: "collect" | "refund" | "settled",
+  maxAmount: number,
+): FormValues {
+  return {
+    amountDigits: maxAmount > 0 ? String(maxAmount) : "",
+    method:
+      reservation.collectedVia ??
+      (mode === "collect" ? CollectedVia.PROPERTY : METHOD_NONE),
     note: "",
   };
 }
@@ -161,25 +175,8 @@ export function CollectSheet({
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
-    defaultValues: {
-      amountDigits: "",
-      method: METHOD_NONE,
-      note: "",
-    },
+    defaultValues: collectDefaults(reservation, mode, maxAmount),
   });
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    form.reset({
-      amountDigits: maxAmount > 0 ? String(maxAmount) : "",
-      method:
-        reservation.collectedVia ??
-        (mode === "collect" ? CollectedVia.PROPERTY : METHOD_NONE),
-      note: "",
-    });
-  }, [open, reservation, form, maxAmount, mode]);
 
   const amountDigits = useWatch({
     control: form.control,

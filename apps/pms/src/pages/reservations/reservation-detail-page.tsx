@@ -138,6 +138,7 @@ export function ReservationDetailPage() {
     null,
   );
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelSession, setCancelSession] = useState(0);
   const [collectOpen, setCollectOpen] = useState(false);
   const { showRefreshImports, showSourceRemind, remindDialog } =
     useOtaRemindDialog();
@@ -414,6 +415,7 @@ export function ReservationDetailPage() {
               pending={icalMutation.isPending}
               onPrimary={(kind) => {
                 if (kind === "cancel") {
+                  setCancelSession((n) => n + 1);
                   setCancelOpen(true);
                   return;
                 }
@@ -492,6 +494,7 @@ export function ReservationDetailPage() {
             type="button"
             variant="outline"
             onClick={() => {
+              setCancelSession((n) => n + 1);
               setCancelOpen(true);
             }}
           >
@@ -500,38 +503,45 @@ export function ReservationDetailPage() {
         )}
       </div>
 
-      <ReservationFormDialog
-        open={editOpen}
-        onOpenChange={(open) => {
-          setEditOpen(open);
-          if (!open) {
-            setEditIntent("edit");
-          }
-        }}
-        reservation={row}
-        intent={editIntent}
-        onSaved={(saved) => {
-          if (editIntent !== "confirm-enrich") {
-            return;
-          }
-          const gaps = confirmReadinessFromReservation(saved);
-          if (gaps.length > 0) {
-            toast.message(t("detailPage.toastStillMissingDetails"), {
-              description: formatConfirmGapsMessage(gaps),
-            });
-            return;
-          }
-          setPendingPrimary("confirm");
-        }}
-      />
+      {editOpen && (
+        <ReservationFormDialog
+          key={`${row.id}-${editIntent}`}
+          open
+          onOpenChange={(open) => {
+            setEditOpen(open);
+            if (!open) {
+              setEditIntent("edit");
+            }
+          }}
+          reservation={row}
+          intent={editIntent}
+          onSaved={(saved) => {
+            if (editIntent !== "confirm-enrich") {
+              return;
+            }
+            const gaps = confirmReadinessFromReservation(saved);
+            if (gaps.length > 0) {
+              toast.message(t("detailPage.toastStillMissingDetails"), {
+                description: formatConfirmGapsMessage(gaps),
+              });
+              return;
+            }
+            setPendingPrimary("confirm");
+          }}
+        />
+      )}
 
-      <CollectSheet
-        open={collectOpen}
-        onOpenChange={setCollectOpen}
-        reservation={row}
-      />
+      {collectOpen && (
+        <CollectSheet
+          key={row.id}
+          open
+          onOpenChange={setCollectOpen}
+          reservation={row}
+        />
+      )}
 
       <CancelSheet
+        key={`cancel-${cancelSession}`}
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         reservation={row}

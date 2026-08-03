@@ -294,18 +294,21 @@ export function UnitTypesPage() {
         </>
       )}
 
-      <UnitTypeFormDialog
-        open={formOpen}
-        readOnly={!canManage}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) {
-            setEditTarget(null);
-          }
-        }}
-        propertyId={propertyId}
-        unitType={editTarget}
-      />
+      {formOpen && (
+        <UnitTypeFormDialog
+          key={editTarget?.id ?? "create"}
+          open
+          readOnly={!canManage}
+          onOpenChange={(open) => {
+            setFormOpen(open);
+            if (!open) {
+              setEditTarget(null);
+            }
+          }}
+          propertyId={propertyId}
+          unitType={editTarget}
+        />
+      )}
 
       {canManage && (
         <ConfirmDialog

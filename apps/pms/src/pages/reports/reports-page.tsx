@@ -103,12 +103,30 @@ export function ReportsPage() {
     queryFn: listPropertyOptions,
   });
 
+  // URL hygiene: fill missing period defaults + ensure a valid propertyId.
   useEffect(() => {
-    if (!optionsQuery.isSuccess || optionsQuery.data.length === 0) return;
-    if (propertyId && optionsQuery.data.some((p) => p.id === propertyId)) {
-      writeLastPropertyId(propertyId);
+    const needsPeriodDefaults =
+      !fromParam || !toParam || compareParam == null;
+
+    if (!optionsQuery.isSuccess || optionsQuery.data.length === 0) {
+      if (needsPeriodDefaults) {
+        setChrome({ from, to, compare });
+      }
       return;
     }
+
+    const propertyOk =
+      Boolean(propertyId) &&
+      optionsQuery.data.some((p) => p.id === propertyId);
+
+    if (propertyOk) {
+      writeLastPropertyId(propertyId);
+      if (needsPeriodDefaults) {
+        setChrome({ from, to, compare });
+      }
+      return;
+    }
+
     const preferred = readLastPropertyId();
     const match = optionsQuery.data.find((p) => p.id === preferred);
     const nextId = match?.id ?? optionsQuery.data[0]!.id;
@@ -122,17 +140,14 @@ export function ReportsPage() {
     optionsQuery.isSuccess,
     optionsQuery.data,
     propertyId,
+    fromParam,
+    toParam,
+    compareParam,
     from,
     to,
     compare,
     setChrome,
   ]);
-
-  useEffect(() => {
-    if (!fromParam || !toParam || compareParam == null) {
-      setChrome({ from, to, compare });
-    }
-  }, [fromParam, toParam, compareParam, from, to, compare, setChrome]);
 
   const summaryQuery = useQuery({
     queryKey: staffReportsSummaryQueryKey({

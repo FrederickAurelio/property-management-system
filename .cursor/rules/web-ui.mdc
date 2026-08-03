@@ -33,4 +33,4 @@ alwaysApply: false
 - Load PMS admin density / desk patterns onto marketing heroes (PMS stays `shadcn` + `product-ui-design`)
 - Duplicate design tokens in `apps/web` once `@cabin/ui-tokens` owns them
 - Ship purple-gradient / Inter-default AI landing templates against Impeccable bans
-- `useEffect` to reset form/local state from props — use `key` remount + event handlers ([You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect); same locked pattern as PMS `pms-ui`)
+- `useEffect` to reset form/local state from props — use `key` remount + event handlers ([You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect); same locked pattern as PMS [`pms-effects`](pms-effects.mdc))

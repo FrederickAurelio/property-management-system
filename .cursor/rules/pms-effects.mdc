@@ -1,0 +1,78 @@
+---
+description: PMS React Effects — when useEffect is allowed, form remount vs mutation clear, URL sync
+globs:
+  - apps/pms/src/pages/**
+  - apps/pms/src/components/**
+  - apps/pms/src/hooks/**
+alwaysApply: false
+---
+
+# PMS — React Effects (`useEffect`)
+
+Follow [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect). Effects **synchronize with external systems**. They are not for deriving UI, reacting to clicks, or “reset because something changed in React.”
+
+`react-hooks/set-state-in-effect` is an error — cascading `setState` in Effects is a smell.
+
+## Decision table
+
+| Need | Do | Don’t |
+|------|----|-------|
+| Reset dialog/sheet **on open** (create vs edit) | Remount: parent `{open && <Dialog key={entity?.id ?? "create"} open …/>}` (or bump an open-session `key`); RHF `defaultValues` from props at mount | `useEffect(() => { if (open) form.reset(…) }, [open, entity])` |
+| Clear form / pending **after successful mutate** | Mutation `onSuccess`: clear local state **first**, then cache/toast/close — [`pms-query.mdc`](pms-query.mdc) § Success | Effect watching `isSuccess` / `isPending` to reset or “lock” submit |
+| Clear local UI **on close / Cancel** | Same handler as close: `onOpenChange(false)`, Cancel click | Effect on `open === false` → `setState` / `form.reset` |
+| Derived UI (filter, label, total, badge) | Compute during render (or `useMemo` if expensive) | `useEffect` + `setState` from props/state |
+| React to user action (board change, sort default) | Event handler (`onPatch`, `onClick`, `onValueChange`) | Effect watching the value the user just set |
+| Notify parent of child state | Call parent in the **event** that changed it | `useEffect(() => onChange(x), [x])` |
+| Debounced search → URL | Local draft + `useDebouncedValue` + one Effect writing URL when debounced ≠ URL | Fetch in that Effect; skip debounce and write URL every keystroke |
+| URL / sessionStorage hygiene (stale params, ensure `propertyId`, period defaults) | Effect OK — merge related scrubbers into **one** hygiene Effect per screen | One Effect per param; wipe unrelated params on every unrelated change |
+| List/detail data | TanStack Query | `useEffect` + `fetch` |
+| Keyboard, pointerup, focus, scrollIntoView, `matchMedia`, IntersectionObserver, selection caret | Effect / `useLayoutEffect` + cleanup | — |
+| Latest callback without rebinding listeners | Ref updated each render (`ref.current = fn`) | Put unstable lambdas in Effect deps and re-subscribe every render |
+
+## Anti–double-submit ≠ Effect
+
+`isPending` flipping false **before** the dialog unmounts can re-enable Submit for a frame. That is fixed by **clearing local UI in `onSuccess` first** ([`pms-query.mdc`](pms-query.mdc)), not by an Effect that resets when `open`/`status` changes.
+
+| Moment | Owner |
+|--------|--------|
+| Open / switch entity | `key` remount + `defaultValues` |
+| Success | `onSuccess` → `form.reset` / clear pending / then close |
+| Cancel / dismiss | Close handler |
+
+Do not add Effects to “also reset on close” when remount + `onSuccess` already cover reopen and post-write.
+
+## Remount patterns (locked)
+
+- Prefer **conditional mount** when open: `{open && <Sheet key={…} open …/>}` so defaults apply once.
+- If the component must **stay mounted after close** (e.g. sibling OTA remind after cancel), keep it mounted and bump an **open-session `key`** when opening so the form remounts without killing the remind.
+- Create→stay-open (e.g. unit iCal export after create): keep the same `key` across create success; populate via `onSuccess` `form.reset`, not a new open Effect.
+- Seed mount-only refs (edit stay fingerprint, suggest keys) in `useRef(initial)` — remount clears them.
+
+## URL / chrome sync
+
+- Parse and **ignore** locked params at read time; use an Effect to **delete** them from the URL so they cannot “wake up” after a board/mode switch.
+- Put enter/leave defaults (sort, cleared filters) in the **change event** that switches board/mode — compare previous vs next there.
+- Prefer derive at parse time over Effect+`setState` for “default when missing.”
+- Effect deps: depend on stable identities (`searchParams` / primitive param strings). Do not depend on fresh object literals every render.
+
+## KEEP vs REPLACE (audit mindset)
+
+| KEEP (external) | REPLACE |
+|-----------------|---------|
+| URL / sessionStorage hygiene | Form reset on `open` / entity props |
+| Debounce timer; debounced value → URL | Notify-parent Effect |
+| Window / document listeners; inView → fetchNextPage | Derive-then-`setState` |
+| Register axios 401 → navigate | React to click/change via Effect |
+| Hard cases: async Query → toast + imperative clear when render-time derive cannot toast | — prove 1:1 or leave KEEP |
+
+If a refactor cannot prove **1:1** behavior (triggers + URL + form values + toasts), leave the Effect and document why — do not weaken product behavior for “cleaner” code.
+
+## Don’t
+
+- `useEffect` to reset RHF because `open` or entity props changed
+- `useEffect` to clear forms after mutate — that is `onSuccess`
+- Split sibling URL scrubbers that always run together
+- Churn shadcn primitives solely to remove an upstream Effect
+- Turn off `set-state-in-effect` to hide misuse
+
+UI chrome / loading: [`pms-ui.mdc`](pms-ui.mdc) · mutations: [`pms-query.mdc`](pms-query.mdc)

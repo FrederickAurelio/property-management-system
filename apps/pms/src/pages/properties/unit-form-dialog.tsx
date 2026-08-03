@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: unit CRUD + iCal calendars */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -100,6 +100,22 @@ function feedUrlFromUnit(
   return unit?.icalFeeds.find((f) => f.source === source)?.importUrl ?? "";
 }
 
+function formValuesFromUnit(unit: StaffUnit | null | undefined): FormValues {
+  if (!unit) {
+    return emptyFormValues;
+  }
+  return {
+    code: unit.code,
+    name: unit.name ?? "",
+    floor: unit.floor ?? "",
+    status: unit.status,
+    notes: unit.notes ?? "",
+    bookingComUrl: feedUrlFromUnit(unit, UnitIcalFeedSource.BOOKING_COM),
+    airbnbUrl: feedUrlFromUnit(unit, UnitIcalFeedSource.AIRBNB),
+    agodaUrl: feedUrlFromUnit(unit, UnitIcalFeedSource.AGODA),
+  };
+}
+
 function feedErrorFromUnit(
   unit: StaffUnit | null | undefined,
   source: (typeof UnitIcalFeedSource)[keyof typeof UnitIcalFeedSource],
@@ -162,7 +178,7 @@ export function UnitFormDialog({
   const form = useForm<FormValues>({
     // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
     resolver: zodResolver(schema as never),
-    defaultValues: emptyFormValues,
+    defaultValues: formValuesFromUnit(unit),
   });
 
   function handleOpenChange(nextOpen: boolean) {
@@ -173,29 +189,6 @@ export function UnitFormDialog({
     }
     onOpenChange(nextOpen);
   }
-
-  useEffect(() => {
-    if (!open || createdUnit) {
-      return;
-    }
-    form.reset(
-      unit
-        ? {
-            code: unit.code,
-            name: unit.name ?? "",
-            floor: unit.floor ?? "",
-            status: unit.status,
-            notes: unit.notes ?? "",
-            bookingComUrl: feedUrlFromUnit(
-              unit,
-              UnitIcalFeedSource.BOOKING_COM,
-            ),
-            airbnbUrl: feedUrlFromUnit(unit, UnitIcalFeedSource.AIRBNB),
-            agodaUrl: feedUrlFromUnit(unit, UnitIcalFeedSource.AGODA),
-          }
-        : emptyFormValues,
-    );
-  }, [open, unit, form, createdUnit]);
 
   const saveMutation = useMutation({
     mutationFn: async (values: FormValues) => {

@@ -341,19 +341,22 @@ export function UnitsPage() {
         </>
       )}
 
-      <UnitFormDialog
-        open={formOpen}
-        readOnly={!canManage}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) {
-            setEditTarget(null);
-          }
-        }}
-        propertyId={propertyId}
-        unitTypeId={unitTypeId}
-        unit={editTarget}
-      />
+      {formOpen && (
+        <UnitFormDialog
+          key={editTarget?.id ?? "create"}
+          open
+          readOnly={!canManage}
+          onOpenChange={(open) => {
+            setFormOpen(open);
+            if (!open) {
+              setEditTarget(null);
+            }
+          }}
+          propertyId={propertyId}
+          unitTypeId={unitTypeId}
+          unit={editTarget}
+        />
+      )}
 
       {canManage && (
         <ConfirmDialog

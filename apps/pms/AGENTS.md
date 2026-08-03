@@ -72,7 +72,7 @@ Locked BE→FE wiring (keys, `useQuery` / `useInfiniteQuery` / `useMutation`, ca
 
 Use shadcn’s RHF pattern: `useForm` + `zodResolver` + `Controller` + `<Field />` (not the legacy `<Form>` wrapper). See [shadcn React Hook Form](https://ui.shadcn.com/docs/forms/react-hook-form). Zod bounds from `@cabin/api-contract`. Field names must match Nest DTO / `details.field`.
 
-**Resetting forms / dialog state:** prefer remount via `key` (create vs edit id) and clear in `onOpenChange` / Cancel — not `useEffect` that `form.reset` when `open` or entity props change. Effects rules: [`.cursor/rules/pms-ui.mdc`](../../.cursor/rules/pms-ui.mdc) · [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect).
+**Resetting forms / dialog state:** remount via `key` on open; clear in mutation `onSuccess` (anti–double-submit) and close handlers — not `useEffect` on `open` / entity props. Effects: [`.cursor/rules/pms-effects.mdc`](../../.cursor/rules/pms-effects.mdc) · mutations: [`pms-query.mdc`](../../.cursor/rules/pms-query.mdc).
 
 ## Run
 
@@ -125,6 +125,6 @@ Anchor DNA: **Linear-dense / Stripe-data**. No purple gradients, glowing status 
 - Invent local booking truth that bypasses the API
 - Put tokens in `localStorage` (session cookie only)
 - Use `npm i` inside this folder (pnpm from repo root only)
-- `useEffect` to reset RHF / local state from `open` or entity props — use `key` remount + event handlers (`pms-ui`)
+- `useEffect` to reset RHF / local state from `open` or entity props — use `key` remount + `onSuccess` / close handlers (`pms-effects`)
 
 Root: `AGENTS.md` · Plan: `_docs/cabin-pms-client-plan.md` · Reservations: `_docs/reservations-design.md`

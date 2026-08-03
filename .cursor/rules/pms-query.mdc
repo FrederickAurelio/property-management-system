@@ -115,7 +115,7 @@ Always `handleSuccess` in mutation `onSuccess` — never in the axios intercepto
 
 TanStack `mutation.isPending` flips **false** when the request settles. `onOpenChange(false)` / dialog unmount runs on the **next** render. In that gap, submit buttons re-enable while the shell is still open — rapid clicks can fire a **second** write.
 
-**Every** `useMutation` `onSuccess` in PMS: **clear local UI state first**, then cache sync, toast, navigate, or close.
+**Every** `useMutation` `onSuccess` in PMS: **clear local UI state first**, then cache sync, toast, navigate, or close. This is the anti–double-submit path — **not** a `useEffect` watching success/`open` ([`pms-effects.mdc`](pms-effects.mdc)).
 
 | Local state                  | Clear first (examples)                                                                                                |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
