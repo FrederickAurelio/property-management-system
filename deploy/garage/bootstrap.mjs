@@ -2,32 +2,55 @@
 /**
  * Garage bootstrap: enable website hosting + bucket CORS (Node / AWS SDK — no aws CLI).
  *
- * Usage (repo root, after garage is up):
+ * Local (with pnpm / api node_modules):
  *   pnpm archive:bootstrap
  *
- * Env (root .env via --env-file):
- *   ARCHIVE_S3_ENDPOINT, ARCHIVE_S3_* credentials, ARCHIVE_S3_BUCKET
- *   ARCHIVE_CORS_ORIGINS — comma-separated PMS origins (one CORS rule each)
- *   GARAGE_CONTAINER — docker name (default cabin-garage); set empty to skip docker website
+ * VPS (no pnpm — Docker only):
+ *   ./deploy/garage/bootstrap-vps.sh
  *
- * Examples:
- *   Local:  ARCHIVE_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
- *   VPS IP: ARCHIVE_CORS_ORIGINS=http://YOUR_VPS_IP:8080
- *   Domain: ARCHIVE_CORS_ORIGINS=https://pms.yourdomain.com
+ * Env:
+ *   ARCHIVE_S3_ENDPOINT, ARCHIVE_S3_* (or GARAGE_DEFAULT_*), ARCHIVE_S3_BUCKET
+ *   ARCHIVE_CORS_ORIGINS — comma-separated PMS origins (one CORS rule each)
+ *   GARAGE_CONTAINER — docker name (default cabin-garage); empty = skip website CLI
  */
 
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const require = createRequire(join(__dirname, '../../apps/api/package.json'));
+
+async function loadS3() {
+  const candidates = [
+    join(__dirname, '../../apps/api/package.json'),
+    join(process.cwd(), 'apps/api/package.json'),
+    join(process.cwd(), 'package.json'),
+  ];
+  for (const pkgJson of candidates) {
+    if (!existsSync(pkgJson)) continue;
+    try {
+      const require = createRequire(pkgJson);
+      return require('@aws-sdk/client-s3');
+    } catch {
+      // try next
+    }
+  }
+  try {
+    return await import('@aws-sdk/client-s3');
+  } catch {
+    throw new Error(
+      'Cannot load @aws-sdk/client-s3. Local: pnpm install. VPS: use deploy/garage/bootstrap-vps.sh',
+    );
+  }
+}
+
 const {
   S3Client,
   PutBucketCorsCommand,
   GetBucketCorsCommand,
-} = require('@aws-sdk/client-s3');
+} = await loadS3();
 
 const endpoint = process.env.ARCHIVE_S3_ENDPOINT?.trim();
 const region = process.env.ARCHIVE_S3_REGION?.trim() || 'garage';
@@ -64,7 +87,9 @@ function fail(msg) {
 
 if (!endpoint) fail('ARCHIVE_S3_ENDPOINT is required');
 if (!accessKeyId || !secretAccessKey) {
-  fail('ARCHIVE_S3_ACCESS_KEY_ID / ARCHIVE_S3_SECRET_ACCESS_KEY (or GARAGE_DEFAULT_*) required');
+  fail(
+    'ARCHIVE_S3_ACCESS_KEY_ID / ARCHIVE_S3_SECRET_ACCESS_KEY (or GARAGE_DEFAULT_*) required',
+  );
 }
 if (corsOrigins.length === 0) {
   fail(
@@ -85,12 +110,13 @@ async function waitForS3(maxAttempts = 30) {
   for (let i = 1; i <= maxAttempts; i++) {
     try {
       const res = await fetch(endpoint, { method: 'GET' });
-      // Any HTTP response means the listener is up (403/400 OK).
       if (res.status > 0) return;
     } catch {
       // retry
     }
-    console.log(`archive:bootstrap: waiting for ${endpoint} (${i}/${maxAttempts})…`);
+    console.log(
+      `archive:bootstrap: waiting for ${endpoint} (${i}/${maxAttempts})…`,
+    );
     await new Promise((r) => setTimeout(r, 1000));
   }
   fail(`S3 endpoint not reachable: ${endpoint}`);
@@ -116,7 +142,6 @@ function enableWebsite() {
 }
 
 async function applyCors() {
-  // One origin per rule — Garage may emit a multi-value ACAO if origins share a rule.
   const CORSRules = corsOrigins.map((origin) => ({
     AllowedOrigins: [origin],
     AllowedMethods: ['GET', 'PUT', 'HEAD', 'OPTIONS'],
@@ -139,18 +164,22 @@ async function applyCors() {
     console.log(`  - ${(rule.AllowedOrigins ?? []).join(', ')}`);
   }
 
-  // Sanity: preflight must return a single ACAO (not a comma list).
   const probeOrigin = corsOrigins[0];
-  const probe = await fetch(`${endpoint.replace(/\/+$/, '')}/${bucket}/archive/cors-probe`, {
-    method: 'OPTIONS',
-    headers: {
-      Origin: probeOrigin,
-      'Access-Control-Request-Method': 'PUT',
-      'Access-Control-Request-Headers': 'content-type',
+  const probe = await fetch(
+    `${endpoint.replace(/\/+$/, '')}/${bucket}/archive/cors-probe`,
+    {
+      method: 'OPTIONS',
+      headers: {
+        Origin: probeOrigin,
+        'Access-Control-Request-Method': 'PUT',
+        'Access-Control-Request-Headers': 'content-type',
+      },
     },
-  });
+  );
   const acao = probe.headers.get('access-control-allow-origin');
-  console.log(`archive:bootstrap: OPTIONS probe Origin=${probeOrigin} → ACAO=${acao}`);
+  console.log(
+    `archive:bootstrap: OPTIONS probe Origin=${probeOrigin} → ACAO=${acao}`,
+  );
   if (!acao || acao.includes(',')) {
     fail(
       `Bad Access-Control-Allow-Origin (${acao}). Use one origin per rule; check Garage version.`,

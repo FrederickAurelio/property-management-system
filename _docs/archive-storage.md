@@ -122,11 +122,14 @@ pnpm archive:logs
 After first start:
 
 ```bash
-# Set ARCHIVE_CORS_ORIGINS in .env, then:
-pnpm archive:bootstrap   # website + CORS (Node SDK; no aws CLI)
+# Local
+pnpm archive:bootstrap
+
+# VPS (no pnpm)
+./deploy/garage/bootstrap-vps.sh
 ```
 
-See [`deploy/garage/README.md`](../deploy/garage/README.md).
+Set `ARCHIVE_CORS_ORIGINS` in `.env` first. See [`deploy/garage/README.md`](../deploy/garage/README.md).
 
 PMS Settings → **Archive upload smoke test (temp)** exercises the path (remove when real proof UI ships).
 

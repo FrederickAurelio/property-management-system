@@ -23,6 +23,7 @@
     "archive:down": "docker compose -f docker-compose.dev.yml stop garage archive-proxy",
     "archive:logs": "docker compose -f docker-compose.dev.yml logs -f garage archive-proxy",
     "archive:bootstrap": "node --env-file=.env deploy/garage/bootstrap.mjs",
+    "archive:bootstrap:vps": "bash deploy/garage/bootstrap-vps.sh",
     "prisma:generate": "pnpm --filter @cabin/api prisma:generate",
     "prisma:migrate": "pnpm --filter @cabin/api prisma:migrate",
     "prisma:seed": "pnpm --filter @cabin/api prisma:seed",

@@ -64,13 +64,20 @@ Do **not** set `ARCHIVE_S3_ENDPOINT=http://garage:3900` — browsers cannot reso
 
 Admin API (`3903`) stays **unpublished** on VPS.
 
-### Bootstrap (website + CORS) — use the script
+### Bootstrap (website + CORS)
 
-No AWS CLI. After Garage is up:
+**Local** (pnpm + api `node_modules`):
 
 ```bash
-# Set ARCHIVE_CORS_ORIGINS in .env first, then:
 pnpm archive:bootstrap
+```
+
+**VPS** (Docker only — no pnpm):
+
+```bash
+# .env must include ARCHIVE_CORS_ORIGINS=http://YOUR_VPS_IP:8080
+chmod +x deploy/garage/bootstrap-vps.sh
+./deploy/garage/bootstrap-vps.sh
 ```
 
 | Environment | `ARCHIVE_CORS_ORIGINS` |
@@ -79,9 +86,7 @@ pnpm archive:bootstrap
 | VPS by IP | `http://YOUR_VPS_IP:8080` |
 | HTTPS domain | `https://pms.yourdomain.com` |
 
-Script ([`bootstrap.mjs`](bootstrap.mjs)): waits for S3 → `website --allow` via docker → PutBucketCors (**one origin per rule**) → OPTIONS probe.
-
-On VPS after `docker compose up -d garage archive-proxy` (or full stack), same command from repo root with VPS `.env`.
+Scripts: [`bootstrap.mjs`](bootstrap.mjs) · [`bootstrap-vps.sh`](bootstrap-vps.sh) — website via `docker exec`, CORS via Node AWS SDK (**one origin per rule**), OPTIONS probe.
 
 ---
 
