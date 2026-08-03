@@ -80,7 +80,7 @@ chmod +x deploy/garage/bootstrap-vps.sh
 ./deploy/garage/bootstrap-vps.sh
 ```
 
-Uses `cabin-api:latest` on `cabin-net` (talks to `garage:3900`) so China VPS skips a Docker Hub `node:` pull. `APT_MIRROR` / `NPM_REGISTRY` do **not** speed Hub pulls — they only help image *builds* / the optional `node:` fallback `npm i`.
+Runs CORS via `docker exec cabin-api` → `garage:3900` (same compose network). Works with GHCR tags (`ghcr.io/<owner>/cabin-api:…`); does **not** pull `node:` from Docker Hub. Requires `cabin-api` already up.
 
 | Environment | `ARCHIVE_CORS_ORIGINS` |
 |-------------|------------------------|
