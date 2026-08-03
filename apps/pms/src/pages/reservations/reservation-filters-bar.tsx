@@ -245,14 +245,20 @@ export function ReservationFiltersBar({
           <Select
             value={sort}
             onValueChange={(value) => {
+              // Balance due Stay date must stay as `checkIn` in the URL —
+              // missing sort is parsed as open amount on that board.
               onPatch({
-                sort: value === ReservationListSort.checkIn ? null : value,
+                sort:
+                  value === ReservationListSort.checkIn &&
+                  board !== "balance-due"
+                    ? null
+                    : value,
               });
             }}
           >
             <SelectTrigger
               size="sm"
-              className="w-[8.75rem] shrink-0"
+              className="w-[9.5rem] shrink-0"
               aria-label={t("reservations:filtersBar.sortAria")}
             >
               <SelectValue placeholder={t("reservations:filtersBar.sortAria")} />
@@ -265,6 +271,11 @@ export function ReservationFiltersBar({
                 <SelectItem value={ReservationListSort.createdAt}>
                   {t("reservations:filtersBar.sortCreated")}
                 </SelectItem>
+                {board === "balance-due" && (
+                  <SelectItem value={ReservationListSort.openAmount}>
+                    {t("reservations:filtersBar.sortOpenAmount")}
+                  </SelectItem>
+                )}
               </SelectGroup>
             </SelectContent>
           </Select>

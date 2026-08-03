@@ -1,7 +1,6 @@
 import {
-  balanceDueIdr,
+  openAmountIdr,
   PaymentStatus,
-  refundDueIdr,
   ReservationStatus,
   StaffDashboardAttentionKind,
   type StaffDashboardListItem,
@@ -11,18 +10,16 @@ import {
 
 export const DASHBOARD_SECTION_CAP = 8;
 
-function openAmountIdr(
+function rowOpenAmountIdr(
   row: Pick<StaffReservationListItem, 'totalAmountIdr' | 'paidAmountIdr'>,
 ): number {
-  const due = balanceDueIdr(row.totalAmountIdr, row.paidAmountIdr) ?? 0;
-  const refund = refundDueIdr(row.totalAmountIdr, row.paidAmountIdr) ?? 0;
-  return Math.max(due, refund);
+  return openAmountIdr(row.totalAmountIdr, row.paidAmountIdr);
 }
 
 function hasOpenMoney(
   row: Pick<StaffReservationListItem, 'totalAmountIdr' | 'paidAmountIdr'>,
 ): boolean {
-  return openAmountIdr(row) > 0;
+  return rowOpenAmountIdr(row) > 0;
 }
 
 /**
@@ -166,7 +163,7 @@ export function sortNeedsAttention(
     }
 
     if (aBucket === 1) {
-      const amtDiff = openAmountIdr(b) - openAmountIdr(a);
+      const amtDiff = rowOpenAmountIdr(b) - rowOpenAmountIdr(a);
       if (amtDiff !== 0) return amtDiff;
       const aOut = a.status === ReservationStatus.CHECKED_OUT ? 0 : 1;
       const bOut = b.status === ReservationStatus.CHECKED_OUT ? 0 : 1;

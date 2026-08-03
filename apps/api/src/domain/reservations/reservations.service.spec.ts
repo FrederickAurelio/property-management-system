@@ -8,6 +8,7 @@ import {
   PaymentMovementKind,
   PaymentStatus,
   ReservationBoard,
+  ReservationListSort,
   ReservationSource,
   ReservationStatus,
   StayBillingPeriod,
@@ -81,6 +82,7 @@ describe('ReservationsService', () => {
     unitType: { findUnique: jest.Mock };
     property: { findUnique: jest.Mock };
     $transaction: jest.Mock;
+    $queryRaw: jest.Mock;
   };
 
   const actor = { id: 'admin_1' };
@@ -124,6 +126,7 @@ describe('ReservationsService', () => {
         }
         return (arg as (tx: typeof prisma) => Promise<unknown>)(prisma);
       }),
+      $queryRaw: jest.fn().mockResolvedValue([]),
     };
 
     icalImport = {
@@ -1045,6 +1048,60 @@ describe('ReservationsService', () => {
           pageSize: 20,
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('list sort=openAmount', () => {
+    it('orders page ids by open amount then hydrates list select', async () => {
+      const listRow = (id: string) => ({
+        id,
+        guestName: id,
+        billingPeriod: StayBillingPeriod.DAILY,
+        checkInDate: new Date('2026-08-01T00:00:00.000Z'),
+        checkOutDate: new Date('2026-08-03T00:00:00.000Z'),
+        status: ReservationStatus.CONFIRMED,
+        source: ReservationSource.MANUAL,
+        totalAmountIdr: 1_000_000n,
+        paidAmountIdr: 0n,
+        paymentStatus: PaymentStatus.UNPAID,
+        icalSyncWarning: null,
+        icalOverlapHold: false,
+        property: { timezone: 'Asia/Jakarta' },
+        unit: { code: 'A1' },
+      });
+
+      prisma.reservation.count.mockResolvedValue(2);
+      prisma.reservation.findMany
+        .mockResolvedValueOnce([{ id: 'r_small' }, { id: 'r_big' }])
+        .mockResolvedValueOnce([listRow('r_big'), listRow('r_small')]);
+      prisma.$queryRaw.mockResolvedValue([{ id: 'r_big' }, { id: 'r_small' }]);
+
+      const result = await service.list({
+        board: ReservationBoard.all,
+        sort: ReservationListSort.openAmount,
+        propertyId: 'prop_1',
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(prisma.$queryRaw).toHaveBeenCalled();
+      expect(result.items.map((row) => row.id)).toEqual(['r_big', 'r_small']);
+      expect(result.pageInfo.total).toBe(2);
+    });
+
+    it('returns empty items when no matching ids', async () => {
+      prisma.reservation.count.mockResolvedValue(0);
+      prisma.reservation.findMany.mockResolvedValueOnce([]);
+
+      const result = await service.list({
+        sort: ReservationListSort.openAmount,
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+      expect(result.items).toEqual([]);
+      expect(result.pageInfo.total).toBe(0);
     });
   });
 });

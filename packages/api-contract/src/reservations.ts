@@ -220,6 +220,19 @@ export function refundDueIdr(
 }
 
 /**
+ * Open chase amount for desk sort / dashboard Needs attention.
+ * `max(Due, Refund)`; `0` when Total unknown (same as treating both as null).
+ */
+export function openAmountIdr(
+  totalAmountIdr: number | null,
+  paidAmountIdr: number,
+): number {
+  const due = balanceDueIdr(totalAmountIdr, paidAmountIdr) ?? 0;
+  const refund = refundDueIdr(totalAmountIdr, paidAmountIdr) ?? 0;
+  return Math.max(due, refund);
+}
+
+/**
  * Desk stay quote from rack rate (design §6 extend/shrink).
  * `periodCount × unitPriceIdr` (nights / months / years) — whole IDR.
  * Returns `null` if count or rack invalid.
@@ -548,6 +561,8 @@ export type ReservationBoard =
 export const ReservationListSort = {
   checkIn: "checkIn",
   createdAt: "createdAt",
+  /** Highest open amount first — `max(Due, Refund)`; see `openAmountIdr`. */
+  openAmount: "openAmount",
 } as const;
 
 export type ReservationListSort =
@@ -560,7 +575,10 @@ export type StaffReservationListFilters = {
   status?: ReservationStatus;
   source?: ReservationSource;
   board?: ReservationBoard;
-  /** Default `checkIn` (soonest first). `createdAt` = newest booked first. */
+  /**
+   * Default `checkIn` (soonest first). `createdAt` = newest booked first.
+   * `openAmount` = highest `max(Due, Refund)` first.
+   */
   sort?: ReservationListSort;
   checkInDate?: string;
   checkOutDate?: string;

@@ -1,3 +1,4 @@
+import { ReservationListSort } from "@cabin/api-contract";
 import i18n from "@/i18n";
 import type { ReservationBoard } from "@/lib/api";
 
@@ -40,6 +41,29 @@ export function reservationBoards(): { id: ReservationBoard; label: string }[] {
 export function parseBoard(raw: string | null): ReservationBoard {
   const hit = RESERVATION_BOARD_IDS.find((b) => b === raw);
   return hit ?? "arrivals";
+}
+
+/**
+ * Balance due defaults to open amount (incl. missing URL param).
+ * Other boards ignore `openAmount` → Stay date.
+ */
+export function parseReservationListSort(
+  board: ReservationBoard,
+  raw: string | null,
+): ReservationListSort {
+  if (board === "balance-due") {
+    if (raw === ReservationListSort.createdAt) {
+      return ReservationListSort.createdAt;
+    }
+    if (raw === ReservationListSort.checkIn) {
+      return ReservationListSort.checkIn;
+    }
+    return ReservationListSort.openAmount;
+  }
+  if (raw === ReservationListSort.createdAt) {
+    return ReservationListSort.createdAt;
+  }
+  return ReservationListSort.checkIn;
 }
 
 /**

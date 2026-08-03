@@ -88,6 +88,20 @@ export class ReservationsService {
     query: ListReservationsQueryDto,
   ): Promise<Paginated<StaffReservationListItem>> {
     const where = await this.buildListWhere(query);
+
+    if (query.sort === ReservationListSort.openAmount) {
+      const total = await this.prisma.reservation.count({ where });
+      const rows = await this.findManyOrderedByOpenAmount(
+        where,
+        query.page,
+        query.pageSize,
+      );
+      return {
+        items: rows.map((row) => toStaffReservationListItem(row)),
+        pageInfo: buildPageInfo(query.page, query.pageSize, total),
+      };
+    }
+
     const orderBy = this.listOrderBy(query.sort, query.board);
 
     const [total, rows] = await this.prisma.$transaction([
@@ -118,6 +132,57 @@ export class ReservationsService {
       return [{ checkOutDate: 'asc' }, { createdAt: 'asc' }];
     }
     return [{ checkInDate: 'asc' }, { createdAt: 'asc' }];
+  }
+
+  /**
+   * Page ordered by `openAmountIdr` = max(Due, Refund) DESC.
+   * Membership uses the same Prisma `where` as `count`; ORDER BY is SQL
+   * (`ABS(total−paid)` when total known, else 0) — not page-then-sort in JS.
+   */
+  private async findManyOrderedByOpenAmount(
+    where: Prisma.ReservationWhereInput,
+    page: number,
+    pageSize: number,
+  ): Promise<
+    Prisma.ReservationGetPayload<{ select: typeof reservationListSelect }>[]
+  > {
+    const matching = await this.prisma.reservation.findMany({
+      where,
+      select: { id: true },
+    });
+    if (matching.length === 0) {
+      return [];
+    }
+
+    const skip = (page - 1) * pageSize;
+    const orderedIds = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT r.id
+      FROM "Reservation" r
+      WHERE r.id IN (${Prisma.join(matching.map((row) => row.id))})
+      ORDER BY (
+        CASE
+          WHEN r."totalAmountIdr" IS NULL THEN 0
+          ELSE ABS(r."totalAmountIdr" - r."paidAmountIdr")
+        END
+      ) DESC,
+      r."checkInDate" ASC,
+      r.id ASC
+      LIMIT ${pageSize}
+      OFFSET ${skip}
+    `;
+    if (orderedIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.reservation.findMany({
+      where: { id: { in: orderedIds.map((row) => row.id) } },
+      select: reservationListSelect,
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return orderedIds.flatMap((row) => {
+      const hit = byId.get(row.id);
+      return hit ? [hit] : [];
+    });
   }
 
   async getById(id: string): Promise<StaffReservation> {

@@ -43,7 +43,7 @@ import {
 import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
 import { cn } from "@/lib/utils";
 import { ReservationBadge, SourceBadge } from "./reservation-badges";
-import { parseBoard, boardFilterLocks } from "./reservation-boards";
+import { parseBoard, boardFilterLocks, parseReservationListSort } from "./reservation-boards";
 import { ReservationFiltersBar } from "./reservation-filters-bar";
 import { ReservationFormDialog } from "./reservation-form-dialog";
 import { reservationListStateFromSearch } from "./reservation-nav";
@@ -227,10 +227,8 @@ export function ReservationsPage() {
     ? "all"
     : (searchParams.get("status") ?? "all");
   const sourceFilter = searchParams.get("source") ?? "all";
-  const sort =
-    searchParams.get("sort") === ReservationListSort.createdAt
-      ? ReservationListSort.createdAt
-      : ReservationListSort.checkIn;
+  const sortParam = searchParams.get("sort");
+  const sort = parseReservationListSort(board, sortParam);
   const q = searchParams.get("q") ?? "";
   const stayTouch = filterLocks.showDateRangeFilter
     ? parseStayTouchRange(searchParams.get("from"), searchParams.get("to"))
@@ -238,37 +236,45 @@ export function ReservationsPage() {
   const from = stayTouch?.from ?? "";
   const to = stayTouch?.to ?? "";
 
+  // Drop URL params the current board does not own (stale deep links / back nav).
+  // Needed so locked params cannot "wake up" after switching to a board that allows them
+  // (e.g. ?board=arrivals&status=CONFIRMED → All would otherwise keep status).
   useEffect(() => {
-    if (!filterLocks.locksStatus || !searchParams.has("status")) {
+    const staleStatus =
+      filterLocks.locksStatus && searchParams.has("status");
+    const staleDates =
+      !filterLocks.showDateRangeFilter &&
+      (searchParams.has("from") || searchParams.has("to"));
+    const staleOpenAmount =
+      board !== "balance-due" &&
+      searchParams.get("sort") === ReservationListSort.openAmount;
+    if (!staleStatus && !staleDates && !staleOpenAmount) {
       return;
     }
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        next.delete("status");
+        if (staleStatus) {
+          next.delete("status");
+        }
+        if (staleDates) {
+          next.delete("from");
+          next.delete("to");
+        }
+        if (staleOpenAmount) {
+          next.delete("sort");
+        }
         return next;
       },
       { replace: true },
     );
-  }, [filterLocks.locksStatus, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (
-      filterLocks.showDateRangeFilter ||
-      (!searchParams.has("from") && !searchParams.has("to"))
-    ) {
-      return;
-    }
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("from");
-        next.delete("to");
-        return next;
-      },
-      { replace: true },
-    );
-  }, [filterLocks.showDateRangeFilter, searchParams, setSearchParams]);
+  }, [
+    board,
+    filterLocks.locksStatus,
+    filterLocks.showDateRangeFilter,
+    searchParams,
+    setSearchParams,
+  ]);
 
   const patchParams = useCallback(
     (patch: Record<string, string | null>) => {
@@ -280,6 +286,7 @@ export function ReservationsPage() {
             // Status/source "all" means clear that filter.
             // Property is always a concrete id (no “all properties”).
             if (key === "board") {
+              const prevBoard = parseBoard(prev.get("board"));
               if (value == null || value === "") {
                 next.delete(key);
               } else {
@@ -293,6 +300,13 @@ export function ReservationsPage() {
               if (!nextLocks.showDateRangeFilter) {
                 next.delete("from");
                 next.delete("to");
+              }
+              // Enter Balance due → open amount. Leave it → Stay date.
+              // Do not wipe Created when switching among other boards.
+              if (nextBoard === "balance-due") {
+                next.set("sort", ReservationListSort.openAmount);
+              } else if (prevBoard === "balance-due") {
+                next.delete("sort");
               }
               continue;
             }
@@ -315,9 +329,7 @@ export function ReservationsPage() {
       board,
       ...(propertyId ? { propertyId } : {}),
       ...(q ? { q } : {}),
-      ...(sort === ReservationListSort.createdAt
-        ? { sort: ReservationListSort.createdAt }
-        : {}),
+      ...(sort !== ReservationListSort.checkIn ? { sort } : {}),
       ...(from && to ? { from, to } : {}),
     };
     if (!filterLocks.locksStatus && statusFilter !== "all") {

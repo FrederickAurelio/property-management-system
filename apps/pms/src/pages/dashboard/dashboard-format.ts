@@ -81,6 +81,9 @@ export function reservationsBoardHref(
   if (board && board !== "all") {
     params.set("board", board);
   }
+  if (board === "balance-due") {
+    params.set("sort", "openAmount");
+  }
   if (propertyId) {
     params.set("propertyId", propertyId);
   }
