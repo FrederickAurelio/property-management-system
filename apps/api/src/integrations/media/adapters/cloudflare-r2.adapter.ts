@@ -66,6 +66,7 @@ export class CloudflareR2MediaStorageAdapter implements MediaStoragePort {
     }
 
     this.cachedConfig = config;
+    // WHEN_REQUIRED: avoid CRC32 query params on browser presigned PUTs (S3-compatible).
     this.client = new S3Client({
       region: 'auto',
       endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
@@ -73,6 +74,8 @@ export class CloudflareR2MediaStorageAdapter implements MediaStoragePort {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
       },
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
     return this.client;
   }

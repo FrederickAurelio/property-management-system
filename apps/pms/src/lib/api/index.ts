@@ -132,6 +132,13 @@ export {
   type CreateUploadIntentInput,
 } from "./media";
 export {
+  createArchiveUploadIntent,
+  getArchiveConfig,
+  uploadArchiveFile,
+  uploadToGarage,
+  type CreateArchiveUploadIntentInput,
+} from "./archive";
+export {
   staffChangePassword,
   staffChangeUsername,
   staffLogin,

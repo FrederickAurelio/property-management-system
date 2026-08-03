@@ -27,13 +27,14 @@ apps/pms   → Staff PMS UI (Phase 1 prod)    @cabin/pms
 apps/web   → Public browse/book (Phase 2)   @cabin/web (Vite + prerender; stack locked)
 packages/  → Shared libs for 2+ apps        @cabin/*
 _docs/     → Product plan + locked design notes (inventory, reservations, …)
-docker-compose.yml     → VPS full stack (postgres + api + pms + web; FE :8080 pms · :3050 web)
+docker-compose.yml     → VPS full stack (postgres + api + pms + web + garage; FE :8080 · web :3050 · archive S3 :3900 · archive GET :3910)
+docker-compose.dev.yml → local Postgres + Garage (host ports for Nest/Vite)
 docker-compose.dev.yml → local Postgres only (host port for Nest/Vite)
 ```
 
 One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (never `npm i` inside an app).
 
-**Deploy:** push to `release` → GitHub Actions builds images (official apt/npm on GH runners) → push GHCR → VPS pulls + migrate. Path `~/property-management-system`. VPS `.env`: runtime secrets + optional `APT_MIRROR`/`NPM_REGISTRY` (only for emergency **direct** rebuild; unused by GHCR pull). Direct-on-VPS backup: `.github/workflows/deploy-vps.direct.backup.yml`. Later HTTPS: set `COOKIE_SECURE=true` and update `CORS_ORIGINS`.
+**Deploy:** push to `release` → GitHub Actions builds images (official apt/npm on GH runners) → push GHCR → VPS pulls + migrate. Path `~/property-management-system`. VPS `.env`: runtime secrets + optional `APT_MIRROR`/`NPM_REGISTRY` (only for emergency **direct** rebuild; unused by GHCR pull). Direct-on-VPS backup: `.github/workflows/deploy-vps.direct.backup.yml`. **No domain yet:** open host ports (pms/web/archive). **Later HTTPS + domains:** edge reverse proxy on 443, close interim ports, set `COOKIE_SECURE=true` + HTTPS `CORS_ORIGINS` / `ARCHIVE_*` — checklist [`deploy/garage/README.md`](deploy/garage/README.md) § Domain HTTPS cutover · [`_docs/archive-storage.md`](_docs/archive-storage.md).
 
 **Phase framing (locked):** business already runs on OTA + manual/walk-in. **Phase 1** = production **staff** PMS for that reality (calendar, reservations, check-in/out, **money/DP**, reports, **iCal import**). **No OTA email ingest.** **Phase 2** = **customer** booking FE only — same `Reservation` + `domain/` model (`source=WEBSITE`). Phase 2 is not “when bookings or payments start.” Design: [`_docs/reservations-design.md`](_docs/reservations-design.md).
 
@@ -72,7 +73,7 @@ From **repo root**:
 | Web dev | `pnpm --filter @cabin/web dev` (`:5174`) |
 | Add dep to one app | `pnpm --filter @cabin/api add <pkg>` |
 
-Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`). VPS: host ports **8080** (PMS nginx) · **3050** (web nginx); api/postgres stay on Docker network.
+Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`). VPS (no domain): host ports **8080** (PMS) · **3050** (web) · **3900** (Garage S3) · **3910** (archive GET); api/postgres stay on Docker network.
 
 ## Product path
 

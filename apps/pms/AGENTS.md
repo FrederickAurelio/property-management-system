@@ -47,6 +47,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Staff admin helpers: `listAdmins` / `createAdmin` / `changeAdminRole` / `setAdminActive` (`/admins`, SUPER_ADMIN). Query key: `staffAdminsQueryKey`.
 - Inventory helpers: `listProperties` / `listPropertyOptions` / `listUnitTypes` / `listUnits` (+ create/update/delete + detail GETs) under `/properties|unit-types|units`. Wire types `StaffProperty` / `StaffPropertyOption` / `StaffUnitType` / `StaffUnit`; lists are `Paginated<T>` (options = unpaginated `{ id, name }[]`).
 - Media helpers: `getMediaConfig` / `createUploadIntent` / `uploadMediaFile` (`src/lib/api/media.ts`) — Nest mints provider-shaped intent; R2 images FE-optimized (`browser-image-compression`) before intent; Cloudinary uploads original (provider optimizes); never put vendor secrets in Vite.
+- Archive helpers: `getArchiveConfig` / `uploadArchiveFile` (`src/lib/api/archive.ts`) — Garage proofs via `/archive/*`; FE uses archive compress profile; parallel to inventory media.
 - SPA routes like `/properties` are UI-only — never invent unprefixed Nest paths.
 - 401 hook: `setUnauthorizedHandler` (wired to `/login` via `UnauthorizedRedirect`). Session probe on login uses `{ skipUnauthorizedRedirect: true }`.
 - Toasts: `handleSuccess` / `handleError` from screens/mutations — **not** inside the interceptor.

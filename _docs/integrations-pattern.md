@@ -2,7 +2,9 @@
 
 **Status:** Locked for Nest paid / third-party capabilities.  
 **Example (live):** media storage — Cloudinary + Cloudflare R2.  
-**Media depth:** [`media-upload-strategy.md`](media-upload-strategy.md).
+**Example (live):** archive storage — Garage (staff proofs) — parallel capability, not a `MEDIA_PROVIDER` swap.  
+**Media depth:** [`media-upload-strategy.md`](media-upload-strategy.md).  
+**Archive depth:** [`archive-storage.md`](archive-storage.md).
 
 ---
 
@@ -90,3 +92,13 @@ flowchart LR
 | Module | `MEDIA_PROVIDER` → active `useClass` |
 | HTTP | `POST /staff/media/upload-intent` |
 | FE | `apps/pms/src/lib/api/media.ts` |
+
+## Live example: archive
+
+| Piece | Location |
+|-------|----------|
+| Port | `apps/api/src/integrations/archive/archive-storage.port.ts` |
+| Adapter | `…/adapters/garage.adapter.ts` |
+| Module | `ARCHIVE_PROVIDER` → Garage `useClass` |
+| HTTP | `GET/POST /staff/archive/*` |
+| FE | `apps/pms/src/lib/api/archive.ts` |

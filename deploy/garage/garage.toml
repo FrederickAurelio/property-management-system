@@ -1,0 +1,30 @@
+# Single-node Garage for Cabin archive proofs (local + VPS).
+# Paths match Docker volume mounts. Do not use this layout for multi-node prod HA.
+# Docs: https://garagehq.deuxfleurs.fr/documentation/quick-start/
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+# Local/dev default — replace for any shared/prod cluster (openssl rand -hex 32).
+rpc_secret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+root_domain = ".s3.garage.localhost"
+
+[s3_web]
+bind_addr = "[::]:3902"
+root_domain = ".web.garage.localhost"
+index = "index.html"
+
+[admin]
+api_bind_addr = "[::]:3903"
+# Local/dev defaults — replace for prod (openssl rand -base64 32).
+admin_token = "cabin-garage-admin-token-change-me"
+metrics_token = "cabin-garage-metrics-token-change-me"

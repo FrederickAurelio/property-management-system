@@ -127,7 +127,7 @@ export async function uploadMediaFile(file: File): Promise<MediaItem> {
 
   let uploadFile = file;
   if (kind === MediaKind.IMAGE && provider === MediaProvider.CLOUDFLARE_R2) {
-    uploadFile = await optimizeImageForUpload(file);
+    uploadFile = await optimizeImageForUpload(file, "gallery");
   }
 
   const intent = await createUploadIntent({

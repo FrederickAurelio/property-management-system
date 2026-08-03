@@ -6,6 +6,7 @@ export * from './staff-credentials.js';
 export * from './field-error.js';
 export * from './pagination.js';
 export * from './inventory.js';
+export * from './archive.js';
 export * from './reservations.js';
 export * from './calendar.js';
 export * from './reports.js';

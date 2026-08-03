@@ -132,7 +132,7 @@ function PresetRow({
   return (
     <div
       className={cn(
-        "flex [scrollbar-width:none] gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden",
+        "flex scrollbar-none gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden",
         className,
       )}
     >

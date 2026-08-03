@@ -1,6 +1,8 @@
-# VPS / full stack — postgres + api + pms + web on cabin-net.
-# Host ports: pms 8080→80 · web 3050→80. api and postgres stay internal.
-# Local Postgres: use docker-compose.dev.yml via `pnpm db:up`.
+# VPS / full stack — postgres + api + pms + web + garage on cabin-net.
+# Host ports (no domain yet): pms 8080 · web 3050 · garage S3 3900 · archive GET 3910.
+# api/postgres stay internal. Later HTTPS + domains: close app ports, edge proxy — see
+# deploy/garage/README.md § Domain HTTPS cutover and _docs/archive-storage.md.
+# Local Postgres / Garage: docker-compose.dev.yml via pnpm db:up / archive:up.
 # GHCR deploy: also use docker-compose.ci.yml with IMAGE_API / IMAGE_PMS / IMAGE_WEB.
 
 name: cabin
@@ -110,9 +112,51 @@ services:
     networks:
       - cabin
 
+  # Archive proofs — interim no-domain ports (same pattern as pms/web).
+  # Domain cutover: remove these ports + archive-proxy publish; edge on 443 only.
+  garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: cabin-garage
+    restart: unless-stopped
+    command: ['/garage', 'server', '--single-node', '--default-bucket']
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_DEFAULT_ACCESS_KEY}
+      GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_DEFAULT_SECRET_KEY}
+      GARAGE_DEFAULT_BUCKET: ${GARAGE_DEFAULT_BUCKET:-cabin-archive}
+    volumes:
+      - ./deploy/garage/garage.toml:/etc/garage.toml:ro
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+    ports:
+      - '3900:3900'
+    expose:
+      - '3902'
+      - '3903'
+    logging: *default-logging
+    networks:
+      - cabin
+
+  archive-proxy:
+    image: nginx:1.27-alpine
+    container_name: cabin-archive-proxy
+    restart: unless-stopped
+    depends_on:
+      - garage
+    ports:
+      - '3910:80'
+    volumes:
+      - ./deploy/garage/nginx-archive.conf:/etc/nginx/conf.d/default.conf:ro
+    logging: *default-logging
+    networks:
+      - cabin
+
 volumes:
   postgres_data:
     name: cabin-postgres-data
+  garage_meta:
+    name: cabin-garage-meta
+  garage_data:
+    name: cabin-garage-data
 
 networks:
   cabin:

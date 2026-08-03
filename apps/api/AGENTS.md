@@ -9,6 +9,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Staff CRUD:** SUPER_ADMIN-only list / create / change role / revoke-restore — `/staff/admins`
 - **Inventory CRUD:** `Property` / `UnitType` / `Unit` — `/staff/properties|unit-types|units`; reads `FRONT_DESK+`; writes `ADMIN+`
 - **Media upload-intent:** provider-agnostic intents via `integrations/media` (default Cloudinary; optional Cloudflare R2) — `GET /staff/media/config` + `POST /staff/media/upload-intent` (`ADMIN+`); Nest does not proxy file bytes; R2 images are FE-optimized before intent
+- **Archive upload-intent:** parallel capability via `integrations/archive` (Garage) — `GET /staff/archive/config` + `POST /staff/archive/upload-intent` (`FRONT_DESK+`); inventory media unchanged; see [`_docs/archive-storage.md`](../../_docs/archive-storage.md)
 - **Reservations + money:** Prisma `Reservation` / `PaymentMovement`; Nest `/staff/reservations` (list/create/detail/patch/confirm/check-in/out/cancel/movements) — `FRONT_DESK+`; list returns slim `StaffReservationListItem` (table fields); detail/mutations return full `StaffReservation` (+ movements on GET); list `sort?` = `checkIn` (default) | `createdAt`; board `arrivals` = `CONFIRMED` + `checkInDate ≤ today < checkOutDate`; board `departures` = `CHECKED_IN` + `checkOutDate ≤ today` (both overdue inclusive); Paid = sum(movements); overlap exclusion + transactional 409
 - **Availability:** `GET /staff/properties/:propertyId/units/availability` — all units (optional `unitTypeId`) with `available` + `blockReason`; dates optional (omit = no `DATE_OVERLAP`); optional `excludeReservationId` / `excludeBlockId` for edit
 - **Unit occupancy (date picker):** `GET /staff/units/:id/occupancy?yearMonth=YYYY-MM` — occupying stays + calendar blocks for one month; FE caches months as the calendar pages
@@ -118,6 +119,8 @@ Media: jsonb `MediaItem` (`coverImage` / `media[]`); `url` is an HTTPS CDN/objec
 |--------|------|--------|
 | `GET` | `/staff/media/config` | `{ provider }` — FE decides R2 image optimize |
 | `POST` | `/staff/media/upload-intent` | `{ kind, mimeType, byteSize, name? }` → provider-shaped `MediaUploadIntent` |
+| `GET` | `/staff/archive/config` | `{ provider }` — Garage archive proofs (parallel to media) |
+| `POST` | `/staff/archive/upload-intent` | `{ kind, mimeType, byteSize, name? }` → `ArchiveUploadIntent` |
 
 Seed: Skybreeze Sentraland (1 property, 5 types, 8 units) + bootstrap `SUPER_ADMIN`.
 

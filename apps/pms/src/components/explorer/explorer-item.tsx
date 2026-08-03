@@ -189,7 +189,7 @@ export function ExplorerItem({
 
     const content = (
       <>
-        <div className="aspect-[4/3] w-full overflow-hidden border-b border-border bg-muted">
+        <div className="aspect-4/3 w-full overflow-hidden border-b border-border bg-muted">
           <Thumb url={imageUrl} title={title} />
         </div>
         <div className="flex items-start justify-between gap-2 p-3">

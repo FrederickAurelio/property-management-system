@@ -1,5 +1,6 @@
-# Local Postgres only — Nest + Vite run on the host.
-# Use: pnpm db:up / db:down (see root package.json).
+# Local infra — Nest + Vite run on the host.
+# Postgres: pnpm db:up / db:down
+# Garage archive: pnpm archive:up / archive:down (see deploy/garage/README.md)
 
 name: cabin
 
@@ -29,9 +30,45 @@ services:
     networks:
       - cabin
 
+  garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: cabin-garage
+    restart: unless-stopped
+    command: ['/garage', 'server', '--single-node', '--default-bucket']
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_DEFAULT_ACCESS_KEY:-GKaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+      GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_DEFAULT_SECRET_KEY:-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}
+      GARAGE_DEFAULT_BUCKET: ${GARAGE_DEFAULT_BUCKET:-cabin-archive}
+    ports:
+      - '127.0.0.1:3900:3900'
+      - '127.0.0.1:3903:3903'
+    volumes:
+      - ./deploy/garage/garage.toml:/etc/garage.toml:ro
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+    networks:
+      - cabin
+
+  archive-proxy:
+    image: nginx:1.27-alpine
+    container_name: cabin-archive-proxy
+    restart: unless-stopped
+    depends_on:
+      - garage
+    ports:
+      - '127.0.0.1:3910:80'
+    volumes:
+      - ./deploy/garage/nginx-archive.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - cabin
+
 volumes:
   postgres_data:
     name: cabin-postgres-data
+  garage_meta:
+    name: cabin-garage-meta
+  garage_data:
+    name: cabin-garage-data
 
 networks:
   cabin:
