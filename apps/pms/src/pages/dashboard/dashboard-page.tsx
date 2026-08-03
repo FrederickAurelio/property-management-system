@@ -23,8 +23,7 @@ import { DashboardPanel } from "./dashboard-section";
 import { reservationsBoardHref } from "./dashboard-format";
 import { DashboardToolbar } from "./dashboard-toolbar";
 import { useSearchParams } from "react-router";
-
-const LAST_PROPERTY_KEY = "cabin.pms.dashboard.propertyId";
+import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
 
 function DashboardPageSkeleton() {
   return (
@@ -80,19 +79,10 @@ export function DashboardPage() {
   useEffect(() => {
     if (!optionsQuery.isSuccess || optionsQuery.data.length === 0) return;
     if (propertyId && optionsQuery.data.some((p) => p.id === propertyId)) {
-      try {
-        sessionStorage.setItem(LAST_PROPERTY_KEY, propertyId);
-      } catch {
-        /* ignore */
-      }
+      writeLastPropertyId(propertyId);
       return;
     }
-    let preferred = "";
-    try {
-      preferred = sessionStorage.getItem(LAST_PROPERTY_KEY) ?? "";
-    } catch {
-      preferred = "";
-    }
+    const preferred = readLastPropertyId();
     const match = optionsQuery.data.find((p) => p.id === preferred);
     const nextId = match?.id ?? optionsQuery.data[0]!.id;
     setPropertyId(nextId);

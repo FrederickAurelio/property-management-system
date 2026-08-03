@@ -12,6 +12,7 @@ import {
   staffPropertiesOptionsQueryKey,
   staffReportsSummaryQueryKey,
 } from "@/lib/api";
+import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
 import { ReportsCashSection } from "./reports-cash-section";
 import { downloadReportsCsv } from "./reports-export";
 import { ReportsFilterBar } from "./reports-filter-bar";
@@ -23,8 +24,6 @@ import {
   todayYmdLocal,
 } from "./reports-period";
 import { ReportsSourceMixSection } from "./reports-source-mix-section";
-
-const LAST_PROPERTY_KEY = "cabin.pms.reports.propertyId";
 
 function ReportsPageSkeleton() {
   return (
@@ -107,19 +106,10 @@ export function ReportsPage() {
   useEffect(() => {
     if (!optionsQuery.isSuccess || optionsQuery.data.length === 0) return;
     if (propertyId && optionsQuery.data.some((p) => p.id === propertyId)) {
-      try {
-        sessionStorage.setItem(LAST_PROPERTY_KEY, propertyId);
-      } catch {
-        /* ignore */
-      }
+      writeLastPropertyId(propertyId);
       return;
     }
-    let preferred = "";
-    try {
-      preferred = sessionStorage.getItem(LAST_PROPERTY_KEY) ?? "";
-    } catch {
-      preferred = "";
-    }
+    const preferred = readLastPropertyId();
     const match = optionsQuery.data.find((p) => p.id === preferred);
     const nextId = match?.id ?? optionsQuery.data[0]!.id;
     setChrome({

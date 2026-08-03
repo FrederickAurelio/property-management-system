@@ -40,6 +40,7 @@ import {
   type StaffReservationsListFilters,
   ApiError,
 } from "@/lib/api";
+import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
 import { cn } from "@/lib/utils";
 import { ReservationBadge, SourceBadge } from "./reservation-badges";
 import { parseBoard, boardFilterLocks } from "./reservation-boards";
@@ -59,8 +60,6 @@ import {
   statusBadgeTone,
   type ReservationLateCue,
 } from "./reservation-format";
-
-const LAST_PROPERTY_KEY = "cabin.pms.reservations.propertyId";
 
 const ReservationRowCells = memo(function ReservationRowCells({
   row,
@@ -355,19 +354,10 @@ export function ReservationsPage() {
     }
     const options = propertiesQuery.data;
     if (propertyId && options.some((p) => p.id === propertyId)) {
-      try {
-        sessionStorage.setItem(LAST_PROPERTY_KEY, propertyId);
-      } catch {
-        /* ignore */
-      }
+      writeLastPropertyId(propertyId);
       return;
     }
-    let preferred = "";
-    try {
-      preferred = sessionStorage.getItem(LAST_PROPERTY_KEY) ?? "";
-    } catch {
-      preferred = "";
-    }
+    const preferred = readLastPropertyId();
     const match = options.find((p) => p.id === preferred);
     const nextId = match?.id ?? options[0]!.id;
     setSearchParams(
