@@ -60,6 +60,8 @@ import {
   type ReservationLateCue,
 } from "./reservation-format";
 
+const LAST_PROPERTY_KEY = "cabin.pms.reservations.propertyId";
+
 const ReservationRowCells = memo(function ReservationRowCells({
   row,
   lateCue,
@@ -276,7 +278,8 @@ export function ReservationsPage() {
           const next = new URLSearchParams(prev);
           for (const [key, value] of Object.entries(patch)) {
             // Board "all" is a real preset — keep it in the URL.
-            // Status/source/property "all" means clear that filter.
+            // Status/source "all" means clear that filter.
+            // Property is always a concrete id (no “all properties”).
             if (key === "board") {
               if (value == null || value === "") {
                 next.delete(key);
@@ -339,16 +342,48 @@ export function ReservationsPage() {
 
   const propertiesQuery = useQuery({
     queryKey: staffPropertiesOptionsQueryKey(),
-    queryFn: async () => {
-      try {
-        return await listPropertyOptions();
-      } catch {
-        return [];
-      }
-    },
+    queryFn: listPropertyOptions,
   });
 
   const propertyOptions = propertiesQuery.data ?? [];
+  const noProperties =
+    propertiesQuery.isSuccess && propertyOptions.length === 0;
+
+  useEffect(() => {
+    if (!propertiesQuery.isSuccess || !propertiesQuery.data?.length) {
+      return;
+    }
+    const options = propertiesQuery.data;
+    if (propertyId && options.some((p) => p.id === propertyId)) {
+      try {
+        sessionStorage.setItem(LAST_PROPERTY_KEY, propertyId);
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    let preferred = "";
+    try {
+      preferred = sessionStorage.getItem(LAST_PROPERTY_KEY) ?? "";
+    } catch {
+      preferred = "";
+    }
+    const match = options.find((p) => p.id === preferred);
+    const nextId = match?.id ?? options[0]!.id;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("propertyId", nextId);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [
+    propertiesQuery.isSuccess,
+    propertiesQuery.data,
+    propertyId,
+    setSearchParams,
+  ]);
 
   const listQuery = useInfiniteQuery({
     queryKey: staffReservationsQueryKey(listFilters),
@@ -356,6 +391,7 @@ export function ReservationsPage() {
       listReservations({ ...listFilters, page: pageParam }),
     initialPageParam: INFINITE_INITIAL_PAGE,
     getNextPageParam: getNextPageParamFromPageInfo,
+    enabled: Boolean(propertyId),
   });
 
   const items = useMemo(
@@ -380,6 +416,7 @@ export function ReservationsPage() {
           type="button"
           size="sm"
           className="shrink-0"
+          disabled={!propertyId}
           onClick={() => {
             setCreateOpen(true);
           }}
@@ -404,7 +441,13 @@ export function ReservationsPage() {
         onPatch={patchParams}
       />
 
-      {listQuery.isLoading && (
+      {noProperties && (
+        <p className="text-sm text-muted-foreground">
+          {t("reservations:list.noProperties")}
+        </p>
+      )}
+
+      {!noProperties && !propertyId && propertiesQuery.isPending && (
         <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-14 w-full rounded-lg" />
@@ -412,7 +455,15 @@ export function ReservationsPage() {
         </div>
       )}
 
-      {listQuery.isError && !listQuery.data && (
+      {propertyId && listQuery.isLoading && (
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full rounded-lg" />
+          ))}
+        </div>
+      )}
+
+      {propertyId && listQuery.isError && !listQuery.data && (
         <QueryErrorPanel
           message={
             listQuery.error instanceof ApiError && listQuery.error.message
@@ -431,7 +482,7 @@ export function ReservationsPage() {
         />
       )}
 
-      {listQuery.data && items.length === 0 && (
+      {propertyId && listQuery.data && items.length === 0 && (
         <Empty className="border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon">

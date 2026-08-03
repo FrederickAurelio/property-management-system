@@ -150,10 +150,13 @@ export function ReservationFiltersBar({
 
         <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-0.5 sm:mx-0 sm:ml-auto sm:overflow-visible sm:px-0 sm:pb-0">
           <Select
-            value={propertyId || "all"}
+            value={propertyId || undefined}
             onValueChange={(value) => {
-              onPatch({ propertyId: value === "all" ? null : value });
+              if (value) {
+                onPatch({ propertyId: value });
+              }
             }}
+            disabled={propertyOptions.length === 0}
           >
             <SelectTrigger
               size="sm"
@@ -161,14 +164,11 @@ export function ReservationFiltersBar({
               aria-label={t("reservations:filtersBar.propertyAria")}
             >
               <SelectValue
-                placeholder={t("reservations:filtersBar.propertyAria")}
+                placeholder={t("reservations:filtersBar.propertyPlaceholder")}
               />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="all">
-                  {t("reservations:filtersBar.allProperties")}
-                </SelectItem>
                 {propertyOptions.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}

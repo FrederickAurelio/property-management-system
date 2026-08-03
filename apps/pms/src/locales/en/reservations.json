@@ -15,7 +15,7 @@
     "statusAria": "Status",
     "sourceAria": "Source",
     "sortAria": "Sort",
-    "allProperties": "All properties",
+    "propertyPlaceholder": "Property",
     "anyStatus": "Any status",
     "anySource": "Any source",
     "sortStayDate": "Stay date",
@@ -36,6 +36,7 @@
     "title": "Reservations",
     "subtitle": "Desk boards — status, source, and money always visible.",
     "newReservation": "New reservation",
+    "noProperties": "No properties yet. Create one under Properties first.",
     "table": {
       "guest": "Guest",
       "unit": "Unit",

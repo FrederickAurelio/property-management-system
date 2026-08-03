@@ -15,7 +15,7 @@
     "statusAria": "Status",
     "sourceAria": "Sumber",
     "sortAria": "Urutkan",
-    "allProperties": "Semua properti",
+    "propertyPlaceholder": "Properti",
     "anyStatus": "Semua status",
     "anySource": "Semua sumber",
     "sortStayDate": "Tanggal stay",
@@ -36,6 +36,7 @@
     "title": "Reservasi",
     "subtitle": "Board desk — status, sumber, dan uang selalu terlihat.",
     "newReservation": "Reservasi baru",
+    "noProperties": "Belum ada properti. Buat satu di Properti dulu.",
     "table": {
       "guest": "Tamu",
       "unit": "Unit",
