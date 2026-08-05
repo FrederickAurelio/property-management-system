@@ -434,6 +434,7 @@ export function ReservationFormDialog({
     queryKey: staffUnitsAvailabilityQueryKey(chosen?.propertyId ?? "", {
       checkInDate,
       checkOutDate,
+      billingPeriod,
       unitTypeId: chosen?.unitTypeId,
       ...(reservation?.id ? { excludeReservationId: reservation.id } : {}),
     }),
@@ -441,6 +442,7 @@ export function ReservationFormDialog({
       listAvailableUnits(chosen!.propertyId, {
         checkInDate,
         checkOutDate,
+        billingPeriod,
         unitTypeId: chosen!.unitTypeId,
         ...(reservation?.id ? { excludeReservationId: reservation.id } : {}),
       }),
@@ -637,7 +639,8 @@ export function ReservationFormDialog({
         prev == null ||
         prev.unitId !== saved.unitId ||
         prev.checkInDate !== saved.checkInDate ||
-        prev.checkOutDate !== saved.checkOutDate;
+        prev.checkOutDate !== saved.checkOutDate ||
+        prev.billingPeriod !== saved.billingPeriod;
       const remindOta =
         isEdit &&
         prev != null &&
@@ -1174,6 +1177,7 @@ export function ReservationFormDialog({
           onOpenChange={setPickerOpen}
           checkInDate={checkInDate}
           checkOutDate={checkOutDate}
+          billingPeriod={billingPeriod}
           initialPropertyId={chosen?.propertyId ?? initialPropertyId}
           initialPropertyName={chosen?.propertyName ?? initialPropertyName}
           initialUnitTypeId={chosen?.unitTypeId ?? ""}

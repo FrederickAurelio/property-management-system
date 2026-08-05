@@ -166,7 +166,7 @@ No skip `UNCONFIRMED → CHECKED_IN`. No reopen from terminal in Phase 1.
 | Check in                              | `status=CONFIRMED` and `checkInDate <= today < checkOutDate`                    |
 | Early check-in (before `checkInDate`) | Allowed with confirm (“early?”) — `FRONT_DESK+`                                 |
 | Check out                             | `status=CHECKED_IN` and `today <= checkOutDate` **or** early checkout confirm   |
-| Late checkout (after `checkOutDate`)  | Still allow check out + note; unit already free for overlap from `checkOutDate` |
+| Late checkout (after `checkOutDate`)  | Still allow check out + note. **DAILY:** unit free for overlap from `checkOutDate` (inventory end = contract out). **MONTHLY/YEARLY:** unit stays blocked until `CHECKED_OUT` or `CANCELLED` (open inventory hold from check-in → FAR) |
 
 Timestamps: `confirmedAt`, `checkedInAt`, `checkedOutAt`, `cancelledAt`.
 
@@ -275,6 +275,8 @@ suggestedTotal =
 ```
 
 `Reservation.billingPeriod` records which axis was used. Monthly/yearly exclusive check-out = same calendar date + N periods (`26 Jun → 26 Jul`); missing days clamp to EOM (`31 Jan → 28/29 Feb`). Caps: monthly ≤ 120, yearly ≤ 30 (`STAY_*_COUNT_MAX`). Helpers: `checkoutFromPeriodCount` / `periodCountFromRange` / `suggestStayTotalIdr` in `@cabin/api-contract`.
+
+**Inventory vs contract (locked):** contract `checkInDate`/`checkOutDate` drive money and boards. For `MONTHLY`/`YEARLY` occupying stays, `inventoryEndDate` = FAR (`9999-12-31`) so the unit stays blocked from check-in until `CHECKED_OUT`/`CANCELLED` (extend by editing contract dates; inventory hold remains open). DAILY: `inventoryEndDate = checkOutDate`.
 
 | Trigger                                   | Total            | Paid / movements                                             |
 | ----------------------------------------- | ---------------- | ------------------------------------------------------------ |

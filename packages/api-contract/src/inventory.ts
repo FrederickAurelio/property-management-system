@@ -311,19 +311,48 @@ export type StaffUnitAvailability = StaffUnit & {
   blockReason: UnitAvailabilityBlockReason | null;
 };
 
-/** Occupying stay overlapping a calendar month (may start/end outside). */
+/** Occupying busy interval overlapping a calendar month (may start/end outside). */
 export type UnitOccupancyBlock = {
   reservationId: string;
   checkInDate: string;
+  /** Exclusive busy end — inventory end for stays (FAR for open monthly/yearly). */
   checkOutDate: string;
+  /**
+   * Exclusive contract checkout when this block is a stay.
+   * When set and `< checkOutDate`, `[contractCheckOutDate, checkOutDate)` is the open-hold tail.
+   * Omit/null for calendar blocks.
+   */
+  contractCheckOutDate?: string | null;
 };
 
-/** Per-month busy intervals for date-picker blocking (unit POV). */
+/**
+ * Max half-open `[from, to)` span for `GET …/occupancy` range queries.
+ * Yearly stay picker grid must fit inside this (see `STAY_YEAR_PICKER_*`).
+ */
+export const UNIT_OCCUPANCY_RANGE_MAX_YEARS = 6;
+
+/**
+ * Yearly stay date-picker: years before / after the center year (inclusive).
+ * Grid size = BEFORE + 1 + AFTER (= `UNIT_OCCUPANCY_RANGE_MAX_YEARS`).
+ */
+export const STAY_YEAR_PICKER_BEFORE = 2;
+export const STAY_YEAR_PICKER_AFTER = 3;
+
+/** Busy intervals for date-picker blocking (unit POV). */
 export type UnitMonthOccupancy = {
   unitId: string;
-  /** YYYY-MM */
+  /** YYYY-MM anchor (month query, or `from`’s month for a range query). */
   yearMonth: string;
+  /** Half-open window actually queried `[from, to)`. */
+  from: string;
+  to: string;
   blocks: UnitOccupancyBlock[];
+  /**
+   * Exclusive horizon for monthly/yearly open holds: a start night `S` conflicts
+   * with FAR inventory iff `S < openHoldBlockedBefore`. Null when the unit has
+   * no occupying stays/blocks. Cheap MAX(inventoryEnd / block end) — not day-walked.
+   */
+  openHoldBlockedBefore: string | null;
 };
 
 /** Derive bedroomCount on write (locked product rule). */

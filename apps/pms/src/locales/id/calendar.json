@@ -22,7 +22,8 @@
     "due": "Sisa {{amount}}",
     "refund": "Refund {{amount}}",
     "late": "Telat",
-    "ota": "OTA"
+    "ota": "OTA",
+    "inventoryHold": "Hold inventori"
   },
   "blockLabels": {
     "maintenance": "Perbaikan",

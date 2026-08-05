@@ -21,6 +21,11 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-inventory-hold: var(--inventory-hold);
+  --color-inventory-hold-foreground: var(--inventory-hold-foreground);
+  --color-stay-caution: var(--stay-caution);
+  --color-stay-caution-foreground: var(--stay-caution-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -66,5 +71,4 @@
   --shadow-blur: var(--shadow-blur);
   --shadow-opacity: var(--shadow-opacity);
   --color-shadow-color: var(--shadow-color);
-  --color-destructive-foreground: var(--destructive-foreground);
 }

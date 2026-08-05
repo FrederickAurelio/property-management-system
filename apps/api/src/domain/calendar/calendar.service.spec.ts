@@ -83,6 +83,7 @@ describe('CalendarService', () => {
           status: ReservationStatus.CONFIRMED,
           checkInDate: new Date('2026-08-01T00:00:00.000Z'),
           checkOutDate: new Date('2026-08-03T00:00:00.000Z'),
+          inventoryEndDate: new Date('2026-08-03T00:00:00.000Z'),
           guestName: 'Budi',
           totalAmountIdr: BigInt(500_000),
           paidAmountIdr: BigInt(0),
@@ -119,6 +120,7 @@ describe('CalendarService', () => {
           guestName: 'Budi',
           checkInDate: '2026-08-01',
           checkOutDate: '2026-08-03',
+          inventoryEndDate: '2026-08-03',
         }),
       ]);
       expect(cal.blocks).toEqual([
@@ -129,7 +131,13 @@ describe('CalendarService', () => {
           endDate: '2026-08-07',
         }),
       ]);
-      expect(prisma.reservation.findMany).toHaveBeenCalled();
+      expect(prisma.reservation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            inventoryEndDate: { gt: expect.any(Date) },
+          }),
+        }),
+      );
     });
   });
 
@@ -145,6 +153,7 @@ describe('CalendarService', () => {
         source: ReservationSource.MANUAL,
         checkInDate: new Date('2026-08-01T00:00:00.000Z'),
         checkOutDate: new Date('2026-08-05T00:00:00.000Z'),
+        inventoryEndDate: new Date('2026-08-05T00:00:00.000Z'),
         status: ReservationStatus.CONFIRMED,
       });
 

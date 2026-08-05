@@ -27,6 +27,7 @@ import {
   sumPaidFromMovements,
   todayYmdInTimezone,
   isValidStayPeriodRange,
+  computeInventoryEndYmd,
   type Paginated,
   type StaffAdmin,
   type StaffReservation,
@@ -242,10 +243,16 @@ export class ReservationsService {
       });
     }
 
+    const inventoryEndYmd = computeInventoryEndYmd(
+      dto.billingPeriod,
+      dto.checkOutDate,
+    );
+
     await this.assertNoOverlap({
       unitId: dto.unitId,
       checkInDate: dto.checkInDate,
       checkOutDate: dto.checkOutDate,
+      busyEndDate: inventoryEndYmd,
     });
 
     const depositAmountIdr = Math.max(0, Math.floor(dto.depositAmountIdr));
@@ -258,6 +265,7 @@ export class ReservationsService {
           unitId: dto.unitId,
           checkInDate: dto.checkInDate,
           checkOutDate: dto.checkOutDate,
+          busyEndDate: inventoryEndYmd,
         });
         if (overlap) {
           this.throwOverlap(overlap);
@@ -273,6 +281,7 @@ export class ReservationsService {
             billingPeriod: dto.billingPeriod,
             checkInDate: parseYmd(dto.checkInDate),
             checkOutDate: parseYmd(dto.checkOutDate),
+            inventoryEndDate: parseYmd(inventoryEndYmd),
             guestName: dto.guestName.trim(),
             guestEmail: dto.guestEmail?.trim() || null,
             guestPhone: dto.guestPhone?.trim() || null,
@@ -372,6 +381,14 @@ export class ReservationsService {
     const unitId = dto.unitId ?? existing.unitId;
     const unitTypeId = dto.unitTypeId ?? existing.unitTypeId;
 
+    const inventoryEndYmd = computeInventoryEndYmd(billingPeriod, checkOutDate);
+    const inventoryTouched = Boolean(
+      dto.unitId ||
+        dto.checkInDate ||
+        dto.checkOutDate ||
+        dto.billingPeriod !== undefined,
+    );
+
     let maxGuests: number | null = null;
     if (dto.unitId || dto.unitTypeId || dto.checkInDate || dto.checkOutDate) {
       const unit = await this.loadBookableUnit({
@@ -380,18 +397,22 @@ export class ReservationsService {
         unitTypeId,
       });
       maxGuests = unit.unitType.maxGuests;
-      await this.assertNoOverlap({
-        unitId,
-        checkInDate,
-        checkOutDate,
-        excludeReservationId: id,
-      });
     } else if (dto.guestCount !== undefined) {
       const unitType = await this.prisma.unitType.findUnique({
         where: { id: unitTypeId },
         select: { maxGuests: true },
       });
       maxGuests = unitType?.maxGuests ?? null;
+    }
+
+    if (inventoryTouched) {
+      await this.assertNoOverlap({
+        unitId,
+        checkInDate,
+        checkOutDate,
+        busyEndDate: inventoryEndYmd,
+        excludeReservationId: id,
+      });
     }
 
     const nextGuestCount =
@@ -418,11 +439,12 @@ export class ReservationsService {
 
     try {
       await this.prisma.$transaction(async (tx) => {
-        if (dto.unitId || dto.checkInDate || dto.checkOutDate) {
+        if (inventoryTouched) {
           const overlap = await findOccupyingOverlap(tx, {
             unitId,
             checkInDate,
             checkOutDate,
+            busyEndDate: inventoryEndYmd,
             excludeReservationId: id,
           });
           if (overlap) {
@@ -445,6 +467,9 @@ export class ReservationsService {
               : {}),
             ...(dto.checkOutDate !== undefined
               ? { checkOutDate: parseYmd(dto.checkOutDate) }
+              : {}),
+            ...(inventoryTouched
+              ? { inventoryEndDate: parseYmd(inventoryEndYmd) }
               : {}),
             ...(dto.guestName !== undefined
               ? { guestName: dto.guestName.trim() }
@@ -528,6 +553,10 @@ export class ReservationsService {
     }
 
     this.assertDateRange(dates.checkInDate, dates.checkOutDate);
+    const inventoryEndYmd = computeInventoryEndYmd(
+      row.billingPeriod,
+      dates.checkOutDate,
+    );
 
     try {
       await this.prisma.$transaction(async (tx) => {
@@ -535,6 +564,7 @@ export class ReservationsService {
           unitId: row.unitId,
           checkInDate: dates.checkInDate,
           checkOutDate: dates.checkOutDate,
+          busyEndDate: inventoryEndYmd,
           excludeReservationId: id,
         });
         if (overlap) {
@@ -546,6 +576,7 @@ export class ReservationsService {
           data: {
             checkInDate: parseYmd(dates.checkInDate),
             checkOutDate: parseYmd(dates.checkOutDate),
+            inventoryEndDate: parseYmd(inventoryEndYmd),
             icalSyncWarning: null,
             icalSyncWarnedAt: null,
             icalObservedUnitId: null,
@@ -647,6 +678,10 @@ export class ReservationsService {
 
     const checkInDate = this.ymd(row.checkInDate);
     const checkOutDate = this.ymd(row.checkOutDate);
+    const inventoryEndYmd = computeInventoryEndYmd(
+      row.billingPeriod,
+      checkOutDate,
+    );
     const datesStillDiffer =
       observedCheckIn !== checkInDate || observedCheckOut !== checkOutDate;
 
@@ -656,6 +691,7 @@ export class ReservationsService {
           unitId: target.id,
           checkInDate,
           checkOutDate,
+          busyEndDate: inventoryEndYmd,
           excludeReservationId: id,
         });
         if (overlap) {
@@ -667,6 +703,7 @@ export class ReservationsService {
           data: {
             unitId: target.id,
             unitTypeId: target.unitTypeId,
+            inventoryEndDate: parseYmd(inventoryEndYmd),
             icalOverlapHold: false,
             updatedByAdminId: actor.id,
             ...(datesStillDiffer
@@ -708,10 +745,12 @@ export class ReservationsService {
     }
 
     if (row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP) {
+      const checkOutDate = this.ymd(row.checkOutDate);
       await this.assertNoOverlap({
         unitId: row.unitId,
         checkInDate: this.ymd(row.checkInDate),
-        checkOutDate: this.ymd(row.checkOutDate),
+        checkOutDate,
+        busyEndDate: computeInventoryEndYmd(row.billingPeriod, checkOutDate),
         excludeReservationId: id,
       });
       await this.prisma.reservation.update({
@@ -720,6 +759,9 @@ export class ReservationsService {
           icalSyncWarning: null,
           icalSyncWarnedAt: null,
           icalOverlapHold: false,
+          inventoryEndDate: parseYmd(
+            computeInventoryEndYmd(row.billingPeriod, checkOutDate),
+          ),
           icalObservedUnitId: null,
           icalObservedCheckInDate: null,
           icalObservedCheckOutDate: null,
@@ -801,6 +843,10 @@ export class ReservationsService {
       unitId: row.unitId,
       checkInDate: this.ymd(row.checkInDate),
       checkOutDate: this.ymd(row.checkOutDate),
+      busyEndDate: computeInventoryEndYmd(
+        row.billingPeriod,
+        this.ymd(row.checkOutDate),
+      ),
       excludeReservationId: id,
     });
 
@@ -811,6 +857,12 @@ export class ReservationsService {
         guestName: row.guestName.trim(),
         confirmedAt: new Date(),
         icalOverlapHold: false,
+        inventoryEndDate: parseYmd(
+          computeInventoryEndYmd(
+            row.billingPeriod,
+            this.ymd(row.checkOutDate),
+          ),
+        ),
         ...(row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP
           ? { icalSyncWarning: null, icalSyncWarnedAt: null }
           : {}),
@@ -912,6 +964,7 @@ export class ReservationsService {
       data: {
         status: ReservationStatus.CHECKED_OUT,
         checkedOutAt: new Date(),
+        inventoryEndDate: row.checkOutDate,
         updatedByAdminId: actor.id,
       },
     });
@@ -1015,6 +1068,7 @@ export class ReservationsService {
         data: {
           status: ReservationStatus.CANCELLED,
           cancelledAt: new Date(),
+          inventoryEndDate: row.checkOutDate,
           // Desk resolved via Cancel; sync may set OTA_STILL_LISTED if UID returns.
           icalSyncWarning: null,
           icalSyncWarnedAt: null,
@@ -1288,6 +1342,7 @@ export class ReservationsService {
     unitId: string;
     checkInDate: string;
     checkOutDate: string;
+    busyEndDate?: string;
     excludeReservationId?: string;
   }): Promise<void> {
     const hit = await findOccupyingOverlap(this.prisma, input);

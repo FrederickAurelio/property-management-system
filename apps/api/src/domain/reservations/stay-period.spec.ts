@@ -2,9 +2,15 @@ import {
   StayBillingPeriod,
   STAY_MONTHLY_COUNT_MAX,
   STAY_YEARLY_COUNT_MAX,
+  STAY_YEAR_PICKER_AFTER,
+  STAY_YEAR_PICKER_BEFORE,
+  UNIT_OCCUPANCY_RANGE_MAX_YEARS,
+  INVENTORY_FAR_YMD,
   addCalendarMonthsYmd,
   addCalendarYearsYmd,
   checkoutFromPeriodCount,
+  computeInventoryEndYmd,
+  isPeriodOpenInventory,
   isValidStayPeriodRange,
   periodCountFromRange,
 } from '@cabin/api-contract';
@@ -13,6 +19,26 @@ describe('stay billing period helpers', () => {
   it('adds calendar months with same-date exclusive checkout', () => {
     expect(addCalendarMonthsYmd('2026-06-26', 1)).toBe('2026-07-26');
     expect(addCalendarMonthsYmd('2026-02-02', 1)).toBe('2026-03-02');
+  });
+
+  it('keeps year picker grid inside occupancy max range', () => {
+    expect(
+      STAY_YEAR_PICKER_BEFORE + 1 + STAY_YEAR_PICKER_AFTER,
+    ).toBe(UNIT_OCCUPANCY_RANGE_MAX_YEARS);
+  });
+
+  it('computes open inventory end for monthly/yearly', () => {
+    expect(isPeriodOpenInventory(StayBillingPeriod.DAILY)).toBe(false);
+    expect(isPeriodOpenInventory(StayBillingPeriod.MONTHLY)).toBe(true);
+    expect(
+      computeInventoryEndYmd(StayBillingPeriod.DAILY, '2026-06-24'),
+    ).toBe('2026-06-24');
+    expect(
+      computeInventoryEndYmd(StayBillingPeriod.MONTHLY, '2026-06-24'),
+    ).toBe(INVENTORY_FAR_YMD);
+    expect(
+      computeInventoryEndYmd(StayBillingPeriod.YEARLY, '2027-05-24'),
+    ).toBe(INVENTORY_FAR_YMD);
   });
 
   it('clamps EOM when target month lacks the day', () => {

@@ -34,6 +34,7 @@ type CalendarStayRow = Pick<
   | 'status'
   | 'checkInDate'
   | 'checkOutDate'
+  | 'inventoryEndDate'
   | 'guestName'
   | 'totalAmountIdr'
   | 'paidAmountIdr'
@@ -69,6 +70,7 @@ export function toStaffCalendarStay(row: CalendarStayRow): StaffCalendarStay {
     status: row.status,
     checkInDate: ymd(row.checkInDate),
     checkOutDate: ymd(row.checkOutDate),
+    inventoryEndDate: ymd(row.inventoryEndDate),
     guestName: row.guestName,
     totalAmountIdr: bigintToNumber(row.totalAmountIdr),
     paidAmountIdr: Number(row.paidAmountIdr),

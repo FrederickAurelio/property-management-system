@@ -262,6 +262,34 @@ export const StayBillingPeriod = {
 export type StayBillingPeriod =
   (typeof StayBillingPeriod)[keyof typeof StayBillingPeriod];
 
+/**
+ * Exclusive inventory end for open-ended MONTHLY/YEARLY holds while occupying.
+ * Contract `checkOutDate` stays for money/boards; busy uses this sentinel.
+ */
+export const INVENTORY_FAR_YMD = "9999-12-31";
+
+/** True when period stays block inventory from check-in until checkout/cancel. */
+export function isPeriodOpenInventory(period: StayBillingPeriod): boolean {
+  return (
+    period === StayBillingPeriod.MONTHLY ||
+    period === StayBillingPeriod.YEARLY
+  );
+}
+
+/**
+ * Exclusive inventory busy end for a stay.
+ * DAILY → contract `checkOutDate`; MONTHLY/YEARLY → FAR (open hold).
+ * Callers snap back to `checkOutDate` on CHECKED_OUT / CANCELLED.
+ */
+export function computeInventoryEndYmd(
+  billingPeriod: StayBillingPeriod,
+  checkOutDate: string,
+): string {
+  return isPeriodOpenInventory(billingPeriod)
+    ? INVENTORY_FAR_YMD
+    : checkOutDate;
+}
+
 /** Max periods for monthly billing (10 years). Enforced in count helpers + picker. */
 export const STAY_MONTHLY_COUNT_MAX = 120;
 /** Max periods for yearly billing. Enforced in count helpers + picker. */

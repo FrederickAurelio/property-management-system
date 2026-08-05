@@ -1,0 +1,3 @@
+# Agent UI skills (Impeccable scripts, etc.) are tooling, not product code.
+# Keep them in git for shared Cursor defaults; exclude from GitHub language stats.
+.cursor/skills/** linguist-vendored

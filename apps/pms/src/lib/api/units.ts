@@ -3,6 +3,7 @@ import type {
   StaffUnit,
   StaffUnitAvailability,
   StaffUnitIcalFeedInput,
+  StayBillingPeriod,
   UnitMonthOccupancy,
   UnitStatus,
 } from "@cabin/api-contract";
@@ -60,6 +61,7 @@ export async function listAvailableUnits(
   params: {
     checkInDate?: string;
     checkOutDate?: string;
+    billingPeriod?: StayBillingPeriod;
     unitTypeId?: string;
     excludeReservationId?: string;
     excludeBlockId?: string;
@@ -71,6 +73,9 @@ export async function listAvailableUnits(
       params: {
         ...(params.checkInDate ? { checkInDate: params.checkInDate } : {}),
         ...(params.checkOutDate ? { checkOutDate: params.checkOutDate } : {}),
+        ...(params.billingPeriod
+          ? { billingPeriod: params.billingPeriod }
+          : {}),
         ...(params.unitTypeId ? { unitTypeId: params.unitTypeId } : {}),
         ...(params.excludeReservationId
           ? { excludeReservationId: params.excludeReservationId }
@@ -84,11 +89,13 @@ export async function listAvailableUnits(
   return data;
 }
 
-/** Occupying stays for one calendar month (date-picker blocking). */
+/** Occupying stays for date-picker blocking (`yearMonth` or `from`+`to`). */
 export async function getUnitMonthOccupancy(
   unitId: string,
   params: {
-    yearMonth: string;
+    yearMonth?: string;
+    from?: string;
+    to?: string;
     excludeReservationId?: string;
   },
 ): Promise<UnitMonthOccupancy> {
@@ -96,7 +103,10 @@ export async function getUnitMonthOccupancy(
     `/units/${unitId}/occupancy`,
     {
       params: {
-        yearMonth: params.yearMonth,
+        ...(params.yearMonth ? { yearMonth: params.yearMonth } : {}),
+        ...(params.from && params.to
+          ? { from: params.from, to: params.to }
+          : {}),
         ...(params.excludeReservationId
           ? { excludeReservationId: params.excludeReservationId }
           : {}),

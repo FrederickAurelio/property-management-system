@@ -234,6 +234,9 @@ model Reservation {
   billingPeriod     StayBillingPeriod  @default(DAILY)
   checkInDate       DateTime           @db.Date
   checkOutDate      DateTime           @db.Date
+  /// Exclusive inventory busy end — gist + overlap use this, not checkOutDate.
+  /// DAILY = checkOutDate; MONTHLY/YEARLY occupying = FAR (9999-12-31).
+  inventoryEndDate  DateTime           @db.Date
   guestName         String             @db.VarChar(128)
   guestEmail        String?            @db.VarChar(255)
   guestPhone        String?            @db.VarChar(32)
@@ -273,7 +276,9 @@ model Reservation {
   movements       PaymentMovement[]
 
   @@index([unitId, checkInDate, checkOutDate])
+  @@index([unitId, checkInDate, inventoryEndDate])
   @@index([propertyId, checkInDate, checkOutDate])
+  @@index([propertyId, checkInDate, inventoryEndDate])
   @@index([propertyId, checkInDate])
   @@index([propertyId, checkOutDate])
   @@index([propertyId, status])

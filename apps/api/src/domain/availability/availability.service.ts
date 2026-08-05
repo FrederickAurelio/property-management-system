@@ -5,8 +5,12 @@ import {
 } from '@nestjs/common';
 import {
   ApiFieldReason,
+  addCalendarYearsYmd,
+  computeInventoryEndYmd,
   isUnitStatusBookable,
   OCCUPYING_RESERVATION_STATUSES,
+  StayBillingPeriod,
+  UNIT_OCCUPANCY_RANGE_MAX_YEARS,
   UnitAvailabilityBlockReason,
   type StaffUnitAvailability,
   type UnitAvailabilityBlockReason as BlockReason,
@@ -71,12 +75,21 @@ export class AvailabilityService {
       return [];
     }
 
+    const busyEndDate =
+      hasIn && hasOut
+        ? computeInventoryEndYmd(
+            query.billingPeriod ?? StayBillingPeriod.DAILY,
+            query.checkOutDate!,
+          )
+        : undefined;
+
     const busy =
       hasIn && hasOut
         ? await findBusyUnitIds(this.prisma, {
             propertyId,
             checkInDate: query.checkInDate!,
             checkOutDate: query.checkOutDate!,
+            ...(busyEndDate ? { busyEndDate } : {}),
             unitIds: units.map((u) => u.id),
             ...(query.excludeReservationId
               ? { excludeReservationId: query.excludeReservationId }
@@ -103,7 +116,9 @@ export class AvailabilityService {
   }
 
   /**
-   * Occupying stays overlapping one calendar month — for date-picker blocking.
+   * Occupying stays/blocks for date-picker blocking.
+   * `yearMonth` → one month (+ spill clip).
+   * `from`+`to` → half-open window in one query (preferred for M/Y pickers).
    */
   async getUnitMonthOccupancy(
     unitId: string,
@@ -117,32 +132,38 @@ export class AvailabilityService {
       throw new NotFoundException('Unit not found');
     }
 
-    const { monthStart, monthEnd } = monthBounds(query.yearMonth);
+    const window = resolveOccupancyWindow(query);
+    const rangeStart = parseYmd(window.from);
+    const rangeEnd = parseYmd(window.to);
+    const clipYmd = window.clipYmd;
 
-    const [stayRows, blockRows] = await Promise.all([
+    const excludeStay = query.excludeReservationId
+      ? { id: { not: query.excludeReservationId } }
+      : {};
+
+    const [stayRows, blockRows, stayHorizon, blockHorizon] = await Promise.all([
       this.prisma.reservation.findMany({
         where: {
           unitId,
           status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
           icalOverlapHold: false,
-          checkInDate: { lt: monthEnd },
-          checkOutDate: { gt: monthStart },
-          ...(query.excludeReservationId
-            ? { id: { not: query.excludeReservationId } }
-            : {}),
+          checkInDate: { lt: rangeEnd },
+          inventoryEndDate: { gt: rangeStart },
+          ...excludeStay,
         },
         select: {
           id: true,
           checkInDate: true,
           checkOutDate: true,
+          inventoryEndDate: true,
         },
         orderBy: { checkInDate: 'asc' },
       }),
       this.prisma.calendarBlock.findMany({
         where: {
           unitId,
-          startDate: { lt: monthEnd },
-          endDate: { gt: monthStart },
+          startDate: { lt: rangeEnd },
+          endDate: { gt: rangeStart },
         },
         select: {
           id: true,
@@ -151,25 +172,50 @@ export class AvailabilityService {
         },
         orderBy: { startDate: 'asc' },
       }),
+      // Unit-wide MAX inventory end — cheap open-hold horizon (not window-clipped).
+      this.prisma.reservation.aggregate({
+        where: {
+          unitId,
+          status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
+          icalOverlapHold: false,
+          ...excludeStay,
+        },
+        _max: { inventoryEndDate: true },
+      }),
+      this.prisma.calendarBlock.aggregate({
+        where: { unitId },
+        _max: { endDate: true },
+      }),
     ]);
 
     const blocks = [
       ...stayRows.map((row) => ({
         reservationId: row.id,
         checkInDate: toYmd(row.checkInDate),
-        checkOutDate: toYmd(row.checkOutDate),
+        checkOutDate: clipExclusiveEnd(toYmd(row.inventoryEndDate), clipYmd),
+        contractCheckOutDate: toYmd(row.checkOutDate),
       })),
       ...blockRows.map((row) => ({
         reservationId: row.id,
         checkInDate: toYmd(row.startDate),
-        checkOutDate: toYmd(row.endDate),
+        checkOutDate: clipExclusiveEnd(toYmd(row.endDate), clipYmd),
       })),
     ].sort((a, b) => a.checkInDate.localeCompare(b.checkInDate));
 
+    const openHoldBlockedBefore = maxExclusiveYmd(
+      stayHorizon._max.inventoryEndDate
+        ? toYmd(stayHorizon._max.inventoryEndDate)
+        : null,
+      blockHorizon._max.endDate ? toYmd(blockHorizon._max.endDate) : null,
+    );
+
     return {
       unitId,
-      yearMonth: query.yearMonth,
+      yearMonth: window.yearMonth,
+      from: window.from,
+      to: window.to,
       blocks,
+      openHoldBlockedBefore,
     };
   }
 
@@ -209,6 +255,100 @@ function resolveBlockReason(input: {
     return UnitAvailabilityBlockReason.DATE_OVERLAP;
   }
   return null;
+}
+
+function resolveOccupancyWindow(query: UnitMonthOccupancyQueryDto): {
+  yearMonth: string;
+  from: string;
+  to: string;
+  clipYmd: string;
+} {
+  const hasFrom = Boolean(query.from);
+  const hasTo = Boolean(query.to);
+  if (hasFrom !== hasTo) {
+    throw new BadRequestException({
+      message: 'Provide both from and to, or yearMonth alone',
+      details: {
+        field: hasFrom ? 'to' : 'from',
+        reason: ApiFieldReason.DATE_RANGE_INVALID,
+      },
+    });
+  }
+
+  if (query.from && query.to) {
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(query.from) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(query.to) ||
+      query.to <= query.from
+    ) {
+      throw new BadRequestException({
+        message: 'Invalid occupancy range',
+        details: {
+          field: 'to',
+          reason: ApiFieldReason.DATE_RANGE_INVALID,
+        },
+      });
+    }
+    const maxTo = addCalendarYearsYmd(
+      query.from,
+      UNIT_OCCUPANCY_RANGE_MAX_YEARS,
+    );
+    if (query.to > maxTo) {
+      throw new BadRequestException({
+        message: `Occupancy range cannot exceed ${UNIT_OCCUPANCY_RANGE_MAX_YEARS} years`,
+        details: {
+          field: 'to',
+          reason: ApiFieldReason.DATE_RANGE_INVALID,
+        },
+      });
+    }
+    return {
+      yearMonth: query.from.slice(0, 7),
+      from: query.from,
+      to: query.to,
+      clipYmd: query.to,
+    };
+  }
+
+  if (!query.yearMonth) {
+    throw new BadRequestException({
+      message: 'Provide yearMonth, or both from and to',
+      details: {
+        field: 'yearMonth',
+        reason: ApiFieldReason.DATE_RANGE_INVALID,
+      },
+    });
+  }
+
+  const { monthStart, monthEnd } = monthBounds(query.yearMonth);
+  // Spare one month past `yearMonth` so grids that show spill days of the
+  // next month stay blocked when expanding FAR / long intervals.
+  const spillClipYmd = toYmd(
+    new Date(
+      Date.UTC(monthEnd.getUTCFullYear(), monthEnd.getUTCMonth() + 1, 1),
+    ),
+  );
+  return {
+    yearMonth: query.yearMonth,
+    from: toYmd(monthStart),
+    to: toYmd(monthEnd),
+    clipYmd: spillClipYmd,
+  };
+}
+
+function clipExclusiveEnd(endYmd: string, clipYmd: string): string {
+  return endYmd < clipYmd ? endYmd : clipYmd;
+}
+
+/** Later of two exclusive-end YMD strings (nulls ignored). */
+function maxExclusiveYmd(a: string | null, b: string | null): string | null {
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  return a >= b ? a : b;
 }
 
 function monthBounds(yearMonth: string): { monthStart: Date; monthEnd: Date } {

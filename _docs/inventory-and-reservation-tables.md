@@ -293,7 +293,8 @@ Stay on **one unit**. Designed so calendar, check-in, and reports share one row.
 | `source`           | `ReservationSource` | no   |                                                                                       |
 | `status`           | `ReservationStatus` | no   |                                                                                       |
 | `checkInDate`      | `date`              | no   | **Stay night start** (property local date)                                            |
-| `checkOutDate`     | `date`              | no   | **Exclusive end** — night of checkout not occupied                                    |
+| `checkOutDate`     | `date`              | no   | **Exclusive contract end** — money / boards / period count                            |
+| `inventoryEndDate` | `date`              | no   | **Exclusive inventory busy end** — gist + overlap. DAILY = `checkOutDate`; MONTHLY/YEARLY occupying = `9999-12-31` until checkout/cancel |
 | `guestName`        | `varchar(128)`      | no   |                                                                                       |
 | `guestEmail`       | `varchar(255)`      | yes  |                                                                                       |
 | `guestPhone`       | `varchar(32)`       | yes  |                                                                                       |
@@ -319,17 +320,23 @@ Stay on **one unit**. Designed so calendar, check-in, and reports share one row.
 
 ```text
 checkInDate  inclusive
-checkOutDate exclusive
-Stay nights = [checkInDate, checkOutDate)
+checkOutDate exclusive (contract — money / boards / period count)
+inventoryEndDate exclusive (inventory busy — gist / overlap / calendar / iCal)
+Stay contract nights = [checkInDate, checkOutDate)
+Inventory busy = [checkInDate, inventoryEndDate)
+  DAILY → inventoryEndDate = checkOutDate
+  MONTHLY/YEARLY occupying → inventoryEndDate = FAR (9999-12-31) until CHECKED_OUT/CANCELLED
 
-Example: check-in 2026-07-25, check-out 2026-07-26 → occupies 1 night (25th).
+Example: check-in 2026-07-25, check-out 2026-07-26 → occupies 1 night (25th) for daily.
 ```
 
 **Indexes / constraints**
 
 - `CHECK (checkOutDate > checkInDate)`
+- `CHECK (inventoryEndDate > checkInDate)`
 - `CHECK (guestCount IS NULL OR guestCount >= 1)`
 - `INDEX (unitId, checkInDate, checkOutDate)`
+- `INDEX (unitId, checkInDate, inventoryEndDate)`
 - `INDEX (propertyId, checkInDate)` — arrivals board (`checkInDate ≤ today` + status)
 - `INDEX (propertyId, checkOutDate)` — departures board (`checkOutDate ≤ today` + status)
 - `INDEX (propertyId, status)`
@@ -338,15 +345,15 @@ Example: check-in 2026-07-25, check-out 2026-07-26 → occupies 1 night (25th).
 
 **Overlap (locked — Postgres)**
 
-For statuses that occupy the calendar (`UNCONFIRMED`, `CONFIRMED`, `CHECKED_IN`):
+For statuses that occupy the calendar (`UNCONFIRMED`, `CONFIRMED`, `CHECKED_IN`) and `icalOverlapHold = false`:
 
-- No two occupying reservations on the **same `unitId`** with overlapping `[checkInDate, checkOutDate)`.
-- Prefer Postgres **exclusion constraint** with `daterange` + `gist` (or transactional conflict check in Phase 1 if exclusion ships slightly later — product rule: never UI-only).
+- No two occupying reservations on the **same `unitId`** with overlapping `[checkInDate, inventoryEndDate)`.
+- Prefer Postgres **exclusion constraint** with `daterange(checkInDate, inventoryEndDate)` + `gist` (product rule: never UI-only).
 
-Same overlap rule applies vs `CalendarBlock` on that unit.
+Same overlap rule applies vs `CalendarBlock` on that unit (monthly/yearly candidates propose busy end = FAR).
 
 **FE shape (calendar event):**  
-`{ id, unitId, checkInDate, checkOutDate, status, source, guestName, guestCount }`
+`{ id, unitId, checkInDate, checkOutDate, inventoryEndDate, status, source, guestName, guestCount }`
 
 **FE shape (detail):** full row + nested `unit` + `unitType` summary + `movements[]` (cash timeline).
 
@@ -597,13 +604,13 @@ Unit is free for [checkIn, checkOut)
   and no CalendarBlock overlaps (when blocks ship)
 ```
 
-Staff HTTP: `GET /staff/properties/:propertyId/units/availability?checkInDate&checkOutDate&unitTypeId?&excludeReservationId?`
+Staff HTTP: `GET /staff/properties/:propertyId/units/availability?checkInDate&checkOutDate&billingPeriod?&unitTypeId?&excludeReservationId?&excludeBlockId?`
 
 Returns **all** matching units as `StaffUnitAvailability[]` (`StaffUnit` + `available` + `blockReason`). Blocked rows stay in the list for Choose unit UI; only `available: true` is selectable. Stay dates are **optional** — omit both to skip `DATE_OVERLAP` (catalog bookability only).
 
 `blockReason` priority: `PROPERTY_INACTIVE` → `UNIT_TYPE_INACTIVE` → `UNIT_NOT_BOOKABLE` → `DATE_OVERLAP`.
 
-Unit POV (date picker): `GET /staff/units/:unitId/occupancy?yearMonth=YYYY-MM&excludeReservationId?` → `UnitMonthOccupancy` (occupying `blocks` overlapping that month). PMS loads visible months (1–2), keeps prior months in the query cache as staff pages the calendar, and disables booked nights (exclusive checkout).
+Unit POV (date picker): `GET /staff/units/:unitId/occupancy?yearMonth=YYYY-MM&excludeReservationId?` → `UnitMonthOccupancy` (busy `blocks` overlapping that month — stay ends use `inventoryEndDate`). PMS loads visible months (1–2), keeps prior months in the query cache as staff pages the calendar, and disables booked nights (exclusive busy end).
 
 Type-level “how many left” for night D:
 

@@ -1,4 +1,7 @@
-import { OCCUPYING_RESERVATION_STATUSES } from '@cabin/api-contract';
+import {
+  INVENTORY_FAR_YMD,
+  OCCUPYING_RESERVATION_STATUSES,
+} from '@cabin/api-contract';
 import type { PrismaClient } from '../../generated/prisma/index.js';
 
 export type IcalBusyRange = {
@@ -29,11 +32,20 @@ export function icalBusyHorizon(now = new Date()): { from: Date; to: Date } {
   };
 }
 
+/** Clip FAR / far inventory ends so OTAs never see year 9999. */
+function clipBusyEndYmd(inventoryEndYmd: string, horizonToYmd: string): string {
+  if (inventoryEndYmd >= INVENTORY_FAR_YMD || inventoryEndYmd > horizonToYmd) {
+    return horizonToYmd;
+  }
+  return inventoryEndYmd;
+}
+
 export async function listUnitBusyRanges(
   db: PrismaClient,
   unitId: string,
 ): Promise<IcalBusyRange[]> {
   const { from, to } = icalBusyHorizon();
+  const horizonToYmd = ymd(to);
 
   const [stays, blocks] = await Promise.all([
     db.reservation.findMany({
@@ -42,9 +54,9 @@ export async function listUnitBusyRanges(
         status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
         icalOverlapHold: false,
         checkInDate: { lt: to },
-        checkOutDate: { gt: from },
+        inventoryEndDate: { gt: from },
       },
-      select: { id: true, checkInDate: true, checkOutDate: true },
+      select: { id: true, checkInDate: true, inventoryEndDate: true },
       orderBy: { checkInDate: 'asc' },
     }),
     db.calendarBlock.findMany({
@@ -62,7 +74,7 @@ export async function listUnitBusyRanges(
     ...stays.map((s) => ({
       uid: `stay-${s.id}@cabin-pms`,
       startYmd: ymd(s.checkInDate),
-      endYmd: ymd(s.checkOutDate),
+      endYmd: clipBusyEndYmd(ymd(s.inventoryEndDate), horizonToYmd),
       kind: 'stay' as const,
     })),
     ...blocks.map((b) => ({

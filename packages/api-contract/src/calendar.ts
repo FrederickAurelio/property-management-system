@@ -48,6 +48,8 @@ export type StaffCalendarStay = {
   status: ReservationStatus;
   checkInDate: string;
   checkOutDate: string;
+  /** Exclusive inventory busy end (FAR for open monthly/yearly holds). */
+  inventoryEndDate: string;
   guestName: string;
   totalAmountIdr: number | null;
   paidAmountIdr: number;

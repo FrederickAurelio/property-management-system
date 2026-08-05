@@ -22,7 +22,8 @@
     "due": "Due {{amount}}",
     "refund": "Refund {{amount}}",
     "late": "Late",
-    "ota": "OTA"
+    "ota": "OTA",
+    "inventoryHold": "Inventory hold"
   },
   "blockLabels": {
     "maintenance": "Maintenance",

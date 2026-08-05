@@ -71,7 +71,7 @@ export class CalendarService {
           status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
           icalOverlapHold: false,
           checkInDate: { lt: to },
-          checkOutDate: { gt: from },
+          inventoryEndDate: { gt: from },
         },
         select: {
           id: true,
@@ -80,6 +80,7 @@ export class CalendarService {
           status: true,
           checkInDate: true,
           checkOutDate: true,
+          inventoryEndDate: true,
           guestName: true,
           totalAmountIdr: true,
           paidAmountIdr: true,

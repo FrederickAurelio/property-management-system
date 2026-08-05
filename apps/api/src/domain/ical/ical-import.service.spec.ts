@@ -181,6 +181,7 @@ describe('IcalImportService', () => {
       source: 'MANUAL',
       checkInDate: new Date('2026-07-28T00:00:00.000Z'),
       checkOutDate: new Date('2026-07-31T00:00:00.000Z'),
+      inventoryEndDate: new Date('2026-07-31T00:00:00.000Z'),
       status: ReservationStatus.CONFIRMED,
     });
     prisma.reservation.findFirst.mockResolvedValue(null);

@@ -1,9 +1,11 @@
 /* anchor: Inventory explorer pick, diverge: local layers + Confirm unit (no CRUD/routes) */
 import { useMemo, useState } from "react";
 import {
+  StayBillingPeriod,
   UnitAvailabilityBlockReason,
   type StaffUnit,
   type StaffUnitAvailability,
+  type StayBillingPeriod as StayBillingPeriodType,
   type UnitAvailabilityBlockReason as BlockReason,
 } from "@cabin/api-contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -69,6 +71,8 @@ type UnitInventoryPickerProps = {
   /** Stay range required for free-unit filtering. */
   checkInDate: string;
   checkOutDate: string;
+  /** Candidate period — MONTHLY/YEARLY widen DATE_OVERLAP to open inventory hold. */
+  billingPeriod?: StayBillingPeriodType;
   /** Prefill when editing an existing stay (jump to unit layer). */
   initialPropertyId?: string;
   initialPropertyName?: string;
@@ -148,6 +152,7 @@ export function UnitInventoryPicker({
   onConfirm,
   checkInDate,
   checkOutDate,
+  billingPeriod = StayBillingPeriod.DAILY,
   initialPropertyId = "",
   initialPropertyName = "",
   initialUnitTypeId = "",
@@ -220,13 +225,13 @@ export function UnitInventoryPicker({
 
   const unitsQuery = useQuery({
     queryKey: staffUnitsAvailabilityQueryKey(propertyId, {
-      ...(datesReady ? { checkInDate, checkOutDate } : {}),
+      ...(datesReady ? { checkInDate, checkOutDate, billingPeriod } : {}),
       unitTypeId,
       ...(excludeReservationId ? { excludeReservationId } : {}),
     }),
     queryFn: () =>
       listAvailableUnits(propertyId, {
-        ...(datesReady ? { checkInDate, checkOutDate } : {}),
+        ...(datesReady ? { checkInDate, checkOutDate, billingPeriod } : {}),
         unitTypeId,
         ...(excludeReservationId ? { excludeReservationId } : {}),
       }),

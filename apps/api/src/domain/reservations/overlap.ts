@@ -13,6 +13,7 @@ export type StayOverlapHit = {
   source: string;
   checkInDate: Date;
   checkOutDate: Date;
+  inventoryEndDate: Date;
   status: ReservationStatus;
 };
 
@@ -28,26 +29,32 @@ export type OverlapHit = StayOverlapHit | BlockOverlapHit;
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
-/** [checkIn, checkOut) overlap on same unit among occupying stays. */
+/**
+ * [checkIn, busyEnd) overlap on same unit among occupying stays.
+ * Peers use `inventoryEndDate` (FAR for open monthly/yearly holds).
+ * `busyEndDate` defaults to `checkOutDate` (contract end = busy end for daily/blocks).
+ */
 export async function findStayOverlap(
   db: DbClient,
   input: {
     unitId: string;
     checkInDate: string;
     checkOutDate: string;
+    /** Exclusive end of the *proposed* busy interval (FAR for monthly/yearly). */
+    busyEndDate?: string;
     excludeReservationId?: string;
   },
 ): Promise<StayOverlapHit | null> {
   const checkIn = parseYmd(input.checkInDate);
-  const checkOut = parseYmd(input.checkOutDate);
+  const busyEnd = parseYmd(input.busyEndDate ?? input.checkOutDate);
 
   const hit = await db.reservation.findFirst({
     where: {
       unitId: input.unitId,
       status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
       icalOverlapHold: false,
-      checkInDate: { lt: checkOut },
-      checkOutDate: { gt: checkIn },
+      checkInDate: { lt: busyEnd },
+      inventoryEndDate: { gt: checkIn },
       ...(input.excludeReservationId
         ? { id: { not: input.excludeReservationId } }
         : {}),
@@ -58,6 +65,7 @@ export async function findStayOverlap(
       source: true,
       checkInDate: true,
       checkOutDate: true,
+      inventoryEndDate: true,
       status: true,
     },
     orderBy: { checkInDate: 'asc' },
@@ -101,8 +109,9 @@ export async function findCalendarBlockOverlap(
 }
 
 /**
- * Occupying stay or calendar block overlapping [checkIn, checkOut) on the unit.
+ * Occupying stay or calendar block overlapping [checkIn, busyEnd) on the unit.
  * Prefers a stay hit when both exist.
+ * Pass `busyEndDate` for monthly/yearly candidates (FAR); omit for daily/blocks.
  */
 export async function findOccupyingOverlap(
   db: DbClient,
@@ -110,14 +119,18 @@ export async function findOccupyingOverlap(
     unitId: string;
     checkInDate: string;
     checkOutDate: string;
+    busyEndDate?: string;
     excludeReservationId?: string;
     excludeBlockId?: string;
   },
 ): Promise<OverlapHit | null> {
+  const busyEndDate = input.busyEndDate ?? input.checkOutDate;
+
   const stay = await findStayOverlap(db, {
     unitId: input.unitId,
     checkInDate: input.checkInDate,
     checkOutDate: input.checkOutDate,
+    busyEndDate,
     ...(input.excludeReservationId
       ? { excludeReservationId: input.excludeReservationId }
       : {}),
@@ -127,25 +140,29 @@ export async function findOccupyingOverlap(
   return findCalendarBlockOverlap(db, {
     unitId: input.unitId,
     startDate: input.checkInDate,
-    endDate: input.checkOutDate,
+    endDate: busyEndDate,
     ...(input.excludeBlockId ? { excludeBlockId: input.excludeBlockId } : {}),
   });
 }
 
-/** Unit ids that have an occupying stay or calendar block overlapping the range. */
+/**
+ * Unit ids that have an occupying stay or calendar block overlapping the range.
+ * Pass `busyEndDate` when the candidate stay is monthly/yearly (FAR).
+ */
 export async function findBusyUnitIds(
   db: DbClient,
   input: {
     propertyId: string;
     checkInDate: string;
     checkOutDate: string;
+    busyEndDate?: string;
     unitIds?: string[];
     excludeReservationId?: string;
     excludeBlockId?: string;
   },
 ): Promise<Set<string>> {
   const checkIn = parseYmd(input.checkInDate);
-  const checkOut = parseYmd(input.checkOutDate);
+  const busyEnd = parseYmd(input.busyEndDate ?? input.checkOutDate);
   const unitFilter = input.unitIds ? { unitId: { in: input.unitIds } } : {};
 
   const [stayRows, blockRows] = await Promise.all([
@@ -154,8 +171,8 @@ export async function findBusyUnitIds(
         propertyId: input.propertyId,
         status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
         icalOverlapHold: false,
-        checkInDate: { lt: checkOut },
-        checkOutDate: { gt: checkIn },
+        checkInDate: { lt: busyEnd },
+        inventoryEndDate: { gt: checkIn },
         ...unitFilter,
         ...(input.excludeReservationId
           ? { id: { not: input.excludeReservationId } }
@@ -167,7 +184,7 @@ export async function findBusyUnitIds(
     db.calendarBlock.findMany({
       where: {
         propertyId: input.propertyId,
-        startDate: { lt: checkOut },
+        startDate: { lt: busyEnd },
         endDate: { gt: checkIn },
         ...unitFilter,
         ...(input.excludeBlockId ? { id: { not: input.excludeBlockId } } : {}),

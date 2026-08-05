@@ -1,6 +1,6 @@
 /* anchor: Linear-dense stay control, diverge: duration + Daily/Monthly/Yearly ToggleGroup */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { addMonths, format } from "date-fns";
 import {
   CalendarIcon,
@@ -13,6 +13,9 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import {
   StayBillingPeriod,
+  STAY_YEAR_PICKER_AFTER,
+  STAY_YEAR_PICKER_BEFORE,
+  UNIT_OCCUPANCY_RANGE_MAX_YEARS,
   checkoutFromPeriodCount,
   periodCountFromRange,
   stayPeriodCountMax,
@@ -119,17 +122,145 @@ function ymdFromYearMonthDay(year: number, month: number, day: number): string {
 
 const DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 1);
 
-/** Nights in [checkIn, checkOut) — exclusive checkout. */
-function expandBlockedNights(blocks: UnitOccupancyBlock[]): Set<string> {
-  const nights = new Set<string>();
+/**
+ * Split busy nights into contract occupied vs open-hold tail (cream).
+ * Hold = `[contractCheckOutDate, inventoryEnd)` when contract end < inventory end.
+ */
+function expandOccupiedAndHoldNights(
+  blocks: UnitOccupancyBlock[],
+  clipUntilExclusive: string,
+): { occupied: Set<string>; hold: Set<string> } {
+  const occupied = new Set<string>();
+  const hold = new Set<string>();
   for (const block of blocks) {
-    let cursor = block.checkInDate;
-    while (cursor < block.checkOutDate) {
-      nights.add(cursor);
-      cursor = addDaysYmd(cursor, 1);
+    const inventoryEnd =
+      block.checkOutDate < clipUntilExclusive
+        ? block.checkOutDate
+        : clipUntilExclusive;
+    const contractEnd =
+      block.contractCheckOutDate &&
+      block.contractCheckOutDate < inventoryEnd
+        ? block.contractCheckOutDate
+        : null;
+
+    if (contractEnd) {
+      let cursor = block.checkInDate;
+      while (cursor < contractEnd) {
+        occupied.add(cursor);
+        cursor = addDaysYmd(cursor, 1);
+      }
+      cursor = contractEnd;
+      while (cursor < inventoryEnd) {
+        // Prefer occupied if overlapping another stay's contract night.
+        if (!occupied.has(cursor)) {
+          hold.add(cursor);
+        }
+        cursor = addDaysYmd(cursor, 1);
+      }
+    } else {
+      let cursor = block.checkInDate;
+      while (cursor < inventoryEnd) {
+        occupied.add(cursor);
+        hold.delete(cursor);
+        cursor = addDaysYmd(cursor, 1);
+      }
     }
   }
-  return nights;
+  return { occupied, hold };
+}
+
+/** Half-open [a0,a1) ∩ [b0,b1) — date strings, lexicographic YYYY-MM-DD. */
+function intervalsOverlap(
+  a0: string,
+  a1: string,
+  b0: string,
+  b1: string,
+): boolean {
+  return a0 < b1 && b0 < a1;
+}
+
+/** True if [from, to) overlaps any occupancy block (no day-walking). */
+function rangeOverlapsOccupancy(
+  from: string,
+  to: string,
+  blocks: readonly UnitOccupancyBlock[],
+): boolean {
+  if (from >= to || blocks.length === 0) {
+    return false;
+  }
+  return blocks.some((b) =>
+    intervalsOverlap(from, to, b.checkInDate, b.checkOutDate),
+  );
+}
+
+/** Contract / hard-busy span: through contract checkout, or full block if no split. */
+function rangeOverlapsContract(
+  from: string,
+  to: string,
+  blocks: readonly UnitOccupancyBlock[],
+): boolean {
+  if (from >= to || blocks.length === 0) {
+    return false;
+  }
+  return blocks.some((b) => {
+    const contractEnd =
+      b.contractCheckOutDate && b.contractCheckOutDate < b.checkOutDate
+        ? b.contractCheckOutDate
+        : b.checkOutDate;
+    return intervalsOverlap(from, to, b.checkInDate, contractEnd);
+  });
+}
+
+/** Open-hold FAR tail only: `[contractCheckOut, inventoryEnd)`. */
+function rangeOverlapsHoldTail(
+  from: string,
+  to: string,
+  blocks: readonly UnitOccupancyBlock[],
+): boolean {
+  if (from >= to || blocks.length === 0) {
+    return false;
+  }
+  return blocks.some((b) => {
+    if (!b.contractCheckOutDate || !(b.contractCheckOutDate < b.checkOutDate)) {
+      return false;
+    }
+    return intervalsOverlap(
+      from,
+      to,
+      b.contractCheckOutDate,
+      b.checkOutDate,
+    );
+  });
+}
+
+function hasOpenHoldTail(
+  blocks: readonly UnitOccupancyBlock[],
+): boolean {
+  return blocks.some(
+    (b) =>
+      Boolean(b.contractCheckOutDate) &&
+      b.contractCheckOutDate! < b.checkOutDate,
+  );
+}
+
+function nightOccupied(
+  ymd: string,
+  blocks: readonly UnitOccupancyBlock[],
+): boolean {
+  return blocks.some(
+    (b) => b.checkInDate <= ymd && ymd < b.checkOutDate,
+  );
+}
+
+/**
+ * Monthly/yearly FAR hold from `startYmd` conflicts iff start is before the
+ * unit-wide MAX inventory end (`openHoldBlockedBefore`).
+ */
+function openHoldStartBlocked(
+  startYmd: string,
+  openHoldBlockedBefore: string | null | undefined,
+): boolean {
+  return Boolean(openHoldBlockedBefore && startYmd < openHoldBlockedBefore);
 }
 
 function rangeHasBlockedNight(
@@ -145,6 +276,19 @@ function rangeHasBlockedNight(
     cursor = addDaysYmd(cursor, 1);
   }
   return false;
+}
+
+/** Year grid: center± span must match occupancy fetch + UNIT_OCCUPANCY_RANGE_MAX_YEARS. */
+const YEAR_PICKER_BEFORE = STAY_YEAR_PICKER_BEFORE;
+const YEAR_PICKER_AFTER = STAY_YEAR_PICKER_AFTER;
+
+/** Add `n` calendar months to a YYYY-MM key. */
+function addYearMonth(yearMonth: string, n: number): string {
+  const [yRaw, mRaw] = yearMonth.split("-");
+  const total = Number(yRaw) * 12 + (Number(mRaw) - 1) + n;
+  const y = Math.floor(total / 12);
+  const m = (total % 12) + 1;
+  return `${y}-${String(m).padStart(2, "0")}`;
 }
 
 function durationUnitLabel(
@@ -183,6 +327,10 @@ type StayDatePickerLabels = {
   emptyTrigger: string;
   bookedNight: string;
   bookedNightHint: string;
+  openHoldBlocked: string;
+  openHoldBlockedHint: string;
+  inventoryHold: string;
+  inventoryHoldHint: string;
   turnaround: string;
   turnaroundHint: string;
   chooseUnit: string;
@@ -205,6 +353,10 @@ function buildLabels(t: TFunction, copy: "stay" | "block"): StayDatePickerLabels
     emptyTrigger: t(`${base}.emptyTrigger`),
     bookedNight: t(`${base}.bookedNight`),
     bookedNightHint: t(`${base}.bookedNightHint`),
+    openHoldBlocked: t(`${base}.openHoldBlocked`),
+    openHoldBlockedHint: t(`${base}.openHoldBlockedHint`),
+    inventoryHold: t(`${base}.inventoryHold`),
+    inventoryHoldHint: t(`${base}.inventoryHoldHint`),
     turnaround: t(`${base}.turnaround`),
     turnaroundHint: t(`${base}.turnaroundHint`),
     chooseUnit: t(`${base}.chooseUnit`),
@@ -380,42 +532,125 @@ export function StayDateRangePicker({
     return months;
   }, [displayMonth, monthCount]);
 
-  const occupancyQueries = useQueries({
-    queries: visibleYearMonths.map((yearMonth) => ({
-      queryKey: staffUnitOccupancyQueryKey(unitId ?? "", {
-        yearMonth,
+  /**
+   * One occupancy range for the visible picker window (+ spill).
+   * Avoids N parallel month requests for monthly/yearly UIs.
+   */
+  const occupancyWindow = useMemo(() => {
+    if (period === StayBillingPeriod.MONTHLY) {
+      return {
+        from: `${monthPickerYear}-01-01`,
+        // Through Jan next year so year-spill month cells stay blocked.
+        to: `${monthPickerYear + 1}-02-01`,
+      };
+    }
+    if (period === StayBillingPeriod.YEARLY) {
+      // Must cover every year shown in the grid (STAY_YEAR_PICKER_*).
+      return {
+        from: `${yearPickerCenter - YEAR_PICKER_BEFORE}-01-01`,
+        to: `${yearPickerCenter + YEAR_PICKER_AFTER + 1}-01-01`,
+      };
+    }
+    const first = visibleYearMonths[0];
+    const last = visibleYearMonths[visibleYearMonths.length - 1];
+    if (!first || !last) {
+      const today = todayYmd();
+      return { from: today, to: addDaysYmd(today, 62) };
+    }
+    // Visible months + one spill month (next-month days on last grid).
+    return {
+      from: `${first}-01`,
+      to: `${addYearMonth(last, 2)}-01`,
+    };
+  }, [
+    period,
+    visibleYearMonths,
+    monthPickerYear,
+    yearPickerCenter,
+  ]);
+
+  const occupancyQuery = useQuery({
+    queryKey: staffUnitOccupancyQueryKey(unitId ?? "", {
+      from: occupancyWindow.from,
+      to: occupancyWindow.to,
+      ...(excludeReservationId ? { excludeReservationId } : {}),
+    }),
+    queryFn: () =>
+      getUnitMonthOccupancy(unitId!, {
+        from: occupancyWindow.from,
+        to: occupancyWindow.to,
         ...(excludeReservationId ? { excludeReservationId } : {}),
       }),
-      queryFn: () =>
-        getUnitMonthOccupancy(unitId!, {
-          yearMonth,
-          ...(excludeReservationId ? { excludeReservationId } : {}),
-        }),
-      enabled: open && Boolean(unitId) && period === StayBillingPeriod.DAILY,
-      staleTime: 0,
-    })),
+    enabled: open && Boolean(unitId),
+    staleTime: 0,
   });
 
-  const apiBlocks = occupancyQueries.flatMap((q) => q.data?.blocks ?? []);
-  const extraBlocks = (extraOccupancyBlocks ?? []).filter(
-    (b) => !excludeOccupancyId || b.reservationId !== excludeOccupancyId,
-  );
-  const blockedNights = expandBlockedNights([...apiBlocks, ...extraBlocks]);
+  const openHoldClipYmd = occupancyWindow.to;
+
+  const occupancyBlocks = useMemo(() => {
+    const apiBlocks = occupancyQuery.data?.blocks ?? [];
+    const extras = (extraOccupancyBlocks ?? []).filter(
+      (b) => !excludeOccupancyId || b.reservationId !== excludeOccupancyId,
+    );
+    return [...apiBlocks, ...extras];
+  }, [
+    occupancyQuery.data?.blocks,
+    occupancyQuery.dataUpdatedAt,
+    excludeOccupancyId,
+    extraOccupancyBlocks,
+  ]);
+
+  /** Unit-wide FAR horizon — null when unit has no occupying inventory. */
+  const openHoldBlockedBefore = useMemo(() => {
+    let horizon = occupancyQuery.data?.openHoldBlockedBefore ?? null;
+    // FE extras (e.g. calendar-sourced) are not in the API aggregate.
+    for (const block of extraOccupancyBlocks ?? []) {
+      if (excludeOccupancyId && block.reservationId === excludeOccupancyId) {
+        continue;
+      }
+      if (!horizon || block.checkOutDate > horizon) {
+        horizon = block.checkOutDate;
+      }
+    }
+    return horizon;
+  }, [
+    occupancyQuery.data?.openHoldBlockedBefore,
+    occupancyQuery.dataUpdatedAt,
+    extraOccupancyBlocks,
+    excludeOccupancyId,
+  ]);
+
+  /** Day grid only — monthly/yearly use interval checks on blocks (no day-walk). */
+  const { occupiedNights, holdNights, blockedNights } = useMemo(() => {
+    if (period !== StayBillingPeriod.DAILY) {
+      const empty = new Set<string>();
+      return {
+        occupiedNights: empty,
+        holdNights: empty,
+        blockedNights: empty,
+      };
+    }
+    const { occupied, hold } = expandOccupiedAndHoldNights(
+      occupancyBlocks,
+      openHoldClipYmd,
+    );
+    return {
+      occupiedNights: occupied,
+      holdNights: hold,
+      blockedNights: new Set<string>([...occupied, ...hold]),
+    };
+  }, [period, occupancyBlocks, openHoldClipYmd]);
 
   const occupancyPending =
     Boolean(unitId) &&
     open &&
-    period === StayBillingPeriod.DAILY &&
-    occupancyQueries.some((q) => q.isPending || (!q.data && q.isFetching));
+    (occupancyQuery.isPending ||
+      (!occupancyQuery.data && occupancyQuery.isFetching));
 
   const occupancyError =
-    Boolean(unitId) &&
-    open &&
-    period === StayBillingPeriod.DAILY &&
-    occupancyQueries.some((q) => q.isError);
+    Boolean(unitId) && open && occupancyQuery.isError;
 
-  const occupancyRetrying =
-    occupancyError && occupancyQueries.some((q) => q.isFetching);
+  const occupancyRetrying = occupancyError && occupancyQuery.isFetching;
 
   const draftFrom = draft?.from ? dateToYmd(draft.from) : "";
   const draftTo = draft?.to ? dateToYmd(draft.to) : "";
@@ -423,10 +658,17 @@ export function StayDateRangePicker({
   const draftPeriodCount = draftComplete
     ? periodCountFromRange(period, draftFrom, draftTo)
     : null;
+  /**
+   * Daily: conflict if contract nights hit a busy interval.
+   * Monthly/yearly: FAR hold from check-in — use unit-wide horizon (not window clip).
+   */
   const draftOverlapsBusy =
     draftComplete &&
     Boolean(unitId) &&
-    rangeHasBlockedNight(draftFrom, draftTo, blockedNights);
+    Boolean(draftFrom) &&
+    (period === StayBillingPeriod.DAILY
+      ? rangeOverlapsOccupancy(draftFrom, draftTo, occupancyBlocks)
+      : openHoldStartBlocked(draftFrom, openHoldBlockedBefore));
   const canConfirm =
     draftComplete &&
     draftPeriodCount != null &&
@@ -461,6 +703,7 @@ export function StayDateRangePicker({
   ) => {
     const prevFrom = draftFrom;
     const prevComplete = draftComplete;
+    const openHold = period !== StayBillingPeriod.DAILY;
 
     if (
       durationSuggestedRef.current &&
@@ -468,6 +711,15 @@ export function StayDateRangePicker({
       prevFrom &&
       clickedYmd > prevFrom
     ) {
+      if (
+        opts.checkOccupied &&
+        unitId &&
+        (openHold
+          ? openHoldStartBlocked(prevFrom, openHoldBlockedBefore)
+          : rangeOverlapsOccupancy(prevFrom, clickedYmd, occupancyBlocks))
+      ) {
+        return;
+      }
       setDraft({
         from: ymdToDate(prevFrom),
         to: ymdToDate(clickedYmd),
@@ -477,7 +729,13 @@ export function StayDateRangePicker({
       return;
     }
 
-    if (opts.checkOccupied && unitId && blockedNights.has(clickedYmd)) {
+    if (
+      opts.checkOccupied &&
+      unitId &&
+      (nightOccupied(clickedYmd, occupancyBlocks) ||
+        (openHold &&
+          openHoldStartBlocked(clickedYmd, openHoldBlockedBefore)))
+    ) {
       return;
     }
 
@@ -486,7 +744,9 @@ export function StayDateRangePicker({
       if (
         opts.checkOccupied &&
         unitId &&
-        rangeHasBlockedNight(clickedYmd, autoOut, blockedNights)
+        (openHold
+          ? openHoldStartBlocked(clickedYmd, openHoldBlockedBefore)
+          : rangeOverlapsOccupancy(clickedYmd, autoOut, occupancyBlocks))
       ) {
         setDraft({ from: ymdToDate(clickedYmd), to: undefined });
         durationSuggestedRef.current = false;
@@ -635,12 +895,15 @@ export function StayDateRangePicker({
   };
 
   const handlePickMonth = (year: number, month: number) => {
-    applyPeriodClick(ymdFromYearMonthDay(year, month, periodStartDay));
+    applyPeriodClick(ymdFromYearMonthDay(year, month, periodStartDay), {
+      checkOccupied: true,
+    });
   };
 
   const handlePickYear = (year: number) => {
     applyPeriodClick(
       ymdFromYearMonthDay(year, periodStartMonth, periodStartDay),
+      { checkOccupied: true },
     );
   };
 
@@ -652,8 +915,17 @@ export function StayDateRangePicker({
   const todayYear = Number(todayParts.slice(0, 4));
   const todayYm = todayParts.slice(0, 7);
 
+  /**
+   * Paint month/year:
+   * - red = contract (or non-split) busy in this cell
+   * - cream inventory hold = FAR tail only in this cell
+   * - cream open-hold-blocked = empty cell but can’t start FAR hold here
+   */
   const monthCellState = (year: number, month: number) => {
     const ym = `${year}-${String(month).padStart(2, "0")}`;
+    const monthStart = `${ym}-01`;
+    const monthEnd = `${addYearMonth(ym, 1)}-01`;
+    const startYmd = ymdFromYearMonthDay(year, month, periodStartDay);
     const isStart = Boolean(draftFromYm) && ym === draftFromYm;
     const isEnd = Boolean(draftToYm) && ym === draftToYm;
     const isMiddle =
@@ -661,16 +933,38 @@ export function StayDateRangePicker({
       Boolean(draftToYm) &&
       ym > draftFromYm &&
       ym < draftToYm;
+    const hasContract =
+      Boolean(unitId) &&
+      rangeOverlapsContract(monthStart, monthEnd, occupancyBlocks);
+    const hasHoldTail =
+      Boolean(unitId) &&
+      rangeOverlapsHoldTail(monthStart, monthEnd, occupancyBlocks);
+    const holdBlocked =
+      Boolean(unitId) &&
+      openHoldStartBlocked(startYmd, openHoldBlockedBefore);
     return {
       isStart,
       isEnd,
       isMiddle,
       isToday: ym === todayYm,
       isPast: ym < todayYm,
+      isOccupied: hasContract,
+      isInventoryHold: hasHoldTail && !hasContract,
+      isOpenHoldBlocked: holdBlocked && !hasContract && !hasHoldTail,
+      isStartBlocked:
+        Boolean(unitId) &&
+        (nightOccupied(startYmd, occupancyBlocks) || holdBlocked),
     };
   };
 
   const yearCellState = (year: number) => {
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year + 1}-01-01`;
+    const startYmd = ymdFromYearMonthDay(
+      year,
+      periodStartMonth,
+      periodStartDay,
+    );
     const isStart = draftFromYear != null && year === draftFromYear;
     const isEnd = draftToYear != null && year === draftToYear;
     const isMiddle =
@@ -678,14 +972,35 @@ export function StayDateRangePicker({
       draftToYear != null &&
       year > draftFromYear &&
       year < draftToYear;
+    const hasContract =
+      Boolean(unitId) &&
+      rangeOverlapsContract(yearStart, yearEnd, occupancyBlocks);
+    const hasHoldTail =
+      Boolean(unitId) &&
+      rangeOverlapsHoldTail(yearStart, yearEnd, occupancyBlocks);
+    const holdBlocked =
+      Boolean(unitId) &&
+      openHoldStartBlocked(startYmd, openHoldBlockedBefore);
     return {
       isStart,
       isEnd,
       isMiddle,
       isToday: year === todayYear,
       isPast: year < todayYear,
+      isOccupied: hasContract,
+      isInventoryHold: hasHoldTail && !hasContract,
+      isOpenHoldBlocked: holdBlocked && !hasContract && !hasHoldTail,
+      isStartBlocked:
+        Boolean(unitId) &&
+        (nightOccupied(startYmd, occupancyBlocks) || holdBlocked),
     };
   };
+
+  const showInventoryHoldLegend =
+    Boolean(unitId) &&
+    (period === StayBillingPeriod.DAILY
+      ? holdNights.size > 0
+      : hasOpenHoldTail(occupancyBlocks));
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -869,14 +1184,37 @@ export function StayDateRangePicker({
     isMiddle: boolean;
     isToday: boolean;
     isPast: boolean;
+    isOccupied?: boolean;
+    isInventoryHold?: boolean;
+    isOpenHoldBlocked?: boolean;
   }) => {
     const inRange = state.isStart || state.isEnd || state.isMiddle;
     return cn(
       "h-10 w-full rounded-md text-sm font-normal tabular-nums transition-colors",
       "hover:bg-accent hover:text-accent-foreground",
-      state.isPast && !inRange && "text-muted-foreground",
+      state.isOccupied &&
+        !inRange &&
+        "bg-destructive/25 text-destructive ring-1 ring-destructive/40 hover:bg-destructive/30 hover:text-destructive",
+      state.isInventoryHold &&
+        !inRange &&
+        !state.isOccupied &&
+        "bg-inventory-hold text-inventory-hold-foreground ring-1 ring-inventory-hold-foreground/25 hover:brightness-[0.97] dark:hover:brightness-110",
+      state.isOpenHoldBlocked &&
+        !inRange &&
+        !state.isOccupied &&
+        !state.isInventoryHold &&
+        "bg-stay-caution text-stay-caution-foreground ring-1 ring-stay-caution-foreground/30 hover:brightness-[0.97] dark:hover:brightness-110",
+      state.isPast &&
+        !inRange &&
+        !state.isOccupied &&
+        !state.isInventoryHold &&
+        !state.isOpenHoldBlocked &&
+        "text-muted-foreground",
       state.isToday &&
         !inRange &&
+        !state.isOccupied &&
+        !state.isInventoryHold &&
+        !state.isOpenHoldBlocked &&
         "bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary",
       state.isMiddle && "rounded-none bg-primary/10 text-foreground",
       (state.isStart || state.isEnd) &&
@@ -936,8 +1274,18 @@ export function StayDateRangePicker({
               key={label}
               type="button"
               role="gridcell"
+              disabled={state.isStartBlocked}
               aria-selected={state.isStart || state.isEnd || state.isMiddle}
               aria-current={state.isToday ? "date" : undefined}
+              aria-label={
+                state.isOccupied
+                  ? `${label} — ${labels.bookedNight}`
+                  : state.isInventoryHold
+                    ? `${label} — ${labels.inventoryHold}`
+                    : state.isOpenHoldBlocked
+                      ? `${label} — ${labels.openHoldBlocked}`
+                      : undefined
+              }
               className={periodCellClass(state)}
               onClick={() => {
                 handlePickMonth(monthPickerYear, month);
@@ -959,14 +1307,18 @@ export function StayDateRangePicker({
 
   const yearList = useMemo(() => {
     const years: number[] = [];
-    for (let y = yearPickerCenter - 4; y <= yearPickerCenter + 5; y += 1) {
+    for (
+      let y = yearPickerCenter - YEAR_PICKER_BEFORE;
+      y <= yearPickerCenter + YEAR_PICKER_AFTER;
+      y += 1
+    ) {
       years.push(y);
     }
     return years;
   }, [yearPickerCenter]);
 
   const yearGrid = (
-    <div className="flex flex-col gap-3 p-3 sm:min-w-[22rem]">
+    <div className="flex flex-col gap-3 p-3 sm:min-w-[18rem]">
       <div className="flex items-center justify-between">
         <Button
           type="button"
@@ -975,13 +1327,13 @@ export function StayDateRangePicker({
           className="size-8"
           aria-label={t("reservations:stayDatePicker.earlierYearsAria")}
           onClick={() => {
-            setYearPickerCenter((y) => y - 10);
+            setYearPickerCenter((y) => y - UNIT_OCCUPANCY_RANGE_MAX_YEARS);
           }}
         >
           <ChevronLeftIcon className="size-4" />
         </Button>
-        <span className="text-sm font-medium text-muted-foreground">
-          {t("reservations:stayDatePicker.yearsLabel")}
+        <span className="text-sm font-medium tabular-nums text-muted-foreground">
+          {yearList[0]}–{yearList[yearList.length - 1]}
         </span>
         <Button
           type="button"
@@ -990,14 +1342,14 @@ export function StayDateRangePicker({
           className="size-8"
           aria-label={t("reservations:stayDatePicker.laterYearsAria")}
           onClick={() => {
-            setYearPickerCenter((y) => y + 10);
+            setYearPickerCenter((y) => y + UNIT_OCCUPANCY_RANGE_MAX_YEARS);
           }}
         >
           <ChevronRightIcon className="size-4" />
         </Button>
       </div>
       <div
-        className="grid grid-cols-2 gap-0 sm:grid-cols-5"
+        className="grid grid-cols-3 gap-0"
         role="grid"
         aria-label={t("reservations:stayDatePicker.yearsLabel")}
       >
@@ -1008,8 +1360,18 @@ export function StayDateRangePicker({
               key={year}
               type="button"
               role="gridcell"
+              disabled={state.isStartBlocked}
               aria-selected={state.isStart || state.isEnd || state.isMiddle}
               aria-current={state.isToday ? "date" : undefined}
+              aria-label={
+                state.isOccupied
+                  ? `${year} — ${labels.bookedNight}`
+                  : state.isInventoryHold
+                    ? `${year} — ${labels.inventoryHold}`
+                    : state.isOpenHoldBlocked
+                      ? `${year} — ${labels.openHoldBlocked}`
+                      : undefined
+              }
               className={periodCellClass(state)}
               onClick={() => {
                 handlePickYear(year);
@@ -1049,7 +1411,25 @@ export function StayDateRangePicker({
                 return false;
               }
               const ymd = dateToYmd(date);
-              if (!blockedNights.has(ymd)) {
+              if (!occupiedNights.has(ymd)) {
+                return false;
+              }
+              if (
+                pickingCheckOut &&
+                draftFrom &&
+                ymd > draftFrom &&
+                !rangeHasBlockedNight(draftFrom, ymd, blockedNights)
+              ) {
+                return false;
+              }
+              return true;
+            },
+            inventoryHold: (date) => {
+              if (!unitId) {
+                return false;
+              }
+              const ymd = dateToYmd(date);
+              if (!holdNights.has(ymd) || occupiedNights.has(ymd)) {
                 return false;
               }
               if (
@@ -1081,12 +1461,14 @@ export function StayDateRangePicker({
                 disabled={
                   Boolean(disabled) &&
                   !modifiers.occupied &&
+                  !modifiers.inventoryHold &&
                   !modifiers.turnaround
                 }
                 className={cn(
                   className,
                   modifiers.today &&
                     !modifiers.occupied &&
+                    !modifiers.inventoryHold &&
                     !modifiers.turnaround &&
                     !modifiers.selected &&
                     !modifiers.range_start &&
@@ -1101,6 +1483,14 @@ export function StayDateRangePicker({
                       "bg-destructive/20! text-destructive! opacity-100!",
                       "font-medium line-through shadow-none",
                       "hover:bg-destructive/25! hover:text-destructive!",
+                    ),
+                  modifiers.inventoryHold &&
+                    !modifiers.occupied &&
+                    cn(
+                      "bg-inventory-hold! text-inventory-hold-foreground! opacity-100!",
+                      "font-medium shadow-none",
+                      "ring-1 ring-inset ring-inventory-hold-foreground/25",
+                      "hover:brightness-[0.97]! dark:hover:brightness-110!",
                     ),
                   modifiers.turnaround &&
                     cn(
@@ -1124,9 +1514,7 @@ export function StayDateRangePicker({
       <QueryErrorPanel
         message={t("reservations:stayDatePicker.loadBookedNightsError")}
         onRetry={() => {
-          for (const q of occupancyQueries) {
-            void q.refetch();
-          }
+          void occupancyQuery.refetch();
         }}
         isRetrying={occupancyRetrying}
       />
@@ -1220,7 +1608,7 @@ export function StayDateRangePicker({
       {period === StayBillingPeriod.MONTHLY && monthGrid}
       {period === StayBillingPeriod.YEARLY && yearGrid}
       <div className="flex flex-col gap-2 border-t border-border px-3 py-2.5">
-        {unitId && period === StayBillingPeriod.DAILY ? (
+        {unitId ? (
           <div className="flex flex-col gap-1.5 text-xs">
             <div className="flex items-center gap-2">
               <span
@@ -1234,7 +1622,35 @@ export function StayDateRangePicker({
                 {labels.bookedNightHint}
               </span>
             </div>
-            {pickingCheckOut && (
+            {showInventoryHoldLegend ? (
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex size-3.5 shrink-0 rounded-sm bg-inventory-hold ring-1 ring-inventory-hold-foreground/25"
+                  aria-hidden
+                />
+                <span className="text-muted-foreground">
+                  <span className="font-medium text-inventory-hold-foreground">
+                    {labels.inventoryHold}
+                  </span>
+                  {labels.inventoryHoldHint}
+                </span>
+              </div>
+            ) : null}
+            {period !== StayBillingPeriod.DAILY && openHoldBlockedBefore ? (
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex size-3.5 shrink-0 rounded-sm bg-stay-caution ring-1 ring-stay-caution-foreground/30"
+                  aria-hidden
+                />
+                <span className="text-muted-foreground">
+                  <span className="font-medium text-stay-caution-foreground">
+                    {labels.openHoldBlocked}
+                  </span>
+                  {labels.openHoldBlockedHint}
+                </span>
+              </div>
+            ) : null}
+            {period === StayBillingPeriod.DAILY && pickingCheckOut && (
               <div className="flex items-center gap-2">
                 <span
                   className="inline-flex size-3.5 shrink-0 rounded-sm border border-destructive/40 bg-background"

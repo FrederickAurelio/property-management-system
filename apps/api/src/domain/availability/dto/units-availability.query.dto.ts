@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { StayBillingPeriod } from '@cabin/api-contract';
 
 export class UnitsAvailabilityQueryDto {
   /** When omitted with checkOutDate, DATE_OVERLAP is not evaluated. */
@@ -13,6 +14,14 @@ export class UnitsAvailabilityQueryDto {
   @IsString()
   @IsNotEmpty()
   checkOutDate?: string;
+
+  /**
+   * Candidate stay period — MONTHLY/YEARLY treat proposed busy end as FAR
+   * so Choose unit sees conflicts past contract checkout.
+   */
+  @IsOptional()
+  @IsIn(Object.values(StayBillingPeriod))
+  billingPeriod?: (typeof StayBillingPeriod)[keyof typeof StayBillingPeriod];
 
   @IsOptional()
   @IsString()

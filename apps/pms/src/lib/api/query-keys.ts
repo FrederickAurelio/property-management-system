@@ -154,6 +154,7 @@ export function staffUnitsAvailabilityQueryKey(
   filters: {
     checkInDate?: string;
     checkOutDate?: string;
+    billingPeriod?: string;
     unitTypeId?: string;
     excludeReservationId?: string;
     excludeBlockId?: string;
@@ -169,7 +170,9 @@ export function staffUnitsAvailabilityQueryKey(
 export function staffUnitOccupancyQueryKey(
   unitId: string,
   filters: {
-    yearMonth: string;
+    yearMonth?: string;
+    from?: string;
+    to?: string;
     excludeReservationId?: string;
   },
 ) {

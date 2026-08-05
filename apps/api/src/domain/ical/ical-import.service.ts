@@ -674,6 +674,7 @@ export class IcalImportService {
           status: ReservationStatus.UNCONFIRMED,
           checkInDate: parseYmd(event.startYmd),
           checkOutDate: parseYmd(event.endYmd),
+          inventoryEndDate: parseYmd(event.endYmd),
           guestName: guestNameFromSummary(event.summary),
           guestEmail: null,
           guestPhone: null,
@@ -776,6 +777,7 @@ export class IcalImportService {
         });
         data.checkInDate = parseYmd(event.startYmd);
         data.checkOutDate = parseYmd(event.endYmd);
+        data.inventoryEndDate = parseYmd(event.endYmd);
         data.icalOverlapHold = overlap != null;
         // UNIT_DIFFER stays primary; hold flag still tracks occupancy conflict.
       }
@@ -805,6 +807,7 @@ export class IcalImportService {
               ? {
                   checkInDate: parseYmd(checkInDate),
                   checkOutDate: parseYmd(checkOutDate),
+                  inventoryEndDate: parseYmd(checkOutDate),
                 }
               : {}),
             icalOverlapHold: true,
@@ -829,6 +832,7 @@ export class IcalImportService {
             ? {
                 checkInDate: parseYmd(checkInDate),
                 checkOutDate: parseYmd(checkOutDate),
+                inventoryEndDate: parseYmd(checkOutDate),
               }
             : {}),
           icalOverlapHold: false,

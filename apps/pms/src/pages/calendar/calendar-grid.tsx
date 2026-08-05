@@ -1,5 +1,5 @@
 /* anchor: Linear-dense / Stripe-data calendar grid, diverge: frozen unit col + absolute bars */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   isUnitStatusBookable,
   type StaffCalendarBlock,
@@ -263,21 +263,65 @@ export function CalendarGrid({
                     </div>
 
                     {unitStays.map((stay) => {
-                      const span = spanColumns(
+                      const hasOpenHold =
+                        stay.inventoryEndDate > stay.checkOutDate;
+                      if (!hasOpenHold) {
+                        const span = spanColumns(
+                          stay.checkInDate,
+                          stay.inventoryEndDate,
+                          days,
+                        );
+                        if (!span) return null;
+                        return (
+                          <CalendarStayBar
+                            key={stay.id}
+                            stay={stay}
+                            segment="full"
+                            clippedStart={span.clippedStart}
+                            clippedEnd={span.clippedEnd}
+                            style={barBoxStyle(span, days.length)}
+                            onClick={() => onStayClick(stay)}
+                          />
+                        );
+                      }
+
+                      const contractSpan = spanColumns(
                         stay.checkInDate,
                         stay.checkOutDate,
                         days,
                       );
-                      if (!span) return null;
+                      const holdSpan = spanColumns(
+                        stay.checkOutDate,
+                        stay.inventoryEndDate,
+                        days,
+                      );
                       return (
-                        <CalendarStayBar
-                          key={stay.id}
-                          stay={stay}
-                          clippedStart={span.clippedStart}
-                          clippedEnd={span.clippedEnd}
-                          style={barBoxStyle(span, days.length)}
-                          onClick={() => onStayClick(stay)}
-                        />
+                        <Fragment key={stay.id}>
+                          {contractSpan ? (
+                            <CalendarStayBar
+                              stay={stay}
+                              segment="contract"
+                              clippedStart={contractSpan.clippedStart}
+                              clippedEnd={
+                                contractSpan.clippedEnd || Boolean(holdSpan)
+                              }
+                              style={barBoxStyle(contractSpan, days.length)}
+                              onClick={() => onStayClick(stay)}
+                            />
+                          ) : null}
+                          {holdSpan ? (
+                            <CalendarStayBar
+                              stay={stay}
+                              segment="hold"
+                              clippedStart={
+                                holdSpan.clippedStart || Boolean(contractSpan)
+                              }
+                              clippedEnd={holdSpan.clippedEnd}
+                              style={barBoxStyle(holdSpan, days.length)}
+                              onClick={() => onStayClick(stay)}
+                            />
+                          ) : null}
+                        </Fragment>
                       );
                     })}
                     {unitBlocks.map((block) => {

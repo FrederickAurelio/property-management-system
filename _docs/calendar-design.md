@@ -42,7 +42,7 @@ Calendar does **not** replace boards. Boards stay on Reservations. Check-in / Co
 | Grouping | Optional **unit-type section headers** (name only) so long lists stay scannable. Units with no type: one “Ungrouped” / flat section. |
 | Columns | Calendar days in the visible range. |
 | Today | Distinct vertical marker / column highlight. |
-| Stay bars | Occupying reservations spanning check-in → check-out (exclusive end night, same as overlap rules). |
+| Stay bars | Occupying reservations spanning check-in → **inventory end** (exclusive; FAR for open MONTHLY/YEARLY holds — bar clips at the window edge). When `inventoryEndDate > checkOutDate`, paint **two segments**: source-tinted contract `[checkIn, checkOut)` + cream/amber **inventory hold** `[checkOut, inventoryEnd)`. Contract `checkOutDate` remains for desk/money. |
 | Block bars | `CalendarBlock` spans — visually distinct from stays (e.g. hatched / muted; no guest name). |
 | Empty cells | Free nights — clickable / selectable for create. |
 

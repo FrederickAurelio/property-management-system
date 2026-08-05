@@ -115,7 +115,7 @@ One strip for exceptions that are **not** “expected in/out today” or that ne
 
 In-house and post-checkout money rows get **identical** open-balance treatment (Due chip and/or Refund chip). Only status differs.
 
-**Stranded CONFIRMED:** same rule as reservations-design (“past `checkOutDate` without ever checking in → Cancel”). No separate `NO_SHOW` status — chip **Cancel / no-show**; row → detail → Cancel sheet. These are **not** on Arrivals once `today >= checkOutDate`, so Dashboard is the place they stay visible.
+**Stranded CONFIRMED:** same rule as reservations-design (“past `checkOutDate` without ever checking in → Cancel”). No separate `NO_SHOW` status — chip **Cancel / no-show**; row → detail → Cancel sheet. These are **not** on Arrivals once `today >= checkOutDate`, so Dashboard is the place they stay visible. For **MONTHLY/YEARLY**, inventory remains blocked (`inventoryEndDate` = FAR) until Cancel — Cancel is required to free the unit.
 
 **Sort (locked):** stranded CONFIRMED first (oldest `checkOutDate` first — unit still blocked) · then open-balance rows — prefer **highest open amount** (max(Due, Refund)), then `CHECKED_OUT` before mid-stay `CHECKED_IN`, then guest · then Needs details by `checkInDate` asc · then OTA issues (`CHECKED_IN` warnings before others).
 

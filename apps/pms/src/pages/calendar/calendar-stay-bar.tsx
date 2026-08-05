@@ -31,6 +31,10 @@ const sourceBarClass: Record<ReservationSource, string> = {
     "border-teal-700/40 bg-teal-500/20 text-teal-950 dark:border-teal-400/45 dark:bg-teal-400/20 dark:text-teal-50",
 };
 
+/** Soft slate — open inventory hold past contract checkout. */
+const inventoryHoldBarClass =
+  "border-inventory-hold-foreground/25 bg-inventory-hold text-inventory-hold-foreground";
+
 function stayPrimaryLabel(stay: StaffCalendarStay, t: TFunction): string {
   if (stay.status === "UNCONFIRMED" && isPlaceholderGuestName(stay.guestName)) {
     return t("calendar:stayBar.needsDetails", {
@@ -59,6 +63,12 @@ type CalendarStayBarProps = {
   clippedStart?: boolean;
   /** Interval continues after the visible window — sharp flush right. */
   clippedEnd?: boolean;
+  /**
+   * `full` = single bar (daily / no open hold).
+   * `contract` = guest span through checkOut.
+   * `hold` = cream open-hold tail after checkOut.
+   */
+  segment?: "full" | "contract" | "hold";
   onClick: () => void;
 };
 
@@ -67,12 +77,16 @@ export function CalendarStayBar({
   style,
   clippedStart = false,
   clippedEnd = false,
+  segment = "full",
   onClick,
 }: CalendarStayBarProps) {
   const { t } = useTranslation("calendar");
-  const late = reservationLateCue(stay);
-  const money = moneyCue(stay, t);
-  const label = stayPrimaryLabel(stay, t);
+  const isHold = segment === "hold";
+  const late = !isHold ? reservationLateCue(stay) : null;
+  const money = !isHold ? moneyCue(stay, t) : null;
+  const label = isHold
+    ? t("calendar:stayBar.inventoryHold")
+    : stayPrimaryLabel(stay, t);
 
   return (
     <button
@@ -88,33 +102,41 @@ export function CalendarStayBar({
         clippedStart && clippedEnd && "rounded-none border-x-0",
         clippedStart && !clippedEnd && "rounded-l-none rounded-r-md border-l-0",
         clippedEnd && !clippedStart && "rounded-l-md rounded-r-none border-r-0",
-        sourceBarClass[stay.source],
+        isHold ? inventoryHoldBarClass : sourceBarClass[stay.source],
       )}
-      title={[
-        label,
-        formatReservationStatus(stay.status),
-        formatReservationSource(stay.source),
-        money,
-        late ? formatReservationLateCue(late) : null,
-        stay.icalSyncWarning
-          ? formatIcalWarning(stay.icalSyncWarning, stay.source)
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" · ")}
+      title={
+        isHold
+          ? [
+              stayPrimaryLabel(stay, t),
+              t("calendar:stayBar.inventoryHold"),
+              formatReservationStatus(stay.status),
+            ].join(" · ")
+          : [
+              label,
+              formatReservationStatus(stay.status),
+              formatReservationSource(stay.source),
+              money,
+              late ? formatReservationLateCue(late) : null,
+              stay.icalSyncWarning
+                ? formatIcalWarning(stay.icalSyncWarning, stay.source)
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+      }
     >
       <span className="min-w-0 truncate font-medium">{label}</span>
-      {late && (
+      {!isHold && late && (
         <span className="shrink-0 rounded bg-amber-500/25 px-1 text-[10px] font-medium">
           {t("calendar:stayBar.late")}
         </span>
       )}
-      {stay.icalSyncWarning && (
+      {!isHold && stay.icalSyncWarning && (
         <span className="shrink-0 rounded bg-amber-500/25 px-1 text-[10px] font-medium">
           {t("calendar:stayBar.ota")}
         </span>
       )}
-      {money && (
+      {!isHold && money && (
         <span className="ml-auto hidden shrink-0 tabular-nums sm:inline">
           {money}
         </span>
