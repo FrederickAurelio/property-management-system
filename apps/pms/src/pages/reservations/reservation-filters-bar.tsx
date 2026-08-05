@@ -4,6 +4,7 @@ import {
   ReservationListSort,
   ReservationSource,
   ReservationStatus,
+  StayBillingPeriod,
 } from "@cabin/api-contract";
 import { SearchIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -44,6 +45,8 @@ type ReservationFiltersBarProps = {
   propertyId: string;
   statusFilter: string;
   sourceFilter: string;
+  /** `all` or StayBillingPeriod value. */
+  billingPeriodFilter: string;
   sort: ReservationListSort;
   /** False when the board owns status (Nest overwrites any client status). */
   showStatusFilter: boolean;
@@ -62,6 +65,7 @@ export function ReservationFiltersBar({
   propertyId,
   statusFilter,
   sourceFilter,
+  billingPeriodFilter,
   sort,
   showStatusFilter,
   showDateRangeFilter,
@@ -174,6 +178,38 @@ export function ReservationFiltersBar({
                     {p.name}
                   </SelectItem>
                 ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Select
+            value={billingPeriodFilter}
+            onValueChange={(value) => {
+              onPatch({ billingPeriod: value === "all" ? null : value });
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              className="w-[8.75rem] shrink-0"
+              aria-label={t("reservations:filtersBar.periodAria")}
+            >
+              <SelectValue
+                placeholder={t("reservations:filtersBar.periodAria")}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="all">
+                  {t("reservations:filtersBar.anyPeriod")}
+                </SelectItem>
+                <SelectItem value={StayBillingPeriod.DAILY}>
+                  {t("reservations:filtersBar.periods.daily")}
+                </SelectItem>
+                <SelectItem value={StayBillingPeriod.MONTHLY}>
+                  {t("reservations:filtersBar.periods.monthly")}
+                </SelectItem>
+                <SelectItem value={StayBillingPeriod.YEARLY}>
+                  {t("reservations:filtersBar.periods.yearly")}
+                </SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>

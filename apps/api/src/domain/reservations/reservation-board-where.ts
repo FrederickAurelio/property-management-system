@@ -2,6 +2,7 @@ import {
   PaymentStatus,
   ReservationStatus,
   type ReservationSource,
+  type StayBillingPeriod,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
@@ -102,9 +103,10 @@ export type OverpaidReservationFilters = {
   status?: ReservationStatus;
   checkInDate?: string;
   checkOutDate?: string;
-  /** Inclusive stay-touch (requires both). */
+  /** Inclusive stay-touch start (`to` optional = open-ended). */
   from?: string;
   to?: string;
+  billingPeriod?: StayBillingPeriod;
   hasIcalWarning?: boolean;
   q?: string;
 };
@@ -145,6 +147,13 @@ export async function findOverpaidReservationIds(
   if (filters.from && filters.to) {
     parts.push(Prisma.sql`r."checkInDate" <= ${parseYmd(filters.to)}`);
     parts.push(Prisma.sql`r."checkOutDate" >= ${parseYmd(filters.from)}`);
+  } else if (filters.from) {
+    parts.push(Prisma.sql`r."checkOutDate" >= ${parseYmd(filters.from)}`);
+  }
+  if (filters.billingPeriod) {
+    parts.push(
+      Prisma.sql`r."billingPeriod" = ${filters.billingPeriod}::"StayBillingPeriod"`,
+    );
   }
   if (filters.hasIcalWarning) {
     parts.push(Prisma.sql`r."icalSyncWarning" IS NOT NULL`);

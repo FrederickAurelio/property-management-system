@@ -78,7 +78,9 @@ Phase 1 desk boards live on **Reservations** (`/reservations`) only — **no** s
 
 Arrivals matches the check-in window; Departures matches due/overdue checkout (not “today only”). Sort Arrivals by `checkInDate` asc, Departures by `checkOutDate` asc (oldest overdue first). List `sort=openAmount` orders by highest open amount first (`max(Due, Refund)` — same metric as Dashboard Needs attention); PMS exposes that sort **only** on Balance due (auto-selected on enter; leaving the board resets to Stay date). PMS shows **Late arrival** / **Late departure** badges on list + detail wherever the row appears (not only on those boards). Past `checkOutDate` without ever checking in → find under All → **Cancel** (no-show notes); no separate `NO_SHOW` status.
 
-**List stay-touch filter** (`from` / `to`, inclusive YYYY-MM-DD): on lookup boards only (`all`, `needs-details`, `ical-alerts`, `balance-due`, `in-house`). Predicate: `checkInDate ≤ to AND checkOutDate ≥ from` (checkout on the `from` day still matches). Default = no range (all time). Hidden on Arrivals / Departures.
+**List stay-touch filter** (`from` / `to`, inclusive YYYY-MM-DD): on lookup boards only (`all`, `needs-details`, `ical-alerts`, `balance-due`, `in-house`). PMS chip: Start + End split (End **All** when omitted). `from` anchors the window; `to` optional → chip `2 May → All`. Predicate: with both → `checkInDate ≤ to AND checkOutDate ≥ from`; with `from` only → `checkOutDate ≥ from` (checkout on the `from` day still matches). `to` alone is invalid. Default = no range (all time). Hidden on Arrivals / Departures.
+
+**List billing-period filter** (`billingPeriod` = `DAILY` | `MONTHLY` | `YEARLY`): on **all** boards (including Arrivals / Departures). Omit = any period. Exact match on reservation `billingPeriod`.
 
 Calendar is the spatial view of the same rows — same badges, same click-through to detail. Full page spec: [`calendar-design.md`](calendar-design.md). Desk home triage (today in/out + exceptions, not full boards): [`dashboard-design.md`](dashboard-design.md).
 

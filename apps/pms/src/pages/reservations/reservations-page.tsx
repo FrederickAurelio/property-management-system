@@ -4,7 +4,9 @@ import {
   ReservationListSort,
   ReservationSource,
   ReservationStatus,
+  StayBillingPeriod,
   type StaffReservationListItem,
+  type StayBillingPeriod as StayBillingPeriodType,
 } from "@cabin/api-contract";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, PlusIcon, SearchIcon } from "lucide-react";
@@ -227,6 +229,13 @@ export function ReservationsPage() {
     ? "all"
     : (searchParams.get("status") ?? "all");
   const sourceFilter = searchParams.get("source") ?? "all";
+  const billingPeriodRaw = searchParams.get("billingPeriod");
+  const billingPeriodFilter =
+    billingPeriodRaw === StayBillingPeriod.DAILY ||
+    billingPeriodRaw === StayBillingPeriod.MONTHLY ||
+    billingPeriodRaw === StayBillingPeriod.YEARLY
+      ? billingPeriodRaw
+      : "all";
   const sortParam = searchParams.get("sort");
   const sort = parseReservationListSort(board, sortParam);
   const q = searchParams.get("q") ?? "";
@@ -245,10 +254,25 @@ export function ReservationsPage() {
     const staleDates =
       !filterLocks.showDateRangeFilter &&
       (searchParams.has("from") || searchParams.has("to"));
+    const orphanTo =
+      filterLocks.showDateRangeFilter &&
+      searchParams.has("to") &&
+      !searchParams.has("from");
+    const staleBillingPeriod =
+      billingPeriodRaw != null &&
+      billingPeriodRaw !== StayBillingPeriod.DAILY &&
+      billingPeriodRaw !== StayBillingPeriod.MONTHLY &&
+      billingPeriodRaw !== StayBillingPeriod.YEARLY;
     const staleOpenAmount =
       board !== "balance-due" &&
       searchParams.get("sort") === ReservationListSort.openAmount;
-    if (!staleStatus && !staleDates && !staleOpenAmount) {
+    if (
+      !staleStatus &&
+      !staleDates &&
+      !orphanTo &&
+      !staleBillingPeriod &&
+      !staleOpenAmount
+    ) {
       return;
     }
     setSearchParams(
@@ -261,6 +285,12 @@ export function ReservationsPage() {
           next.delete("from");
           next.delete("to");
         }
+        if (orphanTo) {
+          next.delete("to");
+        }
+        if (staleBillingPeriod) {
+          next.delete("billingPeriod");
+        }
         if (staleOpenAmount) {
           next.delete("sort");
         }
@@ -270,6 +300,7 @@ export function ReservationsPage() {
     );
   }, [
     board,
+    billingPeriodRaw,
     filterLocks.locksStatus,
     filterLocks.showDateRangeFilter,
     searchParams,
@@ -330,7 +361,12 @@ export function ReservationsPage() {
       ...(propertyId ? { propertyId } : {}),
       ...(q ? { q } : {}),
       ...(sort !== ReservationListSort.checkIn ? { sort } : {}),
-      ...(from && to ? { from, to } : {}),
+      ...(from
+        ? { from, ...(to ? { to } : {}) }
+        : {}),
+      ...(billingPeriodFilter !== "all"
+        ? { billingPeriod: billingPeriodFilter as StayBillingPeriodType }
+        : {}),
     };
     if (!filterLocks.locksStatus && statusFilter !== "all") {
       filters.status = statusFilter as ReservationStatus;
@@ -346,6 +382,7 @@ export function ReservationsPage() {
     sort,
     statusFilter,
     sourceFilter,
+    billingPeriodFilter,
     filterLocks.locksStatus,
     from,
     to,
@@ -433,6 +470,7 @@ export function ReservationsPage() {
         propertyId={propertyId}
         statusFilter={statusFilter}
         sourceFilter={sourceFilter}
+        billingPeriodFilter={billingPeriodFilter}
         sort={sort}
         showStatusFilter={!filterLocks.locksStatus}
         showDateRangeFilter={filterLocks.showDateRangeFilter}

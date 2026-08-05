@@ -1027,11 +1027,36 @@ describe('ReservationsService', () => {
       );
     });
 
-    it('rejects from without to', async () => {
+    it('applies from-only as checkOutDate ≥ from', async () => {
+      prisma.reservation.count.mockResolvedValue(0);
+      prisma.reservation.findMany.mockResolvedValue([]);
+
+      await service.list({
+        board: ReservationBoard.all,
+        from: '2026-05-02',
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(prisma.reservation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              {},
+              {
+                checkOutDate: { gte: new Date('2026-05-02T00:00:00.000Z') },
+              },
+            ],
+          },
+        }),
+      );
+    });
+
+    it('rejects to without from', async () => {
       await expect(
         service.list({
           board: ReservationBoard.all,
-          from: '2026-05-02',
+          to: '2026-05-28',
           page: 1,
           pageSize: 20,
         }),
@@ -1048,6 +1073,24 @@ describe('ReservationsService', () => {
           pageSize: 20,
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('filters by billingPeriod', async () => {
+      prisma.reservation.count.mockResolvedValue(0);
+      prisma.reservation.findMany.mockResolvedValue([]);
+
+      await service.list({
+        board: ReservationBoard.all,
+        billingPeriod: StayBillingPeriod.MONTHLY,
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(prisma.reservation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { billingPeriod: StayBillingPeriod.MONTHLY },
+        }),
+      );
     });
   });
 

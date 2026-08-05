@@ -1,7 +1,6 @@
-/* anchor: Linear-dense filter chip + Stripe period popover, diverge: draft then Confirm */
+/* anchor: Linear-dense filter chip + Stripe period popover, diverge: split Start/End; End = All */
 import { useState } from "react";
 import { CalendarIcon, XIcon } from "lucide-react";
-import type { DateRange } from "react-day-picker";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -22,6 +21,7 @@ import { cn } from "@/lib/utils";
 import {
   activeStayPresetId,
   dateToYmd,
+  formatStayTouchFromDate,
   formatStayTouchTriggerLabel,
   rangeForStayPreset,
   STAY_RANGE_PRESETS,
@@ -35,17 +35,21 @@ type ReservationDateRangeFilterProps = {
   onPatch: (patch: Record<string, string | null>) => void;
 };
 
-function rangeToDraft(from: string, to: string): DateRange | undefined {
-  if (!from || !to) return undefined;
-  const fromDate = ymdToDate(from);
-  const toDate = ymdToDate(to);
-  if (!fromDate || !toDate) return undefined;
-  return { from: fromDate, to: toDate };
+type StayTouchDraft = {
+  start: Date | undefined;
+  end: Date | undefined;
+};
+
+function toDraft(from: string, to: string): StayTouchDraft {
+  return {
+    start: from ? (ymdToDate(from) ?? undefined) : undefined,
+    end: to ? (ymdToDate(to) ?? undefined) : undefined,
+  };
 }
 
-function draftPresetId(draft: DateRange | undefined): StayRangePresetId | null {
-  if (!draft?.from || !draft.to) return null;
-  return activeStayPresetId(dateToYmd(draft.from), dateToYmd(draft.to));
+function draftPresetId(draft: StayTouchDraft): StayRangePresetId | null {
+  if (!draft.start || !draft.end) return null;
+  return activeStayPresetId(dateToYmd(draft.start), dateToYmd(draft.end));
 }
 
 function presetKey(id: StayRangePresetId): "thisWeek" | "thisMonth" | "next30" {
@@ -59,21 +63,29 @@ function presetKey(id: StayRangePresetId): "thisWeek" | "thisMonth" | "next30" {
   }
 }
 
+function dayStart(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 function StayRangePanel({
   draft,
-  onDraftChange,
+  onStartChange,
+  onEndChange,
+  onClearEnd,
   onPreset,
   onClearDraft,
   activePreset,
 }: {
-  draft: DateRange | undefined;
-  onDraftChange: (next: DateRange | undefined) => void;
+  draft: StayTouchDraft;
+  onStartChange: (next: Date | undefined) => void;
+  onEndChange: (next: Date | undefined) => void;
+  onClearEnd: () => void;
   onPreset: (id: StayRangePresetId) => void;
   onClearDraft: () => void;
   activePreset: StayRangePresetId | null;
 }) {
   const { t } = useTranslation(["reservations", "common"]);
-  const isMobile = useIsMobile();
+  const endIsAll = Boolean(draft.start && !draft.end);
 
   return (
     <div className="flex flex-col gap-3">
@@ -102,13 +114,62 @@ function StayRangePanel({
           {t("reservations:filtersBar.dateClear")}
         </Button>
       </div>
-      <Calendar
-        mode="range"
-        numberOfMonths={isMobile ? 1 : 2}
-        selected={draft}
-        defaultMonth={draft?.from}
-        onSelect={onDraftChange}
-      />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-3">
+        <div
+          className={cn(
+            "flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-2.5",
+            "dark:bg-muted/20",
+          )}
+        >
+          <p className="px-0.5 text-xs font-medium text-foreground">
+            {t("reservations:filtersBar.dateStartLabel")}
+          </p>
+          <Calendar
+            mode="single"
+            numberOfMonths={1}
+            selected={draft.start}
+            defaultMonth={draft.start}
+            onSelect={onStartChange}
+            className="rounded-md border border-border/80 bg-background"
+          />
+        </div>
+        <div
+          className={cn(
+            "flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-2.5",
+            "dark:bg-muted/20",
+          )}
+        >
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            <p className="text-xs font-medium text-foreground">
+              {t("reservations:filtersBar.dateEndLabel")}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant={endIsAll ? "secondary" : "outline"}
+              className="h-6 shrink-0 px-1.5 text-xs"
+              disabled={!draft.start}
+              onClick={onClearEnd}
+              aria-pressed={endIsAll}
+              aria-label={t("reservations:filtersBar.dateEndAllAria")}
+            >
+              {t("reservations:filtersBar.dateEndAll")}
+            </Button>
+          </div>
+          <Calendar
+            mode="single"
+            numberOfMonths={1}
+            selected={draft.end}
+            defaultMonth={draft.end ?? draft.start}
+            disabled={
+              draft.start ? { before: dayStart(draft.start) } : () => true
+            }
+            onSelect={onEndChange}
+            className="rounded-md border border-border/80 bg-background"
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -163,52 +224,82 @@ export function ReservationDateRangeFilter({
   const { t } = useTranslation(["reservations", "common"]);
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<DateRange | undefined>(() =>
-    rangeToDraft(from, to),
-  );
+  const [draft, setDraft] = useState<StayTouchDraft>(() => toDraft(from, to));
 
-  const hasRange = Boolean(from && to);
+  const hasApplied = Boolean(from);
   const activePreset = draftPresetId(draft);
-  /** Complete range, or empty draft (= All dates). Partial pick blocks Confirm. */
+  /** Start set (end optional), or empty draft (= All dates). End-only is invalid. */
   const canConfirm =
-    (!draft?.from && !draft?.to) || Boolean(draft?.from && draft.to);
+    (!draft.start && !draft.end) || Boolean(draft.start);
 
   function openPanel(nextOpen: boolean) {
     if (nextOpen) {
-      setDraft(rangeToDraft(from, to));
+      setDraft(toDraft(from, to));
     }
     setOpen(nextOpen);
   }
 
   function cancelPanel() {
-    setDraft(rangeToDraft(from, to));
+    setDraft(toDraft(from, to));
     setOpen(false);
   }
 
   function confirmDraft() {
     if (!canConfirm) return;
-    if (draft?.from && draft.to) {
-      onPatch({ from: dateToYmd(draft.from), to: dateToYmd(draft.to) });
+    if (draft.start) {
+      onPatch({
+        from: dateToYmd(draft.start),
+        to: draft.end ? dateToYmd(draft.end) : null,
+      });
     } else {
       onPatch({ from: null, to: null });
     }
     setOpen(false);
   }
 
-  /** Trigger X — clear applied filter immediately (outside draft flow). */
   function clearApplied() {
     onPatch({ from: null, to: null });
-    setDraft(undefined);
+    setDraft({ start: undefined, end: undefined });
     setOpen(false);
   }
 
   function selectPreset(id: StayRangePresetId) {
     const r = rangeForStayPreset(id);
-    setDraft({ from: ymdToDate(r.from), to: ymdToDate(r.to) });
+    setDraft({
+      start: ymdToDate(r.from) ?? undefined,
+      end: ymdToDate(r.to) ?? undefined,
+    });
   }
 
-  const triggerLabel = hasRange
-    ? formatStayTouchTriggerLabel(from, to)
+  function setStart(next: Date | undefined) {
+    setDraft((prev) => {
+      if (!next) {
+        return { start: undefined, end: undefined };
+      }
+      const end =
+        prev.end && dayStart(prev.end) < dayStart(next) ? undefined : prev.end;
+      return { start: next, end };
+    });
+  }
+
+  function setEnd(next: Date | undefined) {
+    setDraft((prev) => {
+      if (!prev.start || !next) {
+        return { ...prev, end: undefined };
+      }
+      if (dayStart(next) < dayStart(prev.start)) {
+        return prev;
+      }
+      return { ...prev, end: next };
+    });
+  }
+
+  const triggerLabel = from
+    ? to
+      ? formatStayTouchTriggerLabel(from, to)
+      : t("reservations:filtersBar.fromDateOpen", {
+          date: formatStayTouchFromDate(from),
+        })
     : t("reservations:filtersBar.allDates");
 
   const triggerButton = (
@@ -218,8 +309,8 @@ export function ReservationDateRangeFilter({
       size="sm"
       className={cn(
         "h-8 min-w-0 flex-1 justify-start gap-1.5 px-2 font-normal",
-        hasRange ? "rounded-r-none border-r-0" : "w-[10.5rem]",
-        !hasRange && "text-muted-foreground",
+        hasApplied ? "rounded-r-none border-r-0" : "w-[10.5rem]",
+        !hasApplied && "text-muted-foreground",
       )}
       aria-label={t("reservations:filtersBar.dateAria")}
       onClick={() => {
@@ -232,7 +323,7 @@ export function ReservationDateRangeFilter({
     </Button>
   );
 
-  const clearButton = hasRange && (
+  const clearButton = hasApplied && (
     <Button
       type="button"
       variant="outline"
@@ -263,10 +354,14 @@ export function ReservationDateRangeFilter({
   const panel = (
     <StayRangePanel
       draft={draft}
-      onDraftChange={setDraft}
+      onStartChange={setStart}
+      onEndChange={setEnd}
+      onClearEnd={() => {
+        setDraft((prev) => ({ ...prev, end: undefined }));
+      }}
       onPreset={selectPreset}
       onClearDraft={() => {
-        setDraft(undefined);
+        setDraft({ start: undefined, end: undefined });
       }}
       activePreset={activePreset}
     />

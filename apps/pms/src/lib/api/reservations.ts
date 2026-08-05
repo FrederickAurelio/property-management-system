@@ -99,6 +99,9 @@ export async function listReservations(
         ...(filters.checkOutDate ? { checkOutDate: filters.checkOutDate } : {}),
         ...(filters.from ? { from: filters.from } : {}),
         ...(filters.to ? { to: filters.to } : {}),
+        ...(filters.billingPeriod
+          ? { billingPeriod: filters.billingPeriod }
+          : {}),
         ...(filters.hasIcalWarning !== undefined
           ? { hasIcalWarning: filters.hasIcalWarning }
           : {}),

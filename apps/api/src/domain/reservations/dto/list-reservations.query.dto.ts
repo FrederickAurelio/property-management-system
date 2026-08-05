@@ -11,6 +11,7 @@ import {
   ReservationListSort,
   ReservationSource,
   ReservationStatus,
+  StayBillingPeriod,
 } from '@cabin/api-contract';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
@@ -43,7 +44,7 @@ export class ListReservationsQueryDto extends PaginationQueryDto {
   @IsString()
   checkOutDate?: string;
 
-  /** Inclusive stay-touch start YYYY-MM-DD (requires `to`). */
+  /** Inclusive stay-touch start YYYY-MM-DD (`to` optional = open-ended). */
   @IsOptional()
   @IsString()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
@@ -54,6 +55,10 @@ export class ListReservationsQueryDto extends PaginationQueryDto {
   @IsString()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   to?: string;
+
+  @IsOptional()
+  @IsEnum(StayBillingPeriod)
+  billingPeriod?: (typeof StayBillingPeriod)[keyof typeof StayBillingPeriod];
 
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => {

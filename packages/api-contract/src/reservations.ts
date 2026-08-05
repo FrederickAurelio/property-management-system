@@ -611,11 +611,16 @@ export type StaffReservationListFilters = {
   checkInDate?: string;
   checkOutDate?: string;
   /**
-   * Inclusive stay-touch window (YYYY-MM-DD). Both required together.
-   * Matches when `checkInDate <= to AND checkOutDate >= from`.
+   * Inclusive stay-touch window start (YYYY-MM-DD).
+   * With `to`: `checkInDate <= to AND checkOutDate >= from`.
+   * Without `to`: `checkOutDate >= from` (open-ended).
+   * `to` alone is invalid.
    */
   from?: string;
+  /** Inclusive stay-touch window end (YYYY-MM-DD). Optional when `from` is set. */
   to?: string;
+  /** Exact stay billing period; omit = any. */
+  billingPeriod?: StayBillingPeriod;
   hasIcalWarning?: boolean;
   paymentStatusIn?: PaymentStatus[];
   occupyingOnly?: boolean;

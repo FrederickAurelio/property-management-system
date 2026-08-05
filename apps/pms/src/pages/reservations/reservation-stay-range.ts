@@ -9,15 +9,21 @@ export { dateToYmd, todayYmdLocal, ymdToDate };
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Valid inclusive stay-touch pair from URL, or null. */
+/** Valid stay-touch from URL (`to` optional), or null. */
 export function parseStayTouchRange(
   from: string | null,
   to: string | null,
-): { from: string; to: string } | null {
-  if (!from || !to || !YMD_RE.test(from) || !YMD_RE.test(to) || from > to) {
+): { from: string; to: string | null } | null {
+  if (!from || !YMD_RE.test(from)) {
     return null;
   }
-  return { from, to };
+  if (to) {
+    if (!YMD_RE.test(to) || from > to) {
+      return null;
+    }
+    return { from, to };
+  }
+  return { from, to: null };
 }
 
 function addDaysLocalYmd(ymd: string, days: number): string {
@@ -102,4 +108,11 @@ export function formatStayTouchTriggerLabel(from: string, to: string): string {
     return `${format(a, "d MMM")} – ${format(b, "d MMM yyyy")}`;
   }
   return `${format(a, "d MMM yyyy")} – ${format(b, "d MMM yyyy")}`;
+}
+
+/** Open-ended chip date fragment — i18n wraps as `{{date}} → All`. */
+export function formatStayTouchFromDate(from: string): string {
+  const a = ymdToDate(from);
+  if (!a) return from;
+  return format(a, "d MMM yyyy");
 }

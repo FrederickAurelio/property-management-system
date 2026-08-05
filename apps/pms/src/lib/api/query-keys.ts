@@ -3,6 +3,7 @@ import type {
   ReservationListSort,
   ReservationSource,
   ReservationStatus,
+  StayBillingPeriod,
   UnitStatus,
 } from "@cabin/api-contract";
 
@@ -41,6 +42,7 @@ export type StaffReservationsListFilters = {
   checkOutDate?: string;
   from?: string;
   to?: string;
+  billingPeriod?: StayBillingPeriod;
   hasIcalWarning?: boolean;
   paymentStatusIn?: PaymentStatus[];
   occupyingOnly?: boolean;

@@ -1503,6 +1503,7 @@ export class ReservationsService {
       checkOutDate: query.checkOutDate,
       from: query.from,
       to: query.to,
+      billingPeriod: query.billingPeriod,
       hasIcalWarning: query.hasIcalWarning,
       q: query.q,
     });
@@ -1538,6 +1539,9 @@ export class ReservationsService {
     }
     if (query.source) {
       where.source = query.source;
+    }
+    if (query.billingPeriod) {
+      where.billingPeriod = query.billingPeriod;
     }
     if (query.checkInDate) {
       where.checkInDate = parseYmd(query.checkInDate);
@@ -1612,7 +1616,7 @@ export class ReservationsService {
   }
 
   /**
-   * Inclusive stay-touch: checkInDate ≤ to AND checkOutDate ≥ from.
+   * Inclusive stay-touch overlap with `[from, to]` (missing `to` = open end).
    * Applied as AND so board date windows are not overwritten.
    */
   private applyStayTouchRange(
@@ -1620,15 +1624,17 @@ export class ReservationsService {
     from: string | undefined,
     to: string | undefined,
   ): Prisma.ReservationWhereInput {
-    if (!from || !to) {
+    if (!from) {
       return where;
     }
-    const stayTouch: Prisma.ReservationWhereInput = {
-      AND: [
-        { checkInDate: { lte: parseYmd(to) } },
-        { checkOutDate: { gte: parseYmd(from) } },
-      ],
-    };
+    const stayTouch: Prisma.ReservationWhereInput = to
+      ? {
+          AND: [
+            { checkInDate: { lte: parseYmd(to) } },
+            { checkOutDate: { gte: parseYmd(from) } },
+          ],
+        }
+      : { checkOutDate: { gte: parseYmd(from) } };
     return { AND: [where, stayTouch] };
   }
 
@@ -1639,12 +1645,12 @@ export class ReservationsService {
     if (!from && !to) {
       return;
     }
-    if (!from || !to) {
+    if (!from) {
       throw new BadRequestException(
-        'Both from and to are required for the stay date filter',
+        'from is required when to is set for the stay date filter',
       );
     }
-    if (from > to) {
+    if (to && from > to) {
       throw new BadRequestException('from must be on or before to');
     }
   }
