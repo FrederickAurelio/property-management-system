@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import { ConfirmEarlyDto } from '../../domain/reservations/dto/confirm-early.dto
 import { CreateReservationDto } from '../../domain/reservations/dto/create-reservation.dto.js';
 import { ListReservationsQueryDto } from '../../domain/reservations/dto/list-reservations.query.dto.js';
 import { PostPaymentMovementDto } from '../../domain/reservations/dto/post-payment-movement.dto.js';
+import { PutReservationUtilitiesDto } from '../../domain/reservations/dto/put-reservation-utilities.dto.js';
 import { UpdateReservationDto } from '../../domain/reservations/dto/update-reservation.dto.js';
 import { ReservationsService } from '../../domain/reservations/reservations.service.js';
 import { CurrentAdmin } from '../auth/decorators/current-admin.decorator.js';
@@ -59,6 +61,15 @@ export class ReservationsController {
     @CurrentAdmin() admin: StaffAdmin,
   ): Promise<StaffReservation> {
     return this.reservationsService.update(id, dto, admin);
+  }
+
+  @Put(':id/utilities')
+  putUtilities(
+    @Param('id') id: string,
+    @Body() dto: PutReservationUtilitiesDto,
+    @CurrentAdmin() admin: StaffAdmin,
+  ): Promise<StaffReservation> {
+    return this.reservationsService.putUtilities(id, dto, admin);
   }
 
   @Post(':id/confirm')

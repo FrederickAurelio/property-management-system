@@ -61,12 +61,14 @@ export {
   syncReservationCaches,
   listReservations,
   postPaymentMovement,
+  putReservationUtilities,
   updateReservation,
   type CancelDisposition,
   type CancelReservationInput,
   type CreateReservationInput,
   type ListReservationsParams,
   type PostPaymentMovementInput,
+  type PutReservationUtilitiesInput,
   type UpdateReservationInput,
 } from "./reservations";
 export {

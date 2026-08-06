@@ -52,6 +52,17 @@ const amenitiesApartment = {
   ),
 };
 
+/**
+ * Shared UnitType utility defaults for Skybreeze seed (whole IDR).
+ * Placeholders in a typical Medan kos/apartment range: PLN-ish kWh markup,
+ * PDAM + building water markup, and a mid IPL-style monthly fee — not live tariffs.
+ */
+const SEED_UTILITY_RATES = {
+  electricityRateIdrPerKwh: 1_700,
+  waterRateIdrPerM3: 12_000,
+  maintenanceFeeIdrPerMonth: 100_000,
+} as const;
+
 async function seedSkybreeze(): Promise<void> {
   // Caller already checked Property table is empty.
   const property = await prisma.property.create({
@@ -94,6 +105,7 @@ async function seedSkybreeze(): Promise<void> {
       defaultPriceIdr: 650_000,
       monthlyPriceIdr: 16_900_000,
       yearlyPriceIdr: 195_000_000,
+      ...SEED_UTILITY_RATES,
       bedConfig: [
         { room: 'Bedroom 1', beds: [{ type: 'DOUBLE', count: 1 }] },
         { room: 'Bedroom 2', beds: [{ type: 'SINGLE', count: 1 }] },
@@ -134,6 +146,7 @@ async function seedSkybreeze(): Promise<void> {
       defaultPriceIdr: 850_000,
       monthlyPriceIdr: 22_100_000,
       yearlyPriceIdr: 255_000_000,
+      ...SEED_UTILITY_RATES,
       bedConfig: [
         { room: 'Bedroom 1', beds: [{ type: 'DOUBLE', count: 1 }] },
         { room: 'Bedroom 2', beds: [{ type: 'SINGLE', count: 1 }] },
@@ -168,6 +181,7 @@ async function seedSkybreeze(): Promise<void> {
       defaultPriceIdr: 550_000,
       monthlyPriceIdr: 14_300_000,
       yearlyPriceIdr: 165_000_000,
+      ...SEED_UTILITY_RATES,
       bedConfig: [
         { room: 'Studio', beds: [{ type: 'LARGE_DOUBLE', count: 1 }] },
       ],
@@ -200,6 +214,7 @@ async function seedSkybreeze(): Promise<void> {
       defaultPriceIdr: 450_000,
       monthlyPriceIdr: 11_700_000,
       yearlyPriceIdr: 135_000_000,
+      ...SEED_UTILITY_RATES,
       bedConfig: [
         { room: 'Studio', beds: [{ type: 'LARGE_DOUBLE', count: 1 }] },
       ],
@@ -232,6 +247,7 @@ async function seedSkybreeze(): Promise<void> {
       defaultPriceIdr: 400_000,
       monthlyPriceIdr: 10_400_000,
       yearlyPriceIdr: 120_000_000,
+      ...SEED_UTILITY_RATES,
       bedConfig: [
         { room: 'Studio', beds: [{ type: 'LARGE_DOUBLE', count: 1 }] },
       ],
@@ -342,6 +358,26 @@ async function seedSkybreeze(): Promise<void> {
   console.log(`Seeded Skybreeze: ${property.id} (5 unit types, 8 units)`);
 }
 
+/** Re-apply seed utility rates on existing Skybreeze unit types (idempotent). */
+async function patchSkybreezeUtilityRates(): Promise<void> {
+  const property = await prisma.property.findUnique({
+    where: { code: 'SKYBREEZE_SENTRALAND' },
+    select: { id: true },
+  });
+  if (!property) {
+    console.log('Skybreeze property not found; skip utility rate patch');
+    return;
+  }
+
+  const result = await prisma.unitType.updateMany({
+    where: { propertyId: property.id },
+    data: { ...SEED_UTILITY_RATES },
+  });
+  console.log(
+    `Patched utility rates on ${result.count} Skybreeze unit type(s)`,
+  );
+}
+
 async function main() {
   const username = process.env.SEED_ADMIN_USERNAME ?? 'superadmin';
   const password = process.env.SEED_ADMIN_PASSWORD ?? 'changeme123';
@@ -375,8 +411,9 @@ async function main() {
     await seedSkybreeze();
   } else {
     console.log(
-      `Property table not empty (${propertyCount}); skip inventory seed`,
+      `Property table not empty (${propertyCount}); skip inventory create`,
     );
+    await patchSkybreezeUtilityRates();
   }
 }
 

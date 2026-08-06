@@ -78,6 +78,9 @@ export class UnitTypesService {
         defaultPriceIdr: true,
         monthlyPriceIdr: true,
         yearlyPriceIdr: true,
+        electricityRateIdrPerKwh: true,
+        waterRateIdrPerM3: true,
+        maintenanceFeeIdrPerMonth: true,
       },
     });
     if (!row) {
@@ -88,6 +91,9 @@ export class UnitTypesService {
       defaultPriceIdr: row.defaultPriceIdr,
       monthlyPriceIdr: row.monthlyPriceIdr,
       yearlyPriceIdr: row.yearlyPriceIdr,
+      electricityRateIdrPerKwh: row.electricityRateIdrPerKwh,
+      waterRateIdrPerM3: row.waterRateIdrPerM3,
+      maintenanceFeeIdrPerMonth: row.maintenanceFeeIdrPerMonth,
     };
   }
 
@@ -116,6 +122,9 @@ export class UnitTypesService {
           defaultPriceIdr: dto.defaultPriceIdr,
           monthlyPriceIdr: dto.monthlyPriceIdr,
           yearlyPriceIdr: dto.yearlyPriceIdr,
+          electricityRateIdrPerKwh: dto.electricityRateIdrPerKwh ?? 0,
+          waterRateIdrPerM3: dto.waterRateIdrPerM3 ?? 0,
+          maintenanceFeeIdrPerMonth: dto.maintenanceFeeIdrPerMonth ?? 0,
           bedConfig: bedConfig,
           amenities: (dto.amenities ??
             EMPTY_AMENITIES) as unknown as Prisma.InputJsonValue,
@@ -170,6 +179,15 @@ export class UnitTypesService {
             : {}),
           ...(dto.yearlyPriceIdr !== undefined
             ? { yearlyPriceIdr: dto.yearlyPriceIdr }
+            : {}),
+          ...(dto.electricityRateIdrPerKwh !== undefined
+            ? { electricityRateIdrPerKwh: dto.electricityRateIdrPerKwh }
+            : {}),
+          ...(dto.waterRateIdrPerM3 !== undefined
+            ? { waterRateIdrPerM3: dto.waterRateIdrPerM3 }
+            : {}),
+          ...(dto.maintenanceFeeIdrPerMonth !== undefined
+            ? { maintenanceFeeIdrPerMonth: dto.maintenanceFeeIdrPerMonth }
             : {}),
           ...(dto.amenities !== undefined
             ? {

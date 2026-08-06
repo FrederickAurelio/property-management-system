@@ -27,6 +27,11 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { IdrAmountInput } from "@/components/form/idr-amount-input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupText,
+} from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -378,25 +383,34 @@ export function CollectSheet({
                     ? t("reservations:collectSheet.refundAmountLabel")
                     : t("reservations:collectSheet.collectAmountLabel")}
                 </FieldLabel>
-                <IdrAmountInput
-                  id="cash-amount"
-                  autoFocus={mode !== "settled"}
-                  aria-invalid={fieldState.invalid}
-                  disabled={mode === "settled"}
-                  placeholder={
-                    maxAmount > 0
-                      ? t("reservations:collectSheet.maxAmountPlaceholder", {
-                          amount: formatMoneyOrDash(maxAmount),
-                        })
-                      : undefined
-                  }
-                  value={field.value}
-                  max={maxAmount}
-                  onValueChange={field.onChange}
-                  onBlur={field.onBlur}
-                  name={field.name}
-                  ref={field.ref}
-                />
+                <InputGroup>
+                  <InputGroupAddon>
+                    <InputGroupText>
+                      {t("reservations:utilitiesSheet.currencyPrefix")}
+                    </InputGroupText>
+                  </InputGroupAddon>
+                  <IdrAmountInput
+                    id="cash-amount"
+                    data-slot="input-group-control"
+                    className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0"
+                    autoFocus={mode !== "settled"}
+                    aria-invalid={fieldState.invalid}
+                    disabled={mode === "settled"}
+                    placeholder={
+                      maxAmount > 0
+                        ? t("reservations:collectSheet.maxAmountPlaceholder", {
+                            amount: formatMoneyOrDash(maxAmount),
+                          })
+                        : undefined
+                    }
+                    value={field.value}
+                    max={maxAmount}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
+                  />
+                </InputGroup>
                 {maxAmount > 0 && (
                   <div className="flex flex-wrap gap-2">
                     <Button

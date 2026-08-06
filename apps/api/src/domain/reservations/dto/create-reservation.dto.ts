@@ -78,7 +78,7 @@ export class CreateReservationDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  totalAmountIdr!: number;
+  rentAmountIdr!: number;
 
   @Type(() => Number)
   @IsInt()

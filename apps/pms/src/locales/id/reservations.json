@@ -123,7 +123,7 @@
       "guestName": "nama tamu asli",
       "guestContact": "telepon atau email",
       "guestCount": "jumlah tamu",
-      "totalAmountIdr": "jumlah total",
+      "rentAmountIdr": "jumlah sewa",
       "paidAmountIdr": "jumlah yang sudah dibayar"
     },
     "confirmGapsMessageOne": "Isi {{item}} sebelum konfirmasi.",
@@ -150,7 +150,7 @@
     "titleConfirmEnrich": "Lengkapi detail untuk konfirmasi",
     "descriptionCreate": "Walk-in / stay manual. Pilih unit dan tanggal, lalu tamu dan uang.",
     "descriptionEdit": "Perbarui stay, tamu, atau quote. Uang masuk/keluar tetap lewat Collect atau Refund.",
-    "descriptionConfirmEnrich": "Isi kontak tamu, jumlah tamu, dan total stay — lalu simpan untuk konfirmasi.",
+    "descriptionConfirmEnrich": "Isi kontak tamu, jumlah tamu, dan sewa — lalu simpan untuk konfirmasi.",
     "sections": {
       "stay": "Stay",
       "guest": "Tamu",
@@ -168,7 +168,8 @@
       "guests": "Jumlah tamu",
       "guestsPlaceholder": "1",
       "source": "Sumber",
-      "totalIdr": "Total (IDR)",
+      "totalIdr": "Sewa (IDR)",
+      "utilitiesHint": "Listrik, air, dan maintenance dicatat di halaman detail reservasi (bulanan).",
       "paidIdrEdit": "Dibayar (IDR)",
       "paidIdrCreate": "DP sekarang (IDR)",
       "notes": "Catatan",
@@ -248,8 +249,11 @@
     "toastStillMissingDetails": "Masih ada detail yang kurang",
     "buttons": {
       "edit": "Edit",
-      "cancel": "Batalkan stay"
+      "cancel": "Batalkan stay",
+      "utilities": "Utilitas"
     },
+    "utilitiesDueBanner": "Catat utilitas untuk {{month}} — pembacaan meter dan maintenance sudah jatuh tempo.",
+    "utilitiesDueAction": "Buka utilitas",
     "goBack": "Kembali",
     "primaryDialogs": {
       "confirmTitle": "Konfirmasi reservasi ini?",
@@ -364,6 +368,10 @@
   },
   "moneyBlock": {
     "title": "Uang",
+    "rent": "Sewa",
+    "electricity": "Listrik",
+    "water": "Air",
+    "maintenance": "Maintenance",
     "total": "Total",
     "collected": "Terkumpul",
     "paid": "Dibayar",
@@ -372,6 +380,36 @@
     "due": "Sisa",
     "settledOnCancelHint": "Uang sudah diselesaikan saat stay dibatalkan.",
     "overpaidHint": "Tamu kelebihan bayar — pakai Refund untuk mengembalikan selisihnya."
+  },
+  "utilitiesSheet": {
+    "title": "Utilitas & biaya",
+    "description": "Listrik, air, dan maintenance bulanan. Simpan menghitung ulang Total = sewa + utilitas.",
+    "confirm": "Simpan utilitas",
+    "toastSaved": "Utilitas disimpan — Total diperbarui",
+    "elecRate": "Tarif listrik",
+    "waterRate": "Tarif air",
+    "maintDefault": "Default maintenance",
+    "electricity": "Listrik",
+    "water": "Air",
+    "maintenance": "Biaya maintenance",
+    "addReading": "Tambah meter",
+    "addMonth": "Tambah bulan",
+    "colDate": "Tanggal",
+    "colMonth": "Bulan",
+    "colMeter": "Meter ({{unit}})",
+    "colUsage": "Pemakaian",
+    "colAmount": "Jumlah",
+    "currencyPrefix": "Rp",
+    "perKwh": "/ kWh",
+    "perM3": "/ m³",
+    "perMonth": "/ bln",
+    "emptyMaint": "Belum ada bulan maintenance.",
+    "subtotal": "Subtotal",
+    "rentLine": "Sewa {{amount}}",
+    "newTotal": "Total baru",
+    "errorMeterDecrease": "Meter tidak boleh lebih kecil dari pembacaan sebelumnya.",
+    "errorDuplicateDate": "Tanggal pembacaan dobel.",
+    "errorDuplicateMonth": "Bulan maintenance dobel."
   },
   "timeline": {
     "title": "Cash timeline",

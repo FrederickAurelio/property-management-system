@@ -53,6 +53,9 @@ export function syncUnitTypeCaches(
       defaultPriceIdr: unitType.defaultPriceIdr,
       monthlyPriceIdr: unitType.monthlyPriceIdr,
       yearlyPriceIdr: unitType.yearlyPriceIdr,
+      electricityRateIdrPerKwh: unitType.electricityRateIdrPerKwh,
+      waterRateIdrPerM3: unitType.waterRateIdrPerM3,
+      maintenanceFeeIdrPerMonth: unitType.maintenanceFeeIdrPerMonth,
     },
   );
   void queryClient.invalidateQueries({

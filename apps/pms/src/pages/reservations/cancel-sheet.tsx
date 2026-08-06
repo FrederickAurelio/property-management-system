@@ -20,6 +20,11 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { IdrAmountInput } from "@/components/form/idr-amount-input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupText,
+} from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -349,21 +354,30 @@ export function CancelSheet({
                         <FieldLabel htmlFor="cancel-refund-amount">
                           {t("reservations:cancelSheet.refundToGuestLabel")}
                         </FieldLabel>
-                        <IdrAmountInput
-                          id="cancel-refund-amount"
-                          autoFocus
-                          aria-invalid={fieldState.invalid}
-                          placeholder={t(
-                            "reservations:cancelSheet.refundToGuestPlaceholder",
-                            { amount: formatIdr(paid) },
-                          )}
-                          value={field.value}
-                          max={Math.max(0, paid - 1)}
-                          onValueChange={field.onChange}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
-                        />
+                        <InputGroup>
+                          <InputGroupAddon>
+                            <InputGroupText>
+                              {t("reservations:utilitiesSheet.currencyPrefix")}
+                            </InputGroupText>
+                          </InputGroupAddon>
+                          <IdrAmountInput
+                            id="cancel-refund-amount"
+                            data-slot="input-group-control"
+                            className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0"
+                            autoFocus
+                            aria-invalid={fieldState.invalid}
+                            placeholder={t(
+                              "reservations:cancelSheet.refundToGuestPlaceholder",
+                              { amount: formatIdr(paid) },
+                            )}
+                            value={field.value}
+                            max={Math.max(0, paid - 1)}
+                            onValueChange={field.onChange}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            ref={field.ref}
+                          />
+                        </InputGroup>
                         <p className="text-xs text-muted-foreground">
                           {t("reservations:cancelSheet.refundToGuestMaxHint", {
                             amount: formatIdr(Math.max(0, paid - 1)),

@@ -184,10 +184,36 @@ Desk meaning of `paymentStatus`: **“what does the guest still owe at the prope
 
 | Concept     | Storage                            | Changed by                                                                     |
 | ----------- | ---------------------------------- | ------------------------------------------------------------------------------ |
-| **Quote**   | `Reservation.totalAmountIdr`       | Edit stay / create form                                                        |
+| **Quote**   | `Reservation.totalAmountIdr`       | Rent (create/edit) + utilities sheet — always rollup of components             |
 | **Cash**    | Append-only `PaymentMovement` rows | Collect (IN/OUT), Cancel refund, create opening DP                             |
 | **Paid**    | `Reservation.paidAmountIdr`        | **Denormalized cache** = `sum(movements.signedAmount)` — never overwrite alone |
 | **Balance** | Derived                            | Due = max(total − paid, 0); Refund = max(paid − total, 0)                      |
+
+### Quote components (rent + utilities)
+
+`totalAmountIdr` is the **single** cash-facing quote. It is the sum of quote components — not a free-form number when utilities exist:
+
+```text
+totalAmountIdr = rentAmountIdr
+               + electricityAmountIdr
+               + waterAmountIdr
+               + maintenanceAmountIdr
+```
+
+| Kind            | Source                                                                 | Cadence |
+| --------------- | ---------------------------------------------------------------------- | ------- |
+| `RENT`          | Stay quote (`periodCount ×` rack); staff edit on create/edit form      | Stay    |
+| `ELECTRICITY`   | Meter intervals: `floor((meter[i] − meter[i−1]) × ratePerKwh)`         | **Monthly** rows |
+| `WATER`         | Meter intervals: `floor((meter[i] − meter[i−1]) × ratePerM3)`          | **Monthly** rows |
+| `MAINTENANCE`   | Fixed IDR rows for a **calendar month** (desk: month+year; storage `chargeDate` = 1st of that month); first month defaults to check-in month; amount defaults from snapshot | **Monthly** rows |
+
+**Cadence vs rent period:** rent may be `DAILY` / `MONTHLY` / `YEARLY`; utilities are always **monthly** tables (YEARLY rent still records utilities month by month). DAILY stays *may* use the utilities sheet; long stays are the normal path.
+
+**Rates:** defaults on `UnitType` (`electricityRateIdrPerKwh`, `waterRateIdrPerM3`, `maintenanceFeeIdrPerMonth`). Snapshotted onto the reservation at create; utilities sheet may override per stay. Changing UnitType later does not rewrite historical meter math.
+
+**Storage:** `rentAmountIdr` + denorm utility sums on `Reservation`; detail rows in `ReservationUtilityReading` (elec/water) and `ReservationMaintenanceCharge`. Domain writes `totalAmountIdr` only via `recomputeStayQuoteTotal` after rent or utilities changes, then `syncPaidFromMovements`.
+
+**Desk UI:** Utilities button on detail for all billing periods (hide when `CANCELLED`). Money card shows Rent / Electricity / Water / Maintenance / Total breakdown when utilities exist or stay is MONTHLY/YEARLY. Soft **utilities due notice** only for **`MONTHLY` / `YEARLY`** when the next month’s reading is missing (`utilitiesDueNotice` on GET — see helpers in `@cabin/api-contract`). DAILY stays never raise the notice (sheet still available). Later surfaces (dashboard / boards) must use the same period gate.
 
 ```text
 UNPAID    paid = 0
@@ -196,12 +222,19 @@ PAID      paid >= total      (total required; includes overpay → Due = 0, Refu
 REFUNDED  explicit after cancel full-refund (or paid driven to 0 on cancel path)
 ```
 
-| Reservation column | Null              | Notes                                                   |
-| ------------------ | ----------------- | ------------------------------------------------------- |
-| `totalAmountIdr`   | yes until confirm | Whole IDR; **0 allowed** (complimentary)                |
-| `paidAmountIdr`    | no, default 0     | Cache from movements                                    |
-| `paymentStatus`    | no                | Recomputed from total vs paid (except force `REFUNDED`) |
-| `collectedVia`     | yes               | Optional rollup: latest movement method                 |
+| Reservation column              | Null              | Notes                                                   |
+| ------------------------------- | ----------------- | ------------------------------------------------------- |
+| `totalAmountIdr`                | yes until confirm | Whole IDR quote = rent + utilities; **0** OK            |
+| `rentAmountIdr`                 | yes until confirm | Rent-only quote (create/edit wire + form)               |
+| `electricityAmountIdr`          | no, default 0     | Denorm sum of elec meter intervals                      |
+| `waterAmountIdr`                | no, default 0     | Denorm sum of water meter intervals                     |
+| `maintenanceAmountIdr`          | no, default 0     | Denorm sum of maintenance rows                          |
+| `electricityRateIdrPerKwh`      | no, default 0     | Snapshot rate for this stay                             |
+| `waterRateIdrPerM3`             | no, default 0     | Snapshot                                                |
+| `maintenanceFeeIdrPerMonth`     | no, default 0     | Snapshot default for new maintenance rows               |
+| `paidAmountIdr`                 | no, default 0     | Cache from movements                                    |
+| `paymentStatus`                 | no                | Recomputed from total vs paid (except force `REFUNDED`) |
+| `collectedVia`                  | yes               | Optional rollup: latest movement method                 |
 
 ### `PaymentMovement` (cash ledger)
 
@@ -280,12 +313,13 @@ suggestedTotal =
 
 **Inventory vs contract (locked):** contract `checkInDate`/`checkOutDate` drive money and boards. For `MONTHLY`/`YEARLY` occupying stays, `inventoryEndDate` = FAR (`9999-12-31`) so the unit stays blocked from check-in until `CHECKED_OUT`/`CANCELLED` (extend by editing contract dates; inventory hold remains open). DAILY: `inventoryEndDate = checkOutDate`.
 
-| Trigger                                   | Total            | Paid / movements                                             |
-| ----------------------------------------- | ---------------- | ------------------------------------------------------------ |
-| Create with unit + dates                  | Fill suggested   | Opening `depositAmountIdr` > 0 → first IN `DEPOSIT`          |
-| Unit type, period, or period-count change | Set to suggested | **Never change Paid / movements**                            |
-| Open edit (no period/type change)         | Keep saved Total | Keep Paid                                                    |
-| Staff edits Total by hand                 | Keep override    | Paid stays; if `paid > total` → **Refund** until Collect OUT |
+| Trigger                                   | Rent / Total                                      | Paid / movements                                             |
+| ----------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
+| Create with unit + dates                  | Fill suggested **rent**; Total = rent + utilities | Opening `depositAmountIdr` > 0 → first IN `DEPOSIT`          |
+| Unit type, period, or period-count change | Set **rent** to suggested; recompute Total        | **Never change Paid / movements**; utilities rows kept       |
+| Open edit (no period/type change)         | Keep saved rent                                   | Keep Paid                                                    |
+| Staff edits rent by hand                  | Keep override; recompute Total                    | Paid stays; if `paid > total` → **Refund** until Collect OUT |
+| Utilities sheet save                      | Recompute utility sums + Total                    | Paid unchanged until Collect                                 |
 
 ```text
 Due     = max(total − paid, 0)
@@ -309,7 +343,7 @@ Nest persists `PaymentMovement` with `/staff/reservations`; PMS uses the live AP
 | `guestName`        | Placeholder OK | **Real name** (reject `*(iCal)` suffix) |
 | phone **or** email | Optional       | **Required (one of)**                   |
 | `guestCount`       | Optional       | `>= 1` and `<= maxGuests`               |
-| `totalAmountIdr`   | Optional null  | **Required `>= 0`**                     |
+| `rentAmountIdr`    | Optional null  | **Required `>= 0`** (drives Total = rent + utilities) |
 | `paidAmountIdr`    | 0              | `>= 0`                                  |
 
 Confirm and manual-create-as-`CONFIRMED` use the same matrix.  
@@ -647,7 +681,8 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservati
 | `UNCONFIRMED` + missing feed | Warn only (same as confirmed)                                                                                                                                                                                                                                                |
 | `collectedVia`               | Optional                                                                                                                                                                                                                                                                     |
 | Unit vs type-first UX        | **Unit required** on write; Choose picker drills Property → Type → Unit                                                                                                                                                                                                      |
-| Stay Total suggestion        | `periodCount ×` matching rack (`defaultPriceIdr` / `monthlyPriceIdr` / `yearlyPriceIdr` via `billingPeriod`); `suggestStayTotalIdr`; Paid = sum(movements), never auto-changed on date/unit/period change; if Paid > Total → Refund (`refundDueIdr`), settle via Collect OUT |
+| Stay Total suggestion        | Rent = `periodCount ×` matching rack; Total = rent + utilities; Paid = sum(movements), never auto-changed on date/unit/period change; if Paid > Total → Refund (`refundDueIdr`), settle via Collect OUT |
+| Quote utilities              | Monthly elec/water meter readings + maintenance rows; rates on UnitType + reservation snapshot; button on all periods; `utilitiesDueNotice` for MONTHLY/YEARLY only when next month missing |
 | Cash ledger                  | `PaymentMovement` append-only; Nest `/staff/reservations`; PMS live                                                                                                                                                                                                          |
 | Cancel money body            | `refundAmountIdr` (OUT amount) for partial — never “remaining Paid”                                                                                                                                                                                                          |
 | Check-in if Due > 0          | Warn, allow                                                                                                                                                                                                                                                                  |
@@ -668,7 +703,8 @@ Unit via Choose (Property → Type → Unit), not a mega Select
 Confirm = name + (phone|email) + guests + total   (paid may be 0 → opening IN on create)
 Money   = UNPAID | DEPOSIT | PAID | REFUNDED
 Paid    = sum(PaymentMovement.signedAmount) — never absolute overwrite as desk path
-Total   = periodCount × matching rack on unit/period/count change (override OK; Paid unchanged)
+Rent    = periodCount × matching rack on unit/period/count change (override OK)
+Total   = rent + electricity + water + maintenance (utilities sheet; monthly cadence)
          if Paid > Total → Refund = paid − total (Collect OUT; never silent clamp)
 iCal in = UNCONFIRMED; missing/dates on CONFIRMED = warn, human decides
 iCal out = Phase 1 export so walk-ins block OTAs

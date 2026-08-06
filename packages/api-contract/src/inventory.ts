@@ -161,6 +161,12 @@ export const INVENTORY_LNG_MAX = 180;
 export const UNIT_TYPE_DAILY_PRICE_IDR_MAX = 100_000_000;
 export const UNIT_TYPE_MONTHLY_PRICE_IDR_MAX = 500_000_000;
 export const UNIT_TYPE_YEARLY_PRICE_IDR_MAX = 2_000_000_000;
+/** Utility rate defaults on UnitType / reservation snapshot. */
+export const UNIT_TYPE_UTILITY_RATE_IDR_MAX = 10_000_000;
+export const UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX = 50_000_000;
+/** Meter reading — matches Prisma `Decimal(12, 3)` on ReservationUtilityReading.meterValue. */
+export const UTILITY_METER_FRACTION_DIGITS = 3;
+export const UTILITY_METER_VALUE_MAX = 999_999_999.999;
 
 /** Lightweight property row for staff filter / select dropdowns (id + label only). */
 export type StaffPropertyOption = {
@@ -198,6 +204,9 @@ export type StaffUnitTypeRack = {
   defaultPriceIdr: number;
   monthlyPriceIdr: number;
   yearlyPriceIdr: number;
+  electricityRateIdrPerKwh: number;
+  waterRateIdrPerM3: number;
+  maintenanceFeeIdrPerMonth: number;
 };
 
 export type StaffUnitType = {
@@ -213,6 +222,9 @@ export type StaffUnitType = {
   defaultPriceIdr: number;
   monthlyPriceIdr: number;
   yearlyPriceIdr: number;
+  electricityRateIdrPerKwh: number;
+  waterRateIdrPerM3: number;
+  maintenanceFeeIdrPerMonth: number;
   bedConfig: BedConfigRoom[];
   amenities: Amenities;
   media: MediaItem[];

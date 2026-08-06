@@ -55,6 +55,12 @@
     "loadMoreError": "Couldn’t load more. Try again.",
     "comingSoon": "Coming soon…"
   },
+  "dateField": {
+    "pickDate": "Pick a date",
+    "pickMonth": "Pick month",
+    "previousYear": "Previous year",
+    "nextYear": "Next year"
+  },
   "language": {
     "label": "Language",
     "en": "English",

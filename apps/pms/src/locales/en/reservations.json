@@ -123,7 +123,7 @@
       "guestName": "real guest name",
       "guestContact": "phone or email",
       "guestCount": "guest count",
-      "totalAmountIdr": "total amount",
+      "rentAmountIdr": "rent amount",
       "paidAmountIdr": "paid amount"
     },
     "confirmGapsMessageOne": "Add {{item}} before confirming.",
@@ -150,7 +150,7 @@
     "titleConfirmEnrich": "Complete details to confirm",
     "descriptionCreate": "Walk-in / manual stay. Choose unit and dates, then guest and money.",
     "descriptionEdit": "Update stay, guest, or quote. Money in/out stays on Collect or Refund.",
-    "descriptionConfirmEnrich": "Fill guest contact, guest count, and stay total — then save to confirm.",
+    "descriptionConfirmEnrich": "Fill guest contact, guest count, and rent — then save to confirm.",
     "sections": {
       "stay": "Stay",
       "guest": "Guest",
@@ -168,7 +168,8 @@
       "guests": "Guests",
       "guestsPlaceholder": "1",
       "source": "Source",
-      "totalIdr": "Total (IDR)",
+      "totalIdr": "Rent (IDR)",
+      "utilitiesHint": "Electricity, water, and maintenance are recorded on the reservation detail page (monthly).",
       "paidIdrEdit": "Paid (IDR)",
       "paidIdrCreate": "Deposit now (IDR)",
       "notes": "Notes",
@@ -248,8 +249,11 @@
     "toastStillMissingDetails": "Still missing details",
     "buttons": {
       "edit": "Edit",
-      "cancel": "Cancel stay"
+      "cancel": "Cancel stay",
+      "utilities": "Utilities"
     },
+    "utilitiesDueBanner": "Record utilities for {{month}} — meter readings and maintenance are due.",
+    "utilitiesDueAction": "Open utilities",
     "goBack": "Go back",
     "primaryDialogs": {
       "confirmTitle": "Confirm this reservation?",
@@ -364,6 +368,10 @@
   },
   "moneyBlock": {
     "title": "Money",
+    "rent": "Rent",
+    "electricity": "Electricity",
+    "water": "Water",
+    "maintenance": "Maintenance",
     "total": "Total",
     "collected": "Collected",
     "paid": "Paid",
@@ -372,6 +380,36 @@
     "due": "Due",
     "settledOnCancelHint": "Money was settled when the stay was cancelled.",
     "overpaidHint": "Guest overpaid — use Refund to return the excess."
+  },
+  "utilitiesSheet": {
+    "title": "Utilities & fees",
+    "description": "Monthly electricity, water, and maintenance. Confirm recalculates Total = rent + utilities.",
+    "confirm": "Save utilities",
+    "toastSaved": "Utilities saved — Total updated",
+    "elecRate": "Electricity rate",
+    "waterRate": "Water rate",
+    "maintDefault": "Maintenance default",
+    "electricity": "Electricity",
+    "water": "Water",
+    "maintenance": "Maintenance fee",
+    "addReading": "Add reading",
+    "addMonth": "Add month",
+    "colDate": "Date",
+    "colMonth": "Month",
+    "colMeter": "Meter ({{unit}})",
+    "colUsage": "Usage",
+    "colAmount": "Amount",
+    "currencyPrefix": "Rp",
+    "perKwh": "/ kWh",
+    "perM3": "/ m³",
+    "perMonth": "/ mo",
+    "emptyMaint": "No maintenance months yet.",
+    "subtotal": "Subtotal",
+    "rentLine": "Rent {{amount}}",
+    "newTotal": "New Total",
+    "errorMeterDecrease": "Meter cannot go down from the previous reading.",
+    "errorDuplicateDate": "Duplicate reading date.",
+    "errorDuplicateMonth": "Duplicate maintenance month."
   },
   "timeline": {
     "title": "Cash timeline",

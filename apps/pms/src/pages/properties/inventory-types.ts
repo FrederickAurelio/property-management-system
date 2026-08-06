@@ -79,29 +79,11 @@ export function formatIdrInput(digits: string): string {
   return idrDigitsFormat.format(n);
 }
 
-/** Keep only digits from a currency-masked IDR input (no leading zeros). */
-export function digitsFromIdrInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) {
-    return "";
-  }
-  return String(Number(digits));
-}
-
-/** Cap digit string at `max` (inclusive). Empty stays empty. */
-export function clampDigitsToMax(digits: string, max: number | null): string {
-  if (digits === "" || max == null || !Number.isFinite(max) || max < 0) {
-    return digits;
-  }
-  const n = Number(digits);
-  if (!Number.isFinite(n)) {
-    return digits;
-  }
-  if (n > max) {
-    return String(Math.floor(max));
-  }
-  return digits;
-}
+/** Meter decimal helpers — see `@/lib/decimal-input`. */
+export {
+  formatDecimalInput,
+  plainFromMeterValue,
+} from "@/lib/decimal-input";
 
 export function hasCoordinates(
   latitude: number | null | undefined,

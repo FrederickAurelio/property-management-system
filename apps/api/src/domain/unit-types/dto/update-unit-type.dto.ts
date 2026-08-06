@@ -24,6 +24,8 @@ import {
   UNIT_TYPE_DAILY_PRICE_IDR_MAX,
   UNIT_TYPE_MONTHLY_PRICE_IDR_MAX,
   UNIT_TYPE_YEARLY_PRICE_IDR_MAX,
+  UNIT_TYPE_UTILITY_RATE_IDR_MAX,
+  UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX,
   UnitLayout,
 } from '@cabin/api-contract';
 import {
@@ -99,6 +101,27 @@ export class UpdateUnitTypeDto {
   @Min(0)
   @Max(UNIT_TYPE_YEARLY_PRICE_IDR_MAX)
   yearlyPriceIdr?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(UNIT_TYPE_UTILITY_RATE_IDR_MAX)
+  electricityRateIdrPerKwh?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(UNIT_TYPE_UTILITY_RATE_IDR_MAX)
+  waterRateIdrPerM3?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX)
+  maintenanceFeeIdrPerMonth?: number;
 
   @IsOptional()
   @IsArray()

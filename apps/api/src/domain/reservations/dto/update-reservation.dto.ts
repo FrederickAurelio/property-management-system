@@ -76,7 +76,7 @@ export class UpdateReservationDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  totalAmountIdr?: number | null;
+  rentAmountIdr?: number | null;
 
   @IsOptional()
   @IsEnum(ReservationSource)

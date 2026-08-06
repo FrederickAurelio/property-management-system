@@ -1,5 +1,9 @@
 /* anchor: Linear-dense detail section, diverge: money as titled dl matching Stay/Guest */
-import { ReservationStatus, type StaffReservation } from "@cabin/api-contract";
+import {
+  ReservationStatus,
+  StayBillingPeriod,
+  type StaffReservation,
+} from "@cabin/api-contract";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ReservationBadge } from "./reservation-badges";
@@ -16,6 +20,20 @@ import {
   reservationRefund,
 } from "./reservation-format";
 
+function showQuoteBreakdown(reservation: StaffReservation): boolean {
+  if (
+    reservation.billingPeriod === StayBillingPeriod.MONTHLY ||
+    reservation.billingPeriod === StayBillingPeriod.YEARLY
+  ) {
+    return true;
+  }
+  return (
+    reservation.electricityAmountIdr > 0 ||
+    reservation.waterAmountIdr > 0 ||
+    reservation.maintenanceAmountIdr > 0
+  );
+}
+
 export function ReservationMoneyBlock({
   reservation,
   className,
@@ -28,6 +46,7 @@ export function ReservationMoneyBlock({
   const refund = reservationRefund(reservation);
   const showRefund = refund != null && refund > 0;
   const moneyClosed = reservation.status === ReservationStatus.CANCELLED;
+  const breakdown = showQuoteBreakdown(reservation);
 
   return (
     <ReservationDetailSection
@@ -41,7 +60,36 @@ export function ReservationMoneyBlock({
       }
     >
       <DetailDl>
-        <DetailDlRow label={t("reservations:moneyBlock.total")} tabular>
+        {breakdown && (
+          <>
+            <DetailDlRow label={t("reservations:moneyBlock.rent")} tabular>
+              {formatMoneyOrDash(
+                reservation.rentAmountIdr ?? reservation.totalAmountIdr,
+              )}
+            </DetailDlRow>
+            <DetailDlRow
+              label={t("reservations:moneyBlock.electricity")}
+              tabular
+            >
+              {formatMoneyOrDash(reservation.electricityAmountIdr)}
+            </DetailDlRow>
+            <DetailDlRow label={t("reservations:moneyBlock.water")} tabular>
+              {formatMoneyOrDash(reservation.waterAmountIdr)}
+            </DetailDlRow>
+            <DetailDlRow
+              label={t("reservations:moneyBlock.maintenance")}
+              tabular
+            >
+              {formatMoneyOrDash(reservation.maintenanceAmountIdr)}
+            </DetailDlRow>
+          </>
+        )}
+        <DetailDlRow
+          className={breakdown ? "border-t border-border pt-2" : undefined}
+          label={t("reservations:moneyBlock.total")}
+          labelClassName={breakdown ? "font-medium text-foreground" : undefined}
+          tabular
+        >
           {formatMoneyOrDash(reservation.totalAmountIdr)}
         </DetailDlRow>
         <DetailDlRow

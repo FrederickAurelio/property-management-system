@@ -209,8 +209,13 @@ Shared product specs for every unit of that kind. Booking room-type detail lives
 | `bedroomCount`    | `int`           | no   | **Derived on write** — see below                                                                                                                                   |
 | `bathroomCount`   | `int`           | no   | default `1`                                                                                                                                                        |
 | `maxGuests`       | `int`           | no   | Hard cap for booking validation                                                                                                                                    |
-| `defaultPriceIdr` | `int`           | no   | Rack rate **per night**, whole rupiah. Desk stay Total suggests `nights ×` this value ([`reservations-design.md`](reservations-design.md) §6). Not live OTA price. |
-| `bedConfig`       | `jsonb`         | no   | See §6.1 — rooms with **one or more** bed rows each                                                                                                                |
+| `defaultPriceIdr`           | `int`           | no   | Rack rate **per night**, whole rupiah. Desk stay Rent suggests `nights ×` this value ([`reservations-design.md`](reservations-design.md) §6). Not live OTA price. |
+| `monthlyPriceIdr`           | `int`           | no   | Rack per month                                                                                                                                                   |
+| `yearlyPriceIdr`            | `int`           | no   | Rack per year                                                                                                                                                    |
+| `electricityRateIdrPerKwh`  | `int`           | no   | Default IDR / kWh for guest utilities (default `0`)                                                                                                              |
+| `waterRateIdrPerM3`         | `int`           | no   | Default IDR / m³ (default `0`)                                                                                                                                   |
+| `maintenanceFeeIdrPerMonth` | `int`           | no   | Default monthly maintenance fee IDR (default `0`)                                                                                                                |
+| `bedConfig`                 | `jsonb`         | no   | See §6.1 — rooms with **one or more** bed rows each                                                                                                              |
 | `amenities`       | `jsonb`         | no   | See §6.2 — grouped lists for FE                                                                                                                                    |
 | `media`           | `jsonb`         | no   | Ordered gallery — see §6.3; first `IMAGE` = card thumb                                                                                                             |
 | `description`     | `text`          | yes  | Optional marketing / notes                                                                                                                                         |
@@ -299,11 +304,18 @@ Stay on **one unit**. Designed so calendar, check-in, and reports share one row.
 | `guestEmail`       | `varchar(255)`      | yes  |                                                                                       |
 | `guestPhone`       | `varchar(32)`       | yes  |                                                                                       |
 | `guestCount`       | `int`               | yes  | Null OK for iCal stubs; required `>= 1` on confirm / create-CONFIRMED; `<= maxGuests` |
-| `notes`            | `text`              | yes  | Staff / special requests                                                              |
-| `totalAmountIdr`   | `bigint`            | yes  | Stay quote (whole IDR); null until confirm                                            |
-| `paidAmountIdr`    | `bigint`            | no   | default 0; **cache** = sum(`PaymentMovement.signedAmount`)                            |
-| `paymentStatus`    | `PaymentStatus`     | no   | `UNPAID` \| `DEPOSIT` \| `PAID` \| `REFUNDED`                                         |
-| `collectedVia`     | `CollectedVia`      | yes  | Optional rollup from latest movement                                                  |
+| `notes`                         | `text`              | yes  | Staff / special requests                                                              |
+| `totalAmountIdr`                | `bigint`            | yes  | Quote = rent + utilities (whole IDR); null until confirm                              |
+| `rentAmountIdr`                 | `bigint`            | yes  | Rent-only quote; null until confirm                                                   |
+| `electricityAmountIdr`          | `bigint`            | no   | default 0; denorm sum of elec meter intervals                                         |
+| `waterAmountIdr`                | `bigint`            | no   | default 0; denorm sum of water meter intervals                                        |
+| `maintenanceAmountIdr`          | `bigint`            | no   | default 0; denorm sum of maintenance rows                                             |
+| `electricityRateIdrPerKwh`      | `int`               | no   | default 0; snapshot from UnitType                                                     |
+| `waterRateIdrPerM3`             | `int`               | no   | default 0; snapshot                                                                   |
+| `maintenanceFeeIdrPerMonth`     | `int`               | no   | default 0; snapshot                                                                   |
+| `paidAmountIdr`                 | `bigint`            | no   | default 0; **cache** = sum(`PaymentMovement.signedAmount`)                            |
+| `paymentStatus`                 | `PaymentStatus`     | no   | `UNPAID` \| `DEPOSIT` \| `PAID` \| `REFUNDED`                                         |
+| `collectedVia`                  | `CollectedVia`      | yes  | Optional rollup from latest movement                                                  |
 | `externalRef`      | `varchar(128)`      | yes  | OTA booking id when known                                                             |
 | `icalSyncWarning`  | `IcalSyncWarning`   | yes  |                                                                                       |
 | `icalSyncWarnedAt` | `timestamptz`       | yes  |                                                                                       |
@@ -355,9 +367,46 @@ Same overlap rule applies vs `CalendarBlock` on that unit (monthly/yearly candid
 **FE shape (calendar event):**  
 `{ id, unitId, checkInDate, checkOutDate, inventoryEndDate, status, source, guestName, guestCount }`
 
-**FE shape (detail):** full row + nested `unit` + `unitType` summary + `movements[]` (cash timeline).
+**FE shape (detail):** full row + nested `unit` + `unitType` summary + `movements[]` (cash timeline) + utility readings / maintenance + `quoteBreakdown` + `utilitiesDueNotice`.
 
-**Not on this table:** line-item pricing, multi-unit group bookings. Cash movements live on **`PaymentMovement`** (below). Stay **Total** on create/edit is suggested from `UnitType.defaultPriceIdr × nights` (`suggestStayTotalIdr`). Paid is **not** auto-changed when nights change; if Paid > Total → `refundDueIdr` — see [`reservations-design.md`](reservations-design.md) §6.
+**Quote components:** rent + monthly electricity/water/maintenance (see [`reservations-design.md`](reservations-design.md) §6). Cash movements live on **`PaymentMovement`** (below). Stay **Rent** on create/edit is suggested from rack × period (`suggestStayTotalIdr`) and sent as wire `rentAmountIdr`. `totalAmountIdr` = rent + utility denorms. Paid is **not** auto-changed when nights/utilities change; if Paid > Total → `refundDueIdr`.
+
+**Not on this table:** multi-unit group bookings.
+
+---
+
+### 5.4a `ReservationUtilityReading`
+
+Meter readings for electricity (kWh) and water (m³). First reading per utility is baseline (charge 0); later rows charge `floor((meter − prev) × rate)`.
+
+| Column             | Type                 | Null | Notes                                      |
+| ------------------ | -------------------- | ---- | ------------------------------------------ |
+| `id`               | `cuid` PK            | no   |                                            |
+| `reservationId`    | FK → `Reservation`   | no   | `ON DELETE CASCADE`                        |
+| `utility`          | `UtilityKind`        | no   | `ELECTRICITY` \| `WATER`                   |
+| `readingDate`      | `date`               | no   |                                            |
+| `meterValue`       | `decimal(12,3)`      | no   | Cumulative stand meter                     |
+| `createdAt`        | `timestamptz`        | no   |                                            |
+| `createdByAdminId` | FK → `Admin`         | yes  |                                            |
+
+**Indexes / constraints:** `UNIQUE (reservationId, utility, readingDate)`; `INDEX (reservationId, utility, readingDate)`; `CHECK (meterValue >= 0)`.
+
+---
+
+### 5.4aa `ReservationMaintenanceCharge`
+
+Monthly fixed maintenance fee rows for a stay.
+
+| Column             | Type               | Null | Notes               |
+| ------------------ | ------------------ | ---- | ------------------- |
+| `id`               | `cuid` PK          | no   |                     |
+| `reservationId`    | FK → `Reservation` | no   | `ON DELETE CASCADE` |
+| `chargeDate`       | `date`             | no   | Canonical **1st of month** for that calendar month (desk UI is month+year only); first row defaults to check-in month |
+| `amountIdr`        | `bigint`           | no   | Whole IDR ≥ 0       |
+| `createdAt`        | `timestamptz`      | no   |                     |
+| `createdByAdminId` | FK → `Admin`       | yes  |                     |
+
+**Indexes:** `INDEX (reservationId, chargeDate)`.
 
 ---
 

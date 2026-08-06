@@ -37,6 +37,10 @@ export const ApiFieldReason = {
   INVALID_STATUS_TRANSITION: 'INVALID_STATUS_TRANSITION',
   /** Edit source blocked while reservation still has an OTA calendar UID. */
   SOURCE_LOCKED_WITH_EXTERNAL_REF: 'SOURCE_LOCKED_WITH_EXTERNAL_REF',
+  /** Meter reading lower than previous for same utility. */
+  METER_DECREASED: 'METER_DECREASED',
+  /** Duplicate reading date for same utility on a reservation. */
+  DUPLICATE_READING_DATE: 'DUPLICATE_READING_DATE',
 } as const;
 
 /** Extra fields allowed on delete-conflict `error.details` alongside `field` / `reason`. */

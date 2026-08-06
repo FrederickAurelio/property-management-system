@@ -680,6 +680,7 @@ export class IcalImportService {
           guestPhone: null,
           guestCount: null,
           totalAmountIdr: null,
+          rentAmountIdr: null,
           paidAmountIdr: 0n,
           paymentStatus: PaymentStatus.UNPAID,
           externalRef: event.uid,

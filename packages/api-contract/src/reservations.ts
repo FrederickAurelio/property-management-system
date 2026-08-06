@@ -252,6 +252,330 @@ export function suggestStayTotalIdr(
   return Math.floor(periodCount) * Math.floor(unitPriceIdr);
 }
 
+/** Keep in sync with Prisma `UtilityKind`. */
+export const UtilityKind = {
+  ELECTRICITY: "ELECTRICITY",
+  WATER: "WATER",
+} as const;
+
+export type UtilityKind = (typeof UtilityKind)[keyof typeof UtilityKind];
+
+export type ReservationUtilityReading = {
+  id: string;
+  reservationId: string;
+  utility: UtilityKind;
+  /** YYYY-MM-DD */
+  readingDate: string;
+  meterValue: number;
+  createdAt: string;
+  createdByAdminId: string | null;
+};
+
+export type ReservationMaintenanceCharge = {
+  id: string;
+  reservationId: string;
+  /** Canonical 1st of month (`YYYY-MM-01`); desk shows month+year only. */
+  chargeDate: string;
+  amountIdr: number;
+  createdAt: string;
+  createdByAdminId: string | null;
+};
+
+export type StayQuoteBreakdown = {
+  rentAmountIdr: number | null;
+  electricityAmountIdr: number;
+  waterAmountIdr: number;
+  maintenanceAmountIdr: number;
+  totalAmountIdr: number | null;
+};
+
+/** Input row for replace-set utilities (no id — BE assigns). */
+export type UtilityReadingInput = {
+  utility: UtilityKind;
+  readingDate: string;
+  meterValue: number;
+};
+
+export type MaintenanceChargeInput = {
+  /** Full YMD; Nest normalizes to 1st of that calendar month. Desk sends `YYYY-MM-01`. */
+  chargeDate: string;
+  amountIdr: number;
+};
+
+export type PutReservationUtilitiesInput = {
+  electricityRateIdrPerKwh?: number;
+  waterRateIdrPerM3?: number;
+  maintenanceFeeIdrPerMonth?: number;
+  electricityReadings: UtilityReadingInput[];
+  waterReadings: UtilityReadingInput[];
+  maintenanceCharges: MaintenanceChargeInput[];
+};
+
+/**
+ * First day of `ymd`'s calendar month.
+ * `2026-05-10` → `2026-05-01`.
+ */
+export function firstDayOfMonthYmd(ymd: string): string {
+  const parts = parseYmdParts(ymd);
+  if (!parts) {
+    return ymd;
+  }
+  return formatYmd(parts.y, parts.m, 1);
+}
+
+/**
+ * First day of the calendar month after `ymd`'s month.
+ * `2026-05-10` → `2026-06-01`.
+ */
+export function firstDayOfNextMonthYmd(ymd: string): string {
+  const parts = parseYmdParts(ymd);
+  if (!parts) {
+    return ymd;
+  }
+  const totalMonths = parts.y * 12 + (parts.m - 1) + 1;
+  const y = Math.floor(totalMonths / 12);
+  const m = (totalMonths % 12) + 1;
+  return formatYmd(y, m, 1);
+}
+
+/**
+ * First maintenance charge date for a stay (IPL-style calendar month).
+ * Desk UI is month+year; storage is always the 1st of that month.
+ * Not check-in day — meters use check-in as baseline; maintenance does not.
+ * `2026-05-10` → `2026-05-01`.
+ */
+export function defaultFirstMaintenanceChargeDateYmd(
+  checkInYmd: string,
+): string {
+  return firstDayOfMonthYmd(checkInYmd);
+}
+
+/** Default next meter/maintenance row date after the previous row. */
+export function defaultNextUtilityReadingDateYmd(previousYmd: string): string {
+  return firstDayOfNextMonthYmd(previousYmd);
+}
+
+/**
+ * Canonical maintenance `chargeDate` from a full YMD or `YYYY-MM`.
+ * Always stores the 1st of that calendar month.
+ */
+export function normalizeMaintenanceChargeDateYmd(ymdOrYm: string): string {
+  if (/^\d{4}-\d{2}$/.test(ymdOrYm)) {
+    return `${ymdOrYm}-01`;
+  }
+  return firstDayOfMonthYmd(ymdOrYm);
+}
+
+export type MeterIntervalCharge = {
+  fromDate: string;
+  toDate: string;
+  usage: number;
+  amountIdr: number;
+};
+
+/**
+ * Sort readings by date; baseline (first) charges 0.
+ * Throws if meter decreases or duplicate dates.
+ */
+export function computeMeterIntervalCharges(
+  readings: ReadonlyArray<{ readingDate: string; meterValue: number }>,
+  rateIdrPerUnit: number,
+): { totalAmountIdr: number; intervals: MeterIntervalCharge[] } {
+  const rate = Math.floor(rateIdrPerUnit);
+  if (!Number.isFinite(rate) || rate < 0) {
+    throw new Error("INVALID_RATE");
+  }
+  const sorted = [...readings].sort((a, b) =>
+    a.readingDate < b.readingDate ? -1 : a.readingDate > b.readingDate ? 1 : 0,
+  );
+  const seen = new Set<string>();
+  for (const r of sorted) {
+    if (seen.has(r.readingDate)) {
+      throw new Error("DUPLICATE_READING_DATE");
+    }
+    seen.add(r.readingDate);
+    if (!Number.isFinite(r.meterValue) || r.meterValue < 0) {
+      throw new Error("INVALID_METER");
+    }
+  }
+  const intervals: MeterIntervalCharge[] = [];
+  let total = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]!;
+    const cur = sorted[i]!;
+    const usage = cur.meterValue - prev.meterValue;
+    if (usage < 0) {
+      throw new Error("METER_DECREASED");
+    }
+    const amountIdr = Math.floor(usage * rate);
+    total += amountIdr;
+    intervals.push({
+      fromDate: prev.readingDate,
+      toDate: cur.readingDate,
+      usage,
+      amountIdr,
+    });
+  }
+  return { totalAmountIdr: total, intervals };
+}
+
+export function sumMaintenanceChargesIdr(
+  charges: ReadonlyArray<{ amountIdr: number }>,
+): number {
+  let sum = 0;
+  for (const c of charges) {
+    if (!Number.isFinite(c.amountIdr) || c.amountIdr < 0) {
+      throw new Error("INVALID_AMOUNT");
+    }
+    sum += Math.floor(c.amountIdr);
+  }
+  return sum;
+}
+
+/**
+ * Cash-facing Total from rent + utility denorms.
+ * Null rent → null total (iCal stub). Otherwise sum floors.
+ */
+export function recomputeStayQuoteTotal(input: {
+  rentAmountIdr: number | null;
+  electricityAmountIdr: number;
+  waterAmountIdr: number;
+  maintenanceAmountIdr: number;
+}): StayQuoteBreakdown {
+  const electricityAmountIdr = Math.max(
+    0,
+    Math.floor(input.electricityAmountIdr),
+  );
+  const waterAmountIdr = Math.max(0, Math.floor(input.waterAmountIdr));
+  const maintenanceAmountIdr = Math.max(
+    0,
+    Math.floor(input.maintenanceAmountIdr),
+  );
+  if (input.rentAmountIdr == null) {
+    return {
+      rentAmountIdr: null,
+      electricityAmountIdr,
+      waterAmountIdr,
+      maintenanceAmountIdr,
+      totalAmountIdr: null,
+    };
+  }
+  const rentAmountIdr = Math.floor(input.rentAmountIdr);
+  return {
+    rentAmountIdr,
+    electricityAmountIdr,
+    waterAmountIdr,
+    maintenanceAmountIdr,
+    totalAmountIdr:
+      rentAmountIdr +
+      electricityAmountIdr +
+      waterAmountIdr +
+      maintenanceAmountIdr,
+  };
+}
+
+export function maxYmd(dates: ReadonlyArray<string>): string | null {
+  let max: string | null = null;
+  for (const d of dates) {
+    if (!parseYmdParts(d)) {
+      continue;
+    }
+    if (max == null || d > max) {
+      max = d;
+    }
+  }
+  return max;
+}
+
+/** YYYY-MM of a YMD string, or null if invalid. */
+export function ymdYearMonth(ymd: string): string | null {
+  const parts = parseYmdParts(ymd);
+  if (!parts) {
+    return null;
+  }
+  return `${String(parts.y).padStart(4, "0")}-${String(parts.m).padStart(2, "0")}`;
+}
+
+/** `YYYY-MM` → storage YMD on the 1st (`2026-05` → `2026-05-01`). */
+export function yearMonthToChargeDateYmd(yearMonth: string): string {
+  return normalizeMaintenanceChargeDateYmd(yearMonth);
+}
+
+/** First maintenance month for a stay (`2026-05-10` → `2026-05`). */
+export function defaultFirstMaintenanceChargeYearMonth(
+  checkInYmd: string,
+): string {
+  return (
+    ymdYearMonth(defaultFirstMaintenanceChargeDateYmd(checkInYmd)) ??
+    checkInYmd.slice(0, 7)
+  );
+}
+
+/** Next maintenance month after a `YYYY-MM` row (`2026-05` → `2026-06`). */
+export function defaultNextMaintenanceChargeYearMonth(
+  previousYearMonth: string,
+): string {
+  return (
+    ymdYearMonth(
+      firstDayOfNextMonthYmd(yearMonthToChargeDateYmd(previousYearMonth)),
+    ) ?? previousYearMonth
+  );
+}
+
+/**
+ * Next utilities due date + soft desk notice (design §6).
+ * `todayYmd` = property-local today.
+ */
+export function computeUtilitiesDueNotice(input: {
+  status: ReservationStatus;
+  /** Soft notice is MONTHLY/YEARLY only — DAILY stays never flag (desk/dashboard later). */
+  billingPeriod: StayBillingPeriod;
+  checkInDate: string;
+  checkOutDate: string;
+  todayYmd: string;
+  electricityReadings: ReadonlyArray<{ readingDate: string }>;
+  waterReadings: ReadonlyArray<{ readingDate: string }>;
+  maintenanceCharges: ReadonlyArray<{ chargeDate: string }>;
+}): { utilitiesNextDueDate: string; utilitiesDueNotice: boolean } {
+  const lastElec = maxYmd(input.electricityReadings.map((r) => r.readingDate));
+  const lastWater = maxYmd(input.waterReadings.map((r) => r.readingDate));
+  const lastMaint = maxYmd(input.maintenanceCharges.map((c) => c.chargeDate));
+  const anchor =
+    maxYmd(
+      [lastElec, lastWater, lastMaint, input.checkInDate].filter(
+        (d): d is string => d != null,
+      ),
+    ) ?? input.checkInDate;
+  const nextDueDate = firstDayOfNextMonthYmd(anchor);
+  const nextYm = ymdYearMonth(nextDueDate);
+  const hasElec = input.electricityReadings.some(
+    (r) => r.readingDate >= nextDueDate,
+  );
+  const hasWater = input.waterReadings.some(
+    (r) => r.readingDate >= nextDueDate,
+  );
+  const hasMaint = input.maintenanceCharges.some(
+    (c) => ymdYearMonth(c.chargeDate) === nextYm,
+  );
+  const missingForMonth = !hasElec || !hasWater || !hasMaint;
+  const statusOk =
+    input.status === ReservationStatus.CONFIRMED ||
+    input.status === ReservationStatus.CHECKED_IN;
+  // DAILY may still open the utilities sheet; soft due notice is long-stay only.
+  const periodOk =
+    input.billingPeriod === "MONTHLY" || input.billingPeriod === "YEARLY";
+  const utilitiesDueNotice =
+    periodOk &&
+    statusOk &&
+    input.todayYmd >= nextDueDate &&
+    input.todayYmd < input.checkOutDate &&
+    missingForMonth;
+  return {
+    utilitiesNextDueDate: nextDueDate,
+    utilitiesDueNotice,
+  };
+}
+
 /** Stay quote axis — daily rack vs monthly vs yearly. Keep in sync with Prisma. */
 export const StayBillingPeriod = {
   DAILY: "DAILY",
@@ -483,7 +807,7 @@ export type ConfirmFieldGap =
   | "guestName"
   | "guestContact"
   | "guestCount"
-  | "totalAmountIdr"
+  | "rentAmountIdr"
   | "paidAmountIdr";
 
 export type ConfirmReadinessInput = {
@@ -494,7 +818,8 @@ export type ConfirmReadinessInput = {
   guestEmail: string | null;
   guestPhone: string | null;
   guestCount: number | null;
-  totalAmountIdr: number | null;
+  /** Rent quote must be set (≥ 0) before Confirm / CONFIRMED create. */
+  rentAmountIdr: number | null;
   paidAmountIdr: number;
   /** When known, guestCount must be <= maxGuests. */
   maxGuests?: number | null;
@@ -542,8 +867,8 @@ export function getConfirmFieldGaps(
   } else if (input.maxGuests != null && input.guestCount > input.maxGuests) {
     gaps.push("guestCount");
   }
-  if (input.totalAmountIdr == null || input.totalAmountIdr < 0) {
-    gaps.push("totalAmountIdr");
+  if (input.rentAmountIdr == null || input.rentAmountIdr < 0) {
+    gaps.push("rentAmountIdr");
   }
   if (input.paidAmountIdr < 0) {
     gaps.push("paidAmountIdr");
@@ -640,7 +965,8 @@ export type CreateStaffReservationInput = {
   guestPhone?: string | null;
   guestCount: number;
   notes?: string | null;
-  totalAmountIdr: number;
+  /** Rent quote. Nest stores as rentAmountIdr and recomputes Total = rent + utilities. */
+  rentAmountIdr: number;
   /** Opening IN DEPOSIT when > 0. */
   depositAmountIdr: number;
 };
@@ -657,7 +983,8 @@ export type UpdateStaffReservationInput = {
   guestPhone?: string | null;
   guestCount?: number | null;
   notes?: string | null;
-  totalAmountIdr?: number | null;
+  /** Rent quote — Nest recomputes Total = rent + utilities. */
+  rentAmountIdr?: number | null;
   source?: ReservationSource;
 };
 
@@ -706,6 +1033,14 @@ export type StaffReservation = {
   guestCount: number | null;
   notes: string | null;
   totalAmountIdr: number | null;
+  /** Rent-only quote (create/edit form). */
+  rentAmountIdr: number | null;
+  electricityAmountIdr: number;
+  waterAmountIdr: number;
+  maintenanceAmountIdr: number;
+  electricityRateIdrPerKwh: number;
+  waterRateIdrPerM3: number;
+  maintenanceFeeIdrPerMonth: number;
   /** Denormalized cache = sum(PaymentMovement.signedAmount). */
   paidAmountIdr: number;
   paymentStatus: PaymentStatus;
@@ -736,6 +1071,13 @@ export type StaffReservation = {
   updatedByAdminUsername: string | null;
   /** Cash timeline (newest-last in storage; UI sorts newest-first). */
   movements?: PaymentMovement[];
+  /** Meter readings (detail GET / after utilities save). */
+  utilityReadings?: ReservationUtilityReading[];
+  /** Maintenance fee rows (detail GET / after utilities save). */
+  maintenanceCharges?: ReservationMaintenanceCharge[];
+  /** Soft desk reminder — next month utilities not recorded. */
+  utilitiesDueNotice?: boolean;
+  utilitiesNextDueDate?: string | null;
 };
 
 /**

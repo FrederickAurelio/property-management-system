@@ -122,7 +122,7 @@ function createReservationSchema(t: TFunction) {
         ReservationSource.AIRBNB,
         ReservationSource.AGODA,
       ]),
-      totalDigits: z
+      rentDigits: z
         .string()
         .min(1, t("reservations:formDialog.zod.totalRequired")),
       paidDigits: z.string(),
@@ -158,12 +158,12 @@ function createReservationSchema(t: TFunction) {
           message: t("reservations:formDialog.zod.contactRequired"),
         });
       }
-      const total = Number(values.totalDigits || "0");
+      const total = Number(values.rentDigits || "0");
       const paid = Number(values.paidDigits || "0");
       if (!Number.isFinite(total) || total < 0) {
         ctx.addIssue({
           code: "custom",
-          path: ["totalDigits"],
+          path: ["rentDigits"],
           message: t("reservations:formDialog.zod.invalidTotal"),
         });
       }
@@ -205,7 +205,7 @@ function emptyFormValues(): FormValues {
     guestPhone: "",
     guestCount: 1,
     source: ReservationSource.MANUAL,
-    totalDigits: "",
+    rentDigits: "",
     paidDigits: "0",
     notes: "",
   };
@@ -230,10 +230,12 @@ function formValuesFromOpen(args: {
       guestPhone: reservation.guestPhone ?? "",
       guestCount: reservation.guestCount ?? 1,
       source: reservation.source,
-      totalDigits:
-        reservation.totalAmountIdr != null
-          ? String(reservation.totalAmountIdr)
-          : "",
+      rentDigits:
+        reservation.rentAmountIdr != null
+          ? String(reservation.rentAmountIdr)
+          : reservation.totalAmountIdr != null
+            ? String(reservation.totalAmountIdr)
+            : "",
       paidDigits: String(reservation.paidAmountIdr),
       notes: reservation.notes ?? "",
     };
@@ -249,7 +251,7 @@ function formValuesFromOpen(args: {
       guestPhone: "",
       guestCount: 1,
       source: ReservationSource.MANUAL,
-      totalDigits: "",
+      rentDigits: "",
       paidDigits: "0",
       notes: "",
     };
@@ -264,7 +266,7 @@ function formValuesFromOpen(args: {
     guestPhone: "",
     guestCount: 1,
     source: ReservationSource.MANUAL,
-    totalDigits: "",
+    rentDigits: "",
     paidDigits: "0",
     notes: "",
   };
@@ -380,7 +382,7 @@ export function ReservationFormDialog({
     control: form.control,
     name: "billingPeriod",
   });
-  const totalDigits = useWatch({ control: form.control, name: "totalDigits" });
+  const rentDigits = useWatch({ control: form.control, name: "rentDigits" });
   const paidDigits = useWatch({ control: form.control, name: "paidDigits" });
   const periodCount =
     checkInDate && checkOutDate && checkOutDate > checkInDate
@@ -390,13 +392,22 @@ export function ReservationFormDialog({
     checkInDate && checkOutDate && checkOutDate > checkInDate
       ? nightCount(checkInDate, checkOutDate)
       : 0;
-  const totalAmount = totalDigits === "" ? null : Number(totalDigits || "0");
+  const rentAmount = rentDigits === "" ? null : Number(rentDigits || "0");
+  // Edit: cash Total = rent field + existing utility denorms (utilities sheet owns those).
+  // Create: no utilities yet → rent is the Total.
+  const cashTotalAmount =
+    rentAmount == null || !Number.isFinite(rentAmount)
+      ? null
+      : isEdit && reservation != null
+        ? rentAmount +
+          reservation.electricityAmountIdr +
+          reservation.waterAmountIdr +
+          reservation.maintenanceAmountIdr
+        : rentAmount;
   const paidAmount = Number(paidDigits || "0");
   const refundAmount =
-    totalAmount != null &&
-    Number.isFinite(totalAmount) &&
-    Number.isFinite(paidAmount)
-      ? Math.max(paidAmount - totalAmount, 0)
+    cashTotalAmount != null && Number.isFinite(paidAmount)
+      ? Math.max(paidAmount - cashTotalAmount, 0)
       : 0;
 
   const unitTypeId = chosen?.unitTypeId ?? "";
@@ -532,7 +543,7 @@ export function ReservationFormDialog({
 
     const applySuggested = () => {
       // Total only — Paid stays (shrink → Refund; extend → Due).
-      form.setValue("totalDigits", String(suggestedTotal), {
+      form.setValue("rentDigits", String(suggestedTotal), {
         shouldDirty: true,
         shouldValidate: true,
       });
@@ -596,7 +607,7 @@ export function ReservationFormDialog({
       if (!chosen || chosen.unitId !== values.unitId) {
         throw new Error(t("reservations:formDialog.zod.unitRequired"));
       }
-      const total = Number(values.totalDigits);
+      const total = Number(values.rentDigits);
       const paid = Number(values.paidDigits || "0");
 
       if (reservation) {
@@ -611,7 +622,7 @@ export function ReservationFormDialog({
           guestPhone: values.guestPhone || null,
           guestCount: values.guestCount,
           source: values.source,
-          totalAmountIdr: total,
+          rentAmountIdr: total,
           notes: values.notes || null,
         });
       }
@@ -629,7 +640,7 @@ export function ReservationFormDialog({
         guestPhone: values.guestPhone || null,
         guestCount: values.guestCount,
         notes: values.notes || null,
-        totalAmountIdr: total,
+        rentAmountIdr: total,
         depositAmountIdr: paid,
       });
     },
@@ -1014,7 +1025,7 @@ export function ReservationFormDialog({
             <div className="grid gap-4 sm:grid-cols-2">
               <Controller
                 control={form.control}
-                name="totalDigits"
+                name="rentDigits"
                 render={({ field, fieldState }) => {
                   const currentTotal =
                     field.value === "" ? null : Number(field.value || "0");
@@ -1071,7 +1082,7 @@ export function ReservationFormDialog({
                                   className="underline underline-offset-2 hover:text-foreground"
                                   onClick={() => {
                                     form.setValue(
-                                      "totalDigits",
+                                      "rentDigits",
                                       String(suggestedTotal),
                                       {
                                         shouldDirty: true,
@@ -1086,6 +1097,9 @@ export function ReservationFormDialog({
                             ) : null}
                           </p>
                         )}
+                      <p className="text-xs text-muted-foreground">
+                        {t("reservations:formDialog.fields.utilitiesHint")}
+                      </p>
                       <FieldError errors={[fieldState.error]} />
                     </Field>
                   );

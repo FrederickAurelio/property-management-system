@@ -1,13 +1,21 @@
 import type {
   PaymentMovement as WirePaymentMovement,
+  ReservationMaintenanceCharge as WireMaintenanceCharge,
+  ReservationUtilityReading as WireUtilityReading,
   StaffReservation,
   StaffReservationListItem,
+} from '@cabin/api-contract';
+import {
+  computeUtilitiesDueNotice,
+  todayYmdInTimezone,
 } from '@cabin/api-contract';
 import type {
   Admin,
   PaymentMovement,
   Property,
   Reservation,
+  ReservationMaintenanceCharge,
+  ReservationUtilityReading,
   Unit,
 } from '../../generated/prisma/index.js';
 
@@ -33,6 +41,8 @@ type ReservationWithJoins = Reservation & {
       createdByAdmin: Pick<Admin, 'username'> | null;
     }
   >;
+  utilityReadings?: ReservationUtilityReading[];
+  maintenanceCharges?: ReservationMaintenanceCharge[];
 };
 
 /** Lean Prisma shape for desk list — no admin joins / unused columns. */
@@ -75,6 +85,33 @@ export function toStaffPaymentMovement(
   };
 }
 
+export function toStaffUtilityReading(
+  row: ReservationUtilityReading,
+): WireUtilityReading {
+  return {
+    id: row.id,
+    reservationId: row.reservationId,
+    utility: row.utility,
+    readingDate: ymd(row.readingDate),
+    meterValue: Number(row.meterValue),
+    createdAt: row.createdAt.toISOString(),
+    createdByAdminId: row.createdByAdminId,
+  };
+}
+
+export function toStaffMaintenanceCharge(
+  row: ReservationMaintenanceCharge,
+): WireMaintenanceCharge {
+  return {
+    id: row.id,
+    reservationId: row.reservationId,
+    chargeDate: ymd(row.chargeDate),
+    amountIdr: Number(row.amountIdr),
+    createdAt: row.createdAt.toISOString(),
+    createdByAdminId: row.createdByAdminId,
+  };
+}
+
 export function toStaffReservationListItem(
   row: ReservationListRow,
 ): StaffReservationListItem {
@@ -98,9 +135,35 @@ export function toStaffReservationListItem(
 
 export function toStaffReservation(
   row: ReservationWithJoins,
-  opts?: { includeMovements?: boolean },
+  opts?: {
+    includeMovements?: boolean;
+    includeUtilities?: boolean;
+  },
 ): StaffReservation {
   const includeMovements = opts?.includeMovements ?? false;
+  const includeUtilities = opts?.includeUtilities ?? false;
+  const utilityReadings = row.utilityReadings ?? [];
+  const maintenanceCharges = row.maintenanceCharges ?? [];
+  const checkInDate = ymd(row.checkInDate);
+  const checkOutDate = ymd(row.checkOutDate);
+  const todayYmd = todayYmdInTimezone(row.property.timezone);
+  const notice = computeUtilitiesDueNotice({
+    status: row.status,
+    billingPeriod: row.billingPeriod,
+    checkInDate,
+    checkOutDate,
+    todayYmd,
+    electricityReadings: utilityReadings
+      .filter((r) => r.utility === 'ELECTRICITY')
+      .map((r) => ({ readingDate: ymd(r.readingDate) })),
+    waterReadings: utilityReadings
+      .filter((r) => r.utility === 'WATER')
+      .map((r) => ({ readingDate: ymd(r.readingDate) })),
+    maintenanceCharges: maintenanceCharges.map((c) => ({
+      chargeDate: ymd(c.chargeDate),
+    })),
+  });
+
   return {
     id: row.id,
     propertyId: row.propertyId,
@@ -112,14 +175,21 @@ export function toStaffReservation(
     source: row.source,
     status: row.status,
     billingPeriod: row.billingPeriod,
-    checkInDate: ymd(row.checkInDate),
-    checkOutDate: ymd(row.checkOutDate),
+    checkInDate,
+    checkOutDate,
     guestName: row.guestName,
     guestEmail: row.guestEmail,
     guestPhone: row.guestPhone,
     guestCount: row.guestCount,
     notes: row.notes,
     totalAmountIdr: bigintToNumber(row.totalAmountIdr),
+    rentAmountIdr: bigintToNumber(row.rentAmountIdr),
+    electricityAmountIdr: Number(row.electricityAmountIdr),
+    waterAmountIdr: Number(row.waterAmountIdr),
+    maintenanceAmountIdr: Number(row.maintenanceAmountIdr),
+    electricityRateIdrPerKwh: row.electricityRateIdrPerKwh,
+    waterRateIdrPerM3: row.waterRateIdrPerM3,
+    maintenanceFeeIdrPerMonth: row.maintenanceFeeIdrPerMonth,
     paidAmountIdr: Number(row.paidAmountIdr),
     paymentStatus: row.paymentStatus,
     collectedVia: row.collectedVia,
@@ -145,8 +215,16 @@ export function toStaffReservation(
     updatedByAdminId: row.updatedByAdminId,
     createdByAdminUsername: row.createdByAdmin?.username ?? null,
     updatedByAdminUsername: row.updatedByAdmin?.username ?? null,
+    utilitiesDueNotice: notice.utilitiesDueNotice,
+    utilitiesNextDueDate: notice.utilitiesNextDueDate,
     ...(includeMovements && row.movements
       ? { movements: row.movements.map(toStaffPaymentMovement) }
+      : {}),
+    ...(includeUtilities
+      ? {
+          utilityReadings: utilityReadings.map(toStaffUtilityReading),
+          maintenanceCharges: maintenanceCharges.map(toStaffMaintenanceCharge),
+        }
       : {}),
   };
 }

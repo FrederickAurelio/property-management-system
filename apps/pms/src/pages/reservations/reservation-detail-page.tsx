@@ -69,7 +69,12 @@ import {
   todayYmdInTimezone,
   type PrimaryAction,
 } from "./reservation-format";
-import { ReservationSource, type StaffReservation } from "@cabin/api-contract";
+import { UtilitiesSheet } from "./utilities-sheet";
+import {
+  ReservationSource,
+  ReservationStatus,
+  type StaffReservation,
+} from "@cabin/api-contract";
 
 function billingPeriodLabel(
   t: TFunction<"reservations">,
@@ -160,6 +165,8 @@ export function ReservationDetailPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelSession, setCancelSession] = useState(0);
   const [collectOpen, setCollectOpen] = useState(false);
+  const [utilitiesOpen, setUtilitiesOpen] = useState(false);
+  const [utilitiesSession, setUtilitiesSession] = useState(0);
   const { showRefreshImports, showSourceRemind, remindDialog } =
     useOtaRemindDialog();
   const [pendingIcal, setPendingIcal] = useState<IcalPendingAction | null>(
@@ -296,9 +303,13 @@ export function ReservationDetailPage() {
   const refund = reservationRefund(row);
   const editable = canEditStay(row.status);
   const showCollect = canCollectPayment(row);
+  const showUtilities = row.status !== ReservationStatus.CANCELLED;
   const showDueWarn = due != null && due > 0 && showCollect;
   const showRefundWarn = refund != null && refund > 0 && showCollect;
   const showIcalWarn = row.icalSyncWarning != null;
+  const utilitiesMonthLabel = row.utilitiesNextDueDate
+    ? formatDateYmd(row.utilitiesNextDueDate)
+    : null;
   const pendingCopy = pendingPrimary
     ? primaryActionDialogCopy(t, pendingPrimary, row, today)
     : null;
@@ -515,6 +526,29 @@ export function ReservationDetailPage() {
         </div>
       )}
 
+      {row.utilitiesDueNotice && utilitiesMonthLabel && (
+        <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            {t("detailPage.utilitiesDueBanner", {
+              month: utilitiesMonthLabel,
+            })}
+          </p>
+          {showUtilities && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setUtilitiesSession((n) => n + 1);
+                setUtilitiesOpen(true);
+              }}
+            >
+              {t("detailPage.utilitiesDueAction")}
+            </Button>
+          )}
+        </div>
+      )}
+
       <PaymentMovementsTimeline reservation={row} />
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
@@ -539,6 +573,18 @@ export function ReservationDetailPage() {
             }}
           >
             {collectPaymentLabel(row)}
+          </Button>
+        )}
+        {showUtilities && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setUtilitiesSession((n) => n + 1);
+              setUtilitiesOpen(true);
+            }}
+          >
+            {t("detailPage.buttons.utilities")}
           </Button>
         )}
         <div className="flex flex-wrap items-center gap-2 md:ms-auto">
@@ -603,6 +649,15 @@ export function ReservationDetailPage() {
           key={row.id}
           open
           onOpenChange={setCollectOpen}
+          reservation={row}
+        />
+      )}
+
+      {utilitiesOpen && (
+        <UtilitiesSheet
+          key={`utilities-${utilitiesSession}`}
+          open
+          onOpenChange={setUtilitiesOpen}
           reservation={row}
         />
       )}

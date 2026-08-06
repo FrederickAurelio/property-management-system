@@ -27,6 +27,9 @@ export type UnitTypeWriteInput = {
   defaultPriceIdr: number;
   monthlyPriceIdr: number;
   yearlyPriceIdr: number;
+  electricityRateIdrPerKwh?: number;
+  waterRateIdrPerM3?: number;
+  maintenanceFeeIdrPerMonth?: number;
   bedConfig?: BedConfigRoom[];
   amenities?: Amenities;
   media?: MediaItem[];

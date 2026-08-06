@@ -28,6 +28,12 @@ import {
   todayYmdInTimezone,
   isValidStayPeriodRange,
   computeInventoryEndYmd,
+  computeMeterIntervalCharges,
+  normalizeMaintenanceChargeDateYmd,
+  recomputeStayQuoteTotal,
+  sumMaintenanceChargesIdr,
+  UtilityKind,
+  ymdYearMonth,
   type Paginated,
   type StaffAdmin,
   type StaffReservation,
@@ -42,6 +48,7 @@ import type { ConfirmEarlyDto } from './dto/confirm-early.dto.js';
 import type { CreateReservationDto } from './dto/create-reservation.dto.js';
 import type { ListReservationsQueryDto } from './dto/list-reservations.query.dto.js';
 import type { PostPaymentMovementDto } from './dto/post-payment-movement.dto.js';
+import type { PutReservationUtilitiesDto } from './dto/put-reservation-utilities.dto.js';
 import type { UpdateReservationDto } from './dto/update-reservation.dto.js';
 import { findOccupyingOverlap, type OverlapHit } from './overlap.js';
 import {
@@ -74,7 +81,13 @@ const reservationDetailInclude = {
     orderBy: { createdAt: 'asc' as const },
     include: { createdByAdmin: { select: { username: true } } },
   },
-} as const;
+  utilityReadings: {
+    orderBy: [{ readingDate: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+  maintenanceCharges: {
+    orderBy: [{ chargeDate: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+};
 
 type Actor = Pick<StaffAdmin, 'id'>;
 
@@ -194,7 +207,10 @@ export class ReservationsService {
     if (!row) {
       throw new NotFoundException('Reservation not found');
     }
-    return toStaffReservation(row, { includeMovements: true });
+    return toStaffReservation(row, {
+      includeMovements: true,
+      includeUtilities: true,
+    });
   }
 
   async create(
@@ -222,7 +238,7 @@ export class ReservationsService {
       guestEmail: dto.guestEmail ?? null,
       guestPhone: dto.guestPhone ?? null,
       guestCount: dto.guestCount,
-      totalAmountIdr: dto.totalAmountIdr,
+      rentAmountIdr: dto.rentAmountIdr,
       paidAmountIdr: 0,
       maxGuests: unit.unitType.maxGuests,
     });
@@ -256,7 +272,13 @@ export class ReservationsService {
     });
 
     const depositAmountIdr = Math.max(0, Math.floor(dto.depositAmountIdr));
-    const totalAmountIdr = Math.floor(dto.totalAmountIdr);
+    const rentAmountIdr = Math.floor(dto.rentAmountIdr);
+    const quote = recomputeStayQuoteTotal({
+      rentAmountIdr,
+      electricityAmountIdr: 0,
+      waterAmountIdr: 0,
+      maintenanceAmountIdr: 0,
+    });
     const now = new Date();
 
     try {
@@ -287,7 +309,14 @@ export class ReservationsService {
             guestPhone: dto.guestPhone?.trim() || null,
             guestCount: dto.guestCount,
             notes: dto.notes?.trim() || null,
-            totalAmountIdr: BigInt(totalAmountIdr),
+            rentAmountIdr: BigInt(quote.rentAmountIdr ?? 0),
+            electricityAmountIdr: BigInt(0),
+            waterAmountIdr: BigInt(0),
+            maintenanceAmountIdr: BigInt(0),
+            electricityRateIdrPerKwh: unit.unitType.electricityRateIdrPerKwh,
+            waterRateIdrPerM3: unit.unitType.waterRateIdrPerM3,
+            maintenanceFeeIdrPerMonth: unit.unitType.maintenanceFeeIdrPerMonth,
+            totalAmountIdr: BigInt(quote.totalAmountIdr ?? 0),
             paidAmountIdr: BigInt(0),
             paymentStatus: PaymentStatus.UNPAID,
             confirmedAt: now,
@@ -384,9 +413,9 @@ export class ReservationsService {
     const inventoryEndYmd = computeInventoryEndYmd(billingPeriod, checkOutDate);
     const inventoryTouched = Boolean(
       dto.unitId ||
-        dto.checkInDate ||
-        dto.checkOutDate ||
-        dto.billingPeriod !== undefined,
+      dto.checkInDate ||
+      dto.checkOutDate ||
+      dto.billingPeriod !== undefined,
     );
 
     let maxGuests: number | null = null;
@@ -486,13 +515,29 @@ export class ReservationsService {
             ...(dto.notes !== undefined
               ? { notes: dto.notes?.trim() || null }
               : {}),
-            ...(dto.totalAmountIdr !== undefined
-              ? {
-                  totalAmountIdr:
-                    dto.totalAmountIdr == null
+            ...(dto.rentAmountIdr !== undefined
+              ? (() => {
+                  const rentAmountIdr =
+                    dto.rentAmountIdr == null
                       ? null
-                      : BigInt(Math.floor(dto.totalAmountIdr)),
-                }
+                      : Math.floor(dto.rentAmountIdr);
+                  const quote = recomputeStayQuoteTotal({
+                    rentAmountIdr,
+                    electricityAmountIdr: Number(existing.electricityAmountIdr),
+                    waterAmountIdr: Number(existing.waterAmountIdr),
+                    maintenanceAmountIdr: Number(existing.maintenanceAmountIdr),
+                  });
+                  return {
+                    rentAmountIdr:
+                      quote.rentAmountIdr == null
+                        ? null
+                        : BigInt(quote.rentAmountIdr),
+                    totalAmountIdr:
+                      quote.totalAmountIdr == null
+                        ? null
+                        : BigInt(quote.totalAmountIdr),
+                  };
+                })()
               : {}),
             ...(dto.source !== undefined ? { source: dto.source } : {}),
             ...(icalClear.clearWarning
@@ -509,7 +554,7 @@ export class ReservationsService {
           },
         });
 
-        if (dto.totalAmountIdr !== undefined) {
+        if (dto.rentAmountIdr !== undefined) {
           await this.syncPaidFromMovements(tx, id, {
             forceRefunded: false,
             updatedByAdminId: actor.id,
@@ -817,8 +862,8 @@ export class ReservationsService {
       guestEmail: row.guestEmail,
       guestPhone: row.guestPhone,
       guestCount: row.guestCount,
-      totalAmountIdr:
-        row.totalAmountIdr == null ? null : Number(row.totalAmountIdr),
+      rentAmountIdr:
+        row.rentAmountIdr == null ? null : Number(row.rentAmountIdr),
       paidAmountIdr: Number(row.paidAmountIdr),
       maxGuests: row.unitType.maxGuests,
     });
@@ -858,10 +903,7 @@ export class ReservationsService {
         confirmedAt: new Date(),
         icalOverlapHold: false,
         inventoryEndDate: parseYmd(
-          computeInventoryEndYmd(
-            row.billingPeriod,
-            this.ymd(row.checkOutDate),
-          ),
+          computeInventoryEndYmd(row.billingPeriod, this.ymd(row.checkOutDate)),
         ),
         ...(row.icalSyncWarning === IcalSyncWarning.IMPORT_OVERLAP
           ? { icalSyncWarning: null, icalSyncWarnedAt: null }
@@ -1187,6 +1229,181 @@ export class ReservationsService {
     return this.getById(id);
   }
 
+  async putUtilities(
+    id: string,
+    dto: PutReservationUtilitiesDto,
+    actor: Actor,
+  ): Promise<StaffReservation> {
+    const existing = await this.prisma.reservation.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException('Reservation not found');
+    }
+    if (existing.status === ReservationStatus.CANCELLED) {
+      throw new BadRequestException({
+        message: 'Cannot edit utilities on a cancelled reservation',
+        details: {
+          field: 'status',
+          reason: ApiFieldReason.INVALID_STATUS_TRANSITION,
+        },
+      });
+    }
+
+    const electricityRateIdrPerKwh =
+      dto.electricityRateIdrPerKwh ?? existing.electricityRateIdrPerKwh;
+    const waterRateIdrPerM3 =
+      dto.waterRateIdrPerM3 ?? existing.waterRateIdrPerM3;
+    const maintenanceFeeIdrPerMonth =
+      dto.maintenanceFeeIdrPerMonth ?? existing.maintenanceFeeIdrPerMonth;
+
+    let electricityAmountIdr = 0;
+    let waterAmountIdr = 0;
+    try {
+      electricityAmountIdr = computeMeterIntervalCharges(
+        dto.electricityReadings.map((r) => ({
+          readingDate: r.readingDate,
+          meterValue: r.meterValue,
+        })),
+        electricityRateIdrPerKwh,
+      ).totalAmountIdr;
+      waterAmountIdr = computeMeterIntervalCharges(
+        dto.waterReadings.map((r) => ({
+          readingDate: r.readingDate,
+          meterValue: r.meterValue,
+        })),
+        waterRateIdrPerM3,
+      ).totalAmountIdr;
+    } catch (error: unknown) {
+      const code = error instanceof Error ? error.message : 'INVALID_METER';
+      if (code === 'METER_DECREASED') {
+        throw new BadRequestException({
+          message: 'Meter reading cannot be lower than the previous reading',
+          details: {
+            field: 'meterValue',
+            reason: ApiFieldReason.METER_DECREASED,
+          },
+        });
+      }
+      if (code === 'DUPLICATE_READING_DATE') {
+        throw new BadRequestException({
+          message: 'Duplicate reading date for the same utility',
+          details: {
+            field: 'readingDate',
+            reason: ApiFieldReason.DUPLICATE_READING_DATE,
+          },
+        });
+      }
+      throw new BadRequestException({
+        message: 'Invalid meter readings',
+        details: {
+          field: 'meterValue',
+          reason: ApiFieldReason.DATE_RANGE_INVALID,
+        },
+      });
+    }
+
+    const normalizedMaint = dto.maintenanceCharges.map((c) => ({
+      ...c,
+      chargeDate: normalizeMaintenanceChargeDateYmd(c.chargeDate),
+    }));
+    const maintMonths = new Set<string>();
+    for (const c of normalizedMaint) {
+      const ym = ymdYearMonth(c.chargeDate);
+      if (!ym || maintMonths.has(ym)) {
+        throw new BadRequestException({
+          message: 'Duplicate maintenance month',
+          details: {
+            field: 'chargeDate',
+            reason: ApiFieldReason.DUPLICATE_READING_DATE,
+          },
+        });
+      }
+      maintMonths.add(ym);
+    }
+
+    let maintenanceAmountIdr = 0;
+    try {
+      maintenanceAmountIdr = sumMaintenanceChargesIdr(normalizedMaint);
+    } catch {
+      throw new BadRequestException({
+        message: 'Invalid maintenance amount',
+        details: {
+          field: 'amountIdr',
+          reason: ApiFieldReason.REFUND_AMOUNT_INVALID,
+        },
+      });
+    }
+
+    const rentAmountIdr =
+      existing.rentAmountIdr == null ? null : Number(existing.rentAmountIdr);
+    const quote = recomputeStayQuoteTotal({
+      rentAmountIdr,
+      electricityAmountIdr,
+      waterAmountIdr,
+      maintenanceAmountIdr,
+    });
+
+    const elecRows = dto.electricityReadings.map((r) => ({
+      reservationId: id,
+      utility: UtilityKind.ELECTRICITY,
+      readingDate: parseYmd(r.readingDate),
+      meterValue: r.meterValue,
+      createdByAdminId: actor.id,
+    }));
+    const waterRows = dto.waterReadings.map((r) => ({
+      reservationId: id,
+      utility: UtilityKind.WATER,
+      readingDate: parseYmd(r.readingDate),
+      meterValue: r.meterValue,
+      createdByAdminId: actor.id,
+    }));
+    const maintRows = normalizedMaint.map((c) => ({
+      reservationId: id,
+      chargeDate: parseYmd(c.chargeDate),
+      amountIdr: BigInt(Math.floor(c.amountIdr)),
+      createdByAdminId: actor.id,
+    }));
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.reservationUtilityReading.deleteMany({
+        where: { reservationId: id },
+      });
+      await tx.reservationMaintenanceCharge.deleteMany({
+        where: { reservationId: id },
+      });
+      if (elecRows.length > 0) {
+        await tx.reservationUtilityReading.createMany({ data: elecRows });
+      }
+      if (waterRows.length > 0) {
+        await tx.reservationUtilityReading.createMany({ data: waterRows });
+      }
+      if (maintRows.length > 0) {
+        await tx.reservationMaintenanceCharge.createMany({ data: maintRows });
+      }
+      await tx.reservation.update({
+        where: { id },
+        data: {
+          electricityRateIdrPerKwh,
+          waterRateIdrPerM3,
+          maintenanceFeeIdrPerMonth,
+          electricityAmountIdr: BigInt(electricityAmountIdr),
+          waterAmountIdr: BigInt(waterAmountIdr),
+          maintenanceAmountIdr: BigInt(maintenanceAmountIdr),
+          totalAmountIdr:
+            quote.totalAmountIdr == null ? null : BigInt(quote.totalAmountIdr),
+          updatedByAdminId: actor.id,
+        },
+      });
+      await this.syncPaidFromMovements(tx, id, {
+        forceRefunded: false,
+        updatedByAdminId: actor.id,
+      });
+    });
+
+    return this.getById(id);
+  }
+
   private async syncPaidFromMovements(
     tx: Prisma.TransactionClient,
     reservationId: string,
@@ -1249,6 +1466,9 @@ export class ReservationsService {
             propertyId: true,
             isActive: true,
             maxGuests: true,
+            electricityRateIdrPerKwh: true,
+            waterRateIdrPerM3: true,
+            maintenanceFeeIdrPerMonth: true,
           },
         },
       },

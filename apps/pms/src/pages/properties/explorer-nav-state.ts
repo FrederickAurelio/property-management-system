@@ -120,6 +120,9 @@ export function findStaffUnitTypeRack(
       defaultPriceIdr: detail.defaultPriceIdr,
       monthlyPriceIdr: detail.monthlyPriceIdr,
       yearlyPriceIdr: detail.yearlyPriceIdr,
+      electricityRateIdrPerKwh: detail.electricityRateIdrPerKwh,
+      waterRateIdrPerM3: detail.waterRateIdrPerM3,
+      maintenanceFeeIdrPerMonth: detail.maintenanceFeeIdrPerMonth,
     };
   }
 
@@ -140,6 +143,9 @@ export function findStaffUnitTypeRack(
         defaultPriceIdr: hit.defaultPriceIdr,
         monthlyPriceIdr: hit.monthlyPriceIdr,
         yearlyPriceIdr: hit.yearlyPriceIdr,
+        electricityRateIdrPerKwh: hit.electricityRateIdrPerKwh,
+        waterRateIdrPerM3: hit.waterRateIdrPerM3,
+        maintenanceFeeIdrPerMonth: hit.maintenanceFeeIdrPerMonth,
       };
     }
   }

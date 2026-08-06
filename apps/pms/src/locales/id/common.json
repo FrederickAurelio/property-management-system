@@ -55,6 +55,12 @@
     "loadMoreError": "Gagal memuat lebih banyak. Coba lagi.",
     "comingSoon": "Segera hadir…"
   },
+  "dateField": {
+    "pickDate": "Pilih tanggal",
+    "pickMonth": "Pilih bulan",
+    "previousYear": "Tahun sebelumnya",
+    "nextYear": "Tahun berikutnya"
+  },
   "language": {
     "label": "Bahasa",
     "en": "English",

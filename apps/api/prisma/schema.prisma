@@ -90,6 +90,11 @@ enum StayBillingPeriod {
   YEARLY
 }
 
+enum UtilityKind {
+  ELECTRICITY
+  WATER
+}
+
 model Admin {
   id           String    @id @default(cuid())
   username     String    @unique @db.VarChar(64)
@@ -103,6 +108,8 @@ model Admin {
   reservationsUpdated  Reservation[]     @relation("ReservationUpdatedBy")
   movementsCreated     PaymentMovement[] @relation("MovementCreatedBy")
   calendarBlocksCreated CalendarBlock[]  @relation("CalendarBlockCreatedBy")
+  utilityReadingsCreated ReservationUtilityReading[] @relation("UtilityReadingCreatedBy")
+  maintenanceChargesCreated ReservationMaintenanceCharge[] @relation("MaintenanceChargeCreatedBy")
 }
 
 /// connect-pg-simple table (exact column names)
@@ -157,6 +164,12 @@ model UnitType {
   defaultPriceIdr  Int
   monthlyPriceIdr  Int
   yearlyPriceIdr   Int
+  /// Default IDR per kWh for guest electricity billing (0 = unset).
+  electricityRateIdrPerKwh  Int @default(0)
+  /// Default IDR per m³ for guest water billing (0 = unset).
+  waterRateIdrPerM3         Int @default(0)
+  /// Default monthly maintenance fee IDR (0 = unset).
+  maintenanceFeeIdrPerMonth Int @default(0)
   bedConfig        Json
   amenities       Json
   media           Json
@@ -242,7 +255,17 @@ model Reservation {
   guestPhone        String?            @db.VarChar(32)
   guestCount        Int?
   notes             String?            @db.Text
+  /// Cash-facing quote = rent + utility denorms.
   totalAmountIdr    BigInt?
+  /// Rent-only quote (create/edit form).
+  rentAmountIdr     BigInt?
+  electricityAmountIdr BigInt          @default(0)
+  waterAmountIdr       BigInt          @default(0)
+  maintenanceAmountIdr BigInt          @default(0)
+  /// Snapshot rates for this stay (from UnitType at create; utilities sheet may override).
+  electricityRateIdrPerKwh  Int        @default(0)
+  waterRateIdrPerM3         Int        @default(0)
+  maintenanceFeeIdrPerMonth Int        @default(0)
   paidAmountIdr     BigInt             @default(0)
   paymentStatus     PaymentStatus
   collectedVia      CollectedVia?
@@ -274,6 +297,8 @@ model Reservation {
   createdByAdmin  Admin?            @relation("ReservationCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
   updatedByAdmin  Admin?            @relation("ReservationUpdatedBy", fields: [updatedByAdminId], references: [id], onDelete: SetNull)
   movements       PaymentMovement[]
+  utilityReadings ReservationUtilityReading[]
+  maintenanceCharges ReservationMaintenanceCharge[]
 
   @@index([unitId, checkInDate, checkOutDate])
   @@index([unitId, checkInDate, inventoryEndDate])
@@ -286,6 +311,38 @@ model Reservation {
   @@index([icalObservedUnitId])
   @@index([createdByAdminId])
   @@index([updatedByAdminId])
+}
+
+model ReservationUtilityReading {
+  id               String      @id @default(cuid())
+  reservationId    String
+  utility          UtilityKind
+  readingDate      DateTime    @db.Date
+  meterValue       Decimal     @db.Decimal(12, 3)
+  createdAt        DateTime    @default(now())
+  createdByAdminId String?
+
+  reservation    Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  createdByAdmin Admin?      @relation("UtilityReadingCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@unique([reservationId, utility, readingDate])
+  @@index([reservationId, utility, readingDate])
+  @@index([createdByAdminId])
+}
+
+model ReservationMaintenanceCharge {
+  id               String   @id @default(cuid())
+  reservationId    String
+  chargeDate       DateTime @db.Date
+  amountIdr        BigInt
+  createdAt        DateTime @default(now())
+  createdByAdminId String?
+
+  reservation    Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  createdByAdmin Admin?      @relation("MaintenanceChargeCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([reservationId, chargeDate])
+  @@index([createdByAdminId])
 }
 
 model PaymentMovement {

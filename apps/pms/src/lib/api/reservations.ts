@@ -9,6 +9,7 @@ import {
   type CreateStaffReservationInput,
   type Paginated,
   type PostPaymentMovementInput,
+  type PutReservationUtilitiesInput,
   type StaffReservation,
   type StaffReservationListFilters,
   type StaffReservationListItem,
@@ -35,6 +36,7 @@ export type UpdateReservationInput = UpdateStaffReservationInput;
 export type { PostPaymentMovementInput };
 export type CancelReservationInput = CancelStaffReservationInput;
 export type { CancelDisposition };
+export type { PutReservationUtilitiesInput };
 
 export type SyncReservationCachesOptions = {
   /**
@@ -144,6 +146,18 @@ export async function postPaymentMovement(
 ): Promise<StaffReservation> {
   const { data } = await api.post<StaffReservation>(
     `/reservations/${id}/movements`,
+    input,
+  );
+  return data;
+}
+
+/** Replace-set utility readings + maintenance; recomputes Total = rent + utilities. */
+export async function putReservationUtilities(
+  id: string,
+  input: PutReservationUtilitiesInput,
+): Promise<StaffReservation> {
+  const { data } = await api.put<StaffReservation>(
+    `/reservations/${id}/utilities`,
     input,
   );
   return data;

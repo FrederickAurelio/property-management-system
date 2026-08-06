@@ -432,7 +432,7 @@ export function confirmReadinessFromReservation(row: StaffReservation) {
     guestEmail: row.guestEmail,
     guestPhone: row.guestPhone,
     guestCount: row.guestCount,
-    totalAmountIdr: row.totalAmountIdr,
+    rentAmountIdr: row.rentAmountIdr ?? row.totalAmountIdr,
     paidAmountIdr: row.paidAmountIdr,
   });
 }
@@ -449,8 +449,8 @@ export function formatConfirmFieldGap(gap: ConfirmFieldGap): string {
       return i18n.t("reservations:format.confirmGap.guestContact");
     case "guestCount":
       return i18n.t("reservations:format.confirmGap.guestCount");
-    case "totalAmountIdr":
-      return i18n.t("reservations:format.confirmGap.totalAmountIdr");
+    case "rentAmountIdr":
+      return i18n.t("reservations:format.confirmGap.rentAmountIdr");
     case "paidAmountIdr":
       return i18n.t("reservations:format.confirmGap.paidAmountIdr");
   }
