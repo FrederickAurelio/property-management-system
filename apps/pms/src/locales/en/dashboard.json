@@ -28,6 +28,11 @@
   "needsAttention": {
     "title": "Needs attention"
   },
+  "utilitiesDue": {
+    "title_one": "{{count}} stay needs meter readings",
+    "title_other": "{{count}} stays need meter readings",
+    "description": "Record monthly utilities before the Total settles."
+  },
   "table": {
     "guest": "Guest",
     "unit": "Unit",

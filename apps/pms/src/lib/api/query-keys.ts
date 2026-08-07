@@ -17,6 +17,7 @@ export type ReservationBoard =
   | "needs-details"
   | "ical-alerts"
   | "balance-due"
+  | "utilities-due"
   | "all";
 
 /** Prefix — use with `invalidateQueries` to refresh all reservation lists. */

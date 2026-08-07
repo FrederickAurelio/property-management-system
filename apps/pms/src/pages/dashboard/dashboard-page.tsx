@@ -1,7 +1,9 @@
 /* anchor: Linear issues home / Stripe desk, diverge: Today title; bordered Arrivals|Departures + Needs; no KPI strip */
 import { useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { GaugeIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link, useSearchParams } from "react-router";
 import { QueryErrorPanel } from "@/components/query-error-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -22,7 +24,6 @@ import { DashboardStayList } from "./dashboard-row";
 import { DashboardPanel } from "./dashboard-section";
 import { reservationsBoardHref } from "./dashboard-format";
 import { DashboardToolbar } from "./dashboard-toolbar";
-import { useSearchParams } from "react-router";
 import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
 
 function DashboardPageSkeleton() {
@@ -208,6 +209,34 @@ export function DashboardPage() {
             opsDate={dashboardQuery.data.date}
             dashboardSearch={dashboardSearch}
           />
+
+          {dashboardQuery.data.utilitiesDue &&
+            dashboardQuery.data.utilitiesDue.total > 0 && (
+              <Link
+                to={reservationsBoardHref("utilities-due", propertyId)}
+                className="group flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2.5 transition-colors hover:bg-muted/40"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <GaugeIcon
+                    data-icon="inline-start"
+                    className="size-4 shrink-0 text-amber-700 dark:text-amber-300"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">
+                      {t("dashboard:utilitiesDue.title", {
+                        count: dashboardQuery.data.utilitiesDue.total,
+                      })}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {t("dashboard:utilitiesDue.description")}
+                    </span>
+                  </span>
+                </span>
+                <span className="shrink-0 text-sm font-medium text-foreground tabular-nums">
+                  {dashboardQuery.data.utilitiesDue.total}
+                </span>
+              </Link>
+            )}
         </div>
       )}
     </div>

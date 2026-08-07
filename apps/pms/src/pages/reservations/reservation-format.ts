@@ -17,6 +17,7 @@ import {
   type PaymentMovement,
   type ReservationSource as ReservationSourceType,
   type StaffReservation,
+  type StaffReservationListItem,
 } from "@cabin/api-contract";
 import i18n from "@/i18n";
 import { formatIdr } from "@/pages/properties/inventory-types";
@@ -127,6 +128,21 @@ export function formatReservationLateCue(cue: ReservationLateCue): string {
   return cue === "arrival"
     ? i18n.t("reservations:format.lateArrival")
     : i18n.t("reservations:format.lateDeparture");
+}
+
+/**
+ * Soft desk cue for the Utilities due board — meter readings are due next month.
+ * Returns `null` when nothing is flagged (rendering is gated on `utilitiesDueNotice`).
+ */
+export function formatUtilitiesDueCue(
+  row: Pick<StaffReservationListItem, "utilitiesNextDueDate">,
+): string {
+  if (!row.utilitiesNextDueDate) {
+    return i18n.t("reservations:format.utilitiesDue");
+  }
+  return i18n.t("reservations:format.utilitiesDueBy", {
+    date: formatDateYmd(row.utilitiesNextDueDate),
+  });
 }
 
 export function formatReservationStatus(status: ReservationStatus): string {

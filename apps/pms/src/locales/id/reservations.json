@@ -6,6 +6,7 @@
     "needsDetails": "Perlu detail",
     "icalAlerts": "Masalah OTA",
     "balanceDue": "Sisa bayar",
+    "utilitiesDue": "Utilitas jatuh tempo",
     "all": "Semua"
   },
   "filtersBar": {
@@ -75,6 +76,8 @@
       "icalAlertsDescription": "Saat kalender OTA berbeda dengan stay, muncul di sini — buka baris untuk memperbaikinya.",
       "needsDetailsTitle": "Tidak ada stay yang perlu detail",
       "needsDetailsDescription": "Stub OTA baru muncul di sini sampai detail tamu dan Total terisi, lalu Konfirmasi.",
+      "utilitiesDueTitle": "Tidak ada utilitas jatuh tempo",
+      "utilitiesDueDescription": "Pembacaan meter dan maintenance bulanan sudah dicatat. Stay dengan notice jatuh tempo muncul di sini.",
       "defaultTitle": "Tidak ada reservasi di board ini",
       "defaultDescription": "Coba board lain atau hapus filter. Buat walk-in untuk mulai."
     }
@@ -82,6 +85,8 @@
   "format": {
     "lateArrival": "Telat check-in",
     "lateDeparture": "Telat check-out",
+    "utilitiesDue": "Pembacaan meter jatuh tempo",
+    "utilitiesDueBy": "Pembacaan meter jatuh tempo paling lambat {{date}}",
     "status": {
       "unconfirmed": "Perlu detail",
       "confirmed": "Confirmed",
@@ -272,7 +277,8 @@
       "checkOutTitle": "Check out tamu?",
       "checkOutLabel": "Check out",
       "checkOutUnpaidDescription": "Mengakhiri stay. Tanggal booking tetap tersimpan sebagai riwayat — pakai Collect setelahnya jika masih ada tagihan. OTA mengambil ketersediaan dari feed iCal unit (bisa terlambat).",
-      "checkOutPaidDescription": "Mengakhiri stay. Tanggal booking tetap tersimpan sebagai riwayat kecuali kamu sudah mengubahnya. OTA mengambil ketersediaan dari feed iCal unit (bisa terlambat)."
+      "checkOutPaidDescription": "Mengakhiri stay. Tanggal booking tetap tersimpan sebagai riwayat kecuali kamu sudah mengubahnya. OTA mengambil ketersediaan dari feed iCal unit (bisa terlambat).",
+      "checkOutUtilitiesDue": "Catat pembacaan meter akhir dan maintenance stay ini sebelum check-out — Total akhir tidak akan menyertakan utilitas bulan lalu."
     }
   },
   "cancelSheet": {

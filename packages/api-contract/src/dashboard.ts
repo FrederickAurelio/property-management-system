@@ -53,4 +53,6 @@ export type StaffDashboard = {
   departures: StaffDashboardSection<StaffReservationListItem>;
   needsAttention: StaffDashboardSection<StaffDashboardListItem>;
   icalFeedHealth: StaffDashboardIcalFeedHealth;
+  /** Reservation count with a monthly utilities due notice (computed). */
+  utilitiesDue?: { total: number };
 };

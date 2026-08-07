@@ -6,6 +6,7 @@
     "needsDetails": "Needs details",
     "icalAlerts": "OTA issues",
     "balanceDue": "Balance due",
+    "utilitiesDue": "Utilities due",
     "all": "All"
   },
   "filtersBar": {
@@ -75,6 +76,8 @@
       "icalAlertsDescription": "When an OTA calendar disagrees with a stay, it shows up here — open a row to fix it.",
       "needsDetailsTitle": "No stays need details",
       "needsDetailsDescription": "New OTA stubs land here until guest details and Total are filled, then Confirm.",
+      "utilitiesDueTitle": "No utilities due",
+      "utilitiesDueDescription": "Monthly meter and maintenance are all recorded. Stays with a notice due show up here.",
       "defaultTitle": "No reservations on this board",
       "defaultDescription": "Try another board or clear filters. Create a walk-in to get started."
     }
@@ -82,6 +85,8 @@
   "format": {
     "lateArrival": "Late arrival",
     "lateDeparture": "Late departure",
+    "utilitiesDue": "Meter readings due",
+    "utilitiesDueBy": "Meter readings due by {{date}}",
     "status": {
       "unconfirmed": "Needs details",
       "confirmed": "Confirmed",
@@ -272,7 +277,8 @@
       "checkOutTitle": "Check guest out?",
       "checkOutLabel": "Check out",
       "checkOutUnpaidDescription": "Ends the stay. Booked dates stay as history — use Collect afterward if they still owe. OTAs pick up availability from the unit’s iCal feed (may lag).",
-      "checkOutPaidDescription": "Ends the stay. Booked dates stay as history unless you edited them first. OTAs pick up availability from the unit’s iCal feed (may lag)."
+      "checkOutPaidDescription": "Ends the stay. Booked dates stay as history unless you edited them first. OTAs pick up availability from the unit’s iCal feed (may lag).",
+      "checkOutUtilitiesDue": "Record this stay's final meter reading and maintenance before checkout — the final Total won't include last month's utilities."
     }
   },
   "cancelSheet": {

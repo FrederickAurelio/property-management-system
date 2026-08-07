@@ -143,4 +143,48 @@ describe('utility quote helpers', () => {
     });
     expect(notice.utilitiesDueNotice).toBe(false);
   });
+
+  it('computeUtilitiesDueNotice single reading in next month does NOT clear', () => {
+    const notice = computeUtilitiesDueNotice({
+      status: ReservationStatus.CHECKED_IN,
+      billingPeriod: 'MONTHLY',
+      checkInDate: '2026-07-08',
+      checkOutDate: '2026-09-08',
+      todayYmd: '2026-08-07',
+      electricityReadings: [{ readingDate: '2026-07-08' }],
+      // Water has an Aug 1st read, but elec + maint are still missing for Aug.
+      waterReadings: [
+        { readingDate: '2026-07-08' },
+        { readingDate: '2026-08-01' },
+      ],
+      maintenanceCharges: [{ chargeDate: '2026-07-01' }],
+    });
+    expect(notice.utilitiesNextDueDate).toBe('2026-08-01');
+    expect(notice.utilitiesDueNotice).toBe(true);
+  });
+
+  it('computeUtilitiesDueNotice clears only when all three present', () => {
+    const notice = computeUtilitiesDueNotice({
+      status: ReservationStatus.CHECKED_IN,
+      billingPeriod: 'MONTHLY',
+      checkInDate: '2026-07-08',
+      checkOutDate: '2026-09-08',
+      todayYmd: '2026-08-07',
+      electricityReadings: [
+        { readingDate: '2026-07-08' },
+        { readingDate: '2026-08-01' },
+      ],
+      waterReadings: [
+        { readingDate: '2026-07-08' },
+        { readingDate: '2026-08-01' },
+      ],
+      maintenanceCharges: [
+        { chargeDate: '2026-07-01' },
+        { chargeDate: '2026-08-01' },
+      ],
+    });
+    // Aug fully covered by all three → notice clears, due advances to Sept.
+    expect(notice.utilitiesNextDueDate).toBe('2026-09-01');
+    expect(notice.utilitiesDueNotice).toBe(false);
+  });
 });

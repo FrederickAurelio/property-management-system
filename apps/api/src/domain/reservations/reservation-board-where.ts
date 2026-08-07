@@ -1,8 +1,8 @@
 import {
   PaymentStatus,
   ReservationStatus,
+  StayBillingPeriod,
   type ReservationSource,
-  type StayBillingPeriod,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
@@ -15,6 +15,7 @@ export const reservationListSelect = {
   billingPeriod: true,
   checkInDate: true,
   checkOutDate: true,
+  createdAt: true,
   status: true,
   source: true,
   totalAmountIdr: true,
@@ -24,6 +25,8 @@ export const reservationListSelect = {
   icalOverlapHold: true,
   property: { select: { timezone: true } },
   unit: { select: { code: true } },
+  utilityReadings: { select: { utility: true, readingDate: true } },
+  maintenanceCharges: { select: { chargeDate: true } },
 } as const;
 
 /**
@@ -229,4 +232,97 @@ export function needsAttentionWhere(input: {
       },
     ],
   };
+}
+
+/**
+ * Utilities-due membership — DB side, 1:1 with the contract helper
+ * `computeUtilitiesDueNotice` (see design §6). The notice reduces to:
+ *
+ *   MONTHLY/YEARLY  ∧  CONFIRMED/CHECKED_IN  ∧  today < checkOut
+ *   ∧  some month M in [month(checkIn)+1 .. month(today)] is NOT fully covered
+ *      (missing an electricity reading, a water reading, or a maintenance charge)
+ *
+ * Prisma `where` cannot express this (a per-month cross-relation coverage test),
+ * so it runs as `$queryRaw` — the repo-sanctioned fallback for predicates Prisma
+ * cannot express (same as the `openAmount` sort). Returns matching id rows
+ * ordered by checkOutDate asc, then createdAt asc (board order).
+ */
+export async function findUtilitiesDueReservationIds(
+  prisma: PrismaService,
+  opts: {
+    propertyId?: string;
+    source?: ReservationSource;
+    billingPeriod?: StayBillingPeriod;
+    q?: string;
+    today: Date;
+  },
+): Promise<Array<{ id: string }>> {
+  const parts: Prisma.Sql[] = [
+    Prisma.sql`r."billingPeriod" IN (
+      'MONTHLY'::"StayBillingPeriod", 'YEARLY'::"StayBillingPeriod"
+    )`,
+    Prisma.sql`r.status IN (
+      'CONFIRMED'::"ReservationStatus", 'CHECKED_IN'::"ReservationStatus"
+    )`,
+    Prisma.sql`${opts.today} < r."checkOutDate"`,
+    Prisma.sql`EXISTS (
+      SELECT 1
+      FROM generate_series(
+        date_trunc('month', r."checkInDate") + interval '1 month',
+        date_trunc('month', ${opts.today}::date),
+        interval '1 month'
+      ) AS m
+      WHERE (
+        NOT EXISTS (
+          SELECT 1 FROM "ReservationUtilityReading" u
+          WHERE u."reservationId" = r.id
+            AND u.utility = 'ELECTRICITY'::"UtilityKind"
+            AND date_trunc('month', u."readingDate") = m
+        )
+        OR NOT EXISTS (
+          SELECT 1 FROM "ReservationUtilityReading" u
+          WHERE u."reservationId" = r.id
+            AND u.utility = 'WATER'::"UtilityKind"
+            AND date_trunc('month', u."readingDate") = m
+        )
+        OR NOT EXISTS (
+          SELECT 1 FROM "ReservationMaintenanceCharge" c
+          WHERE c."reservationId" = r.id
+            AND date_trunc('month', c."chargeDate") = m
+        )
+      )
+    )`,
+  ];
+
+  if (opts.propertyId) {
+    parts.push(Prisma.sql`r."propertyId" = ${opts.propertyId}`);
+  }
+  if (opts.source) {
+    parts.push(Prisma.sql`r.source = ${opts.source}::"ReservationSource"`);
+  }
+  if (opts.billingPeriod) {
+    parts.push(
+      Prisma.sql`r."billingPeriod" = ${opts.billingPeriod}::"StayBillingPeriod"`,
+    );
+  }
+  if (opts.q?.trim()) {
+    const q = `%${opts.q.trim()}%`;
+    parts.push(Prisma.sql`(
+      r."guestName" ILIKE ${q}
+      OR r."guestEmail" ILIKE ${q}
+      OR r."guestPhone" ILIKE ${q}
+      OR r."externalRef" ILIKE ${q}
+      OR u.code ILIKE ${q}
+      OR p.name ILIKE ${q}
+    )`);
+  }
+
+  return prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT r.id
+    FROM "Reservation" r
+    LEFT JOIN "Unit" u ON u.id = r."unitId"
+    LEFT JOIN "Property" p ON p.id = r."propertyId"
+    WHERE ${Prisma.join(parts, ' AND ')}
+    ORDER BY r."checkOutDate" ASC, r."createdAt" ASC
+  `;
 }

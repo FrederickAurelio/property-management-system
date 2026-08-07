@@ -9,6 +9,7 @@ import {
   arrivalsWhere,
   departuresWhere,
   findOverpaidReservationIds,
+  findUtilitiesDueReservationIds,
   needsAttentionWhere,
   reservationListSelect,
 } from '../reservations/reservation-board-where.js';
@@ -57,10 +58,13 @@ export class DashboardService {
 
     // Same pattern as desk boards: where in Prisma, full matching set for this
     // property window (no artificial take). Cap/sort to 8 happens in assemble.
+    // Utilities-due is the one computed membership — resolved in SQL (not page-
+    // then-filter), matching the desk board's `findUtilitiesDueReservationIds`.
     const [
       arrivalsRows,
       departuresRows,
       needsRows,
+      utilitiesDueRows,
       failingFeeds,
       failingCount,
     ] = await Promise.all([
@@ -75,6 +79,10 @@ export class DashboardService {
       this.prisma.reservation.findMany({
         where: needsW,
         select: reservationListSelect,
+      }),
+      findUtilitiesDueReservationIds(this.prisma, {
+        propertyId: property.id,
+        today: todayDate,
       }),
       this.prisma.unitIcalFeed.findMany({
         where: {
@@ -102,6 +110,7 @@ export class DashboardService {
     const arrivalsItems = arrivalsRows.map(toStaffReservationListItem);
     const departuresItems = departuresRows.map(toStaffReservationListItem);
     const needsItems = needsRows.map(toStaffReservationListItem);
+    const utilitiesDueTotal = utilitiesDueRows.length;
 
     return {
       propertyId: property.id,
@@ -130,6 +139,7 @@ export class DashboardService {
           lastError: f.lastError ?? '',
         })),
       },
+      utilitiesDue: { total: utilitiesDueTotal },
     };
   }
 }

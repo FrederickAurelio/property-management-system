@@ -9,6 +9,7 @@ export const RESERVATION_BOARD_IDS: ReservationBoard[] = [
   "needs-details",
   "ical-alerts",
   "balance-due",
+  "utilities-due",
   "all",
 ];
 
@@ -26,6 +27,8 @@ export function reservationBoardLabel(id: ReservationBoard): string {
       return i18n.t("reservations:boards.icalAlerts");
     case "balance-due":
       return i18n.t("reservations:boards.balanceDue");
+    case "utilities-due":
+      return i18n.t("reservations:boards.utilitiesDue");
     case "all":
       return i18n.t("reservations:boards.all");
   }
@@ -89,6 +92,9 @@ export function boardFilterLocks(board: ReservationBoard): BoardFilterLocks {
     case "needs-details":
     case "balance-due":
       return { locksStatus: true, showDateRangeFilter: true };
+    case "utilities-due":
+      // Board owns status + an implicit due window — hide the date range filter.
+      return { locksStatus: true, showDateRangeFilter: false };
     case "ical-alerts":
     case "all":
       return { locksStatus: false, showDateRangeFilter: true };

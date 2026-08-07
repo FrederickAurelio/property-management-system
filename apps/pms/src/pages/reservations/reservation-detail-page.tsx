@@ -130,15 +130,20 @@ function primaryActionDialogCopy(
           : Math.max(row.totalAmountIdr - row.paidAmountIdr, 0);
       const unpaid = due != null && due > 0;
       const offDay = row.checkOutDate !== today;
+      const baseDescription = unpaid
+        ? t("detailPage.primaryDialogs.checkOutUnpaidDescription")
+        : t("detailPage.primaryDialogs.checkOutPaidDescription");
       return {
         title: offDay
           ? row.checkOutDate > today
             ? t("detailPage.primaryDialogs.checkOutEarlyTitle")
             : t("detailPage.primaryDialogs.checkOutLateTitle")
           : t("detailPage.primaryDialogs.checkOutTitle"),
-        description: unpaid
-          ? t("detailPage.primaryDialogs.checkOutUnpaidDescription")
-          : t("detailPage.primaryDialogs.checkOutPaidDescription"),
+        description: row.utilitiesDueNotice
+          ? `${baseDescription} ${t(
+              "detailPage.primaryDialogs.checkOutUtilitiesDue",
+            )}`
+          : baseDescription,
         confirmLabel: offDay
           ? row.checkOutDate > today
             ? t("detailPage.primaryDialogs.checkOutEarlyLabel")

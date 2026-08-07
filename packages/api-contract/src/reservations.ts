@@ -529,8 +529,39 @@ export function defaultNextMaintenanceChargeYearMonth(
 }
 
 /**
+ * Whether a billing month `ym` (`YYYY-MM`) is covered by one of each utility:
+ * an electricity reading, a water reading, and a maintenance charge in that
+ * month. Month-equality (`ymdYearMonth(x) === ym`) for meters and charges.
+ */
+function utilityMonthCovered(
+  ym: string,
+  input: {
+    electricityReadings: ReadonlyArray<{ readingDate: string }>;
+    waterReadings: ReadonlyArray<{ readingDate: string }>;
+    maintenanceCharges: ReadonlyArray<{ chargeDate: string }>;
+  },
+): { elec: boolean; water: boolean; maint: boolean } {
+  return {
+    elec: input.electricityReadings.some(
+      (r) => ymdYearMonth(r.readingDate) === ym,
+    ),
+    water: input.waterReadings.some(
+      (r) => ymdYearMonth(r.readingDate) === ym,
+    ),
+    maint: input.maintenanceCharges.some(
+      (c) => ymdYearMonth(c.chargeDate) === ym,
+    ),
+  };
+}
+
+/**
  * Next utilities due date + soft desk notice (design §6).
  * `todayYmd` = property-local today.
+ *
+ * Due month = the first month (after the check-in month) that is NOT fully
+ * covered by a monthly electricity reading, a water reading, AND a
+ * maintenance charge. A partial fill (only one or two recorded) does NOT clear
+ * the notice — the month must be fully covered before it advances.
  */
 export function computeUtilitiesDueNotice(input: {
   status: ReservationStatus;
@@ -543,27 +574,39 @@ export function computeUtilitiesDueNotice(input: {
   waterReadings: ReadonlyArray<{ readingDate: string }>;
   maintenanceCharges: ReadonlyArray<{ chargeDate: string }>;
 }): { utilitiesNextDueDate: string; utilitiesDueNotice: boolean } {
-  const lastElec = maxYmd(input.electricityReadings.map((r) => r.readingDate));
-  const lastWater = maxYmd(input.waterReadings.map((r) => r.readingDate));
-  const lastMaint = maxYmd(input.maintenanceCharges.map((c) => c.chargeDate));
-  const anchor =
-    maxYmd(
-      [lastElec, lastWater, lastMaint, input.checkInDate].filter(
-        (d): d is string => d != null,
-      ),
-    ) ?? input.checkInDate;
-  const nextDueDate = firstDayOfNextMonthYmd(anchor);
-  const nextYm = ymdYearMonth(nextDueDate);
-  const hasElec = input.electricityReadings.some(
-    (r) => r.readingDate >= nextDueDate,
+  // First recording/billing cycle = month after check-in month (maintenance
+  // is not required for the check-in month itself).
+  const firstDueYm = defaultNextMaintenanceChargeYearMonth(
+    input.checkInDate.slice(0, 7),
   );
-  const hasWater = input.waterReadings.some(
-    (r) => r.readingDate >= nextDueDate,
+  // Bound the scan by the newest year-month present in the data so a fully
+  // covered stay cannot loop forever; a month past every recorded row is not
+  // covered by construction.
+  const lastObservedYm = maxYmd(
+    [
+      input.checkInDate,
+      input.checkOutDate,
+      input.todayYmd,
+      ...input.electricityReadings.map((r) => r.readingDate),
+      ...input.waterReadings.map((r) => r.readingDate),
+      ...input.maintenanceCharges.map((c) => c.chargeDate),
+    ]
+      .map(ymdYearMonth)
+      .filter((m): m is string => m != null),
   );
-  const hasMaint = input.maintenanceCharges.some(
-    (c) => ymdYearMonth(c.chargeDate) === nextYm,
-  );
-  const missingForMonth = !hasElec || !hasWater || !hasMaint;
+  let dueYm = firstDueYm;
+  let covered = utilityMonthCovered(dueYm, input);
+  while (
+    covered.elec &&
+    covered.water &&
+    covered.maint &&
+    (lastObservedYm == null || dueYm <= lastObservedYm)
+  ) {
+    dueYm = defaultNextMaintenanceChargeYearMonth(dueYm);
+    covered = utilityMonthCovered(dueYm, input);
+  }
+  const nextDueDate = yearMonthToChargeDateYmd(dueYm);
+  const missingForMonth = !covered.elec || !covered.water || !covered.maint;
   const statusOk =
     input.status === ReservationStatus.CONFIRMED ||
     input.status === ReservationStatus.CHECKED_IN;
@@ -911,6 +954,7 @@ export const ReservationBoard = {
   "needs-details": "needs-details",
   "ical-alerts": "ical-alerts",
   "balance-due": "balance-due",
+  "utilities-due": "utilities-due",
 } as const;
 
 export type ReservationBoard =
@@ -1107,4 +1151,6 @@ export type StaffReservationListItem = Pick<
   | "icalSyncWarning"
   | "icalOverlapHold"
   | "propertyTimezone"
+  | "utilitiesDueNotice"
+  | "utilitiesNextDueDate"
 >;

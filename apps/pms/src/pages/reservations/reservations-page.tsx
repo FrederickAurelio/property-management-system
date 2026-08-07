@@ -58,6 +58,7 @@ import {
   formatReservationSource,
   formatReservationStatus,
   formatStayRange,
+  formatUtilitiesDueCue,
   reservationLateCue,
   statusBadgeTone,
   type ReservationLateCue,
@@ -74,7 +75,7 @@ const ReservationRowCells = memo(function ReservationRowCells({
   return (
     <>
       <TableCell className="min-w-0 font-medium">
-        <span className="inline-flex max-w-full items-center gap-1.5">
+        <span className="inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5">
           <span className="truncate">{row.guestName}</span>
           {lateCue ? (
             <ReservationBadge
@@ -83,6 +84,11 @@ const ReservationRowCells = memo(function ReservationRowCells({
               className="shrink-0"
             />
           ) : null}
+          {row.utilitiesDueNotice && (
+            <span className="inline-flex items-center gap-1 text-xs text-amber-800 dark:text-amber-200">
+              <span className="truncate">{formatUtilitiesDueCue(row)}</span>
+            </span>
+          )}
         </span>
       </TableCell>
       <TableCell className="tabular-nums">{row.unitCode}</TableCell>
@@ -177,6 +183,11 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
               row.billingPeriod,
             )}
           </p>
+          {row.utilitiesDueNotice && (
+            <p className="mt-0.5 truncate text-[11px] leading-tight text-amber-800 dark:text-amber-200">
+              {formatUtilitiesDueCue(row)}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           {row.icalSyncWarning && (
@@ -533,14 +544,18 @@ export function ReservationsPage() {
                 ? t("reservations:list.empty.icalAlertsTitle")
                 : board === "needs-details"
                   ? t("reservations:list.empty.needsDetailsTitle")
-                  : t("reservations:list.empty.defaultTitle")}
+                  : board === "utilities-due"
+                    ? t("reservations:list.empty.utilitiesDueTitle")
+                    : t("reservations:list.empty.defaultTitle")}
             </EmptyTitle>
             <EmptyDescription>
               {board === "ical-alerts"
                 ? t("reservations:list.empty.icalAlertsDescription")
                 : board === "needs-details"
                   ? t("reservations:list.empty.needsDetailsDescription")
-                  : t("reservations:list.empty.defaultDescription")}
+                  : board === "utilities-due"
+                    ? t("reservations:list.empty.utilitiesDueDescription")
+                    : t("reservations:list.empty.defaultDescription")}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

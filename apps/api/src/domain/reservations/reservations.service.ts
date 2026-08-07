@@ -55,6 +55,7 @@ import {
   arrivalsWindow,
   departuresWindow,
   findOverpaidReservationIds,
+  findUtilitiesDueReservationIds,
   reservationListSelect,
   withOpenBalanceMoney,
 } from './reservation-board-where.js';
@@ -101,6 +102,10 @@ export class ReservationsService {
   async list(
     query: ListReservationsQueryDto,
   ): Promise<Paginated<StaffReservationListItem>> {
+    if (query.board === ReservationBoard['utilities-due']) {
+      return this.listUtilitiesDue(query);
+    }
+
     const where = await this.buildListWhere(query);
 
     if (query.sort === ReservationListSort.openAmount) {
@@ -197,6 +202,47 @@ export class ReservationsService {
       const hit = byId.get(row.id);
       return hit ? [hit] : [];
     });
+  }
+
+  /**
+   * `utilities-due` board. Membership is a COMPUTED month-coverage predicate
+   * Prisma `where` cannot express, so it is resolved by `$queryRaw` in
+   * `findUtilitiesDueReservationIds` (1:1 with `computeUtilitiesDueNotice`),
+   * then the true rows are paged by that ordered id set. Pagination is exact
+   * (count = true rows) — no "load then filter in JS".
+   */
+  private async listUtilitiesDue(
+    query: ListReservationsQueryDto,
+  ): Promise<Paginated<StaffReservationListItem>> {
+    const today = parseYmd(await this.resolveBoardToday(query.propertyId));
+
+    const dueIds = await findUtilitiesDueReservationIds(this.prisma, {
+      propertyId: query.propertyId,
+      source: query.source,
+      billingPeriod: query.billingPeriod,
+      q: query.q,
+      today,
+    });
+    const total = dueIds.length;
+    const skip = (query.page - 1) * query.pageSize;
+    const pageIds = dueIds.slice(skip, skip + query.pageSize);
+
+    const rows =
+      pageIds.length === 0
+        ? []
+        : await this.prisma.reservation.findMany({
+            where: { id: { in: pageIds.map((row) => row.id) } },
+            select: reservationListSelect,
+          });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+
+    return {
+      items: pageIds.flatMap((row) => {
+        const hit = byId.get(row.id);
+        return hit ? [toStaffReservationListItem(hit)] : [];
+      }),
+      pageInfo: buildPageInfo(query.page, query.pageSize, total),
+    };
   }
 
   async getById(id: string): Promise<StaffReservation> {
@@ -1810,6 +1856,10 @@ export class ReservationsService {
             ],
           };
           balanceDue = true;
+          break;
+        case ReservationBoard['utilities-due']:
+          // Computed notice — resolved in `list` via `findUtilitiesDueReservationIds`
+          // ($queryRaw), not expressible as Prisma `where`.
           break;
         default:
           break;

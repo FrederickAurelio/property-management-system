@@ -28,6 +28,11 @@
   "needsAttention": {
     "title": "Perlu perhatian"
   },
+  "utilitiesDue": {
+    "title_one": "{{count}} stay perlu catat meter",
+    "title_other": "{{count}} stay perlu catat meter",
+    "description": "Catat utilitas bulanan sebelum Total diselesaikan."
+  },
   "table": {
     "guest": "Tamu",
     "unit": "Unit",

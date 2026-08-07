@@ -54,6 +54,7 @@ export type ReservationListRow = Pick<
   | 'billingPeriod'
   | 'checkInDate'
   | 'checkOutDate'
+  | 'createdAt'
   | 'status'
   | 'source'
   | 'totalAmountIdr'
@@ -64,6 +65,8 @@ export type ReservationListRow = Pick<
 > & {
   property: Pick<Property, 'timezone'>;
   unit: Pick<Unit, 'code'>;
+  utilityReadings: Array<{ utility: string; readingDate: Date }>;
+  maintenanceCharges: Array<{ chargeDate: Date }>;
 };
 
 export function toStaffPaymentMovement(
@@ -117,6 +120,8 @@ export function toStaffMaintenanceCharge(
 export function toStaffReservationListItem(
   row: ReservationListRow,
 ): StaffReservationListItem {
+  const { utilitiesDueNotice, utilitiesNextDueDate } =
+    computeUtilitiesDueNoticeForRow(row);
   return {
     id: row.id,
     guestName: row.guestName,
@@ -132,7 +137,32 @@ export function toStaffReservationListItem(
     icalSyncWarning: row.icalSyncWarning,
     icalOverlapHold: row.icalOverlapHold,
     propertyTimezone: row.property.timezone,
+    utilitiesDueNotice,
+    utilitiesNextDueDate,
   };
+}
+
+/** Shared inputs for `computeUtilitiesDueNotice` — detail + list stay in sync. */
+function computeUtilitiesDueNoticeForRow(row: ReservationListRow): {
+  utilitiesNextDueDate: string;
+  utilitiesDueNotice: boolean;
+} {
+  return computeUtilitiesDueNotice({
+    status: row.status,
+    billingPeriod: row.billingPeriod,
+    checkInDate: ymd(row.checkInDate),
+    checkOutDate: ymd(row.checkOutDate),
+    todayYmd: todayYmdInTimezone(row.property.timezone),
+    electricityReadings: (row.utilityReadings ?? [])
+      .filter((r) => r.utility === 'ELECTRICITY')
+      .map((r) => ({ readingDate: ymd(r.readingDate) })),
+    waterReadings: (row.utilityReadings ?? [])
+      .filter((r) => r.utility === 'WATER')
+      .map((r) => ({ readingDate: ymd(r.readingDate) })),
+    maintenanceCharges: (row.maintenanceCharges ?? []).map((c) => ({
+      chargeDate: ymd(c.chargeDate),
+    })),
+  });
 }
 
 export function toStaffReservation(

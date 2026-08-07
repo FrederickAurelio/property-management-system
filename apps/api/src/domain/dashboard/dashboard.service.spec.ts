@@ -121,7 +121,9 @@ describe('DashboardService', () => {
       source: 'BOOKING_COM',
       lastError: 'HTTP 500',
     });
+    expect(result.utilitiesDue).toEqual({ total: 0 });
     expect(prisma.reservation.findMany).toHaveBeenCalledTimes(3);
+    expect(prisma.$queryRaw).toHaveBeenCalled();
   });
 
   it('404 when property missing', async () => {
