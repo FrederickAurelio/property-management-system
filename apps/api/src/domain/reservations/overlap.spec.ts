@@ -40,10 +40,10 @@ describe('overlap inventory end', () => {
     expect(db.reservation.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          checkInDate: { lt: expect.any(Date) },
-          inventoryEndDate: { gt: expect.any(Date) },
-        }),
-      }),
+          checkInDate: { lt: expect.any(Date) as Date },
+          inventoryEndDate: { gt: expect.any(Date) as Date },
+        }) as Record<string, unknown>,
+      }) as Record<string, unknown>,
     );
   });
 
@@ -62,16 +62,16 @@ describe('overlap inventory end', () => {
     expect(db.reservation.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          inventoryEndDate: { gt: expect.any(Date) },
-        }),
-      }),
+          inventoryEndDate: { gt: expect.any(Date) as Date },
+        }) as Record<string, unknown>,
+      }) as Record<string, unknown>,
     );
     expect(db.calendarBlock.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          startDate: { lt: expect.any(Date) },
-        }),
-      }),
+          startDate: { lt: expect.any(Date) as Date },
+        }) as Record<string, unknown>,
+      }) as Record<string, unknown>,
     );
   });
 });

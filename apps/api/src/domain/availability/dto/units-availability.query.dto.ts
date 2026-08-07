@@ -1,4 +1,10 @@
-import { IsIn, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateIf,
+} from 'class-validator';
 import { StayBillingPeriod } from '@cabin/api-contract';
 
 export class UnitsAvailabilityQueryDto {

@@ -134,9 +134,9 @@ describe('CalendarService', () => {
       expect(prisma.reservation.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            inventoryEndDate: { gt: expect.any(Date) },
-          }),
-        }),
+            inventoryEndDate: { gt: expect.any(Date) as Date },
+          }) as Record<string, unknown>,
+        }) as Record<string, unknown>,
       );
     });
   });

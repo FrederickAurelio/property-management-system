@@ -42,7 +42,9 @@ export class ArchiveService {
     const mime = dto.mimeType.toLowerCase();
 
     if (dto.kind !== ArchiveKind.IMAGE) {
-      throw new BadRequestException(`Unsupported archive kind: ${dto.kind}`);
+      throw new BadRequestException(
+        `Unsupported archive kind: ${String(dto.kind)}`,
+      );
     }
 
     if (!(ARCHIVE_IMAGE_MIME_TYPES as readonly string[]).includes(mime)) {

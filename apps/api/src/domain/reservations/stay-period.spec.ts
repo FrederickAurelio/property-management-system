@@ -22,23 +22,23 @@ describe('stay billing period helpers', () => {
   });
 
   it('keeps year picker grid inside occupancy max range', () => {
-    expect(
-      STAY_YEAR_PICKER_BEFORE + 1 + STAY_YEAR_PICKER_AFTER,
-    ).toBe(UNIT_OCCUPANCY_RANGE_MAX_YEARS);
+    expect(STAY_YEAR_PICKER_BEFORE + 1 + STAY_YEAR_PICKER_AFTER).toBe(
+      UNIT_OCCUPANCY_RANGE_MAX_YEARS,
+    );
   });
 
   it('computes open inventory end for monthly/yearly', () => {
     expect(isPeriodOpenInventory(StayBillingPeriod.DAILY)).toBe(false);
     expect(isPeriodOpenInventory(StayBillingPeriod.MONTHLY)).toBe(true);
-    expect(
-      computeInventoryEndYmd(StayBillingPeriod.DAILY, '2026-06-24'),
-    ).toBe('2026-06-24');
+    expect(computeInventoryEndYmd(StayBillingPeriod.DAILY, '2026-06-24')).toBe(
+      '2026-06-24',
+    );
     expect(
       computeInventoryEndYmd(StayBillingPeriod.MONTHLY, '2026-06-24'),
     ).toBe(INVENTORY_FAR_YMD);
-    expect(
-      computeInventoryEndYmd(StayBillingPeriod.YEARLY, '2027-05-24'),
-    ).toBe(INVENTORY_FAR_YMD);
+    expect(computeInventoryEndYmd(StayBillingPeriod.YEARLY, '2027-05-24')).toBe(
+      INVENTORY_FAR_YMD,
+    );
   });
 
   it('clamps EOM when target month lacks the day', () => {

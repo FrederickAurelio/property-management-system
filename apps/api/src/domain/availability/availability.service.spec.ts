@@ -18,7 +18,9 @@ describe('AvailabilityService', () => {
       unit: { findMany: jest.fn(), findUnique: jest.fn() },
       reservation: {
         findMany: jest.fn(),
-        aggregate: jest.fn().mockResolvedValue({ _max: { inventoryEndDate: null } }),
+        aggregate: jest
+          .fn()
+          .mockResolvedValue({ _max: { inventoryEndDate: null } }),
       },
       calendarBlock: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -303,9 +305,9 @@ describe('AvailabilityService', () => {
     expect(prisma.reservation.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          inventoryEndDate: { gt: expect.any(Date) },
-        }),
-      }),
+          inventoryEndDate: { gt: expect.any(Date) as Date },
+        }) as Record<string, unknown>,
+      }) as Record<string, unknown>,
     );
   });
 
