@@ -15,12 +15,40 @@ import {
 import {
   UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX,
   UNIT_TYPE_UTILITY_RATE_IDR_MAX,
+  ArchiveKind,
   UTILITY_METER_FRACTION_DIGITS,
   UTILITY_METER_VALUE_MAX,
+  UTILITY_READING_PROOF_MAX,
   UtilityKind,
 } from '@cabin/api-contract';
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
+
+/** One Garage meteran proof photo stored on a reading (ArchiveItem wire shape). */
+export class ArchiveProofImageDto {
+  @IsEnum(ArchiveKind)
+  kind!: (typeof ArchiveKind)[keyof typeof ArchiveKind];
+
+  @IsString()
+  id!: string;
+
+  @IsString()
+  url!: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  byteSize?: number;
+}
 
 export class UtilityReadingInputDto {
   @IsEnum(UtilityKind)
@@ -40,6 +68,13 @@ export class UtilityReadingInputDto {
   @Min(0)
   @Max(UTILITY_METER_VALUE_MAX)
   meterValue!: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(UTILITY_READING_PROOF_MAX)
+  @ValidateNested({ each: true })
+  @Type(() => ArchiveProofImageDto)
+  proofImages?: ArchiveProofImageDto[];
 }
 
 export class MaintenanceChargeInputDto {

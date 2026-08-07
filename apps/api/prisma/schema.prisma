@@ -319,6 +319,8 @@ model ReservationUtilityReading {
   utility          UtilityKind
   readingDate      DateTime    @db.Date
   meterValue       Decimal     @db.Decimal(12, 3)
+  /// Garage meteran proof photos (ArchiveItem[] URLs) for this reading.
+  proofImages      Json        @default("[]")
   createdAt        DateTime    @default(now())
   createdByAdminId String?
 

@@ -399,6 +399,7 @@
     "colMeter": "Meter ({{unit}})",
     "colUsage": "Pemakaian",
     "colAmount": "Jumlah",
+    "colPhoto": "Foto",
     "currencyPrefix": "Rp",
     "perKwh": "/ kWh",
     "perM3": "/ m³",
@@ -409,7 +410,19 @@
     "newTotal": "Total baru",
     "errorMeterDecrease": "Meter tidak boleh lebih kecil dari pembacaan sebelumnya.",
     "errorDuplicateDate": "Tanggal pembacaan dobel.",
-    "errorDuplicateMonth": "Bulan maintenance dobel."
+    "errorDuplicateMonth": "Bulan maintenance dobel.",
+    "photos": {
+      "add": "Tambah foto meter",
+      "limit": "Maksimal {{max}} foto per pembacaan.",
+      "counter": "{{index}} dari {{total}}",
+      "noPhotos": "Tidak ada foto",
+      "titleFallback": "Foto meter",
+      "previousAria": "Foto sebelumnya",
+      "nextAria": "Foto berikutnya",
+      "closeAria": "Tutup pratinjau",
+      "removeAria": "Hapus foto",
+      "nothingToPreview": "Tidak ada yang bisa dipratinjau."
+    }
   },
   "timeline": {
     "title": "Cash timeline",

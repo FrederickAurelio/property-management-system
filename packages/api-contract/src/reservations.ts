@@ -1,4 +1,6 @@
 /** Keep in sync with Prisma `ReservationSource` (when added). */
+import type { ArchiveItem } from './archive.js';
+
 export const ReservationSource = {
   MANUAL: "MANUAL",
   WEBSITE: "WEBSITE",
@@ -267,6 +269,8 @@ export type ReservationUtilityReading = {
   /** YYYY-MM-DD */
   readingDate: string;
   meterValue: number;
+  /** Garage meteran proof photos for this reading. */
+  proofImages: ArchiveItem[];
   createdAt: string;
   createdByAdminId: string | null;
 };
@@ -294,6 +298,8 @@ export type UtilityReadingInput = {
   utility: UtilityKind;
   readingDate: string;
   meterValue: number;
+  /** Garage meteran proof photos (optional back-compat). */
+  proofImages?: ArchiveItem[];
 };
 
 export type MaintenanceChargeInput = {

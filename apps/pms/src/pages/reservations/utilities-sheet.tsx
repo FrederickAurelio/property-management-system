@@ -12,6 +12,7 @@ import {
   type StaffReservation,
 } from "@cabin/api-contract";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ArchiveItem } from "@cabin/api-contract";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
@@ -27,6 +28,7 @@ import {
   InputGroupText,
 } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
+import { ArchiveProofField } from "@/components/media/archive-proof-field";
 import {
   handleError,
   handleSuccess,
@@ -46,6 +48,8 @@ type MeterRow = {
   readingDate: string;
   /** Canonical plain meter string (`"1234.5"`) for Number(). */
   meterDigits: string;
+  /** Garage meteran proof photos. */
+  proofImages: ArchiveItem[];
 };
 
 type MaintRow = {
@@ -71,6 +75,7 @@ function seedMeterRows(
       key: r.id,
       readingDate: r.readingDate,
       meterDigits: plainFromMeterValue(Number(r.meterValue)),
+      proofImages: r.proofImages ?? [],
     }));
   }
   return [
@@ -78,6 +83,7 @@ function seedMeterRows(
       key: newKey(),
       readingDate: reservation.checkInDate,
       meterDigits: "",
+      proofImages: [],
     },
   ];
 }
@@ -173,6 +179,7 @@ export function UtilitiesSheet({
     seedMeterRows(reservation, UtilityKind.WATER),
   );
   const [maintRows, setMaintRows] = useState(() => seedMaintRows(reservation));
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const elecRate = Number(elecRateDigits) || 0;
   const waterRate = Number(waterRateDigits) || 0;
@@ -209,6 +216,7 @@ export function UtilitiesSheet({
             utility: UtilityKind.ELECTRICITY,
             readingDate: r.readingDate,
             meterValue: Number(r.meterDigits),
+            proofImages: r.proofImages,
           })),
         waterReadings: waterRows
           .filter((r) => r.readingDate && r.meterDigits !== "")
@@ -216,6 +224,7 @@ export function UtilitiesSheet({
             utility: UtilityKind.WATER,
             readingDate: r.readingDate,
             meterValue: Number(r.meterDigits),
+            proofImages: r.proofImages,
           })),
         maintenanceCharges: maintRows
           .filter((r) => r.chargeYearMonth && r.amountDigits !== "")
@@ -250,6 +259,7 @@ export function UtilitiesSheet({
         readingDate: nextDate,
         // Prefill from previous reading so staff bumps usage, not retype the whole meter.
         meterDigits: last?.meterDigits ?? "",
+        proofImages: [],
       },
     ]);
   }
@@ -275,7 +285,7 @@ export function UtilitiesSheet({
       onOpenChange={onOpenChange}
       title={t("reservations:utilitiesSheet.title")}
       description={t("reservations:utilitiesSheet.description")}
-      size="lg"
+      size="xl"
       footer={
         <>
           <Button
@@ -290,7 +300,7 @@ export function UtilitiesSheet({
           </Button>
           <Button
             type="button"
-            disabled={saveMutation.isPending}
+            disabled={saveMutation.isPending || photoUploading}
             onClick={() => {
               if (sheetError) {
                 toast.error(sheetErrorMessage(sheetError));
@@ -388,6 +398,7 @@ export function UtilitiesSheet({
           addLabel={t("reservations:utilitiesSheet.addReading")}
           errorMeter={t("reservations:utilitiesSheet.errorMeterDecrease")}
           errorDup={t("reservations:utilitiesSheet.errorDuplicateDate")}
+          onPhotoUploadingChange={setPhotoUploading}
         />
 
         <Separator />
@@ -405,6 +416,7 @@ export function UtilitiesSheet({
           addLabel={t("reservations:utilitiesSheet.addReading")}
           errorMeter={t("reservations:utilitiesSheet.errorMeterDecrease")}
           errorDup={t("reservations:utilitiesSheet.errorDuplicateDate")}
+          onPhotoUploadingChange={setPhotoUploading}
         />
 
         <Separator />
@@ -548,6 +560,7 @@ function MeterTable({
   addLabel,
   errorMeter,
   errorDup,
+  onPhotoUploadingChange,
 }: {
   title: string;
   unitLabel: string;
@@ -559,6 +572,7 @@ function MeterTable({
   addLabel: string;
   errorMeter: string;
   errorDup: string;
+  onPhotoUploadingChange?: (uploading: boolean) => void;
 }) {
   const { t } = useTranslation(["reservations", "common"]);
   const intervals =
@@ -591,7 +605,7 @@ function MeterTable({
         </Button>
       </div>
       <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-lg text-sm">
+        <table className="w-full min-w-2xl text-sm">
           <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-3 py-2 font-medium">
@@ -605,6 +619,9 @@ function MeterTable({
               </th>
               <th className="px-3 py-2 font-medium">
                 {t("reservations:utilitiesSheet.currencyPrefix")}
+              </th>
+              <th className="px-3 py-2 font-medium">
+                {t("reservations:utilitiesSheet.colPhoto")}
               </th>
               <th className="w-10 px-2 py-2" />
             </tr>
@@ -652,6 +669,20 @@ function MeterTable({
                   </td>
                   <td className="px-3 py-2 tabular-nums">
                     {interval ? formatIdr(interval.amountIdr) : "—"}
+                  </td>
+                  <td className="px-3 py-2">
+                    <ArchiveProofField
+                      value={row.proofImages}
+                      onUploadingChange={onPhotoUploadingChange}
+                      onChange={(proofImages) => {
+                        const next = [...rows];
+                        next[index] = {
+                          ...row,
+                          proofImages,
+                        };
+                        setRows(next);
+                      }}
+                    />
                   </td>
                   <td className="px-2 py-2">
                     {rows.length > 1 && (

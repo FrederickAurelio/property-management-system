@@ -167,6 +167,8 @@ export const UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX = 50_000_000;
 /** Meter reading — matches Prisma `Decimal(12, 3)` on ReservationUtilityReading.meterValue. */
 export const UTILITY_METER_FRACTION_DIGITS = 3;
 export const UTILITY_METER_VALUE_MAX = 999_999_999.999;
+/** Max Garage meteran proof photos stored on one utility reading row. */
+export const UTILITY_READING_PROOF_MAX = 10;
 
 /** Lightweight property row for staff filter / select dropdowns (id + label only). */
 export type StaffPropertyOption = {

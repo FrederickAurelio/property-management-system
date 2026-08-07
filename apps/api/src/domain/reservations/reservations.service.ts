@@ -1349,6 +1349,7 @@ export class ReservationsService {
       utility: UtilityKind.ELECTRICITY,
       readingDate: parseYmd(r.readingDate),
       meterValue: r.meterValue,
+      proofImages: (r.proofImages as unknown as Prisma.InputJsonValue) ?? [],
       createdByAdminId: actor.id,
     }));
     const waterRows = dto.waterReadings.map((r) => ({
@@ -1356,6 +1357,7 @@ export class ReservationsService {
       utility: UtilityKind.WATER,
       readingDate: parseYmd(r.readingDate),
       meterValue: r.meterValue,
+      proofImages: (r.proofImages as unknown as Prisma.InputJsonValue) ?? [],
       createdByAdminId: actor.id,
     }));
     const maintRows = normalizedMaint.map((c) => ({

@@ -399,6 +399,7 @@
     "colMeter": "Meter ({{unit}})",
     "colUsage": "Usage",
     "colAmount": "Amount",
+    "colPhoto": "Photos",
     "currencyPrefix": "Rp",
     "perKwh": "/ kWh",
     "perM3": "/ m³",
@@ -409,7 +410,19 @@
     "newTotal": "New Total",
     "errorMeterDecrease": "Meter cannot go down from the previous reading.",
     "errorDuplicateDate": "Duplicate reading date.",
-    "errorDuplicateMonth": "Duplicate maintenance month."
+    "errorDuplicateMonth": "Duplicate maintenance month.",
+    "photos": {
+      "add": "Add meter photos",
+      "limit": "Up to {{max}} photos per reading.",
+      "counter": "{{index}} of {{total}}",
+      "noPhotos": "No photos",
+      "titleFallback": "Meter photo",
+      "previousAria": "Previous photo",
+      "nextAria": "Next photo",
+      "closeAria": "Close preview",
+      "removeAria": "Remove photo",
+      "nothingToPreview": "Nothing to preview."
+    }
   },
   "timeline": {
     "title": "Cash timeline",

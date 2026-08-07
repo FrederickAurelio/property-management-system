@@ -60,7 +60,7 @@
     "preview": {
       "titleFallback": "Pratinjau",
       "counter": "{{index}} dari {{total}}",
-      "noMedia": "Belum ada media",
+      "noItems": "Belum ada media",
       "closeAria": "Tutup pratinjau",
       "previousAria": "Sebelumnya",
       "nextAria": "Berikutnya",

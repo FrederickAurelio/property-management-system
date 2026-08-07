@@ -60,7 +60,7 @@
     "preview": {
       "titleFallback": "Preview",
       "counter": "{{index}} of {{total}}",
-      "noMedia": "No media",
+      "noItems": "No media",
       "closeAria": "Close preview",
       "previousAria": "Previous",
       "nextAria": "Next",

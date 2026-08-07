@@ -1,4 +1,5 @@
 import type {
+  ArchiveItem,
   PaymentMovement as WirePaymentMovement,
   ReservationMaintenanceCharge as WireMaintenanceCharge,
   ReservationUtilityReading as WireUtilityReading,
@@ -94,6 +95,7 @@ export function toStaffUtilityReading(
     utility: row.utility,
     readingDate: ymd(row.readingDate),
     meterValue: Number(row.meterValue),
+    proofImages: (row.proofImages as ArchiveItem[] | null) ?? [],
     createdAt: row.createdAt.toISOString(),
     createdByAdminId: row.createdByAdminId,
   };
