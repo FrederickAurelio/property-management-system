@@ -1,5 +1,5 @@
 /* anchor: Linear settings form, diverge: FieldSet Stay/Guest/Money/Notes + Separators */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   RESERVATION_GUEST_EMAIL_MAX,
   RESERVATION_GUEST_NAME_MAX,
@@ -217,8 +217,12 @@ function formValuesFromOpen(args: {
   initialCheckInDate: string;
   initialCheckOutDate: string;
 }): FormValues {
-  const { reservation, initialChosen, initialCheckInDate, initialCheckOutDate } =
-    args;
+  const {
+    reservation,
+    initialChosen,
+    initialCheckInDate,
+    initialCheckOutDate,
+  } = args;
   if (reservation) {
     return {
       unitId: reservation.unitId,
@@ -334,6 +338,7 @@ export function ReservationFormDialog({
   const [pickerOpen, setPickerOpen] = useState(() =>
     Boolean(autoOpenUnitPicker && !reservation && !initialChosen),
   );
+  const [stayDatesOpen, setStayDatesOpen] = useState(false);
   /** Run after staff dismisses an OTA remind (keeps form open until then). */
   const afterOtaRemindRef = useRef<(() => void) | null>(null);
   const { showRefreshImports, showSourceRemind, remindDialog } =
@@ -464,7 +469,6 @@ export function ReservationFormDialog({
       Boolean(chosen?.unitTypeId) &&
       Boolean(chosen?.unitId) &&
       datesReady,
-    staleTime: 0,
   });
 
   /** Last hard-block key we already cleared for (avoid toast loops). */
@@ -511,9 +515,7 @@ export function ReservationFormDialog({
     clearedUnitKeyRef.current = key;
     setPicked(null);
     form.setValue("unitId", "", { shouldDirty: true, shouldValidate: true });
-    handleError(
-      new Error(t("reservations:formDialog.unitNotBookableError")),
-    );
+    handleError(new Error(t("reservations:formDialog.unitNotBookableError")));
   }, [
     open,
     chosen,
@@ -537,7 +539,7 @@ export function ReservationFormDialog({
       : null;
 
   useEffect(() => {
-    if (!open || suggestKey == null || suggestedTotal == null) {
+    if (!open || stayDatesOpen || suggestKey == null || suggestedTotal == null) {
       return;
     }
 
@@ -585,6 +587,7 @@ export function ReservationFormDialog({
     appliedSuggestKeyRef.current = suggestKey;
   }, [
     open,
+    stayDatesOpen,
     suggestKey,
     suggestedTotal,
     reservation,
@@ -594,10 +597,36 @@ export function ReservationFormDialog({
     periodCount,
   ]);
 
+  const handleStayDatesChange = useCallback(
+    (next: { checkInDate: string; checkOutDate: string }) => {
+      const complete = Boolean(next.checkInDate && next.checkOutDate);
+      form.setValue("checkInDate", next.checkInDate, {
+        shouldDirty: true,
+        shouldValidate: complete,
+      });
+      form.setValue("checkOutDate", next.checkOutDate, {
+        shouldDirty: true,
+        shouldValidate: complete,
+      });
+    },
+    [form],
+  );
+
+  const handleBillingPeriodChange = useCallback(
+    (next: FormValues["billingPeriod"]) => {
+      form.setValue("billingPeriod", next, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    },
+    [form],
+  );
+
   const handleOpenChange = (next: boolean) => {
     if (!next) {
       setPicked(undefined);
       setPickerOpen(false);
+      setStayDatesOpen(false);
     }
     onOpenChange(next);
   };
@@ -773,17 +802,20 @@ export function ReservationFormDialog({
               form="reservation-form"
               disabled={
                 saveMutation.isPending ||
+                stayDatesOpen ||
                 (!isEdit && !chosen) ||
                 dateOverlapConflict
               }
             >
               {saveMutation.isPending
                 ? t("reservations:formDialog.buttons.saving")
-                : isConfirmEnrich
-                  ? t("reservations:formDialog.buttons.saveAndConfirm")
-                  : isEdit
-                    ? t("reservations:formDialog.buttons.saveChanges")
-                    : t("reservations:formDialog.buttons.create")}
+                : stayDatesOpen
+                  ? t("reservations:formDialog.buttons.confirmDateFirst")
+                  : isConfirmEnrich
+                    ? t("reservations:formDialog.buttons.saveAndConfirm")
+                    : isEdit
+                      ? t("reservations:formDialog.buttons.saveChanges")
+                      : t("reservations:formDialog.buttons.create")}
             </Button>
           </>
         }
@@ -822,12 +854,7 @@ export function ReservationFormDialog({
                 checkInDate={checkInDate}
                 checkOutDate={checkOutDate}
                 billingPeriod={billingPeriod}
-                onBillingPeriodChange={(next) => {
-                  form.setValue("billingPeriod", next, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  });
-                }}
+                onBillingPeriodChange={handleBillingPeriodChange}
                 unitId={chosen?.unitId}
                 excludeReservationId={reservation?.id}
                 invalid={Boolean(
@@ -835,17 +862,8 @@ export function ReservationFormDialog({
                   form.formState.errors.checkOutDate ||
                   dateOverlapConflict,
                 )}
-                onChange={({ checkInDate, checkOutDate }) => {
-                  const complete = Boolean(checkInDate && checkOutDate);
-                  form.setValue("checkInDate", checkInDate, {
-                    shouldDirty: true,
-                    shouldValidate: complete,
-                  });
-                  form.setValue("checkOutDate", checkOutDate, {
-                    shouldDirty: true,
-                    shouldValidate: complete,
-                  });
-                }}
+                onChange={handleStayDatesChange}
+                onPanelOpenChange={setStayDatesOpen}
               />
               <FieldError
                 errors={[

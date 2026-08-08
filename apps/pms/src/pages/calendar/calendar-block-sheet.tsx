@@ -165,6 +165,7 @@ export function CalendarBlockSheet({
   const queryClient = useQueryClient();
   const isEdit = Boolean(block);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [stayDatesOpen, setStayDatesOpen] = useState(false);
   const lockedUnitId = block?.unitId ?? initialUnitId;
   const [picked, setPicked] = useState<ChosenUnit | null>(() =>
     chosenFromCalendar(calendar, lockedUnitId, propertyId, propertyName, t),
@@ -344,7 +345,7 @@ export function CalendarBlockSheet({
                 type="button"
                 variant="outline"
                 onClick={() => handleOpenChange(false)}
-                disabled={saveMutation.isPending}
+                disabled={saveMutation.isPending || deleteMutation.isPending}
               >
                 {t("calendar:blockSheet.cancel")}
               </Button>
@@ -354,6 +355,7 @@ export function CalendarBlockSheet({
                 disabled={
                   saveMutation.isPending ||
                   deleteMutation.isPending ||
+                  stayDatesOpen ||
                   !chosen ||
                   dateOverlapConflict
                 }
@@ -420,6 +422,7 @@ export function CalendarBlockSheet({
                     shouldValidate: complete,
                   });
                 }}
+                onPanelOpenChange={setStayDatesOpen}
               />
               <FieldError
                 errors={[

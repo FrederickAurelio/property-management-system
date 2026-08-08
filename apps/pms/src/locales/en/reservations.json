@@ -193,7 +193,8 @@
       "saving": "Saving…",
       "saveAndConfirm": "Save & confirm",
       "saveChanges": "Save changes",
-      "create": "Create"
+      "create": "Create",
+      "confirmDateFirst": "Confirm date first"
     },
     "dateOverlapError": "These dates overlap a booking on this unit — change dates or choose another unit.",
     "unitNotBookableError": "That unit isn’t bookable for these dates — choose another.",
@@ -487,14 +488,10 @@
       "chooseUnit": "Choose a unit to see booked nights on this calendar.",
       "pickStartDaily": "Pick check-in, then check-out",
       "pickEndDaily": "Pick check-out to finish the range",
-      "pickStartMonthly": "Set start day, then pick start month → end month",
-      "pickEndMonthly": "Pick end month to finish the range",
-      "pickStartYearly": "Set start month/day, then pick start year → end year",
-      "pickEndYearly": "Pick end year to finish the range",
+      "pickStartAnchor": "Pick check-in day — checkout follows duration",
       "exclusive": " · check-out is exclusive",
       "busyNoun": "a booked night",
-      "clearDates": "Clear dates",
-      "sameDateHint": " · same calendar date next period"
+      "clearDates": "Clear dates"
     },
     "block": {
       "panelLabel": "Block dates",
@@ -510,27 +507,15 @@
       "chooseUnit": "Choose a unit to see busy nights on this calendar.",
       "pickStartDaily": "Pick start, then end",
       "pickEndDaily": "Pick end to finish the range",
-      "pickStartMonthly": "Set start day, then pick start month → end month",
-      "pickEndMonthly": "Pick end month to finish the range",
-      "pickStartYearly": "Set start month/day, then pick start year → end year",
-      "pickEndYearly": "Pick end year to finish the range",
+      "pickStartAnchor": "Pick start day — end follows duration",
       "exclusive": " · end is exclusive",
       "busyNoun": "a busy night",
-      "clearDates": "Clear dates",
-      "sameDateHint": ""
+      "clearDates": "Clear dates"
     },
     "durationLabel": "Duration",
-    "startMonthLabel": "Start month",
-    "startDayLabel": "Start day",
     "triggerLabelRange": "Range",
     "triggerLabelDates": "Dates",
-    "previousYearAria": "Previous year",
-    "nextYearAria": "Next year",
-    "earlierYearsAria": "Earlier years",
-    "laterYearsAria": "Later years",
-    "yearsLabel": "Years",
-    "monthGridHint": "Check-in uses start day {{day}}{{sameDateHint}}. Pick start month, then end. Current month is highlighted.",
-    "yearGridHint": "Check-in uses {{month}} {{day}}{{sameDateHint}}. Pick start year, then end. Current year is highlighted.",
+    "anchorSelectedSummary": "{{count}} {{unit}} · {{from}} → {{to}}{{exclusive}} · {{nights}} nights on calendar",
     "loadBookedNightsError": "Couldn’t load booked nights for this unit. Try again.",
     "loadingBookedNightsAria": "Loading booked nights",
     "cancel": "Cancel",
@@ -544,6 +529,7 @@
       "yearly": "Yearly"
     },
     "committedSummary": "{{count}} {{unit}}{{exclusive}}",
-    "committedNightsOnCalendar": " · {{count}} nights on calendar"
+    "committedNightsOnCalendar": " · {{count}} nights on calendar",
+    "pickEndWithCheckIn": "Check-in {{date}} · pick check-out"
   }
 }

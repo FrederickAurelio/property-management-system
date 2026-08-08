@@ -193,7 +193,8 @@
       "saving": "Menyimpan…",
       "saveAndConfirm": "Simpan & konfirmasi",
       "saveChanges": "Simpan perubahan",
-      "create": "Buat"
+      "create": "Buat",
+      "confirmDateFirst": "Konfirmasi tanggal dulu"
     },
     "dateOverlapError": "Tanggal ini tumpang tindih dengan booking di unit ini — ubah tanggal atau pilih unit lain.",
     "unitNotBookableError": "Unit itu tidak bisa dipesan untuk tanggal ini — pilih unit lain.",
@@ -487,14 +488,10 @@
       "chooseUnit": "Pilih unit untuk melihat malam terbooking di kalender ini.",
       "pickStartDaily": "Pilih check-in, lalu check-out",
       "pickEndDaily": "Pilih check-out untuk melengkapi rentang",
-      "pickStartMonthly": "Atur tanggal mulai, lalu pilih bulan mulai → bulan akhir",
-      "pickEndMonthly": "Pilih bulan akhir untuk melengkapi rentang",
-      "pickStartYearly": "Atur bulan/tanggal mulai, lalu pilih tahun mulai → tahun akhir",
-      "pickEndYearly": "Pilih tahun akhir untuk melengkapi rentang",
+      "pickStartAnchor": "Pilih hari check-in — check-out mengikuti durasi",
       "exclusive": " · check-out tidak dihitung",
       "busyNoun": "malam yang sudah terbooking",
-      "clearDates": "Hapus tanggal",
-      "sameDateHint": " · tanggal kalender yang sama di periode berikutnya"
+      "clearDates": "Hapus tanggal"
     },
     "block": {
       "panelLabel": "Tanggal blok",
@@ -510,27 +507,15 @@
       "chooseUnit": "Pilih unit untuk melihat malam sibuk di kalender ini.",
       "pickStartDaily": "Pilih mulai, lalu akhir",
       "pickEndDaily": "Pilih akhir untuk melengkapi rentang",
-      "pickStartMonthly": "Atur tanggal mulai, lalu pilih bulan mulai → bulan akhir",
-      "pickEndMonthly": "Pilih bulan akhir untuk melengkapi rentang",
-      "pickStartYearly": "Atur bulan/tanggal mulai, lalu pilih tahun mulai → tahun akhir",
-      "pickEndYearly": "Pilih tahun akhir untuk melengkapi rentang",
+      "pickStartAnchor": "Pilih hari mulai — akhir mengikuti durasi",
       "exclusive": " · akhir tidak dihitung",
       "busyNoun": "malam sibuk",
-      "clearDates": "Hapus tanggal",
-      "sameDateHint": ""
+      "clearDates": "Hapus tanggal"
     },
     "durationLabel": "Durasi",
-    "startMonthLabel": "Bulan mulai",
-    "startDayLabel": "Tanggal mulai",
     "triggerLabelRange": "Rentang",
     "triggerLabelDates": "Tanggal",
-    "previousYearAria": "Tahun sebelumnya",
-    "nextYearAria": "Tahun berikutnya",
-    "earlierYearsAria": "Tahun lebih awal",
-    "laterYearsAria": "Tahun lebih akhir",
-    "yearsLabel": "Tahun",
-    "monthGridHint": "Check-in memakai tanggal mulai {{day}}{{sameDateHint}}. Pilih bulan mulai, lalu akhir. Bulan saat ini ditandai.",
-    "yearGridHint": "Check-in memakai {{month}} {{day}}{{sameDateHint}}. Pilih tahun mulai, lalu akhir. Tahun saat ini ditandai.",
+    "anchorSelectedSummary": "{{count}} {{unit}} · {{from}} → {{to}}{{exclusive}} · {{nights}} malam di kalender",
     "loadBookedNightsError": "Malam terbooking untuk unit ini gagal dimuat. Coba lagi.",
     "loadingBookedNightsAria": "Memuat malam terbooking",
     "cancel": "Batal",
@@ -544,6 +529,7 @@
       "yearly": "Tahunan"
     },
     "committedSummary": "{{count}} {{unit}}{{exclusive}}",
-    "committedNightsOnCalendar": " · {{count}} malam di kalender"
+    "committedNightsOnCalendar": " · {{count}} malam di kalender",
+    "pickEndWithCheckIn": "Check-in {{date}} · pilih check-out"
   }
 }

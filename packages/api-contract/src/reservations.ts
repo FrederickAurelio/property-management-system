@@ -663,22 +663,22 @@ export function computeInventoryEndYmd(
     : checkOutDate;
 }
 
+/** Max nights for daily billing (~1 year). Enforced in count helpers + picker. */
+export const STAY_DAILY_COUNT_MAX = 360;
 /** Max periods for monthly billing (10 years). Enforced in count helpers + picker. */
 export const STAY_MONTHLY_COUNT_MAX = 120;
 /** Max periods for yearly billing. Enforced in count helpers + picker. */
 export const STAY_YEARLY_COUNT_MAX = 30;
 
-/** Upper bound for `count` by period; `null` = daily (night count, uncapped here). */
-export function stayPeriodCountMax(
-  period: StayBillingPeriod,
-): number | null {
+/** Upper bound for `count` by period. */
+export function stayPeriodCountMax(period: StayBillingPeriod): number {
+  if (period === StayBillingPeriod.DAILY) {
+    return STAY_DAILY_COUNT_MAX;
+  }
   if (period === StayBillingPeriod.MONTHLY) {
     return STAY_MONTHLY_COUNT_MAX;
   }
-  if (period === StayBillingPeriod.YEARLY) {
-    return STAY_YEARLY_COUNT_MAX;
-  }
-  return null;
+  return STAY_YEARLY_COUNT_MAX;
 }
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -748,7 +748,7 @@ function nightCountYmd(checkInDate: string, checkOutDate: string): number {
 /**
  * Exclusive check-out from check-in + period count.
  * Daily: +nights days; monthly/yearly: same-date helpers.
- * Over-max monthly/yearly count returns `checkInDate` (invalid range).
+ * Over-max count returns `checkInDate` (invalid range).
  */
 export function checkoutFromPeriodCount(
   period: StayBillingPeriod,
@@ -759,7 +759,7 @@ export function checkoutFromPeriodCount(
     return checkInDate;
   }
   const max = stayPeriodCountMax(period);
-  if (max != null && count > max) {
+  if (count > max) {
     return checkInDate;
   }
   if (period === StayBillingPeriod.DAILY) {
@@ -798,7 +798,10 @@ export function periodCountFromRange(
   }
   if (period === StayBillingPeriod.DAILY) {
     const nights = nightCountYmd(checkInDate, checkOutDate);
-    return nights >= 1 ? nights : null;
+    if (nights < 1 || nights > STAY_DAILY_COUNT_MAX) {
+      return null;
+    }
+    return nights;
   }
   if (period === StayBillingPeriod.MONTHLY) {
     const n = (b.y - a.y) * 12 + (b.m - a.m);

@@ -1,5 +1,6 @@
 import {
   StayBillingPeriod,
+  STAY_DAILY_COUNT_MAX,
   STAY_MONTHLY_COUNT_MAX,
   STAY_YEARLY_COUNT_MAX,
   STAY_YEAR_PICKER_AFTER,
@@ -100,10 +101,38 @@ describe('stay billing period helpers', () => {
     ).toBeNull();
   });
 
+  it('caps daily night count at STAY_DAILY_COUNT_MAX', () => {
+    const inYmd = '2026-01-01';
+    const out360 = checkoutFromPeriodCount(
+      StayBillingPeriod.DAILY,
+      inYmd,
+      STAY_DAILY_COUNT_MAX,
+    );
+    expect(
+      periodCountFromRange(StayBillingPeriod.DAILY, inYmd, out360),
+    ).toBe(STAY_DAILY_COUNT_MAX);
+    const out361 = checkoutFromPeriodCount(
+      StayBillingPeriod.DAILY,
+      inYmd,
+      STAY_DAILY_COUNT_MAX + 1,
+    );
+    expect(out361).toBe(inYmd);
+    expect(
+      periodCountFromRange(StayBillingPeriod.DAILY, inYmd, out361),
+    ).toBeNull();
+  });
+
   it('builds checkout from period count', () => {
     expect(
       checkoutFromPeriodCount(StayBillingPeriod.DAILY, '2026-08-01', 5),
     ).toBe('2026-08-06');
+    expect(
+      checkoutFromPeriodCount(
+        StayBillingPeriod.DAILY,
+        '2026-08-01',
+        STAY_DAILY_COUNT_MAX + 1,
+      ),
+    ).toBe('2026-08-01');
     expect(
       checkoutFromPeriodCount(StayBillingPeriod.MONTHLY, '2026-01-31', 1),
     ).toBe('2026-02-28');
