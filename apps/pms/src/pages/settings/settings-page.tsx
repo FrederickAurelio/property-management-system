@@ -11,8 +11,6 @@ import { ChangePasswordForm } from "./change-password-form";
 import { ChangeUsernameForm } from "./change-username-form";
 import { StaffSection } from "./staff-section";
 import { ThemePreferenceSelect } from "./theme-preference-select";
-import { ArchiveSmokeUpload } from "./archive-smoke-upload";
-
 function SettingsSection({
   title,
   description,
@@ -110,15 +108,6 @@ export function SettingsPage() {
           </SettingsSection>
         </>
       )}
-
-      <Separator />
-
-      <SettingsSection
-        title="Archive upload smoke test (temp)"
-        description="Self-hosted Garage proofs — not inventory media. Remove after real proof UI."
-      >
-        <ArchiveSmokeUpload />
-      </SettingsSection>
 
       <Separator />
 
