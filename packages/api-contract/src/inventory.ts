@@ -170,10 +170,11 @@ export const UTILITY_METER_VALUE_MAX = 999_999_999.999;
 /** Max Garage meteran proof photos stored on one utility reading row. */
 export const UTILITY_READING_PROOF_MAX = 10;
 
-/** Lightweight property row for staff filter / select dropdowns (id + label only). */
+/** Lightweight property row for staff filter / select dropdowns. */
 export type StaffPropertyOption = {
   id: string;
   name: string;
+  timezone: string;
 };
 
 /** Staff/PMS wire shape for a property (full ops row + counts). Not the public website catalog. */

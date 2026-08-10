@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { calendarOpsProps } from "@/lib/ops-date";
 import {
   activePresetId,
   dateToYmd,
@@ -31,7 +32,6 @@ import {
   REPORTS_PERIOD_PRESETS,
   reportsPeriodPresetLabel,
   type ReportsPeriodPresetId,
-  todayYmdLocal,
   ymdToDate,
 } from "./reports-period";
 
@@ -39,6 +39,8 @@ type ReportsFilterBarProps = {
   propertyId: string;
   properties: StaffPropertyOption[];
   propertiesLoading?: boolean;
+  today: string;
+  timezone: string;
   from: string;
   to: string;
   compare: boolean;
@@ -59,6 +61,7 @@ function DatePickerField({
   onChange,
   minYmd,
   maxYmd,
+  calendarTodayProps,
   className,
   triggerClassName,
 }: {
@@ -68,6 +71,7 @@ function DatePickerField({
   onChange: (ymd: string) => void;
   minYmd?: string;
   maxYmd?: string;
+  calendarTodayProps: { timeZone: string; today: Date };
   className?: string;
   triggerClassName?: string;
 }) {
@@ -104,6 +108,8 @@ function DatePickerField({
             mode="single"
             selected={selected}
             defaultMonth={selected}
+            timeZone={calendarTodayProps.timeZone}
+            today={calendarTodayProps.today}
             disabled={[
               ...(minDate ? [{ before: minDate }] : []),
               ...(maxDate ? [{ after: maxDate }] : []),
@@ -198,6 +204,8 @@ export function ReportsFilterBar({
   propertyId,
   properties,
   propertiesLoading,
+  today,
+  timezone,
   from,
   to,
   compare,
@@ -211,7 +219,7 @@ export function ReportsFilterBar({
   onExport,
 }: ReportsFilterBarProps) {
   const { t } = useTranslation(["reports", "common"]);
-  const today = todayYmdLocal();
+  const calendarTodayProps = calendarOpsProps(timezone);
   const preset = activePresetId(from, to, today);
   const resolvedCompare =
     compareWindow ?? (compare ? previousEqualPeriod(from, to) : null);
@@ -257,6 +265,7 @@ export function ReportsFilterBar({
             label={t("reports:filterBar.fromLabel")}
             value={from}
             maxYmd={to}
+            calendarTodayProps={calendarTodayProps}
             onChange={onFromChange}
           />
           <DatePickerField
@@ -264,6 +273,7 @@ export function ReportsFilterBar({
             label={t("reports:filterBar.toLabel")}
             value={to}
             minYmd={from}
+            calendarTodayProps={calendarTodayProps}
             onChange={onToChange}
           />
         </div>
@@ -319,6 +329,7 @@ export function ReportsFilterBar({
             label={t("reports:filterBar.fromLabel")}
             value={from}
             maxYmd={to}
+            calendarTodayProps={calendarTodayProps}
             onChange={onFromChange}
             className="shrink-0 gap-0"
           />
@@ -327,6 +338,7 @@ export function ReportsFilterBar({
             label={t("reports:filterBar.toLabel")}
             value={to}
             minYmd={from}
+            calendarTodayProps={calendarTodayProps}
             onChange={onToChange}
             className="shrink-0 gap-0"
           />

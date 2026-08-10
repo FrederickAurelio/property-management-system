@@ -48,10 +48,10 @@ export class PropertiesService {
     };
   }
 
-  /** All properties as `{ id, name }` for filter / select UIs (unpaginated). */
+  /** All properties as `{ id, name, timezone }` for filter / select UIs (unpaginated). */
   async listOptions(): Promise<StaffPropertyOption[]> {
     const rows = await this.prisma.property.findMany({
-      select: { id: true, name: true },
+      select: { id: true, name: true, timezone: true },
       orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
     });
     return rows;

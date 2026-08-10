@@ -52,7 +52,14 @@ import {
 } from "@/lib/api";
 import { googleMapsUrl } from "./inventory-types";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
+import { SearchableSelect } from "@/components/form/searchable-select";
 import { CoverImageField } from "@/components/media/sortable-media-field";
+import {
+  getCountryOptions,
+  getTimezoneOptions,
+  isValidCountryCode,
+  isValidIanaTimezone,
+} from "@/lib/geo-options";
 
 function createPropertySchema(t: TFunction) {
   const hhmmOrEmpty = z.union([
@@ -97,7 +104,10 @@ function createPropertySchema(t: TFunction) {
         .string()
         .trim()
         .min(1, t("inventory:properties.form.zod.timezoneRequired"))
-        .max(INVENTORY_TIMEZONE_MAX),
+        .max(INVENTORY_TIMEZONE_MAX)
+        .refine(isValidIanaTimezone, {
+          message: t("inventory:properties.form.zod.timezoneInvalid"),
+        }),
       city: z.union([z.literal(""), z.string().trim().max(INVENTORY_CITY_MAX)]),
       countryCode: z.union([
         z.literal(""),
@@ -106,12 +116,15 @@ function createPropertySchema(t: TFunction) {
           .trim()
           .length(
             INVENTORY_COUNTRY_CODE_LENGTH,
-            t("inventory:properties.form.zod.countryCodePattern"),
+            t("inventory:properties.form.zod.countryCodeInvalid"),
           )
           .regex(
             /^[A-Za-z]{2}$/,
-            t("inventory:properties.form.zod.countryCodePattern"),
-          ),
+            t("inventory:properties.form.zod.countryCodeInvalid"),
+          )
+          .refine((code) => isValidCountryCode(code), {
+            message: t("inventory:properties.form.zod.countryCodeInvalid"),
+          }),
       ]),
       addressLine: z.union([
         z.literal(""),
@@ -244,11 +257,25 @@ export function PropertyFormDialog({
   property,
   readOnly = false,
 }: PropertyFormDialogProps) {
-  const { t } = useTranslation(["inventory", "common"]);
+  const { t, i18n } = useTranslation(["inventory", "common"]);
+  const geoLocale = i18n.language.startsWith("id") ? "id" : "en";
   const isEdit = Boolean(property);
   const queryClient = useQueryClient();
   const [mediaUploading, setMediaUploading] = useState(false);
   const schema = useMemo(() => createPropertySchema(t), [t]);
+  const countryOptions = useMemo(
+    () => getCountryOptions(geoLocale),
+    [geoLocale],
+  );
+  const propertyTimezone = property?.timezone;
+  const timezoneOptions = useMemo(
+    () =>
+      getTimezoneOptions(
+        geoLocale,
+        propertyTimezone ? [propertyTimezone] : [],
+      ),
+    [geoLocale, propertyTimezone],
+  );
   const form = useForm<FormValues>({
     // Cast: @hookform/resolvers brands Zod minor as `0`; Zod 4.4 uses `4` (runtime OK).
     resolver: zodResolver(schema as never),
@@ -439,15 +466,26 @@ export function PropertyFormDialog({
                   <FieldLabel htmlFor="property-tz">
                     {t("inventory:properties.form.fields.timezone")}
                   </FieldLabel>
-                  <Input
-                    {...field}
+                  <SearchableSelect
                     id="property-tz"
-                    aria-invalid={fieldState.invalid || undefined}
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={timezoneOptions}
                     placeholder={t(
                       "inventory:properties.form.fields.timezonePlaceholder",
                     )}
-                    autoComplete="off"
+                    searchPlaceholder={t(
+                      "inventory:properties.form.fields.timezoneSearchPlaceholder",
+                    )}
+                    emptyMessage={t(
+                      "inventory:properties.form.fields.searchNoResults",
+                    )}
+                    disabled={readOnly}
+                    invalid={fieldState.invalid}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    {t("inventory:properties.form.fields.timezoneHint")}
+                  </p>
                   <FieldError errors={[fieldState.error]} />
                 </Field>
               )}
@@ -479,15 +517,26 @@ export function PropertyFormDialog({
                     <FieldLabel htmlFor="property-country">
                       {t("inventory:properties.form.fields.country")}
                     </FieldLabel>
-                    <Input
-                      {...field}
+                    <SearchableSelect
                       id="property-country"
-                      aria-invalid={fieldState.invalid || undefined}
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={countryOptions}
                       placeholder={t(
                         "inventory:properties.form.fields.countryPlaceholder",
                       )}
-                      autoComplete="off"
-                      className="uppercase"
+                      searchPlaceholder={t(
+                        "inventory:properties.form.fields.countrySearchPlaceholder",
+                      )}
+                      emptyMessage={t(
+                      "inventory:properties.form.fields.searchNoResults",
+                    )}
+                      allowEmpty
+                      emptyLabel={t(
+                        "inventory:properties.form.fields.countryEmpty",
+                      )}
+                      disabled={readOnly}
+                      invalid={fieldState.invalid}
                     />
                     <FieldError errors={[fieldState.error]} />
                   </Field>

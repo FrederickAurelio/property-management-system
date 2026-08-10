@@ -50,10 +50,13 @@ import {
   handleSuccess,
   syncReservationCaches,
   listAvailableUnits,
+  listPropertyOptions,
+  staffPropertiesOptionsQueryKey,
   staffUnitsAvailabilityQueryKey,
   staffUnitTypeRackQueryKey,
   updateReservation,
 } from "@/lib/api";
+import { opsTodayYmd, resolvePropertyTimezone } from "@/lib/ops-date";
 import { IdrAmountInput } from "@/components/form/idr-amount-input";
 import { useOtaRemindDialog } from "@/hooks/use-ota-remind-dialog";
 import { formatIdr, formatIdrInput } from "@/pages/properties/inventory-types";
@@ -358,6 +361,34 @@ export function ReservationFormDialog({
       : reservation
         ? chosenFromReservation(reservation)
         : initialChosen;
+
+  const propertyOptionsQuery = useQuery({
+    queryKey: staffPropertiesOptionsQueryKey(),
+    queryFn: listPropertyOptions,
+    enabled: open,
+  });
+
+  const propertyTimezone = useMemo(() => {
+    if (reservation) {
+      return reservation.propertyTimezone;
+    }
+    const pid = chosen?.propertyId ?? initialPropertyId;
+    if (!pid) {
+      return undefined;
+    }
+    return resolvePropertyTimezone(propertyOptionsQuery.data ?? [], pid);
+  }, [
+    reservation,
+    chosen,
+    initialPropertyId,
+    propertyOptionsQuery.data,
+  ]);
+
+  const opsToday = useMemo(
+    () => opsTodayYmd(propertyTimezone),
+    [propertyTimezone],
+  );
+
   /** Last full suggest key we applied (or seeded on edit when stay unchanged). */
   const appliedSuggestKeyRef = useRef<string | null>(null);
   /**
@@ -857,6 +888,8 @@ export function ReservationFormDialog({
                 onBillingPeriodChange={handleBillingPeriodChange}
                 unitId={chosen?.unitId}
                 excludeReservationId={reservation?.id}
+                propertyTimezone={propertyTimezone}
+                opsTodayYmd={opsToday}
                 invalid={Boolean(
                   form.formState.errors.checkInDate ||
                   form.formState.errors.checkOutDate ||

@@ -1,5 +1,5 @@
 /* anchor: Stripe-data period review, diverge: cash Net hero; dense analysis tables */
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
@@ -13,15 +13,20 @@ import {
   staffReportsSummaryQueryKey,
 } from "@/lib/api";
 import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
+import {
+  opsTodayYmd,
+  resolvePropertyTimezone,
+} from "@/lib/ops-date";
 import { ReportsCashSection } from "./reports-cash-section";
 import { downloadReportsCsv } from "./reports-export";
 import { ReportsFilterBar } from "./reports-filter-bar";
 import { ReportsOccupancySection } from "./reports-occupancy-section";
 import {
+  activePresetId,
   defaultMonthToDate,
   formatInclusiveRangeLabel,
   previousEqualPeriod,
-  todayYmdLocal,
+  rangeForPreset,
 } from "./reports-period";
 import { ReportsSourceMixSection } from "./reports-source-mix-section";
 
@@ -54,13 +59,24 @@ function ReportsPageSkeleton() {
 export function ReportsPage() {
   const { t } = useTranslation(["reports", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const today = todayYmdLocal();
-  const defaults = useMemo(() => defaultMonthToDate(today), [today]);
 
   const propertyId = searchParams.get("propertyId") ?? "";
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
   const compareParam = searchParams.get("compare");
+
+  const optionsQuery = useQuery({
+    queryKey: staffPropertiesOptionsQueryKey(),
+    queryFn: listPropertyOptions,
+  });
+
+  const timezone = useMemo(
+    () => resolvePropertyTimezone(optionsQuery.data ?? [], propertyId),
+    [optionsQuery.data, propertyId],
+  );
+  const today = useMemo(() => opsTodayYmd(timezone), [timezone]);
+  const defaults = useMemo(() => defaultMonthToDate(today), [today]);
+  const prevTodayRef = useRef(today);
 
   const from =
     fromParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam)
@@ -98,20 +114,14 @@ export function ReportsPage() {
     [defaults.from, defaults.to, setSearchParams],
   );
 
-  const optionsQuery = useQuery({
-    queryKey: staffPropertiesOptionsQueryKey(),
-    queryFn: listPropertyOptions,
-  });
-
-  // URL hygiene: fill missing period defaults + ensure a valid propertyId.
+  // URL hygiene: fill missing period defaults, ensure propertyId, re-seed presets when TZ resolves.
   useEffect(() => {
     const needsPeriodDefaults =
       !fromParam || !toParam || compareParam == null;
 
+    // Wait for property options so period defaults use the resolved property TZ,
+    // not the Jakarta fallback from an empty options list.
     if (!optionsQuery.isSuccess || optionsQuery.data.length === 0) {
-      if (needsPeriodDefaults) {
-        setChrome({ from, to, compare });
-      }
       return;
     }
 
@@ -119,10 +129,25 @@ export function ReportsPage() {
       Boolean(propertyId) &&
       optionsQuery.data.some((p) => p.id === propertyId);
 
+    const prevToday = prevTodayRef.current;
+    const todayChanged = prevToday !== today;
+
     if (propertyOk) {
       writeLastPropertyId(propertyId);
+
       if (needsPeriodDefaults) {
-        setChrome({ from, to, compare });
+        setChrome({ from: defaults.from, to: defaults.to, compare });
+        prevTodayRef.current = today;
+        return;
+      }
+
+      if (todayChanged) {
+        const preset = activePresetId(from, to, prevToday);
+        if (preset) {
+          const r = rangeForPreset(preset, today);
+          setChrome({ from: r.from, to: r.to });
+        }
+        prevTodayRef.current = today;
       }
       return;
     }
@@ -132,10 +157,11 @@ export function ReportsPage() {
     const nextId = match?.id ?? optionsQuery.data[0]!.id;
     setChrome({
       propertyId: nextId,
-      from,
-      to,
+      from: needsPeriodDefaults ? defaults.from : from,
+      to: needsPeriodDefaults ? defaults.to : to,
       compare,
     });
+    prevTodayRef.current = today;
   }, [
     optionsQuery.isSuccess,
     optionsQuery.data,
@@ -146,6 +172,9 @@ export function ReportsPage() {
     from,
     to,
     compare,
+    today,
+    defaults.from,
+    defaults.to,
     setChrome,
   ]);
 
@@ -187,20 +216,32 @@ export function ReportsPage() {
 
   const noProperties = optionsQuery.isSuccess && optionsQuery.data.length === 0;
 
+  const handlePropertyChange = (id: string) => {
+    const preset = activePresetId(from, to, today);
+    if (preset) {
+      const newTz = resolvePropertyTimezone(optionsQuery.data ?? [], id);
+      const newToday = opsTodayYmd(newTz);
+      const r = rangeForPreset(preset, newToday);
+      setChrome({ propertyId: id, from: r.from, to: r.to });
+      return;
+    }
+    setChrome({ propertyId: id });
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-0 p-4 pb-20 md:p-5 md:pb-8">
       <ReportsFilterBar
         propertyId={propertyId}
         properties={optionsQuery.data ?? []}
         propertiesLoading={optionsQuery.isPending}
+        today={today}
+        timezone={timezone}
         from={from}
         to={to}
         compare={compare}
         compareWindow={compareWindow}
         exportDisabled={!summaryQuery.data || summaryQuery.isFetching}
-        onPropertyChange={(id) => {
-          setChrome({ propertyId: id });
-        }}
+        onPropertyChange={handlePropertyChange}
         onFromChange={(nextFrom) => {
           const nextTo = nextFrom > to ? nextFrom : to;
           setChrome({ from: nextFrom, to: nextTo });

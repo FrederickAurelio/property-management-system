@@ -150,6 +150,9 @@ export const RESERVATION_GUEST_PHONE_MAX = 32;
 export const RESERVATION_NOTES_MAX = 4000;
 export const RESERVATION_EXTERNAL_REF_MAX = 256;
 
+/** Fallback IANA zone when property timezone is missing (matches API desk default). */
+export const DEFAULT_PROPERTY_TIMEZONE = 'Asia/Jakarta';
+
 /** Property-local calendar date as YYYY-MM-DD (desk boards / check-in window). */
 export function todayYmdInTimezone(timezone: string, now = new Date()): string {
   return ymdInTimezone(now, timezone);

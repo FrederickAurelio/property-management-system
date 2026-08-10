@@ -8,6 +8,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import {
   StayBillingPeriod,
+  addDaysYmd,
   checkoutFromPeriodCount,
   periodCountFromRange,
   stayPeriodCountMax,
@@ -22,8 +23,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getUnitMonthOccupancy, staffUnitOccupancyQueryKey } from "@/lib/api";
+import {
+  calendarOpsProps,
+  dateToYmd,
+  ymdToDate,
+} from "@/lib/ops-date";
 import { cn } from "@/lib/utils";
-import { nightCount, todayYmd } from "./reservation-format";
+import { nightCount } from "./reservation-format";
 
 /**
  * Module-level DayButton — must keep a stable component identity.
@@ -127,39 +133,6 @@ function firstTurnaroundNight(
   return null;
 }
 
-function ymdToDate(ymd: string): Date | undefined {
-  if (!ymd) {
-    return undefined;
-  }
-  const [y, m, d] = ymd.split("-").map(Number);
-  if (!y || !m || !d) {
-    return undefined;
-  }
-  return new Date(y, m - 1, d);
-}
-
-function dateToYmd(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function yearMonthOf(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
-
-function addDaysYmd(ymd: string, days: number): string {
-  const base = ymdToDate(ymd);
-  if (!base) {
-    return ymd;
-  }
-  base.setDate(base.getDate() + days);
-  return dateToYmd(base);
-}
-
 function rangeFromYmd(
   checkInDate: string,
   checkOutDate: string,
@@ -185,6 +158,12 @@ function formatRangeLabel(
     return `${format(ymdToDate(checkInDate)!, "LLL d, y")} → …`;
   }
   return emptyLabel;
+}
+
+function yearMonthOf(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
 }
 
 /** Add `n` calendar months to a YYYY-MM key. */
@@ -315,6 +294,10 @@ type StayDateRangePickerProps = {
   copy?: "stay" | "block";
   /** Fires when the inline calendar panel opens/closes (for parent form footer gating). */
   onPanelOpenChange?: (open: boolean) => void;
+  /** Property IANA zone — ops today highlight + occupancy fallback. */
+  propertyTimezone?: string;
+  /** Property-local ops today YMD — parent should pass `opsTodayYmd(tz)`. */
+  opsTodayYmd?: string;
 };
 
 type StayDatePickerLabels = {
@@ -378,18 +361,26 @@ function StayDateRangePickerComponent({
   excludeOccupancyId,
   copy = "stay",
   onPanelOpenChange,
+  propertyTimezone,
+  opsTodayYmd: opsTodayYmdProp,
 }: StayDateRangePickerProps) {
   const { t } = useTranslation(["reservations", "common"]);
   const labels = useMemo(() => buildLabels(t, copy), [t, copy]);
   const isMobile = useIsMobile();
   const period = billingPeriodProp ?? StayBillingPeriod.DAILY;
   const isAnchorMode = period !== StayBillingPeriod.DAILY;
+  const calendarTodayProps = calendarOpsProps(propertyTimezone);
+  const resolvedOpsTodayYmd = opsTodayYmdProp ?? dateToYmd(calendarTodayProps.today);
+  const resolvedOpsTodayDate = useMemo(
+    () => ymdToDate(resolvedOpsTodayYmd) ?? calendarTodayProps.today,
+    [resolvedOpsTodayYmd, calendarTodayProps.today],
+  );
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>(() =>
     rangeFromYmd(checkInDate, checkOutDate),
   );
   const [displayMonth, setDisplayMonth] = useState<Date>(
-    () => ymdToDate(checkInDate) ?? new Date(),
+    () => ymdToDate(checkInDate) ?? resolvedOpsTodayDate,
   );
 
   const committedCount =
@@ -440,14 +431,13 @@ function StayDateRangePickerComponent({
     const first = visibleYearMonths[0];
     const last = visibleYearMonths[visibleYearMonths.length - 1];
     if (!first || !last) {
-      const today = todayYmd();
-      return { from: today, to: addDaysYmd(today, 62) };
+      return { from: resolvedOpsTodayYmd, to: addDaysYmd(resolvedOpsTodayYmd, 62) };
     }
     return {
       from: `${first}-01`,
       to: `${addYearMonth(last, 2)}-01`,
     };
-  }, [visibleYearMonths]);
+  }, [visibleYearMonths, resolvedOpsTodayYmd]);
 
   const occupancyQuery = useQuery({
     queryKey: staffUnitOccupancyQueryKey(unitId ?? "", {
@@ -668,7 +658,8 @@ function StayDateRangePickerComponent({
     if (next) {
       const nextDraft = rangeFromYmd(checkInDate, checkOutDate);
       setDraft(nextDraft);
-      const base = nextDraft?.from ?? ymdToDate(checkInDate) ?? new Date();
+      const base =
+        nextDraft?.from ?? ymdToDate(checkInDate) ?? resolvedOpsTodayDate;
       setDisplayMonth(base);
       setOpen(true);
       onPanelOpenChange?.(true);
@@ -899,6 +890,8 @@ function StayDateRangePickerComponent({
           onMonthChange={setDisplayMonth}
           selected={draft?.from}
           onSelect={handleSelectAnchor}
+          timeZone={calendarTodayProps.timeZone}
+          today={calendarTodayProps.today}
           modifiers={calendarModifiers}
           components={STAY_CALENDAR_COMPONENTS}
         />
@@ -912,6 +905,8 @@ function StayDateRangePickerComponent({
           onMonthChange={setDisplayMonth}
           selected={draft}
           onSelect={handleSelectDailyRange}
+          timeZone={calendarTodayProps.timeZone}
+          today={calendarTodayProps.today}
           disabled={disabledMatcher}
           modifiers={calendarModifiers}
           components={STAY_CALENDAR_COMPONENTS}

@@ -45,7 +45,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Errors `{ error: { code, message, details? } }` → throws `ApiError`. Also maps timeout / network / 502–504 to FE-only codes (`TIMEOUT`, `NETWORK_ERROR`, `SERVER_UNAVAILABLE`).
 - Staff auth helpers: `staffLogin` / `staffLogout` / `staffSession` (thin `api.*` wrappers) — paths `/auth/*`.
 - Staff admin helpers: `listAdmins` / `createAdmin` / `changeAdminRole` / `setAdminActive` (`/admins`, SUPER_ADMIN). Query key: `staffAdminsQueryKey`.
-- Inventory helpers: `listProperties` / `listPropertyOptions` / `listUnitTypes` / `listUnits` (+ create/update/delete + detail GETs) under `/properties|unit-types|units`. Wire types `StaffProperty` / `StaffPropertyOption` / `StaffUnitType` / `StaffUnit`; lists are `Paginated<T>` (options = unpaginated `{ id, name }[]`).
+- Inventory helpers: `listProperties` / `listPropertyOptions` / `listUnitTypes` / `listUnits` (+ create/update/delete + detail GETs) under `/properties|unit-types|units`. Wire types `StaffProperty` / `StaffPropertyOption` / `StaffUnitType` / `StaffUnit`; lists are `Paginated<T>` (options = unpaginated `{ id, name, timezone }[]`).
 - Media helpers: `getMediaConfig` / `createUploadIntent` / `uploadMediaFile` (`src/lib/api/media.ts`) — Nest mints provider-shaped intent; R2 images FE-optimized (`browser-image-compression`) before intent; Cloudinary uploads original (provider optimizes); never put vendor secrets in Vite.
 - Archive helpers: `getArchiveConfig` / `uploadArchiveFile` (`src/lib/api/archive.ts`) — Garage proofs via `/archive/*`; FE uses archive compress profile; parallel to inventory media.
 - SPA routes like `/properties` are UI-only — never invent unprefixed Nest paths.
@@ -53,6 +53,17 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Toasts: `handleSuccess` / `handleError` from screens/mutations — **not** inside the interceptor.
 - Env: root `.env` → `VITE_API_URL` is the **proxy target only** (`vite.config` `envDir` = repo root).
 - GET lists: Skeleton + `QueryRetryButton` on page-1 error; infinite lists use `InfiniteListFooter` (see `.cursor/rules/pms-ui.mdc`).
+
+## Ops dates & timezones
+
+Property-scoped “today” and picker highlights use [`src/lib/ops-date.ts`](src/lib/ops-date.ts):
+
+- **Stay YMD** (`checkInDate`, blocks): plain `YYYY-MM-DD` strings — never timezone-shift.
+- **Ops today** (reports MTD, calendar Today, stay filter presets): `opsTodayYmd(property.timezone)` from `listPropertyOptions`.
+- **YMD arithmetic**: `addDaysYmd` from `@cabin/api-contract` (UTC string math).
+- **Picker bridge**: `ymdToDate` / `dateToYmd` for react-day-picker only.
+- **Calendar today ring**: pass `calendarOpsProps(tz)` (`timeZone` + `today`) on every property-scoped `<Calendar>`.
+- **Payment `createdAt` display**: property timezone on reservation detail; date-only labels stay locale-formatted.
 
 ## Server state (TanStack Query)
 

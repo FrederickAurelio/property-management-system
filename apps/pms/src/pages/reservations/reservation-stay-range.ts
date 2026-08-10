@@ -1,11 +1,8 @@
 import { format } from "date-fns";
-import {
-  dateToYmd,
-  todayYmdLocal,
-  ymdToDate,
-} from "@/pages/reports/reports-period";
+import { addDaysYmd } from "@cabin/api-contract";
+import { dateToYmd, ymdToDate } from "@/lib/ops-date";
 
-export { dateToYmd, todayYmdLocal, ymdToDate };
+export { dateToYmd, ymdToDate };
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -26,28 +23,21 @@ export function parseStayTouchRange(
   return { from, to: null };
 }
 
-function addDaysLocalYmd(ymd: string, days: number): string {
-  const d = ymdToDate(ymd);
-  if (!d) return ymd;
-  d.setDate(d.getDate() + days);
-  return dateToYmd(d);
-}
-
-/** Monday–Sunday of the week containing today (local). */
-export function thisWeekInclusive(today = todayYmdLocal()): {
+/** Monday–Sunday of the week containing today (property ops YMD). */
+export function thisWeekInclusive(today: string): {
   from: string;
   to: string;
 } {
   const d = ymdToDate(today)!;
   const day = d.getDay(); // 0 Sun … 6 Sat
   const mondayOffset = day === 0 ? -6 : 1 - day;
-  const from = addDaysLocalYmd(today, mondayOffset);
-  const to = addDaysLocalYmd(from, 6);
+  const from = addDaysYmd(today, mondayOffset);
+  const to = addDaysYmd(from, 6);
   return { from, to };
 }
 
 /** 1st → last day of the current calendar month. */
-export function thisMonthInclusive(today = todayYmdLocal()): {
+export function thisMonthInclusive(today: string): {
   from: string;
   to: string;
 } {
@@ -58,11 +48,11 @@ export function thisMonthInclusive(today = todayYmdLocal()): {
 }
 
 /** Today → today + 29 days (30 inclusive days). */
-export function next30DaysInclusive(today = todayYmdLocal()): {
+export function next30DaysInclusive(today: string): {
   from: string;
   to: string;
 } {
-  return { from: today, to: addDaysLocalYmd(today, 29) };
+  return { from: today, to: addDaysYmd(today, 29) };
 }
 
 export type StayRangePresetId = "this-week" | "this-month" | "next-30";
@@ -75,7 +65,7 @@ export const STAY_RANGE_PRESETS: { id: StayRangePresetId }[] = [
 
 export function rangeForStayPreset(
   id: StayRangePresetId,
-  today = todayYmdLocal(),
+  today: string,
 ): { from: string; to: string } {
   switch (id) {
     case "this-week":
@@ -90,7 +80,7 @@ export function rangeForStayPreset(
 export function activeStayPresetId(
   from: string,
   to: string,
-  today = todayYmdLocal(),
+  today: string,
 ): StayRangePresetId | null {
   for (const p of STAY_RANGE_PRESETS) {
     const r = rangeForStayPreset(p.id, today);

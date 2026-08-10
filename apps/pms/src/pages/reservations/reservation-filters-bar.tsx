@@ -26,6 +26,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { ReservationBoard } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { opsTodayYmd, resolvePropertyTimezone } from "@/lib/ops-date";
 import { ReservationDateRangeFilter } from "./reservation-date-range-filter";
 import { reservationBoards } from "./reservation-boards";
 import {
@@ -38,6 +39,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 export type ReservationPropertyOption = {
   id: string;
   name: string;
+  timezone: string;
 };
 
 type ReservationFiltersBarProps = {
@@ -78,6 +80,9 @@ export function ReservationFiltersBar({
   const { t } = useTranslation(["reservations", "common"]);
   const [, setSearchParams] = useSearchParams();
   const [qDraft, setQDraft] = useState(q);
+  const opsToday = opsTodayYmd(
+    resolvePropertyTimezone(propertyOptions, propertyId),
+  );
   const [prevQ, setPrevQ] = useState(q);
   if (q !== prevQ) {
     setPrevQ(q);
@@ -217,6 +222,11 @@ export function ReservationFiltersBar({
             <ReservationDateRangeFilter
               from={from}
               to={to}
+              opsTodayYmd={opsToday}
+              propertyTimezone={resolvePropertyTimezone(
+                propertyOptions,
+                propertyId,
+              )}
               onPatch={onPatch}
             />
           )}

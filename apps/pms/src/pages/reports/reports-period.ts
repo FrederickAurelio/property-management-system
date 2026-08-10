@@ -1,23 +1,13 @@
 import { format } from "date-fns";
-import { inclusiveDayCount, previousEqualPeriod } from "@cabin/api-contract";
+import { addDaysYmd, inclusiveDayCount, previousEqualPeriod } from "@cabin/api-contract";
 import i18n from "@/i18n";
+import { dateToYmd, ymdToDate } from "@/lib/ops-date";
 
 export { inclusiveDayCount, previousEqualPeriod };
-
-export function todayYmdLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function addDaysLocalYmd(ymd: string, days: number): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(y!, m! - 1, d!);
-  dt.setDate(dt.getDate() + days);
-  return dateToYmd(dt);
-}
+export { dateToYmd, ymdToDate };
 
 /** Month-to-date: 1st of current month → today (inclusive). */
-export function defaultMonthToDate(today = todayYmdLocal()): {
+export function defaultMonthToDate(today: string): {
   from: string;
   to: string;
 } {
@@ -26,7 +16,7 @@ export function defaultMonthToDate(today = todayYmdLocal()): {
 }
 
 /** Full previous calendar month (inclusive). */
-export function lastFullMonth(today = todayYmdLocal()): {
+export function lastFullMonth(today: string): {
   from: string;
   to: string;
 } {
@@ -41,9 +31,9 @@ export function lastFullMonth(today = todayYmdLocal()): {
 /** Inclusive last N days ending today. */
 export function lastNDaysInclusive(
   n: number,
-  today = todayYmdLocal(),
+  today: string,
 ): { from: string; to: string } {
-  return { from: addDaysLocalYmd(today, -(n - 1)), to: today };
+  return { from: addDaysYmd(today, -(n - 1)), to: today };
 }
 
 export type ReportsPeriodPresetId = "mtd" | "last-month" | "last-7" | "last-30";
@@ -68,7 +58,7 @@ export function reportsPeriodPresetLabel(id: ReportsPeriodPresetId): string {
 
 export function rangeForPreset(
   id: ReportsPeriodPresetId,
-  today = todayYmdLocal(),
+  today: string,
 ): { from: string; to: string } {
   switch (id) {
     case "mtd":
@@ -86,24 +76,13 @@ export function rangeForPreset(
 export function activePresetId(
   from: string,
   to: string,
-  today = todayYmdLocal(),
+  today: string,
 ): ReportsPeriodPresetId | null {
   for (const p of REPORTS_PERIOD_PRESETS) {
     const r = rangeForPreset(p.id, today);
     if (r.from === from && r.to === to) return p.id;
   }
   return null;
-}
-
-export function ymdToDate(ymd: string): Date | undefined {
-  if (!ymd) return undefined;
-  const [y, m, d] = ymd.split("-").map(Number);
-  if (!y || !m || !d) return undefined;
-  return new Date(y, m - 1, d);
-}
-
-export function dateToYmd(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export function formatInclusiveRangeLabel(from: string, to: string): string {

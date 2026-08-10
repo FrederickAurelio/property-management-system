@@ -53,7 +53,10 @@ export function PaymentMovementsTimeline({
                     ) : null}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {formatMovementCreatedAt(m.createdAt)}
+                    {formatMovementCreatedAt(
+                      m.createdAt,
+                      reservation.propertyTimezone,
+                    )}
                     {m.createdByAdminUsername
                       ? ` · ${m.createdByAdminUsername}`
                       : null}

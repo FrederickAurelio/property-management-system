@@ -73,18 +73,18 @@ describe('PropertiesService', () => {
   });
 
   describe('listOptions', () => {
-    it('returns id and name only, ordered by name', async () => {
+    it('returns id, name, and timezone, ordered by name', async () => {
       prisma.property.findMany.mockResolvedValue([
-        { id: 'prop_a', name: 'Alpha' },
-        { id: 'prop_b', name: 'Beta' },
+        { id: 'prop_a', name: 'Alpha', timezone: 'Asia/Jakarta' },
+        { id: 'prop_b', name: 'Beta', timezone: 'Asia/Makassar' },
       ]);
 
       await expect(service.listOptions()).resolves.toEqual([
-        { id: 'prop_a', name: 'Alpha' },
-        { id: 'prop_b', name: 'Beta' },
+        { id: 'prop_a', name: 'Alpha', timezone: 'Asia/Jakarta' },
+        { id: 'prop_b', name: 'Beta', timezone: 'Asia/Makassar' },
       ]);
       expect(prisma.property.findMany).toHaveBeenCalledWith({
-        select: { id: true, name: true },
+        select: { id: true, name: true, timezone: true },
         orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
       });
     });

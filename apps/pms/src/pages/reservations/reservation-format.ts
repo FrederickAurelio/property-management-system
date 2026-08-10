@@ -84,15 +84,6 @@ export function nightCount(checkInDate: string, checkOutDate: string): number {
   return Math.max(0, Math.round((b - a) / 86_400_000));
 }
 
-/** Browser-local today — prefer `todayYmdInTimezone(propertyTimezone)` for ops. */
-export function todayYmd(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 /** True when check-in is allowed without confirmEarly (doc §5 window). */
 export function isCheckInWindow(
   row: Pick<StaffReservation, "checkInDate" | "checkOutDate">,
@@ -306,17 +297,33 @@ export function formatPaymentMovementSigned(m: PaymentMovement): string {
   return `${sign}${formatIdr(m.amountIdr)}`;
 }
 
-const movementTimeFormat = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+function movementTimeFormat(timezone?: string): Intl.DateTimeFormat {
+  const options: Intl.DateTimeFormatOptions = {
+    dateStyle: "medium",
+    timeStyle: "short",
+  };
+  if (timezone) {
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        ...options,
+        timeZone: timezone,
+      });
+    } catch {
+      // Invalid IANA — mirror api-contract ymdInTimezone fallback behavior.
+    }
+  }
+  return new Intl.DateTimeFormat(undefined, options);
+}
 
-export function formatMovementCreatedAt(iso: string): string {
+export function formatMovementCreatedAt(
+  iso: string,
+  timezone?: string,
+): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) {
     return iso;
   }
-  return movementTimeFormat.format(d);
+  return movementTimeFormat(timezone).format(d);
 }
 
 /** Newest first for desk timeline. */

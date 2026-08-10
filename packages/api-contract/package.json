@@ -28,9 +28,11 @@
     "build:cjs": "tsc -p tsconfig.json && printf '%s\\n' '{ \"type\": \"commonjs\" }' > dist/cjs/package.json",
     "build:esm": "tsc -p tsconfig.esm.json && printf '%s\\n' '{ \"type\": \"module\" }' > dist/esm/package.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
     "prepare": "pnpm run build"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
   }
 }

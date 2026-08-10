@@ -399,6 +399,7 @@ export function UtilitiesSheet({
           errorMeter={t("reservations:utilitiesSheet.errorMeterDecrease")}
           errorDup={t("reservations:utilitiesSheet.errorDuplicateDate")}
           onPhotoUploadingChange={setPhotoUploading}
+          propertyTimezone={reservation.propertyTimezone}
         />
 
         <Separator />
@@ -417,6 +418,7 @@ export function UtilitiesSheet({
           errorMeter={t("reservations:utilitiesSheet.errorMeterDecrease")}
           errorDup={t("reservations:utilitiesSheet.errorDuplicateDate")}
           onPhotoUploadingChange={setPhotoUploading}
+          propertyTimezone={reservation.propertyTimezone}
         />
 
         <Separator />
@@ -561,6 +563,7 @@ function MeterTable({
   errorMeter,
   errorDup,
   onPhotoUploadingChange,
+  propertyTimezone,
 }: {
   title: string;
   unitLabel: string;
@@ -573,6 +576,7 @@ function MeterTable({
   errorMeter: string;
   errorDup: string;
   onPhotoUploadingChange?: (uploading: boolean) => void;
+  propertyTimezone: string;
 }) {
   const { t } = useTranslation(["reservations", "common"]);
   const intervals =
@@ -636,6 +640,7 @@ function MeterTable({
                   <td className="px-3 py-2">
                     <YmdDateField
                       value={row.readingDate}
+                      timeZone={propertyTimezone}
                       onChange={(ymd) => {
                         const next = [...rows];
                         next[index] = {

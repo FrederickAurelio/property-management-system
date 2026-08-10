@@ -1,27 +1,13 @@
 /** Pure calendar window / span math (YYYY-MM-DD, exclusive end). */
 
+import { addDaysYmd } from "@cabin/api-contract";
+
+export { addDaysYmd };
+
 /** Visible day columns (desk fortnight). */
 export const CALENDAR_WINDOW_DAYS = 14;
 /** Prev/next step — half window so consecutive views overlap. */
 export const CALENDAR_STEP_DAYS = 7;
-
-export function addDaysYmd(ymd: string, days: number): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y!, m! - 1, d!));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
-}
-
-export function todayYmdLocal(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 /** Inclusive day list for `[from, to)`. */
 export function eachDayYmd(from: string, to: string): string[] {
@@ -34,7 +20,7 @@ export function eachDayYmd(from: string, to: string): string[] {
   return days;
 }
 
-export function defaultRangeFromToday(today = todayYmdLocal()): {
+export function defaultRangeFromToday(today: string): {
   from: string;
   to: string;
 } {

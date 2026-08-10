@@ -48,6 +48,7 @@ import { UnitInventoryPicker } from "@/pages/reservations/unit-inventory-picker"
 import { formatBlockKind } from "./calendar-block-labels";
 import { occupancyExtrasForUnit } from "./calendar-occupancy";
 import type { OtaRefreshTrigger } from "@/lib/ota-remind";
+import { opsTodayYmd } from "@/lib/ops-date";
 
 export type CalendarBlockSavedInfo = {
   trigger: OtaRefreshTrigger;
@@ -137,6 +138,7 @@ type CalendarBlockSheetProps = {
   onOpenChange: (open: boolean) => void;
   propertyId: string;
   propertyName: string;
+  propertyTimezone: string;
   /** Current calendar payload — busy nights for date picker extras. */
   calendar?: StaffPropertyCalendar;
   /** Prefill dates + unit when creating from a row. */
@@ -154,6 +156,7 @@ export function CalendarBlockSheet({
   onOpenChange,
   propertyId,
   propertyName,
+  propertyTimezone,
   calendar,
   initialUnitId = "",
   initialStartDate = "",
@@ -404,6 +407,8 @@ export function CalendarBlockSheet({
                 checkInDate={startDate}
                 checkOutDate={endDate}
                 unitId={chosen?.unitId}
+                propertyTimezone={propertyTimezone}
+                opsTodayYmd={opsTodayYmd(propertyTimezone)}
                 extraOccupancyBlocks={extraOccupancyBlocks}
                 excludeOccupancyId={block?.id}
                 invalid={Boolean(

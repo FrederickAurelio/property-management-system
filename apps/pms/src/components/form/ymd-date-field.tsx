@@ -10,8 +10,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { calendarOpsProps, dateToYmd, ymdToDate } from "@/lib/ops-date";
 import { cn } from "@/lib/utils";
-import { dateToYmd, ymdToDate } from "@/pages/reports/reports-period";
 
 type YmdDateFieldProps = {
   value: string;
@@ -20,6 +20,8 @@ type YmdDateFieldProps = {
   disabled?: boolean;
   className?: string;
   triggerClassName?: string;
+  /** Property IANA zone for today highlight (optional). */
+  timeZone?: string;
 };
 
 /** Single-day picker: shadcn Popover + Calendar (same trigger register as stay dates). */
@@ -30,11 +32,13 @@ export function YmdDateField({
   disabled,
   className,
   triggerClassName,
+  timeZone,
 }: YmdDateFieldProps) {
   const { t } = useTranslation("common");
   const [open, setOpen] = useState(false);
   const selected = ymdToDate(value);
   const emptyLabel = placeholder ?? t("dateField.pickDate");
+  const calendarTodayProps = calendarOpsProps(timeZone);
 
   return (
     <div className={cn("min-w-0", className)}>
@@ -59,6 +63,8 @@ export function YmdDateField({
             mode="single"
             selected={selected}
             defaultMonth={selected}
+            timeZone={calendarTodayProps.timeZone}
+            today={calendarTodayProps.today}
             onSelect={(date) => {
               if (!date) {
                 return;

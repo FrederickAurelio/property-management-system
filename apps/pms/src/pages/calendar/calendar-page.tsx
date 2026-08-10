@@ -26,6 +26,7 @@ import {
   staffPropertyCalendarQueryKey,
 } from "@/lib/api";
 import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
+import { opsTodayYmd, resolvePropertyTimezone } from "@/lib/ops-date";
 import { ReservationFormDialog } from "@/pages/reservations/reservation-form-dialog";
 import type { ChosenUnit } from "@/pages/reservations/chosen-unit";
 import { reservationCalendarStateFromSearch } from "@/pages/reservations/reservation-nav";
@@ -36,7 +37,6 @@ import {
   defaultRangeFromToday,
   formatRangeLabel,
   shiftRange,
-  todayYmdLocal,
 } from "./calendar-layout";
 import type { CalendarSelection } from "./calendar-selection";
 
@@ -74,11 +74,21 @@ export function CalendarPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const today = todayYmdLocal();
 
   const propertyId = searchParams.get("propertyId") ?? "";
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
+
+  const optionsQuery = useQuery({
+    queryKey: staffPropertiesOptionsQueryKey(),
+    queryFn: listPropertyOptions,
+  });
+
+  const timezone = useMemo(
+    () => resolvePropertyTimezone(optionsQuery.data ?? [], propertyId),
+    [optionsQuery.data, propertyId],
+  );
+  const today = useMemo(() => opsTodayYmd(timezone), [timezone]);
 
   const range = useMemo(() => {
     if (fromParam && toParam && fromParam < toParam) {
@@ -106,11 +116,6 @@ export function CalendarPage() {
     },
     [range.from, range.to, setSearchParams],
   );
-
-  const optionsQuery = useQuery({
-    queryKey: staffPropertiesOptionsQueryKey(),
-    queryFn: listPropertyOptions,
-  });
 
   useEffect(() => {
     if (!optionsQuery.isSuccess || optionsQuery.data.length === 0) return;
@@ -363,6 +368,7 @@ export function CalendarPage() {
           }}
           propertyId={propertyId}
           propertyName={propertyName}
+          propertyTimezone={timezone}
           calendar={calendarQuery.data}
           block={blockIntent.mode === "edit" ? blockIntent.block : null}
           initialUnitId={

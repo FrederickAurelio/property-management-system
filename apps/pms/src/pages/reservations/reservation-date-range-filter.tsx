@@ -17,6 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { calendarOpsProps } from "@/lib/ops-date";
 import { cn } from "@/lib/utils";
 import {
   activeStayPresetId,
@@ -32,6 +33,8 @@ import {
 type ReservationDateRangeFilterProps = {
   from: string;
   to: string;
+  opsTodayYmd: string;
+  propertyTimezone: string;
   onPatch: (patch: Record<string, string | null>) => void;
 };
 
@@ -47,9 +50,12 @@ function toDraft(from: string, to: string): StayTouchDraft {
   };
 }
 
-function draftPresetId(draft: StayTouchDraft): StayRangePresetId | null {
+function draftPresetId(
+  draft: StayTouchDraft,
+  opsToday: string,
+): StayRangePresetId | null {
   if (!draft.start || !draft.end) return null;
-  return activeStayPresetId(dateToYmd(draft.start), dateToYmd(draft.end));
+  return activeStayPresetId(dateToYmd(draft.start), dateToYmd(draft.end), opsToday);
 }
 
 function presetKey(id: StayRangePresetId): "thisWeek" | "thisMonth" | "next30" {
@@ -75,6 +81,7 @@ function StayRangePanel({
   onPreset,
   onClearDraft,
   activePreset,
+  calendarTodayProps,
 }: {
   draft: StayTouchDraft;
   onStartChange: (next: Date | undefined) => void;
@@ -83,6 +90,7 @@ function StayRangePanel({
   onPreset: (id: StayRangePresetId) => void;
   onClearDraft: () => void;
   activePreset: StayRangePresetId | null;
+  calendarTodayProps: { timeZone: string; today: Date };
 }) {
   const { t } = useTranslation(["reservations", "common"]);
   const endIsAll = Boolean(draft.start && !draft.end);
@@ -130,6 +138,8 @@ function StayRangePanel({
             numberOfMonths={1}
             selected={draft.start}
             defaultMonth={draft.start}
+            timeZone={calendarTodayProps.timeZone}
+            today={calendarTodayProps.today}
             onSelect={onStartChange}
             className="rounded-md border border-border/80 bg-background"
           />
@@ -162,6 +172,8 @@ function StayRangePanel({
             numberOfMonths={1}
             selected={draft.end}
             defaultMonth={draft.end ?? draft.start}
+            timeZone={calendarTodayProps.timeZone}
+            today={calendarTodayProps.today}
             disabled={
               draft.start ? { before: dayStart(draft.start) } : () => true
             }
@@ -219,15 +231,18 @@ function ConfirmFooter({
 export function ReservationDateRangeFilter({
   from,
   to,
+  opsTodayYmd,
+  propertyTimezone,
   onPatch,
 }: ReservationDateRangeFilterProps) {
   const { t } = useTranslation(["reservations", "common"]);
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<StayTouchDraft>(() => toDraft(from, to));
+  const calendarTodayProps = calendarOpsProps(propertyTimezone);
 
   const hasApplied = Boolean(from);
-  const activePreset = draftPresetId(draft);
+  const activePreset = draftPresetId(draft, opsTodayYmd);
   /** Start set (end optional), or empty draft (= All dates). End-only is invalid. */
   const canConfirm =
     (!draft.start && !draft.end) || Boolean(draft.start);
@@ -264,7 +279,7 @@ export function ReservationDateRangeFilter({
   }
 
   function selectPreset(id: StayRangePresetId) {
-    const r = rangeForStayPreset(id);
+    const r = rangeForStayPreset(id, opsTodayYmd);
     setDraft({
       start: ymdToDate(r.from) ?? undefined,
       end: ymdToDate(r.to) ?? undefined,
@@ -364,6 +379,7 @@ export function ReservationDateRangeFilter({
         setDraft({ start: undefined, end: undefined });
       }}
       activePreset={activePreset}
+      calendarTodayProps={calendarTodayProps}
     />
   );
 
