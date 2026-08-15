@@ -110,6 +110,7 @@ Money quote (locked): stay Total suggests `periodCount ×` matching rack (`billi
 | Reports (owner period) | [`_docs/reports-design.md`](_docs/reports-design.md) |
 | Shared libs | `packages/README.md` + that package’s `AGENTS.md` |
 | External vendors (media, payments, …) | [`_docs/integrations-pattern.md`](_docs/integrations-pattern.md) · media: [`_docs/media-upload-strategy.md`](_docs/media-upload-strategy.md) |
+| API request logs (Grafana + Loki) | [`_docs/request-logs.md`](_docs/request-logs.md) |
 | Backend | `apps/api/AGENTS.md` (audience: `staff` / `domain` / `public`) |
 | Staff UI | `apps/pms/AGENTS.md` |
 | Public site | `apps/web/AGENTS.md` + `apps/web/PRODUCT.md` (Impeccable) |
