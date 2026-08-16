@@ -28,6 +28,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - PostgreSQL + Prisma 6
 - Session cookies in Postgres + role Guards (`SUPER_ADMIN` | `ADMIN` | `FRONT_DESK`)
 - Validation on DTOs; CORS allowlist for FE origins (`credentials: true`)
+- Helmet + in-process `@nestjs/throttler` (see Security)
 
 ## Audience layout
 
@@ -141,12 +142,13 @@ Controllers return **domain objects only**. Global `TransformInterceptor` + `Htt
 | 403 | `AUTH_FORBIDDEN` |
 | 404 | `NOT_FOUND` |
 | 409 | `CONFLICT` |
+| 429 | `RATE_LIMITED` |
 | 500 | `INTERNAL_ERROR` |
 | 503 | `LOGS_UNAVAILABLE` (Loki down) or `INTERNAL_ERROR` |
 
 FE: `credentials: 'include'`; unwrap `data`; never parse Nest’s default error shape. Shared setup: `setupHttpContract()` in `src/common/http/`.
 
-**Domain field errors (form highlight):** when a write fails on a **user-editable** input, return `details: { field, reason }` (`ApiFieldReason` in `@cabin/api-contract`). PMS maps those via `applyApiFieldError` → RHF `setError`. Use for uniqueness (`CODE_TAKEN`), lat/lng pair (`LAT_LNG_PAIR_REQUIRED` on the missing field), invalid `unitTypeId`, staff credential field errors. Do **not** use for 404, auth, or delete-blocked (`HAS_CHILDREN` → dialog/toast). Rule: [`.cursor/rules/api-http.mdc`](../../.cursor/rules/api-http.mdc).
+**Domain field errors (form highlight):** when a write fails on a **user-editable** input, return `details: { field, reason }` (`ApiFieldReason` in `@cabin/api-contract`). PMS maps those via `applyApiFieldError` → RHF `setError`. Use for uniqueness (`CODE_TAKEN`), lat/lng pair (`LAT_LNG_PAIR_REQUIRED` on the missing field), invalid `unitTypeId`, staff credential field errors. Do **not** use for 404, auth, 429 `RATE_LIMITED`, or delete-blocked (`HAS_CHILDREN` → dialog/toast). Rule: [`.cursor/rules/api-http.mdc`](../../.cursor/rules/api-http.mdc).
 
 Cross-app wire types: import from `@cabin/api-contract` — envelope, codes, `Staff*` types, `Paginated` / `PageInfo`. Do not redefine those here.
 
@@ -173,9 +175,24 @@ Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`)
 
 ## Security
 
-**Phase 1 (staff PMS prod):** CORS allowlist, sessions + Guards. Add helmet + login rate-limit soon.
+**Phase 1 (staff PMS prod):** CORS allowlist, sessions + Guards, Helmet, in-process `@nestjs/throttler` (no Redis, no account lockout).
 
-**Phase 2 (public `web`):** [Arcjet](https://docs.arcjet.com) on the **API only** — does not change reservation/money domain rules.
+Helmet (JSON API): CSP off; `Cross-Origin-Resource-Policy: cross-origin`; HSTS only when `COOKIE_SECURE=true` (HTTP VPS must not pin HSTS).
+
+Throttler is a global `APP_GUARD` (`CabinThrottlerGuard`). Limits live in `src/common/http/throttler/throttler.limits.ts`. **New HTTP:** classify the handler — [`.cursor/rules/api-throttle.mdc`](../../.cursor/rules/api-throttle.mdc).
+
+| Bucket | Routes | Tracker | Limit |
+|--------|--------|---------|-------|
+| Skip | `GET /health` | — | none (Compose healthcheck) |
+| `auth` | login, username/password, admin create/role/active | IP | 20 / 15 min |
+| `authUser` | `POST /staff/auth/login` only | username (lowercased) | 20 / 15 min |
+| `ical` | `GET /public/ical/...` (OTA export poll) | IP | 1200 / min |
+| `default` | all other routes | session `adminId` or IP | 120 / min per handler |
+| `global` | same as `default` (not iCal) | IP | 300 / min across routes |
+
+Public iCal is **not** on `default`/`global` — a 300-unit Booking/Airbnb poll from one crawler IP would 429 at 120/300. Token is still the lock; `ical` only caps scrapers. Staff `POST /staff/ical/sync-all` is one desk call (we fetch OTA URLs outbound) — stays on `default`. Credential 429 is generic — no remaining count, no `Retry-After`. Envelope: `RATE_LIMITED`.
+
+**Phase 2 (public `web`):** same throttler floor on `/public`. Arcjet is optional later (API only — never the FE). Public origin sits behind Cloudflare; never cache `/api/`.
 
 ## Phase 1 build order
 

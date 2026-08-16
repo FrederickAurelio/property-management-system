@@ -26,6 +26,8 @@ function messageForApiError(error: ApiError): string {
       return i18n.t("errors:serverUnavailable");
     case ApiErrorCode.LOGS_UNAVAILABLE:
       return i18n.t("errors:logsUnavailable");
+    case ApiErrorCode.RATE_LIMITED:
+      return i18n.t("errors:rateLimited");
     case ApiErrorCode.INTERNAL_ERROR: {
       const msg = error.message?.trim() ?? "";
       if (/does not exist in the current database/i.test(msg)) {

@@ -6,7 +6,7 @@ alwaysApply: false
 
 # API (entry)
 
-Concern rules layer on via tighter globs (`api-http`, `api-prisma`, `api-auth`, `api-audience`, `api-integrations`). Map: [`.cursor/rules/README.md`](README.md).
+Concern rules layer on via tighter globs (`api-http`, `api-throttle`, `api-prisma`, `api-auth`, `api-audience`, `api-integrations`). Map: [`.cursor/rules/README.md`](README.md).
 
 - Nest + PostgreSQL + Prisma 6. Staff identity is `Admin` (not guest `User`).
 - Audience layout: `staff/` + `/staff` (PMS), `domain/` (shared logic), `public/` + `/public` (web Phase 2) — see [`api-audience.mdc`](api-audience.mdc).

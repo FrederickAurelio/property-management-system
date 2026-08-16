@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiErrorCode, type ApiErrorBody } from '@cabin/api-contract';
+import { RATE_LIMITED_MESSAGE } from './throttler/throttler.limits.js';
 import { getRequestId } from './request-id.middleware.js';
 import {
   attachRequestLogError,
@@ -68,6 +69,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
         details,
         code: explicitCode,
       } = this.parseHttpExceptionResponse(exceptionResponse, exception.message);
+
+      if (status === 429) {
+        return {
+          status,
+          code: ApiErrorCode.RATE_LIMITED,
+          message: RATE_LIMITED_MESSAGE,
+        };
+      }
 
       return {
         status,
@@ -185,6 +194,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
     if (status === 409) {
       return ApiErrorCode.CONFLICT;
+    }
+    if (status === 429) {
+      return ApiErrorCode.RATE_LIMITED;
     }
     if (status >= 500) {
       return ApiErrorCode.INTERNAL_ERROR;

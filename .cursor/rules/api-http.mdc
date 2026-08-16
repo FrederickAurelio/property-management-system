@@ -38,6 +38,7 @@ throw new ConflictException({
 |------------------------------------|---------------|
 | 404 missing resource | Plain `NotFoundException('…')` |
 | Auth / role | Guards → 401 / 403 |
+| Rate limited | `RATE_LIMITED` (429) — toast, not `setError` |
 | Delete blocked by children | `HAS_CHILDREN` (+ counts) — FE dialog/toast, not `setError` |
 | Self-action forbidden (staff) | Plain `BadRequestException` message |
 

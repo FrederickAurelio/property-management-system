@@ -54,6 +54,6 @@ One `api.mdc` / `pms.mdc` is the **entry** (broad `apps/<app>/**` glob). Add **c
 - Shipping a new module/feature alone — fold into the matching concern bullet or `apps/<app>/AGENTS.md`.
 - Duplicating paragraphs already in entry + concern — link instead.
 
-**Naming:** `api-http`, `api-prisma`, `api-auth`, `api-domain` · `pms-api`, `pms-query`, `pms-ui`, `pms-effects` · same for `web-*` in Phase 2.
+**Naming:** `api-http`, `api-throttle`, `api-prisma`, `api-auth`, `api-domain` · `pms-api`, `pms-query`, `pms-ui`, `pms-effects` · same for `web-*` in Phase 2.
 
 **Inventory** (map + slots): [`.cursor/rules/README.md`](README.md).

@@ -7,6 +7,7 @@
   "serverUnavailable": "Tidak dapat menjangkau server. Server mungkin sedang down — coba lagi sebentar lagi.",
   "serverUnavailableShort": "Tidak dapat menjangkau server",
   "logsUnavailable": "Log permintaan sedang offline. Jalankan Loki dengan pnpm logs:up, atau cek stack log di VPS.",
+  "rateLimited": "Terlalu banyak percobaan. Coba lagi dalam beberapa menit.",
   "requestFailed": "Permintaan gagal",
   "invalidSuccessEnvelope": "Envelope sukses API tidak valid",
   "databaseOutOfDate": "Database sudah usang — jalankan prisma migrate, lalu mulai ulang API.",

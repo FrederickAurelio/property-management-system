@@ -1,0 +1,26 @@
+---
+description: API throttler — classify new HTTP so it lands on the right bucket
+globs:
+  - apps/api/src/**/*.controller.ts
+  - apps/api/src/common/http/throttler/**
+alwaysApply: false
+---
+
+# API — throttler
+
+Global `APP_GUARD` (`CabinThrottlerGuard`). A new controller method is already on **`default` + `global`**. Only **exceptions** are listed in [`throttler.paths.ts`](../../apps/api/src/common/http/throttler/throttler.paths.ts). Limits: [`throttler.limits.ts`](../../apps/api/src/common/http/throttler/throttler.limits.ts).
+
+When adding or moving an HTTP handler, pick one:
+
+| This route is… | Bucket | Change |
+|----------------|--------|--------|
+| `GET /health` (infra probe) | skip all | Already `shouldSkip`. Do not add a second probe without skipping it too |
+| Login, password, username, admin create/role/active (`currentPassword`) | `auth` (+ `authUser` on login) | Add method+path to `isCredentialRoute` (login stays `isStaffLoginRoute`) |
+| OTA **export** `.ics` (`GET /public/ical/…`) | `ical` only | Path must stay under `/public/ical/` (`isPublicIcalRoute`). Never leave OTA polls on `default`/`global` |
+| Staff desk, staff sync-all, other `/public` | `default` + `global` | **No path change** |
+
+`auth` / `ical` are **opt-in**. Forgetting a new password route → too loose. `@SkipThrottle` on a new desk route → too tight later. Prefer the table, not per-controller decorators.
+
+Do **not**: account lockout · Redis · iCal-scale caps on `/staff` · `Retry-After` / remaining counts on credential 429. Envelope: `RATE_LIMITED` (toast, not `setError`).
+
+Numbers + nginx/`trust proxy`: [`apps/api/AGENTS.md`](../../apps/api/AGENTS.md) § Security.

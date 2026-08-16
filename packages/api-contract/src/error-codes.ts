@@ -5,6 +5,8 @@ export const ApiErrorCode = {
   AUTH_FORBIDDEN: 'AUTH_FORBIDDEN',
   NOT_FOUND: 'NOT_FOUND',
   CONFLICT: 'CONFLICT',
+  /** Nest 429: throttler (login / IP ceiling). Not a field error. */
+  RATE_LIMITED: 'RATE_LIMITED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   /** FE-only: browser/network failure (no HTTP response). */
   NETWORK_ERROR: 'NETWORK_ERROR',

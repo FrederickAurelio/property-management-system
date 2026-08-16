@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
+import helmet from 'helmet';
 import pg from 'pg';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
@@ -41,6 +42,17 @@ async function bootstrap() {
     // Secure cookies need the real client protocol when TLS terminates upstream.
     app.set('trust proxy', 1);
   }
+
+  // Helmet before CORS. CSP off: Nest serves JSON. HSTS only after HTTPS cookies.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      ...(process.env.COOKIE_SECURE === 'true'
+        ? {}
+        : { strictTransportSecurity: false }),
+    }),
+  );
 
   app.enableCors({
     origin: corsOrigins,

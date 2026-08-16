@@ -1,10 +1,14 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CabinThrottlerGuard } from './common/http/throttler/cabin-throttler.guard.js';
+import { throttlerModuleOptions } from './common/http/throttler/throttler.options.js';
 import { pinoHttpOptions } from './common/http/pino-http.options.js';
 import { PrismaModule } from './prisma/prisma.module';
 import { StaffAuthModule } from './staff/auth/staff-auth.module';
@@ -36,6 +40,7 @@ import { PublicModule } from './public/public.module.js';
       pinoHttp: pinoHttpOptions(),
     }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot(throttlerModuleOptions()),
     PrismaModule,
     StaffAuthModule,
     AdminsModule,
@@ -53,6 +58,9 @@ import { PublicModule } from './public/public.module.js';
     PublicModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: CabinThrottlerGuard },
+  ],
 })
 export class AppModule {}

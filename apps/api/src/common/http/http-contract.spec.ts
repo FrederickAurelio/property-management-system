@@ -9,6 +9,7 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ThrottlerException } from '@nestjs/throttler';
 
 describe('TransformInterceptor', () => {
   it('wraps plain payloads in data + meta.requestId', async () => {
@@ -115,6 +116,28 @@ describe('HttpExceptionFilter', () => {
         message: 'Request log store is unavailable.',
       },
       meta: { requestId: 'req_logs' },
+    });
+  });
+
+  it('maps ThrottlerException to RATE_LIMITED with a generic message', () => {
+    const filter = new HttpExceptionFilter();
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+
+    filter.catch(new ThrottlerException(), {
+      switchToHttp: () => ({
+        getResponse: () => ({ status }),
+        getRequest: () => ({ requestId: 'req_429' }),
+      }),
+    } as never);
+
+    expect(status).toHaveBeenCalledWith(429);
+    expect(json).toHaveBeenCalledWith({
+      error: {
+        code: ApiErrorCode.RATE_LIMITED,
+        message: 'Too many requests. Try again in a few minutes.',
+      },
+      meta: { requestId: 'req_429' },
     });
   });
 

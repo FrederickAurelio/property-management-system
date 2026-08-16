@@ -15,7 +15,7 @@ scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 
 ## In
 
-- Envelope types, error codes, `ApiError`
+- Envelope types, error codes, `ApiError` (`RATE_LIMITED` = Nest 429 throttler)
 - Staff wire types (`AdminRole`, `StaffAdmin`) + credential limits — `Staff*` = staff/PMS wire shapes, **not** the public website catalog
 - Inventory wire types (`StaffProperty`, `StaffPropertyOption`, `StaffUnitType`, `StaffUnit`, `StaffUnitIcalFeed`, `StaffUnitAvailability`, `UnitMonthOccupancy`, enums, `MediaItem`, `MediaProvider`, `StaffMediaConfig`, provider-discriminated `MediaUploadIntent`, `Amenities`, `BedConfigRoom`) + `isUnitStatusBookable` / `UnitAvailabilityBlockReason`
 - Archive wire types (`ArchiveItem`, `ArchiveProvider`, `StaffArchiveConfig`, `ArchiveUploadIntent`, `ARCHIVE_*` bounds) — staff proofs; parallel to inventory media, not `MediaItem`
