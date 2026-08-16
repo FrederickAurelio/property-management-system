@@ -6,6 +6,7 @@
   "networkErrorShort": "Network request failed",
   "serverUnavailable": "Cannot reach the server. It may be down — try again shortly.",
   "serverUnavailableShort": "Cannot reach the server",
+  "logsUnavailable": "Request logs are offline. Start Loki with pnpm logs:up, or check the VPS logs stack.",
   "requestFailed": "Request failed",
   "invalidSuccessEnvelope": "Invalid API success envelope",
   "databaseOutOfDate": "Database is out of date — run prisma migrate, then restart the API.",

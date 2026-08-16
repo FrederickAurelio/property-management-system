@@ -8,7 +8,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Tailwind CSS v4 (`@tailwindcss/vite`) + Prettier class sort
 - shadcn/ui (radix-nova); import via `@/` → `src/`
 - Declarative React Router (`BrowserRouter`) + TanStack Query providers
-- Routes: `/login` (public staff login) · `/` private app shell (`PrivateRoute` → `AppLayout` → children)
+- Routes: `/login` (public staff login) · `/` private app shell (`PrivateRoute` → `AppLayout` → children) · `/request-logs` ADMIN+
 - Axios API client: `src/lib/api` (session cookies + envelope unwrap + Sonner helpers)
 - RHF + Zod + shadcn `Field` / `Controller` (login + inventory forms wired)
 - Inventory explorer wired to Nest (`/staff/properties|unit-types|units`) — infinite lists + CRUD
@@ -16,6 +16,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - **Bookability UX:** Property “Open for ops” · Type “Offered for booking” · Unit status only (`ACTIVE` = bookable)
 - **Calendar** (`/calendar`): unit × days grid on Nest `GET /staff/properties/:id/calendar` + `/staff/calendar-blocks` CRUD; live property options + create reservation + detail
 - **Reports** (`/reports`): period summary (cash · occupancy · source mix · compare · CSV) via `GET /staff/reports/summary`; ADMIN/SUPER_ADMIN only
+- **Request logs** (`/request-logs`): Nest HTTP diary from Loki via `GET /staff/request-logs`; ADMIN+; opened from Settings (not sidebar); numbered pages
 - **Dashboard** (`/`): today arrivals/departures + needs attention via `GET /staff/dashboard`; Sync all → `POST /ical/sync-all`; FRONT_DESK+
 - **iCal:** unit form — PMS export Copy + OTA import URLs; **hub** = each OTA extranet imports PMS export only (drop peer OTA↔OTA when trusted; see `_docs/reservations-design.md` §9). After confirm / walk-in / block, optional **Refresh other OTAs** Got-it dialog (`OtaRemindDialog` · `lib/ota-remind.ts`). Detail OTA playbook (Accept/Dismiss/Cancel); board **OTA issues** (`ical-alerts`) / Needs details
 - **Design:** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) · [`_docs/calendar-design.md`](../../_docs/calendar-design.md) · [`_docs/dashboard-design.md`](../../_docs/dashboard-design.md) · [`_docs/reports-design.md`](../../_docs/reports-design.md)
@@ -39,7 +40,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Always import `api` from [`src/lib/api`](src/lib/api) — never create another axios instance / raw `fetch` to the Nest API.
 - Call sites: `api.get` / `api.post` / `api.patch` / `api.delete`. Interceptors handle envelope + errors.
 - Shared HTTP contract types: `@cabin/api-contract` (envelope, codes, `StaffAdmin`, `AdminRole`) — do not duplicate cross-app types here.
-- `withCredentials: true` (cookie `cabin.pms.sid`).
+- `withCredentials: true` (cookie `cabin.pms.sid`). Default header `x-cabin-app: pms` (request-log JSON field).
 - `baseURL: "/api"` + audience-free paths (`/auth/...`, `/reservations/...`) → browser `/api/...`. Dev: Vite rewrites `/api` → Nest `/staff` (`VITE_API_URL`, default `http://localhost:3000`). Prod nginx: same (`location /api/` → `http://api:3000/staff/`). Nest still uses `/staff/...`; the audience prefix is not on the wire. **Exception (Phase 1 iCal):** Vite/nginx also proxy `/public/ical/` → Nest `/public/ical/` so OTAs poll the **PMS origin** (`PUBLIC_PMS_BASE_URL`); Nest itself stays off the public host. Do not proxy `/health` through PMS.
 - Success `{ data, meta? }` → interceptor sets `response.data` to unwrapped `data` → `(await api.get<T>(…)).data`.
 - Errors `{ error: { code, message, details? } }` → throws `ApiError`. Also maps timeout / network / 502–504 to FE-only codes (`TIMEOUT`, `NETWORK_ERROR`, `SERVER_UNAVAILABLE`).
@@ -50,7 +51,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Archive helpers: `getArchiveConfig` / `uploadArchiveFile` (`src/lib/api/archive.ts`) — Garage proofs via `/archive/*`; FE uses archive compress profile; parallel to inventory media.
 - SPA routes like `/properties` are UI-only — never invent unprefixed Nest paths.
 - 401 hook: `setUnauthorizedHandler` (wired to `/login` via `UnauthorizedRedirect`). Session probe on login uses `{ skipUnauthorizedRedirect: true }`.
-- Toasts: `handleSuccess` / `handleError` from screens/mutations — **not** inside the interceptor.
+- Toasts: `handleSuccess` / `handleError` from screens/mutations — **not** inside the interceptor. `handleError` shows `requestId` when present.
 - Env: root `.env` → `VITE_API_URL` is the **proxy target only** (`vite.config` `envDir` = repo root).
 - GET lists: Skeleton + `QueryRetryButton` on page-1 error; infinite lists use `InfiniteListFooter` (see `.cursor/rules/pms-ui.mdc`).
 

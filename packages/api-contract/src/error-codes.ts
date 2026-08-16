@@ -12,6 +12,8 @@ export const ApiErrorCode = {
   TIMEOUT: 'TIMEOUT',
   /** FE-only: connection refused or gateway 502/503/504. */
   SERVER_UNAVAILABLE: 'SERVER_UNAVAILABLE',
+  /** Nest 503: Loki down / timeout — request-log search unavailable. */
+  LOGS_UNAVAILABLE: 'LOGS_UNAVAILABLE',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

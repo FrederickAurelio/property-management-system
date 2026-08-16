@@ -152,6 +152,7 @@ export const api: AxiosInstance = axios.create({
   timeout: 30_000,
   headers: {
     Accept: "application/json",
+    "x-cabin-app": "pms",
   },
 });
 

@@ -8,6 +8,11 @@ import {
 import type { Request, Response } from 'express';
 import { ApiErrorCode, type ApiErrorBody } from '@cabin/api-contract';
 import { getRequestId } from './request-id.middleware.js';
+import {
+  attachRequestLogError,
+  requestPathname,
+  thrownErrorForRequestLog,
+} from './request-log.fields.js';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -21,9 +26,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const { status, code, message, details } = this.normalize(exception);
 
+    // FE envelope may be generic on 500; the diary stores the thrown Error.
+    const logMessage =
+      exception instanceof HttpException
+        ? message
+        : thrownErrorForRequestLog(exception);
+    attachRequestLogError(response, code, logMessage);
+
     if (status >= 500) {
+      const path = requestPathname(request.originalUrl ?? request.url);
       this.logger.error(
-        exception instanceof Error ? exception.stack : String(exception),
+        `status=${status} path=${request.method} ${path} requestId=${requestId ?? '-'} ${
+          exception instanceof Error ? exception.stack : String(exception)
+        }`,
       );
     }
 
@@ -48,14 +63,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-      const { message, details } = this.parseHttpExceptionResponse(
-        exceptionResponse,
-        exception.message,
-      );
+      const {
+        message,
+        details,
+        code: explicitCode,
+      } = this.parseHttpExceptionResponse(exceptionResponse, exception.message);
 
       return {
         status,
-        code: this.codeForStatus(status, message, details),
+        code: this.codeForStatus(status, message, details, explicitCode),
         message,
         details,
       };
@@ -94,7 +110,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   private parseHttpExceptionResponse(
     exceptionResponse: string | object,
     fallbackMessage: string,
-  ): { message: string; details?: unknown } {
+  ): { message: string; details?: unknown; code?: string } {
     if (typeof exceptionResponse === 'string') {
       return { message: exceptionResponse };
     }
@@ -103,12 +119,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message?: string | string[];
       error?: string;
       details?: unknown;
+      code?: string;
     };
+    const explicitCode =
+      typeof record.code === 'string' && record.code.length > 0
+        ? record.code
+        : undefined;
 
     if (Array.isArray(record.message)) {
       return {
         message: 'Validation failed',
         details: record.message,
+        ...(explicitCode ? { code: explicitCode } : {}),
       };
     }
 
@@ -116,21 +138,36 @@ export class HttpExceptionFilter implements ExceptionFilter {
       return {
         message: record.message,
         ...(record.details !== undefined ? { details: record.details } : {}),
+        ...(explicitCode ? { code: explicitCode } : {}),
       };
     }
 
     if (record.details !== undefined) {
-      return { message: fallbackMessage, details: record.details };
+      return {
+        message: fallbackMessage,
+        details: record.details,
+        ...(explicitCode ? { code: explicitCode } : {}),
+      };
     }
 
-    return { message: fallbackMessage };
+    return {
+      message: fallbackMessage,
+      ...(explicitCode ? { code: explicitCode } : {}),
+    };
   }
 
   private codeForStatus(
     status: number,
     message: string,
     details?: unknown,
+    explicitCode?: string,
   ): string {
+    if (
+      explicitCode &&
+      (Object.values(ApiErrorCode) as string[]).includes(explicitCode)
+    ) {
+      return explicitCode;
+    }
     if (status === 400) {
       if (details !== undefined || message === 'Validation failed') {
         return ApiErrorCode.VALIDATION_FAILED;

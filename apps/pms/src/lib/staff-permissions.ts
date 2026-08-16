@@ -9,3 +9,8 @@ export function canManageInventory(role: AdminRole): boolean {
 export function canViewReports(role: AdminRole): boolean {
   return role === AdminRole.ADMIN || role === AdminRole.SUPER_ADMIN;
 }
+
+/** HTTP request diary (Settings → Request logs) — ADMIN+; not FRONT_DESK. */
+export function canViewRequestLogs(role: AdminRole): boolean {
+  return canViewReports(role);
+}

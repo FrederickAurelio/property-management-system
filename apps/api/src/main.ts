@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import pg from 'pg';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import {
   STAFF_SESSION_COOKIE_NAME,
@@ -11,7 +12,10 @@ import { setupHttpContract } from './common/http/setup-http-contract.js';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(Logger));
   const isProd = process.env.NODE_ENV === 'production';
 
   const sessionSecret = process.env.SESSION_SECRET;

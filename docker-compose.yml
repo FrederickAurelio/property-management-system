@@ -1,6 +1,6 @@
-# VPS / full stack — postgres + api + pms + web + garage on cabin-net.
+# VPS / full stack — postgres + api + pms + web + garage + Loki on cabin-net.
 # Host ports (no domain yet): pms 8080 · web 3050 · garage S3 3900 · archive GET 3910.
-# api/postgres stay internal. Later HTTPS + domains: close app ports, edge proxy — see
+# api/postgres/loki stay internal. Later HTTPS + domains: close app ports, edge proxy — see
 # deploy/garage/README.md § Domain HTTPS cutover and _docs/archive-storage.md.
 # Local Postgres / Garage: docker-compose.dev.yml via pnpm db:up / archive:up.
 # GHCR deploy: also use docker-compose.ci.yml with IMAGE_API / IMAGE_PMS / IMAGE_WEB.
@@ -52,12 +52,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      loki:
+        condition: service_started
     env_file:
       - .env
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3000}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cabin_pms}?schema=public
+      LOKI_URL: http://loki:3100
     expose:
       - '3000'
     healthcheck:
@@ -150,6 +153,25 @@ services:
     networks:
       - cabin
 
+  # Request logs — Loki unpublished; PMS /request-logs queries via Nest. See deploy/loki/README.md
+  loki:
+    image: grafana/loki:3.6.15
+    container_name: cabin-loki
+    restart: unless-stopped
+    command: ['-config.file=/etc/loki/loki.yaml']
+    user: '10001:10001'
+    mem_limit: 384m
+    environment:
+      GOMEMLIMIT: 320MiB
+    volumes:
+      - ./deploy/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+    expose:
+      - '3100'
+    logging: *default-logging
+    networks:
+      - cabin
+
 volumes:
   postgres_data:
     name: cabin-postgres-data
@@ -157,6 +179,8 @@ volumes:
     name: cabin-garage-meta
   garage_data:
     name: cabin-garage-data
+  loki_data:
+    name: cabin-loki-data
 
 networks:
   cabin:

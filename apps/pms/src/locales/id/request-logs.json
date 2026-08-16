@@ -1,0 +1,61 @@
+{
+  "filters": {
+    "searchPlaceholder": "Cari path, user, requestId…",
+    "searchAria": "Cari log permintaan",
+    "rangeAria": "Rentang waktu",
+    "range_1h": "1j",
+    "range_24h": "24j",
+    "range_7d": "7h",
+    "range_30d": "30h",
+    "appAria": "Aplikasi",
+    "appAll": "Semua app",
+    "appPms": "PMS",
+    "appWeb": "Web",
+    "errorsOnly": "Error",
+    "actorPlaceholder": "User",
+    "actorAria": "User",
+    "requestIdPlaceholder": "requestId",
+    "requestIdAria": "Request ID"
+  },
+  "table": {
+    "time": "Waktu",
+    "user": "User",
+    "app": "App",
+    "method": "Method",
+    "path": "Path",
+    "status": "Status",
+    "error": "Error",
+    "requestId": "requestId",
+    "duration": "{{ms}} md"
+  },
+  "empty": {
+    "noneTitle": "Tidak ada baris permintaan",
+    "noneDescription": "Tidak ada di jendela ini. Perlebar rentang, hapus filter, atau tunggu traffic API. Lokal: `pnpm logs:up` plus proses Nest yang berjalan.",
+    "pageTitle": "Halaman ini kosong",
+    "pageDescription": "Ada baris di jendela ini — kembali ke halaman sebelumnya.",
+    "unavailableTitle": "Penyimpanan log sedang mati",
+    "unavailableDescription": "Jalankan Loki lokal dengan `pnpm logs:up`, atau cek stack log di VPS."
+  },
+  "loadError": "Gagal memuat log permintaan.",
+  "truncated": "Menampilkan 500 baris terbaru di jendela ini. Persempit rentang waktu untuk melihat yang lebih lama.",
+  "pagination": {
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
+    "pageOf": "Halaman {{page}} dari {{totalPages}}"
+  },
+  "detail": {
+    "title": "Permintaan",
+    "time": "Waktu",
+    "user": "User",
+    "app": "App",
+    "audience": "Audience",
+    "method": "Method",
+    "path": "Path",
+    "status": "Status",
+    "duration": "Durasi",
+    "requestId": "requestId",
+    "errorCode": "Kode error",
+    "errorMessage": "Error",
+    "ms": "{{ms}} md"
+  }
+}

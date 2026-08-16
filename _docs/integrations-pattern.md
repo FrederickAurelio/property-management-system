@@ -12,7 +12,7 @@
 
 Any **paid or heavy external vendor** the app talks to (media CDN/object storage, payment gateways, email/SMS, bot protection SDKs, …) where we may swap providers or must keep secrets and SDKs out of HTTP/domain layers.
 
-**Not** for: Postgres/Prisma, session cookies, pure HTTP pulls of staff-configured URLs (iCal feeds), one-off deep links (Google Maps URL builder), or **HTTP request logs** (Nest stdout JSON → Loki/Grafana — [`request-logs.md`](request-logs.md); no vendor SDK in `integrations/`).
+**Not** for: Postgres/Prisma, session cookies, pure HTTP pulls of staff-configured URLs (iCal feeds), one-off deep links (Google Maps URL builder), or **HTTP request logs** (Nest stdout JSON → Loki; PMS queries via `GET /staff/request-logs` — [`request-logs.md`](request-logs.md); no vendor SDK in `integrations/`).
 
 ---
 

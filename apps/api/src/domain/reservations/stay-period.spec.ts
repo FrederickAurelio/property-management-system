@@ -108,9 +108,9 @@ describe('stay billing period helpers', () => {
       inYmd,
       STAY_DAILY_COUNT_MAX,
     );
-    expect(
-      periodCountFromRange(StayBillingPeriod.DAILY, inYmd, out360),
-    ).toBe(STAY_DAILY_COUNT_MAX);
+    expect(periodCountFromRange(StayBillingPeriod.DAILY, inYmd, out360)).toBe(
+      STAY_DAILY_COUNT_MAX,
+    );
     const out361 = checkoutFromPeriodCount(
       StayBillingPeriod.DAILY,
       inYmd,

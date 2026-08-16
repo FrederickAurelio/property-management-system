@@ -1,6 +1,7 @@
 # Local infra — Nest + Vite run on the host.
 # Postgres: pnpm db:up / db:down
 # Garage archive: pnpm archive:up / archive:down (see deploy/garage/README.md)
+# Request logs: pnpm logs:up / logs:down (see deploy/loki/README.md)
 
 name: cabin
 
@@ -62,6 +63,23 @@ services:
     networks:
       - cabin
 
+  loki:
+    image: grafana/loki:3.6.15
+    container_name: cabin-loki
+    restart: unless-stopped
+    command: ['-config.file=/etc/loki/loki.yaml']
+    user: '10001:10001'
+    mem_limit: 384m
+    environment:
+      GOMEMLIMIT: 320MiB
+    volumes:
+      - ./deploy/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+    ports:
+      - '127.0.0.1:3100:3100'
+    networks:
+      - cabin
+
 volumes:
   postgres_data:
     name: cabin-postgres-data
@@ -69,6 +87,8 @@ volumes:
     name: cabin-garage-meta
   garage_data:
     name: cabin-garage-data
+  loki_data:
+    name: cabin-loki-data
 
 networks:
   cabin:

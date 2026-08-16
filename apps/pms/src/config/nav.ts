@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ClipboardList,
   LayoutDashboard,
+  ScrollText,
   Settings,
 } from "lucide-react";
 
@@ -39,6 +40,13 @@ export const secondaryNavItems: NavItem[] = [
   { titleKey: "nav.reports", href: "/reports", icon: BarChart3 },
 ];
 
+/** Header title only — opened from Settings, not sidebar. */
+export const requestLogsNavItem: NavItem = {
+  titleKey: "nav.requestLogs",
+  href: "/request-logs",
+  icon: ScrollText,
+};
+
 /** Account + appearance (+ staff for SUPER_ADMIN). Not in Manage. */
 export const accountNavItems: NavItem[] = [
   { titleKey: "nav.settings", href: "/settings", icon: Settings },
@@ -50,6 +58,7 @@ export const allNavItems = [
   ...primaryNavItems,
   ...secondaryNavItems,
   ...accountNavItems,
+  requestLogsNavItem,
 ];
 
 /** Returns the `common` namespace i18n key for the nav item matching `pathname`, if any. */

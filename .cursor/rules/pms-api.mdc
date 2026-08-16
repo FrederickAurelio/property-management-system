@@ -11,6 +11,7 @@ alwaysApply: false
 - Nest still serves `/staff/...`. Browser calls are audience-free: `baseURL: "/api"` + `/auth/...`, `/reservations/...`, etc.
 - Vite/nginx rewrite `/api` → `/staff` on this origin only. Phase 1 iCal: also proxy `/public/ical/` → Nest `/public/ical/` (OTA poll via PMS origin; Nest stays private). Do not proxy `/health` through PMS.
 - Inventory helpers: `properties.ts` / `unit-types.ts` / `units.ts` — lists return `Paginated<T>`; detail GETs exist for chrome (breadcrumbs).
-- `withCredentials: true` (cookie `cabin.pms.sid`). Interceptors own envelope unwrap + `ApiError`.
-- Toasts (`handleSuccess` / `handleError`) in screens/mutations — not inside the interceptor.
+- Request logs: `request-logs.ts` → `GET /request-logs` (`StaffRequestLogsList`); ADMIN+; numbered `page` (not infinite).
+- `withCredentials: true` (cookie `cabin.pms.sid`). Default header `x-cabin-app: pms`. Interceptors own envelope unwrap + `ApiError`.
+- Toasts (`handleSuccess` / `handleError`) in screens/mutations — not inside the interceptor. Show `requestId` on errors when present.
 - Query keys, infinite lists, cache, toast vs field highlight: [`pms-query.mdc`](pms-query.mdc).

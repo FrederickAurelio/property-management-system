@@ -226,6 +226,28 @@ export function staffReportsSummaryQueryKey(
   return [...staffReportsQueryKeyPrefix, "summary", params] as const;
 }
 
+/** Staff request-log list (Loki via Nest). */
+export const staffRequestLogsQueryKeyPrefix = [
+  "staff",
+  "request-logs",
+] as const;
+
+export type StaffRequestLogsListFilters = {
+  page: number;
+  pageSize: number;
+  range: "1h" | "24h" | "7d" | "30d";
+  q?: string;
+  app?: "pms" | "web";
+  actor?: string;
+  path?: string;
+  errorsOnly?: boolean;
+  requestId?: string;
+};
+
+export function staffRequestLogsQueryKey(filters: StaffRequestLogsListFilters) {
+  return [...staffRequestLogsQueryKeyPrefix, "list", filters] as const;
+}
+
 /** Staff desk dashboard triage (today arrivals/departures + needs attention). */
 export const staffDashboardQueryKeyPrefix = ["staff", "dashboard"] as const;
 

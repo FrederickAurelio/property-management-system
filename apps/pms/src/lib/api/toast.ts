@@ -24,6 +24,8 @@ function messageForApiError(error: ApiError): string {
       return i18n.t("errors:networkError");
     case ApiErrorCode.SERVER_UNAVAILABLE:
       return i18n.t("errors:serverUnavailable");
+    case ApiErrorCode.LOGS_UNAVAILABLE:
+      return i18n.t("errors:logsUnavailable");
     case ApiErrorCode.INTERNAL_ERROR: {
       const msg = error.message?.trim() ?? "";
       if (/does not exist in the current database/i.test(msg)) {
@@ -58,7 +60,11 @@ export function handleSuccess(message: string): void {
 /** Toast an error from `ApiError` or unknown throwables (Sonner). */
 export function handleError(error: unknown): void {
   if (error instanceof ApiError) {
-    toast.error(messageForApiError(error));
+    toast.error(messageForApiError(error), {
+      description: error.requestId
+        ? `requestId ${error.requestId}`
+        : undefined,
+    });
     return;
   }
 

@@ -46,7 +46,7 @@ Same pattern as FE: compose publishes ports; firewall allows them; Nest env uses
 
 | Host port | Service | Role |
 |-----------|---------|------|
-| **8080** | pms | Staff UI |
+| **8080** | pms | Staff UI (incl. Request logs) |
 | **3050** | web | Public site |
 | **3900** | garage | S3 API (presigned PUT) |
 | **3910** | archive-proxy | Public GET (`Host: cabin-archive` → `garage:3902`) |
@@ -163,6 +163,7 @@ Re-apply bucket CORS with HTTPS PMS origin (`https://pms.<domain>`). Restart `ap
 ### 5. Verify
 
 - PMS login over HTTPS (secure cookie).
+- PMS Request logs (ADMIN+) — Loki stays unpublished.
 - Settings archive smoke: PUT to `s3-archive.` + preview from `archive.`.
 - Inventory media still on Cloudinary/R2 (`MEDIA_*` unchanged).
 

@@ -55,7 +55,7 @@ jobs:
             docker compose build --progress=plain api
             docker compose build --progress=plain pms
             docker compose build --progress=plain web
-            docker compose up -d
+            docker compose up -d --remove-orphans
             docker compose exec -T api npx prisma migrate deploy
             docker compose exec -T api node dist/scripts/seed.js
 

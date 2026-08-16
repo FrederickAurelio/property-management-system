@@ -1,16 +1,20 @@
-/* anchor: Linear settings / Stripe team, diverge: account + SUPER_ADMIN staff in one page */
+/* anchor: Linear settings / Stripe team, diverge: account + SUPER_ADMIN staff; request logs via Settings */
 import { useQuery } from "@tanstack/react-query";
 import { AdminRole } from "@cabin/api-contract";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { StaffLogoutButton } from "@/components/layout/staff-logout-button";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { staffSession } from "@/lib/api";
 import { staffSessionQueryKey } from "@/lib/api/query-keys";
-import { LanguageSwitcher } from "@/components/language-switcher";
-import { StaffLogoutButton } from "@/components/layout/staff-logout-button";
+import { canViewRequestLogs } from "@/lib/staff-permissions";
 import { ChangePasswordForm } from "./change-password-form";
 import { ChangeUsernameForm } from "./change-username-form";
 import { StaffSection } from "./staff-section";
 import { ThemePreferenceSelect } from "./theme-preference-select";
+
 function SettingsSection({
   title,
   description,
@@ -105,6 +109,24 @@ export function SettingsPage() {
             description={t("settings:staff.description")}
           >
             <StaffSection currentAdmin={staff} />
+          </SettingsSection>
+        </>
+      )}
+
+      {canViewRequestLogs(staff.role) && (
+        <>
+          <Separator />
+          <SettingsSection
+            title={t("settings:requestLogs.title")}
+            description={t("settings:requestLogs.description")}
+          >
+            <Button
+              variant="outline"
+              className="w-full max-w-xs justify-center sm:w-fit"
+              asChild
+            >
+              <Link to="/request-logs">{t("settings:requestLogs.open")}</Link>
+            </Button>
           </SettingsSection>
         </>
       )}

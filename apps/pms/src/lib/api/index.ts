@@ -17,6 +17,8 @@ export {
   staffPropertyCalendarQueryKeyPrefix,
   staffReportsQueryKeyPrefix,
   staffReportsSummaryQueryKey,
+  staffRequestLogsQueryKey,
+  staffRequestLogsQueryKeyPrefix,
   staffReservationQueryKey,
   staffReservationsQueryKey,
   staffReservationsQueryKeyPrefix,
@@ -36,6 +38,7 @@ export {
   type StaffPropertiesListFilters,
   type StaffPropertyCalendarParams,
   type StaffReportsSummaryQueryParams,
+  type StaffRequestLogsListFilters,
   type StaffReservationsListFilters,
   type StaffUnitsListFilters,
   type StaffUnitTypesListFilters,
@@ -123,6 +126,7 @@ export {
   type GetStaffReportsSummaryParams,
 } from "./reports";
 export { getStaffDashboard, type GetStaffDashboardParams } from "./dashboard";
+export { listRequestLogs, type ListRequestLogsParams } from "./request-logs";
 export { invalidateIcalSyncCaches, syncAllIcalFeeds } from "./ical";
 export {
   cloudinaryDeliveryUrl,

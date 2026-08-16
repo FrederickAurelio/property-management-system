@@ -17,6 +17,7 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Inventory hold:** DAILY busy = `[checkIn, checkOut)`; MONTHLY/YEARLY occupying busy = `[checkIn, FAR)` until `CHECKED_OUT`/`CANCELLED` (`inventoryEndDate`; contract dates unchanged for money/boards/reports)
 - **Property calendar:** `GET /staff/properties/:propertyId/calendar?from&to` — units + occupying stays (bars span to `inventoryEndDate`) + `CalendarBlock` bars; block CRUD `/staff/calendar-blocks` (`FRONT_DESK+`); blocks occupy for overlap (create stay / Choose unit / occupancy)
 - **Reports:** `GET /staff/reports/summary?propertyId&from&to&compare=` — cash (movements by property-TZ business date) · occupancy (clip nights, expand units) · source mix · equal-length compare (`ADMIN+`); wire `StaffReportsSummary`
+- **Request logs:** `GET /staff/request-logs` — ADMIN+ Loki query (not Postgres); wire `StaffRequestLogsList`; newest 500 HTTP lines; Loki down → 503 `LOGS_UNAVAILABLE`
 - **Dashboard:** `GET /staff/dashboard?propertyId&date?` — today arrivals/departures + needs attention (`FRONT_DESK+`); real board-predicate assemble (cap 8 + honest totals); wire `StaffDashboard`
 - **iCal:** `Unit.icalExportToken` + `UnitIcalFeed`; hub topology (PMS export → OTAs; import each OTA → PMS) — [`_docs/reservations-design.md`](../../_docs/reservations-design.md) §9. Live `GET /public/ical/units/:unitId.ics?token=` (PMS origin proxy); cron + `POST /staff/ical/sync-all`; Accept dates / Accept unit / Dismiss on reservation detail.
 - **Design (locked):** [`_docs/reservations-design.md`](../../_docs/reservations-design.md) — money axes, boards, Choose unit, Total = `periodCount ×` matching rack (`billingPeriod` + `defaultPriceIdr` / `monthlyPriceIdr` / `yearlyPriceIdr`; `suggestStayTotalIdr` in `@cabin/api-contract`); guest never arrived → Cancel (no `NO_SHOW` status)
@@ -127,7 +128,7 @@ Seed: Skybreeze Sentraland (1 property, 5 types, 8 units) + bootstrap `SUPER_ADM
 
 ## HTTP contract
 
-Controllers return **domain objects only**. Global `TransformInterceptor` + `HttpExceptionFilter` own the wire shape.
+Controllers return **domain objects only**. Global `TransformInterceptor` + `HttpExceptionFilter` own the wire shape. Request diary is JSON (`nestjs-pino`); Nest pushes HTTP lines to Loki; search via `GET /staff/request-logs` (ADMIN+) → Loki ([`_docs/request-logs.md`](../../_docs/request-logs.md)).
 
 **Success (2xx):** `{ data: T, meta?: { requestId } }` — header `x-request-id` mirrors `meta.requestId`.
 
@@ -141,6 +142,7 @@ Controllers return **domain objects only**. Global `TransformInterceptor` + `Htt
 | 404 | `NOT_FOUND` |
 | 409 | `CONFLICT` |
 | 500 | `INTERNAL_ERROR` |
+| 503 | `LOGS_UNAVAILABLE` (Loki down) or `INTERNAL_ERROR` |
 
 FE: `credentials: 'include'`; unwrap `data`; never parse Nest’s default error shape. Shared setup: `setupHttpContract()` in `src/common/http/`.
 

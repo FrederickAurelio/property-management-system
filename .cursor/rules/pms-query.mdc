@@ -11,6 +11,7 @@ globs:
   - apps/pms/src/lib/api/inventory-cache.ts
   - apps/pms/src/lib/api/calendar.ts
   - apps/pms/src/lib/api/admins.ts
+  - apps/pms/src/lib/api/request-logs.ts
   - apps/pms/src/lib/query-client.ts
 alwaysApply: false
 ---
@@ -40,7 +41,7 @@ useQuery({ queryKey: staffAdminsQueryKey, queryFn: listAdmins });
 
 ## Infinite lists (offset `Paginated<T>`)
 
-Nest lists return `{ items, pageInfo }` (`Paginated` / `PageInfo` in `@cabin/api-contract`). Use `useInfiniteQuery` — not page-number UI.
+Nest lists return `{ items, pageInfo }` (`Paginated` / `PageInfo` in `@cabin/api-contract`). Use `useInfiniteQuery` — not page-number UI. **Exception:** when the store has no cheap OFFSET (request logs over Loki), use numbered Pagination + `useQuery` with `page` in the key.
 
 ```ts
 useInfiniteQuery({

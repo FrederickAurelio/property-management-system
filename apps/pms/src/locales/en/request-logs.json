@@ -1,0 +1,61 @@
+{
+  "filters": {
+    "searchPlaceholder": "Search path, user, requestId…",
+    "searchAria": "Search request logs",
+    "rangeAria": "Time range",
+    "range_1h": "1h",
+    "range_24h": "24h",
+    "range_7d": "7d",
+    "range_30d": "30d",
+    "appAria": "App",
+    "appAll": "Any app",
+    "appPms": "PMS",
+    "appWeb": "Web",
+    "errorsOnly": "Errors",
+    "actorPlaceholder": "User",
+    "actorAria": "User",
+    "requestIdPlaceholder": "requestId",
+    "requestIdAria": "Request ID"
+  },
+  "table": {
+    "time": "Time",
+    "user": "User",
+    "app": "App",
+    "method": "Method",
+    "path": "Path",
+    "status": "Status",
+    "error": "Error",
+    "requestId": "requestId",
+    "duration": "{{ms}} ms"
+  },
+  "empty": {
+    "noneTitle": "No request lines",
+    "noneDescription": "Nothing in this window. Widen the range, clear filters, or wait for API traffic. Locally: `pnpm logs:up` plus a running Nest process.",
+    "pageTitle": "This page is empty",
+    "pageDescription": "There are lines in this window — go back a page.",
+    "unavailableTitle": "Log store is offline",
+    "unavailableDescription": "Start Loki locally with `pnpm logs:up`, or check the VPS logs stack."
+  },
+  "loadError": "Couldn’t load request logs.",
+  "truncated": "Showing the newest 500 lines in this window. Narrow the time range to go further back.",
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {{page}} of {{totalPages}}"
+  },
+  "detail": {
+    "title": "Request",
+    "time": "Time",
+    "user": "User",
+    "app": "App",
+    "audience": "Audience",
+    "method": "Method",
+    "path": "Path",
+    "status": "Status",
+    "duration": "Duration",
+    "requestId": "requestId",
+    "errorCode": "Error code",
+    "errorMessage": "Error",
+    "ms": "{{ms}} ms"
+  }
+}

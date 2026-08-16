@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { LoggerModule } from 'nestjs-pino';
 import { join } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { pinoHttpOptions } from './common/http/pino-http.options.js';
 import { PrismaModule } from './prisma/prisma.module';
 import { StaffAuthModule } from './staff/auth/staff-auth.module';
 import { AdminsModule } from './staff/admins/admins.module';
@@ -15,6 +17,7 @@ import { StaffUnitsModule } from './staff/units/units.module.js';
 import { StaffReservationsModule } from './staff/reservations/reservations.module.js';
 import { StaffCalendarModule } from './staff/calendar/calendar.module.js';
 import { StaffReportsModule } from './staff/reports/reports.module.js';
+import { StaffRequestLogsModule } from './staff/request-logs/request-logs.module.js';
 import { StaffDashboardModule } from './staff/dashboard/dashboard.module.js';
 import { StaffIcalModule } from './staff/ical/ical.module.js';
 import { PublicModule } from './public/public.module.js';
@@ -29,6 +32,9 @@ import { PublicModule } from './public/public.module.js';
         join(process.cwd(), '.env'),
       ],
     }),
+    LoggerModule.forRoot({
+      pinoHttp: pinoHttpOptions(),
+    }),
     ScheduleModule.forRoot(),
     PrismaModule,
     StaffAuthModule,
@@ -41,6 +47,7 @@ import { PublicModule } from './public/public.module.js';
     StaffReservationsModule,
     StaffCalendarModule,
     StaffReportsModule,
+    StaffRequestLogsModule,
     StaffDashboardModule,
     StaffIcalModule,
     PublicModule,

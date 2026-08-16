@@ -7,14 +7,19 @@
     "title": "Password",
     "description": "Ubah password untuk akun ini."
   },
-  "appearance": {
-    "title": "Tampilan",
-    "description": "Preferensi tampilan.",
-    "themeLabel": "Tema",
-    "themeDescription": "Terang, gelap, atau ikuti sistem",
-    "themeSelectAriaLabel": "Tema",
-    "themeSelectPlaceholder": "Tema"
-  },
+    "appearance": {
+      "title": "Tampilan",
+      "description": "Preferensi tampilan.",
+      "themeLabel": "Tema",
+      "themeDescription": "Terang, gelap, atau ikuti sistem",
+      "themeSelectAriaLabel": "Tema",
+      "themeSelectPlaceholder": "Tema"
+    },
+    "requestLogs": {
+      "title": "Log permintaan",
+      "description": "Error HTTP dan requestId untuk debug. Bukan jejak aktivitas bisnis.",
+      "open": "Buka log permintaan"
+    },
   "staff": {
     "title": "Staf",
     "description": "Buat akun, ubah peran, dan cabut akses."

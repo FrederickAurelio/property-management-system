@@ -26,6 +26,7 @@ scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 - Unit occupancy bounds (`UNIT_OCCUPANCY_RANGE_MAX_YEARS`, `STAY_YEAR_PICKER_BEFORE` / `AFTER`) — Nest occupancy range + PMS yearly picker grid
 - Reports wire types (`StaffReportsSummary`, cash / occupancy / source mix) + period helpers (`previousEqualPeriod`, `ymdInclusiveToUtcHalfOpen`) — Nest `GET /staff/reports/summary`. Open balances stay on Reservations boards.
 - Dashboard wire types (`StaffDashboard`, `StaffDashboardListItem`, `StaffDashboardAttentionKind`) — Nest `GET /staff/dashboard` (today arrivals/departures + needs attention; not period KPIs)
+- Request-log wire (`StaffRequestLogItem`, `StaffRequestLogsList`, `StaffRequestLogsParams`, `REQUEST_LOGS_*` bounds, `REQUEST_ID_PATTERN`) — Nest `GET /staff/request-logs` (ADMIN+; Loki on demand, not Postgres)
 - Payment movement wire (`PaymentMovement`, direction/kind enums) + helpers (`signedAmountFor`, `sumPaidFromMovements`) — Paid on reservation is denormalized sum of movements; Nest must append movements, not overwrite Paid alone; stamp `createdByAdminId` from session
 - Reservation staff wire includes `createdByAdminId` / `updatedByAdminId` (+ denormalized usernames) — light attribution, not a full audit log
 - Pagination: `Paginated<T>`, `PageInfo`, `buildPageInfo`, page size bounds
