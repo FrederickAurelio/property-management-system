@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEnum,
   IsInt,
   IsOptional,
@@ -7,13 +9,16 @@ import {
   MaxLength,
   Min,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import {
   CollectedVia,
   PAYMENT_MOVEMENT_NOTE_MAX,
+  PAYMENT_MOVEMENT_PROOF_MAX,
   PaymentMovementDirection,
   PaymentMovementKind,
 } from '@cabin/api-contract';
+import { ArchiveProofImageDto } from './archive-proof-image.dto.js';
 
 export class PostPaymentMovementDto {
   @IsEnum(PaymentMovementDirection)
@@ -37,4 +42,11 @@ export class PostPaymentMovementDto {
   @IsString()
   @MaxLength(PAYMENT_MOVEMENT_NOTE_MAX)
   note?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(PAYMENT_MOVEMENT_PROOF_MAX)
+  @ValidateNested({ each: true })
+  @Type(() => ArchiveProofImageDto)
+  proofImages?: ArchiveProofImageDto[];
 }

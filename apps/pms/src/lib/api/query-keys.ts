@@ -59,6 +59,11 @@ export function staffReservationQueryKey(id: string) {
   return [...staffReservationsQueryKeyPrefix, "detail", id] as const;
 }
 
+/** Collect + undo share this so same-tab cash writes cannot overlap. */
+export function reservationCashMutationKey(id: string) {
+  return [...staffReservationsQueryKeyPrefix, "cash", id] as const;
+}
+
 /** Prefix — use with `invalidateQueries` to refresh all property lists. */
 export const staffPropertiesQueryKeyPrefix = ["staff", "properties"] as const;
 

@@ -1,18 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   ApiFieldReason,
+  ArchiveKind,
   CancelDisposition,
   IcalSyncWarning,
   PaymentMovementDirection,
   PaymentMovementKind,
   PaymentStatus,
+  PAYMENT_MOVEMENT_UNDO_WINDOW_MS,
   ReservationBoard,
   ReservationListSort,
   ReservationSource,
   ReservationStatus,
   StayBillingPeriod,
   UnitStatus,
+  canUndoPaymentMovement,
+  latestPaymentMovementId,
+  paymentMovementUndoRemainingMs,
   recomputePaymentStatus,
   sumPaidFromMovements,
   signedAmountFor,
@@ -55,7 +64,121 @@ describe('ReservationsService helpers (contract)', () => {
     expect(signedAmountFor(PaymentMovementDirection.IN, 100)).toBe(100);
     expect(signedAmountFor(PaymentMovementDirection.OUT, 100)).toBe(-100);
   });
+
+  it('canUndoPaymentMovement is latest within the window only', () => {
+    const createdAt = '2026-08-17T10:00:00.000Z';
+    const now = new Date('2026-08-17T10:04:00.000Z');
+    expect(
+      canUndoPaymentMovement({
+        movementId: 'm1',
+        createdAt,
+        latestId: 'm1',
+        reservationStatus: ReservationStatus.CONFIRMED,
+        now,
+      }),
+    ).toBe(true);
+    expect(
+      canUndoPaymentMovement({
+        movementId: 'm1',
+        createdAt,
+        latestId: 'm2',
+        reservationStatus: ReservationStatus.CONFIRMED,
+        now,
+      }),
+    ).toBe(false);
+    expect(
+      canUndoPaymentMovement({
+        movementId: 'm1',
+        createdAt,
+        latestId: 'm1',
+        reservationStatus: ReservationStatus.CANCELLED,
+        now,
+      }),
+    ).toBe(false);
+    expect(
+      canUndoPaymentMovement({
+        movementId: 'm1',
+        createdAt,
+        latestId: 'm1',
+        reservationStatus: ReservationStatus.CONFIRMED,
+        now: new Date('2026-08-17T10:05:01.000Z'),
+      }),
+    ).toBe(false);
+    expect(paymentMovementUndoRemainingMs(createdAt, now)).toBe(
+      PAYMENT_MOVEMENT_UNDO_WINDOW_MS - 4 * 60 * 1000,
+    );
+    expect(
+      latestPaymentMovementId([
+        { id: 'older', createdAt: '2026-08-17T09:00:00.000Z' },
+        { id: 'newer', createdAt: '2026-08-17T10:00:00.000Z' },
+      ]),
+    ).toBe('newer');
+  });
 });
+
+const SAMPLE_PROOF = {
+  kind: ArchiveKind.IMAGE,
+  id: 'arch_1',
+  url: 'http://127.0.0.1:3910/archive/2026/arch_1',
+  name: 'bca.webp',
+  mimeType: 'image/webp',
+  byteSize: 80_000,
+};
+
+function staffDetailRow(overrides: Record<string, unknown> = {}) {
+  const now = new Date('2026-08-17T10:00:00.000Z');
+  return {
+    id: 'res_1',
+    propertyId: 'prop_1',
+    unitId: 'unit_1',
+    unitTypeId: 'type_1',
+    source: ReservationSource.MANUAL,
+    status: ReservationStatus.CONFIRMED,
+    billingPeriod: StayBillingPeriod.DAILY,
+    checkInDate: new Date('2026-08-17T00:00:00.000Z'),
+    checkOutDate: new Date('2026-08-20T00:00:00.000Z'),
+    guestName: 'Guest',
+    guestEmail: 'a@b.com',
+    guestPhone: null,
+    guestCount: 2,
+    notes: null,
+    totalAmountIdr: BigInt(1_000_000),
+    rentAmountIdr: BigInt(1_000_000),
+    electricityAmountIdr: BigInt(0),
+    waterAmountIdr: BigInt(0),
+    maintenanceAmountIdr: BigInt(0),
+    electricityRateIdrPerKwh: 0,
+    waterRateIdrPerM3: 0,
+    maintenanceFeeIdrPerMonth: 0,
+    paidAmountIdr: BigInt(0),
+    paymentStatus: PaymentStatus.UNPAID,
+    collectedVia: null,
+    externalRef: null,
+    icalSyncWarning: null,
+    icalSyncWarnedAt: null,
+    icalObservedUnitId: null,
+    icalObservedUnit: null,
+    icalObservedCheckInDate: null,
+    icalObservedCheckOutDate: null,
+    icalOverlapHold: false,
+    confirmedAt: now,
+    checkedInAt: null,
+    checkedOutAt: null,
+    cancelledAt: null,
+    createdAt: now,
+    updatedAt: now,
+    createdByAdminId: 'admin_1',
+    updatedByAdminId: 'admin_1',
+    createdByAdmin: { username: 'didik' },
+    updatedByAdmin: { username: 'didik' },
+    property: { name: 'Skybreeze', timezone: 'Asia/Jakarta' },
+    unit: { code: 'A1' },
+    movements: [],
+    utilityReadings: [],
+    maintenanceCharges: [],
+    ...overrides,
+  };
+}
 
 describe('ReservationsService', () => {
   let service: ReservationsService;
@@ -76,6 +199,9 @@ describe('ReservationsService', () => {
     paymentMovement: {
       create: jest.Mock;
       findMany: jest.Mock;
+      findFirst: jest.Mock;
+      update: jest.Mock;
+      delete: jest.Mock;
     };
     calendarBlock: { findFirst: jest.Mock };
     unit: { findUnique: jest.Mock };
@@ -115,6 +241,9 @@ describe('ReservationsService', () => {
       paymentMovement: {
         create: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
       },
       calendarBlock: { findFirst: jest.fn().mockResolvedValue(null) },
       unit: { findUnique: jest.fn() },
@@ -838,6 +967,182 @@ describe('ReservationsService', () => {
           details: { reason: ApiFieldReason.MOVEMENT_EXCEEDS_DUE },
         },
       });
+    });
+
+    it('persists proofImages and defaults to empty', async () => {
+      const proofs = [SAMPLE_PROOF];
+      prisma.reservation.findUnique.mockResolvedValue(
+        staffDetailRow({
+          paidAmountIdr: BigInt(0),
+          movements: [],
+        }),
+      );
+      prisma.reservation.findUniqueOrThrow.mockResolvedValue({
+        totalAmountIdr: BigInt(1_000_000),
+      });
+      prisma.$queryRaw.mockResolvedValue([
+        { id: 'res_1', status: ReservationStatus.CONFIRMED },
+      ]);
+      prisma.paymentMovement.create.mockResolvedValue({ id: 'mov_1' });
+      prisma.paymentMovement.findMany.mockResolvedValue([
+        { signedAmount: BigInt(200_000), method: null },
+      ]);
+
+      await service.postMovement(
+        'res_1',
+        {
+          direction: PaymentMovementDirection.IN,
+          kind: PaymentMovementKind.DEPOSIT,
+          amountIdr: 200_000,
+          proofImages: proofs,
+        },
+        actor,
+      );
+
+      expect(prisma.paymentMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amountIdr: BigInt(200_000),
+            proofImages: proofs,
+          }) as Record<string, unknown>,
+        }),
+      );
+
+      prisma.paymentMovement.create.mockClear();
+      await service.postMovement(
+        'res_1',
+        {
+          direction: PaymentMovementDirection.IN,
+          kind: PaymentMovementKind.DEPOSIT,
+          amountIdr: 200_000,
+        },
+        actor,
+      );
+      expect(prisma.paymentMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            proofImages: [],
+          }) as Record<string, unknown>,
+        }),
+      );
+    });
+  });
+
+  describe('patchMovementProofs', () => {
+    it('replace-sets proofImages without touching Paid', async () => {
+      prisma.reservation.findUnique.mockResolvedValue(
+        staffDetailRow({ paidAmountIdr: BigInt(200_000) }),
+      );
+      prisma.paymentMovement.findFirst.mockResolvedValue({ id: 'mov_1' });
+      prisma.paymentMovement.update.mockResolvedValue({ id: 'mov_1' });
+
+      await service.patchMovementProofs('res_1', 'mov_1', {
+        proofImages: [SAMPLE_PROOF],
+      });
+
+      expect(prisma.paymentMovement.update).toHaveBeenCalledWith({
+        where: { id: 'mov_1' },
+        data: { proofImages: [SAMPLE_PROOF] },
+      });
+      expect(prisma.reservation.update).not.toHaveBeenCalled();
+
+      await service.patchMovementProofs('res_1', 'mov_1', { proofImages: [] });
+      expect(prisma.paymentMovement.update).toHaveBeenLastCalledWith({
+        where: { id: 'mov_1' },
+        data: { proofImages: [] },
+      });
+    });
+
+    it('404 when movement is on another reservation', async () => {
+      prisma.reservation.findUnique.mockResolvedValue(staffDetailRow());
+      prisma.paymentMovement.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.patchMovementProofs('res_1', 'mov_other', { proofImages: [] }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('undoMovement', () => {
+    const freshMovement = {
+      id: 'mov_1',
+      reservationId: 'res_1',
+      createdAt: new Date(),
+    };
+
+    it('deletes the latest movement within the window and re-sums Paid', async () => {
+      prisma.$queryRaw.mockResolvedValue([
+        { id: 'res_1', status: ReservationStatus.CONFIRMED },
+      ]);
+      prisma.reservation.findUnique.mockResolvedValue(staffDetailRow());
+      prisma.paymentMovement.findFirst
+        .mockResolvedValueOnce(freshMovement)
+        .mockResolvedValueOnce({ id: 'mov_1' });
+      prisma.paymentMovement.delete.mockResolvedValue(freshMovement);
+      prisma.paymentMovement.findMany.mockResolvedValue([]);
+      prisma.reservation.findUniqueOrThrow.mockResolvedValue({
+        totalAmountIdr: BigInt(1_000_000),
+      });
+
+      await service.undoMovement('res_1', 'mov_1', actor);
+
+      expect(prisma.$queryRaw).toHaveBeenCalled();
+      expect(prisma.paymentMovement.delete).toHaveBeenCalledWith({
+        where: { id: 'mov_1' },
+      });
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'res_1' },
+          data: expect.objectContaining({
+            paidAmountIdr: BigInt(0),
+          }) as Record<string, unknown>,
+        }),
+      );
+    });
+
+    it('rejects expired, not-latest, and cancelled', async () => {
+      prisma.$queryRaw.mockResolvedValue([
+        { id: 'res_1', status: ReservationStatus.CANCELLED },
+      ]);
+      prisma.paymentMovement.findFirst
+        .mockResolvedValueOnce(freshMovement)
+        .mockResolvedValueOnce({ id: 'mov_1' });
+
+      await expect(
+        service.undoMovement('res_1', 'mov_1', actor),
+      ).rejects.toMatchObject({
+        response: {
+          details: { reason: ApiFieldReason.INVALID_STATUS_TRANSITION },
+        },
+      });
+      expect(prisma.paymentMovement.delete).not.toHaveBeenCalled();
+
+      prisma.$queryRaw.mockResolvedValue([
+        { id: 'res_1', status: ReservationStatus.CONFIRMED },
+      ]);
+      prisma.paymentMovement.findFirst
+        .mockResolvedValueOnce(freshMovement)
+        .mockResolvedValueOnce({ id: 'mov_newer' });
+
+      await expect(
+        service.undoMovement('res_1', 'mov_1', actor),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.paymentMovement.delete).not.toHaveBeenCalled();
+
+      const expired = {
+        ...freshMovement,
+        createdAt: new Date(
+          Date.now() - PAYMENT_MOVEMENT_UNDO_WINDOW_MS - 1000,
+        ),
+      };
+      prisma.paymentMovement.findFirst
+        .mockResolvedValueOnce(expired)
+        .mockResolvedValueOnce({ id: 'mov_1' });
+
+      await expect(
+        service.undoMovement('res_1', 'mov_1', actor),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.paymentMovement.delete).not.toHaveBeenCalled();
     });
   });
 

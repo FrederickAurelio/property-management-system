@@ -83,6 +83,7 @@ export function toStaffPaymentMovement(
     signedAmount: Number(row.signedAmount),
     method: row.method,
     note: row.note,
+    proofImages: (row.proofImages as ArchiveItem[] | null) ?? [],
     createdAt: row.createdAt.toISOString(),
     createdByAdminId: row.createdByAdminId,
     createdByAdminUsername: row.createdByAdmin?.username ?? null,

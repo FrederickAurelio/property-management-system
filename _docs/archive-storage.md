@@ -131,7 +131,7 @@ pnpm archive:bootstrap
 
 Set `ARCHIVE_CORS_ORIGINS` in `.env` first. See [`deploy/garage/README.md`](../deploy/garage/README.md).
 
-PMS Settings → **Archive upload smoke test (temp)** exercises the path (remove when real proof UI ships).
+**Consumers (PMS, `FRONT_DESK+`):** utility meter readings (`proofImages` on `ReservationUtilityReading`) and cash movement receipts (`proofImages` on `PaymentMovement`). Same Garage intent + FE archive compress profile.
 
 ---
 

@@ -97,7 +97,7 @@ iCal stubs → `UNCONFIRMED` until staff enrich guest + money.
 6. Customer website booking + iCal export (`web`) — Phase 2
 7. Evaluate CM — Phase 3
 
-Money quote (locked): stay Total suggests `periodCount ×` matching rack (`billingPeriod` + daily/monthly/yearly prices); cash = append-only `PaymentMovement`; Paid = sum — see [`_docs/reservations-design.md`](_docs/reservations-design.md) §6.
+Money quote (locked): stay Total suggests `periodCount ×` matching rack (`billingPeriod` + daily/monthly/yearly prices); cash = `PaymentMovement` (amounts append-only except latest undo within 5 min; optional `proofImages` replace-set); Paid = sum — see [`_docs/reservations-design.md`](_docs/reservations-design.md) §6.
 
 ## Navigation
 

@@ -185,7 +185,7 @@ Desk meaning of `paymentStatus`: **“what does the guest still owe at the prope
 | Concept     | Storage                            | Changed by                                                                     |
 | ----------- | ---------------------------------- | ------------------------------------------------------------------------------ |
 | **Quote**   | `Reservation.totalAmountIdr`       | Rent (create/edit) + utilities sheet — always rollup of components             |
-| **Cash**    | Append-only `PaymentMovement` rows | Collect (IN/OUT), Cancel refund, create opening DP                             |
+| **Cash**    | `PaymentMovement` rows | Collect (IN/OUT), Cancel refund, create opening DP. Amounts append-only except latest-within-5-min undo. `proofImages` replace-set anytime. |
 | **Paid**    | `Reservation.paidAmountIdr`        | **Denormalized cache** = `sum(movements.signedAmount)` — never overwrite alone |
 | **Balance** | Derived                            | Due = max(total − paid, 0); Refund = max(paid − total, 0)                      |
 
@@ -247,9 +247,12 @@ REFUNDED  explicit after cancel full-refund (or paid driven to 0 on cancel path)
 | `signedAmount`                   | `+amount` (IN) or `−amount` (OUT)                                         |
 | `method`                         | `PROPERTY` \| `CHANNEL` \| `MIXED` \| null                                |
 | `note`                           | optional                                                                  |
+| `proofImages`                    | optional Garage `ArchiveItem[]` (max 5). Create on Collect; replace-set via `PATCH .../movements/:id/proofs`. Does not change Paid. |
 | `createdAt` / `createdByAdminId` | audit — who posted cash; no full edit history table in Phase 1            |
 
-Helpers in `@cabin/api-contract`: `signedAmountFor`, `sumPaidFromMovements`, `balanceDueIdr`, `refundDueIdr`.
+Helpers in `@cabin/api-contract`: `signedAmountFor`, `sumPaidFromMovements`, `balanceDueIdr`, `refundDueIdr`, `canUndoPaymentMovement`.
+
+**Grace undo:** `FRONT_DESK+` may delete the **latest** movement if `now − createdAt ≤ 5 minutes` and the stay is not `CANCELLED` (`POST .../movements/:id/undo`). After that, amounts stay frozen; proofs can still PATCH.
 
 **Not movements:** Total edits, guest/date/unit patches. Shrink after full pay → Refund due until staff posts an OUT.
 
@@ -268,10 +271,12 @@ Cash-first — posts **one** movement per save. Total quote stays on Edit stay.
 
 | Intent              | Input                      | Result                                                   |
 | ------------------- | -------------------------- | -------------------------------------------------------- |
-| Collect DP / top-up | amount ≤ Due, method, note | Movement `IN` (`DEPOSIT` / `TOP_UP` / `CHANNEL_SETTLED`) |
-| Collect full Due    | shortcut amount = Due      | Same IN                                                  |
-| Refund excess       | amount ≤ Refund            | Movement `OUT` (`REFUND`)                                |
-| Refund full excess  | shortcut amount = Refund   | Same OUT                                                 |
+| Collect DP / top-up | amount ≤ Due, method, note, optional proofs | Movement `IN` (`DEPOSIT` / `TOP_UP` / `CHANNEL_SETTLED`) |
+| Collect full Due    | shortcut amount = Due                       | Same IN                                                  |
+| Refund excess       | amount ≤ Refund, optional proofs            | Movement `OUT` (`REFUND`)                                |
+| Refund full excess  | shortcut amount = Refund                    | Same OUT                                                 |
+| Attach / change bukti | `proofImages` array only                  | `PATCH .../proofs` replace-set; Paid unchanged           |
+| Undo fat-finger     | latest line, within 5 min                   | Delete row; re-sum Paid                                  |
 
 Do **not** expose absolute Paid rewrite as the desk path.
 
@@ -387,6 +392,7 @@ Early/late check-out: dates unchanged unless staff **Edit** first; iCal busy fol
 | `signedAmount`                   | no   | +/− amount                                                                |
 | `method`                         | yes  | `PROPERTY` \| `CHANNEL` \| `MIXED`                                        |
 | `note`                           | yes  |                                                                           |
+| `proofImages`                    | no   | jsonb `ArchiveItem[]`, default `[]`; replace-set via PATCH proofs          |
 | `createdAt` / `createdByAdminId` |      |                                                                           |
 
 Indexes: unit+dates, property+checkIn/Out, status, paymentStatus, source, warning; `UNIQUE (source, externalRef)` where ref set; movements by `reservationId` + `createdAt`.  
@@ -683,7 +689,7 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservati
 | Unit vs type-first UX        | **Unit required** on write; Choose picker drills Property → Type → Unit                                                                                                                                                                                                      |
 | Stay Total suggestion        | Rent = `periodCount ×` matching rack; Total = rent + utilities; Paid = sum(movements), never auto-changed on date/unit/period change; if Paid > Total → Refund (`refundDueIdr`), settle via Collect OUT |
 | Quote utilities              | Monthly elec/water meter readings + maintenance rows; rates on UnitType + reservation snapshot; button on all periods; `utilitiesDueNotice` for MONTHLY/YEARLY only when next month missing |
-| Cash ledger                  | `PaymentMovement` append-only; Nest `/staff/reservations`; PMS live                                                                                                                                                                                                          |
+| Cash ledger                  | `PaymentMovement` amounts append-only except latest undo within 5 min; optional `proofImages` replace-set; Nest `/staff/reservations`; PMS live |
 | Cancel money body            | `refundAmountIdr` (OUT amount) for partial — never “remaining Paid”                                                                                                                                                                                                          |
 | Check-in if Due > 0          | Warn, allow                                                                                                                                                                                                                                                                  |
 | Collect after checkout       | Only while Due > 0 (IN) or Refund > 0 (OUT); hidden when settled                                                                                                                                                                                                             |
@@ -703,6 +709,7 @@ Unit via Choose (Property → Type → Unit), not a mega Select
 Confirm = name + (phone|email) + guests + total   (paid may be 0 → opening IN on create)
 Money   = UNPAID | DEPOSIT | PAID | REFUNDED
 Paid    = sum(PaymentMovement.signedAmount) — never absolute overwrite as desk path
+         amounts append-only except latest undo within 5 min; proofs PATCH replace-set
 Rent    = periodCount × matching rack on unit/period/count change (override OK)
 Total   = rent + electricity + water + maintenance (utilities sheet; monthly cadence)
          if Paid > Total → Refund = paid − total (Collect OUT; never silent clamp)

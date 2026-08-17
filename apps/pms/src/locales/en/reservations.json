@@ -363,6 +363,21 @@
     },
     "noteLabel": "Note",
     "notePlaceholder": "Optional — receipt #, who paid…",
+    "proofLabel": "Proof",
+    "proofOptional": "(optional)",
+    "proofHint": "Transfer screenshot or receipt. You can add or change this later on the cash timeline.",
+    "photos": {
+      "add": "Add photo",
+      "limit": "Up to {{max}} photos per collection.",
+      "counter": "{{index}} of {{total}}",
+      "noPhotos": "No photos",
+      "titleFallback": "Payment proof",
+      "previousAria": "Previous photo",
+      "nextAria": "Next photo",
+      "closeAria": "Close preview",
+      "removeAria": "Remove photo",
+      "nothingToPreview": "Nothing to preview."
+    },
     "zod": {
       "amountRequired": "Enter an amount",
       "nothingToDo": "Nothing to collect or refund",
@@ -434,7 +449,31 @@
   "timeline": {
     "title": "Cash timeline",
     "subtitle": "Paid is the sum of these movements. Quote (Total) changes are not listed here.",
-    "empty": "No cash movements yet."
+    "empty": "No cash movements yet.",
+    "undo": "Undo",
+    "undoAriaCollect": "Undo this collection. {{time}} remaining.",
+    "undoAriaRefund": "Undo this refund. {{time}} remaining.",
+    "undoConfirm": "Undo collection",
+    "undoConfirmRefund": "Undo refund",
+    "undoConfirmTitle": "Undo this collection?",
+    "undoConfirmTitleRefund": "Undo this refund?",
+    "undoConfirmDescription": "Undo this {{amount}} collection? Paid will go back. You can record it again.",
+    "undoConfirmDescriptionRefund": "Undo this {{amount}} refund? Paid will go back up. You can record it again.",
+    "undoConfirmDescriptionFallback": "Undo this collection? Paid will go back. You can record it again.",
+    "toastUndone": "Collection undone",
+    "toastUndoneRefund": "Refund undone",
+    "photos": {
+      "add": "Add photo",
+      "limit": "Up to {{max}} photos per collection.",
+      "counter": "{{index}} of {{total}}",
+      "noPhotos": "No photos",
+      "titleFallback": "Payment proof",
+      "previousAria": "Previous photo",
+      "nextAria": "Next photo",
+      "closeAria": "Close preview",
+      "removeAria": "Remove photo",
+      "nothingToPreview": "Nothing to preview."
+    }
   },
   "chosenUnitField": {
     "label": "Unit",

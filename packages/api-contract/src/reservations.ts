@@ -87,7 +87,11 @@ export const PaymentMovementKind = {
 export type PaymentMovementKind =
   (typeof PaymentMovementKind)[keyof typeof PaymentMovementKind];
 
-/** Append-only cash line. Paid on reservation = sum(signedAmount). */
+/**
+ * Cash line. Amounts are append-only (grace undo of the latest row within
+ * `PAYMENT_MOVEMENT_UNDO_WINDOW_MS` is the only delete). `proofImages` is a
+ * replace-set filing cabinet — PATCH proofs does not change Paid.
+ */
 export type PaymentMovement = {
   id: string;
   reservationId: string;
@@ -99,6 +103,8 @@ export type PaymentMovement = {
   signedAmount: number;
   method: CollectedVia | null;
   note: string | null;
+  /** Garage receipt / transfer screenshots. Optional; replace-set via PATCH proofs. */
+  proofImages: ArchiveItem[];
   createdAt: string;
   /** Session admin who posted the line; null for system/seed. */
   createdByAdminId: string | null;
@@ -107,6 +113,62 @@ export type PaymentMovement = {
 };
 
 export const PAYMENT_MOVEMENT_NOTE_MAX = 500;
+
+/** Receipt / transfer screenshots on one cash line (fewer than meter readings). */
+export const PAYMENT_MOVEMENT_PROOF_MAX = 5;
+
+/** Desk may delete the latest movement within this window (fat-finger). */
+export const PAYMENT_MOVEMENT_UNDO_WINDOW_MS = 5 * 60 * 1000;
+
+export function latestPaymentMovementId(
+  movements: ReadonlyArray<Pick<PaymentMovement, "id" | "createdAt">>,
+): string | null {
+  if (movements.length === 0) {
+    return null;
+  }
+  const sorted = [...movements].sort((a, b) => {
+    if (a.createdAt < b.createdAt) {
+      return 1;
+    }
+    if (a.createdAt > b.createdAt) {
+      return -1;
+    }
+    return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+  });
+  return sorted[0]?.id ?? null;
+}
+
+export function paymentMovementUndoRemainingMs(
+  createdAt: string | Date,
+  now: Date = new Date(),
+): number {
+  const created =
+    createdAt instanceof Date ? createdAt : new Date(createdAt);
+  if (Number.isNaN(created.getTime())) {
+    return 0;
+  }
+  return Math.max(
+    0,
+    created.getTime() + PAYMENT_MOVEMENT_UNDO_WINDOW_MS - now.getTime(),
+  );
+}
+
+/** Nest + PMS share this — FE hides Undo; server is the lock. */
+export function canUndoPaymentMovement(input: {
+  movementId: string;
+  createdAt: string | Date;
+  latestId: string | null;
+  reservationStatus: ReservationStatus;
+  now?: Date;
+}): boolean {
+  if (input.reservationStatus === ReservationStatus.CANCELLED) {
+    return false;
+  }
+  if (input.latestId == null || input.movementId !== input.latestId) {
+    return false;
+  }
+  return paymentMovementUndoRemainingMs(input.createdAt, input.now) > 0;
+}
 
 export function signedAmountFor(
   direction: PaymentMovementDirection,
@@ -1057,6 +1119,12 @@ export type PostPaymentMovementInput = {
   amountIdr: number;
   method?: CollectedVia | null;
   note?: string | null;
+  proofImages?: ArchiveItem[];
+};
+
+/** PATCH `/staff/reservations/:id/movements/:movementId/proofs` — images only. */
+export type PatchPaymentMovementProofsInput = {
+  proofImages: ArchiveItem[];
 };
 
 /** POST check-in / check-out — early stays need confirmEarly. */

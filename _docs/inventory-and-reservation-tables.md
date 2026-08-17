@@ -412,7 +412,7 @@ Monthly fixed maintenance fee rows for a stay.
 
 ### 5.4b `PaymentMovement`
 
-Append-only cash ledger for a reservation. Nest `/staff/reservations` + PMS live client.
+Append-only cash **amounts** for a reservation (grace undo of the latest row within 5 minutes). Optional Garage proofs are a replace-set on the line. Nest `/staff/reservations` + PMS live client.
 
 | Column             | Type                       | Null | Notes                                                                     |
 | ------------------ | -------------------------- | ---- | ------------------------------------------------------------------------- |
@@ -424,6 +424,7 @@ Append-only cash ledger for a reservation. Nest `/staff/reservations` + PMS live
 | `signedAmount`     | `bigint`                   | no   | +amount (IN) or −amount (OUT)                                             |
 | `method`           | `CollectedVia`             | yes  | `PROPERTY` \| `CHANNEL` \| `MIXED`                                        |
 | `note`             | `varchar(500)`             | yes  |                                                                           |
+| `proofImages`      | `jsonb`                    | no   | `ArchiveItem[]`, default `[]`; PATCH proofs replace-set; does not change Paid |
 | `createdAt`        | `timestamptz`              | no   |                                                                           |
 | `createdByAdminId` | FK → `Admin`               | yes  |                                                                           |
 
@@ -433,9 +434,9 @@ Append-only cash ledger for a reservation. Nest `/staff/reservations` + PMS live
 - `CHECK (signedAmount = amountIdr OR signedAmount = -amountIdr)` (or enforce in service)
 - `INDEX (reservationId, createdAt)`
 
-**Rule:** `Reservation.paidAmountIdr = sum(signedAmount)` (never negative). Quote (`totalAmountIdr`) is **not** a movement.
+**Rule:** `Reservation.paidAmountIdr = sum(signedAmount)` (never negative). Quote (`totalAmountIdr`) is **not** a movement. Latest movement may be deleted within 5 minutes (`POST .../undo`).
 
-**FE shape:** `{ id, reservationId, direction, kind, amountIdr, signedAmount, method, note, createdAt, createdByAdminId, createdByAdminUsername }`
+**FE shape:** `{ id, reservationId, direction, kind, amountIdr, signedAmount, method, note, proofImages, createdAt, createdByAdminId, createdByAdminUsername }`
 
 **Attribution (Phase 1):** movement `createdByAdminId` + reservation `createdByAdminId` / `updatedByAdminId` (with denormalized usernames on staff wire). No full action-history table yet.
 

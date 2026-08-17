@@ -266,7 +266,7 @@ export function ReservationDetailPage() {
 
   if (detailQuery.isLoading) {
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-4 pb-16 md:p-6 md:pb-20">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 pt-6 pb-16 md:gap-8 md:p-6 md:pt-8 md:pb-20">
         <Skeleton className="h-8 w-40" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-32 w-full" />
@@ -276,7 +276,7 @@ export function ReservationDetailPage() {
 
   if (detailQuery.isError || !detailQuery.data) {
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-4 pb-16 md:p-6 md:pb-20">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 pt-6 pb-16 md:gap-8 md:p-6 md:pt-8 md:pb-20">
         <Button
           type="button"
           variant="ghost"
@@ -366,37 +366,39 @@ export function ReservationDetailPage() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-4 pb-16 md:p-6 md:pb-20">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="ghost" size="sm" asChild>
-          <Link to={backHref}>
-            <ArrowLeftIcon data-icon="inline-start" />
-            {t("detailPage.back")}
-          </Link>
-        </Button>
-      </div>
-
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-xl font-semibold tracking-tight">
-          {row.guestName}
-        </h1>
-        <div className="flex flex-wrap gap-1.5">
-          <ReservationBadge
-            label={formatReservationStatus(row.status)}
-            tone={statusBadgeTone(row.status)}
-          />
-          <SourceBadge
-            source={row.source}
-            label={formatReservationSource(row.source)}
-          />
-          {lateCue && (
-            <ReservationBadge
-              label={formatReservationLateCue(lateCue)}
-              tone="warn"
-            />
-          )}
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 pt-6 pb-16 md:gap-8 md:p-6 md:pt-8 md:pb-20">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="ghost" size="sm" asChild>
+            <Link to={backHref}>
+              <ArrowLeftIcon data-icon="inline-start" />
+              {t("detailPage.back")}
+            </Link>
+          </Button>
         </div>
-      </header>
+
+        <header className="flex flex-col gap-1.5">
+          <h1 className="text-xl font-semibold tracking-tight">
+            {row.guestName}
+          </h1>
+          <div className="flex flex-wrap gap-1.5">
+            <ReservationBadge
+              label={formatReservationStatus(row.status)}
+              tone={statusBadgeTone(row.status)}
+            />
+            <SourceBadge
+              source={row.source}
+              label={formatReservationSource(row.source)}
+            />
+            {lateCue && (
+              <ReservationBadge
+                label={formatReservationLateCue(lateCue)}
+                tone="warn"
+              />
+            )}
+          </div>
+        </header>
+      </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-10">
         <ReservationMoneyBlock
@@ -554,7 +556,7 @@ export function ReservationDetailPage() {
         </div>
       )}
 
-      <PaymentMovementsTimeline reservation={row} />
+      <PaymentMovementsTimeline reservation={row} className="mt-4 md:mt-6" />
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
         {primary && (

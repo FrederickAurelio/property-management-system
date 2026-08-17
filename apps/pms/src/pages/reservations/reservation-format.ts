@@ -326,16 +326,29 @@ export function formatMovementCreatedAt(
   return movementTimeFormat(timezone).format(d);
 }
 
-/** Newest first for desk timeline. */
+/** Newest first for desk timeline. Ties break on id desc (same as Nest undo latest). */
 export function movementsNewestFirst(
   movements: PaymentMovement[] | undefined,
 ): PaymentMovement[] {
   if (!movements?.length) {
     return [];
   }
-  return [...movements].sort((a, b) =>
-    a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0,
-  );
+  return [...movements].sort((a, b) => {
+    if (a.createdAt < b.createdAt) {
+      return 1;
+    }
+    if (a.createdAt > b.createdAt) {
+      return -1;
+    }
+    return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+  });
+}
+
+export function formatUndoRemaining(ms: number): string {
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 export type BadgeTone = "default" | "muted" | "warn" | "danger" | "ok";

@@ -7,6 +7,7 @@ import {
 import {
   ApiFieldReason,
   balanceDueIdr,
+  canUndoPaymentMovement,
   buildPageInfo,
   CancelDisposition,
   CollectedVia,
@@ -47,6 +48,7 @@ import type { CancelReservationDto } from './dto/cancel-reservation.dto.js';
 import type { ConfirmEarlyDto } from './dto/confirm-early.dto.js';
 import type { CreateReservationDto } from './dto/create-reservation.dto.js';
 import type { ListReservationsQueryDto } from './dto/list-reservations.query.dto.js';
+import type { PatchPaymentMovementProofsDto } from './dto/patch-payment-movement-proofs.dto.js';
 import type { PostPaymentMovementDto } from './dto/post-payment-movement.dto.js';
 import type { PutReservationUtilitiesDto } from './dto/put-reservation-utilities.dto.js';
 import type { UpdateReservationDto } from './dto/update-reservation.dto.js';
@@ -1254,6 +1256,19 @@ export class ReservationsService {
     const signed = signedAmountFor(dto.direction, amountIdr);
 
     await this.prisma.$transaction(async (tx) => {
+      const locked = await this.lockReservationForCash(tx, id);
+      if (!locked) {
+        throw new NotFoundException('Reservation not found');
+      }
+      if (locked.status === ReservationStatus.CANCELLED) {
+        throw new BadRequestException({
+          message: 'Cannot collect on a cancelled reservation',
+          details: {
+            field: 'status',
+            reason: ApiFieldReason.INVALID_STATUS_TRANSITION,
+          },
+        });
+      }
       await tx.paymentMovement.create({
         data: {
           reservationId: id,
@@ -1263,9 +1278,103 @@ export class ReservationsService {
           signedAmount: BigInt(signed),
           method: dto.method ?? null,
           note: dto.note?.trim() || null,
+          proofImages:
+            (dto.proofImages as unknown as Prisma.InputJsonValue) ?? [],
           createdByAdminId: actor.id,
         },
       });
+      await this.syncPaidFromMovements(tx, id, {
+        forceRefunded: false,
+        updatedByAdminId: actor.id,
+      });
+    });
+
+    return this.getById(id);
+  }
+
+  async patchMovementProofs(
+    id: string,
+    movementId: string,
+    dto: PatchPaymentMovementProofsDto,
+  ): Promise<StaffReservation> {
+    const row = await this.prisma.reservation.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!row) {
+      throw new NotFoundException('Reservation not found');
+    }
+
+    const movement = await this.prisma.paymentMovement.findFirst({
+      where: { id: movementId, reservationId: id },
+      select: { id: true },
+    });
+    if (!movement) {
+      throw new NotFoundException('Payment movement not found');
+    }
+
+    await this.prisma.paymentMovement.update({
+      where: { id: movementId },
+      data: {
+        proofImages: dto.proofImages as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    return this.getById(id);
+  }
+
+  async undoMovement(
+    id: string,
+    movementId: string,
+    actor: Actor,
+  ): Promise<StaffReservation> {
+    await this.prisma.$transaction(async (tx) => {
+      const row = await this.lockReservationForCash(tx, id);
+      if (!row) {
+        throw new NotFoundException('Reservation not found');
+      }
+
+      const movement = await tx.paymentMovement.findFirst({
+        where: { id: movementId, reservationId: id },
+      });
+      if (!movement) {
+        throw new NotFoundException('Payment movement not found');
+      }
+
+      const latest = await tx.paymentMovement.findFirst({
+        where: { reservationId: id },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true },
+      });
+
+      if (
+        !canUndoPaymentMovement({
+          movementId,
+          createdAt: movement.createdAt,
+          latestId: latest?.id ?? null,
+          reservationStatus: row.status,
+        })
+      ) {
+        if (row.status === ReservationStatus.CANCELLED) {
+          throw new BadRequestException({
+            message: 'Cannot undo cash on a cancelled reservation',
+            details: {
+              field: 'status',
+              reason: ApiFieldReason.INVALID_STATUS_TRANSITION,
+            },
+          });
+        }
+        if (latest?.id !== movementId) {
+          throw new BadRequestException(
+            'Only the latest cash movement can be undone',
+          );
+        }
+        throw new BadRequestException(
+          'This collection can no longer be undone',
+        );
+      }
+
+      await tx.paymentMovement.delete({ where: { id: movementId } });
       await this.syncPaidFromMovements(tx, id, {
         forceRefunded: false,
         updatedByAdminId: actor.id,
@@ -1450,6 +1559,25 @@ export class ReservationsService {
     });
 
     return this.getById(id);
+  }
+
+  /**
+   * Serialize cash writes on one stay. Collect inserts a movement before it
+   * updates Reservation; without this lock, undo can still see the old latest.
+   */
+  private async lockReservationForCash(
+    tx: Prisma.TransactionClient,
+    id: string,
+  ): Promise<{ id: string; status: ReservationStatus } | null> {
+    const rows = await tx.$queryRaw<
+      Array<{ id: string; status: ReservationStatus }>
+    >`
+      SELECT id, status
+      FROM "Reservation"
+      WHERE id = ${id}
+      FOR UPDATE
+    `;
+    return rows[0] ?? null;
   }
 
   private async syncPaidFromMovements(

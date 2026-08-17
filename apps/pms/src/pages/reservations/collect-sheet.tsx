@@ -1,17 +1,23 @@
 /* anchor: Stripe Collect sheet, diverge: cash-first IN/OUT movements */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   CollectedVia,
   PAYMENT_MOVEMENT_NOTE_MAX,
+  PAYMENT_MOVEMENT_PROOF_MAX,
   PaymentMovementDirection,
   PaymentMovementKind,
   balanceDueIdr,
   refundDueIdr,
   recomputePaymentStatus,
+  type ArchiveItem,
   type StaffReservation,
 } from "@cabin/api-contract";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useIsMutating,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { TFunction } from "i18next";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -20,6 +26,7 @@ import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
 import { Button } from "@/components/ui/button";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -45,9 +52,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   handleError,
   handleSuccess,
-  syncReservationCaches,
   postPaymentMovement,
+  reservationCashMutationKey,
+  syncReservationCaches,
 } from "@/lib/api";
+import { ArchiveProofField } from "@/components/media/archive-proof-field";
 import { formatIdr } from "@/pages/properties/inventory-types";
 import { ReservationBadge } from "./reservation-badges";
 import {
@@ -185,6 +194,8 @@ export function CollectSheet({
     resolver: zodResolver(schema as never),
     defaultValues: collectDefaults(reservation, mode, maxAmount),
   });
+  const [proofImages, setProofImages] = useState<ArchiveItem[]>([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const amountDigits = useWatch({
     control: form.control,
@@ -218,6 +229,7 @@ export function CollectSheet({
   ]);
 
   const saveMutation = useMutation({
+    mutationKey: reservationCashMutationKey(reservation.id),
     mutationFn: async (values: FormValues) => {
       const amount = Number(values.amountDigits);
       const method = values.method === METHOD_NONE ? null : values.method;
@@ -236,6 +248,7 @@ export function CollectSheet({
           amountIdr: amount,
           method,
           note: values.note || null,
+          proofImages,
         });
       }
       return postPaymentMovement(reservation.id, {
@@ -244,10 +257,13 @@ export function CollectSheet({
         amountIdr: amount,
         method,
         note: values.note || null,
+        proofImages,
       });
     },
     onSuccess: (saved) => {
       form.reset(emptyFormValues());
+      setProofImages([]);
+      setPhotoUploading(false);
       syncReservationCaches(queryClient, saved);
       handleSuccess(
         mode === "refund"
@@ -260,6 +276,11 @@ export function CollectSheet({
       handleError(error);
     },
   });
+
+  const cashBusy =
+    useIsMutating({
+      mutationKey: reservationCashMutationKey(reservation.id),
+    }) > 0;
 
   const title =
     mode === "refund"
@@ -293,7 +314,7 @@ export function CollectSheet({
           <Button
             type="submit"
             form="collect-form"
-            disabled={saveMutation.isPending || mode === "settled"}
+            disabled={cashBusy || photoUploading || mode === "settled"}
           >
             {saveMutation.isPending
               ? t("reservations:collectSheet.saving")
@@ -308,6 +329,9 @@ export function CollectSheet({
         id="collect-form"
         className="flex flex-col gap-4"
         onSubmit={form.handleSubmit((values) => {
+          if (cashBusy) {
+            return;
+          }
           saveMutation.mutate(values);
         })}
       >
@@ -510,6 +534,47 @@ export function CollectSheet({
                 </Field>
               )}
             />
+
+            <Field>
+              <FieldLabel>
+                {t("reservations:collectSheet.proofLabel")}
+                <span className="font-normal text-muted-foreground">
+                  {" "}
+                  {t("reservations:collectSheet.proofOptional")}
+                </span>
+              </FieldLabel>
+              <ArchiveProofField
+                value={proofImages}
+                max={PAYMENT_MOVEMENT_PROOF_MAX}
+                layout="row"
+                readOnly={mode === "settled"}
+                onUploadingChange={setPhotoUploading}
+                onChange={setProofImages}
+                labels={{
+                  add: t("reservations:collectSheet.photos.add"),
+                  limit: t("reservations:collectSheet.photos.limit", {
+                    max: PAYMENT_MOVEMENT_PROOF_MAX,
+                  }),
+                  counter: t("reservations:collectSheet.photos.counter"),
+                  noPhotos: t("reservations:collectSheet.photos.noPhotos"),
+                  titleFallback: t(
+                    "reservations:collectSheet.photos.titleFallback",
+                  ),
+                  previousAria: t(
+                    "reservations:collectSheet.photos.previousAria",
+                  ),
+                  nextAria: t("reservations:collectSheet.photos.nextAria"),
+                  closeAria: t("reservations:collectSheet.photos.closeAria"),
+                  removeAria: t("reservations:collectSheet.photos.removeAria"),
+                  nothingToPreview: t(
+                    "reservations:collectSheet.photos.nothingToPreview",
+                  ),
+                }}
+              />
+              <FieldDescription>
+                {t("reservations:collectSheet.proofHint")}
+              </FieldDescription>
+            </Field>
           </FieldGroup>
         </FieldSet>
       </form>

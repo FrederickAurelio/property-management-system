@@ -356,6 +356,8 @@ model PaymentMovement {
   signedAmount     BigInt
   method           CollectedVia?
   note             String?                  @db.VarChar(500)
+  /// Garage receipt / transfer screenshots (ArchiveItem[]). Amounts stay append-only; this JSON is replace-set via PATCH proofs.
+  proofImages      Json                     @default("[]")
   createdAt        DateTime                 @default(now())
   createdByAdminId String?
 

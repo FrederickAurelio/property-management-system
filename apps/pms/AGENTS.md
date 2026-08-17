@@ -12,7 +12,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Axios API client: `src/lib/api` (session cookies + envelope unwrap + Sonner helpers)
 - RHF + Zod + shadcn `Field` / `Controller` (login + inventory forms wired)
 - Inventory explorer wired to Nest (`/staff/properties|unit-types|units`) — infinite lists + CRUD
-- Reservations wired to Nest `/staff/reservations`: desk boards on `/reservations` (Arrivals/Departures include overdue + Late badge; **no** `/check-in` page) · Choose unit (all properties/types/units + inactive/blocked rows) · stay period Daily/Monthly/Yearly + dates blocked by unit occupancy · Collect/Cancel as **cash movements** · Paid = sum(movements) · early check-in/out via `confirmEarly` · Total = `periodCount ×` matching rack
+- Reservations wired to Nest `/staff/reservations`: desk boards on `/reservations` (Arrivals/Departures include overdue + Late badge; **no** `/check-in` page) · Choose unit (all properties/types/units + inactive/blocked rows) · stay period Daily/Monthly/Yearly + dates blocked by unit occupancy · Collect/Cancel as **cash movements** · optional Collect proofs (Garage) + 5-min undo of the latest line · Paid = sum(movements) · early check-in/out via `confirmEarly` · Total = `periodCount ×` matching rack
 - **Bookability UX:** Property “Open for ops” · Type “Offered for booking” · Unit status only (`ACTIVE` = bookable)
 - **Calendar** (`/calendar`): unit × days grid on Nest `GET /staff/properties/:id/calendar` + `/staff/calendar-blocks` CRUD; live property options + create reservation + detail
 - **Reports** (`/reports`): period summary (cash · occupancy · source mix · compare · CSV) via `GET /staff/reports/summary`; ADMIN/SUPER_ADMIN only

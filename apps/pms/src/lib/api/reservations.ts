@@ -9,6 +9,7 @@ import {
   type CreateStaffReservationInput,
   type Paginated,
   type PostPaymentMovementInput,
+  type PatchPaymentMovementProofsInput,
   type PutReservationUtilitiesInput,
   type StaffReservation,
   type StaffReservationListFilters,
@@ -33,7 +34,7 @@ export type ListReservationsParams = StaffReservationListFilters & {
 
 export type CreateReservationInput = CreateStaffReservationInput;
 export type UpdateReservationInput = UpdateStaffReservationInput;
-export type { PostPaymentMovementInput };
+export type { PostPaymentMovementInput, PatchPaymentMovementProofsInput };
 export type CancelReservationInput = CancelStaffReservationInput;
 export type { CancelDisposition };
 export type { PutReservationUtilitiesInput };
@@ -139,7 +140,7 @@ export async function updateReservation(
   return data;
 }
 
-/** Cash goes through postPaymentMovement only — no absolute Paid rewrite API. */
+/** Cash amounts go through postPaymentMovement / undo — no absolute Paid rewrite. Proofs: patchPaymentMovementProofs. */
 export async function postPaymentMovement(
   id: string,
   input: PostPaymentMovementInput,
@@ -147,6 +148,30 @@ export async function postPaymentMovement(
   const { data } = await api.post<StaffReservation>(
     `/reservations/${id}/movements`,
     input,
+  );
+  return data;
+}
+
+/** Replace-set receipt photos on one cash line. Does not change Paid. */
+export async function patchPaymentMovementProofs(
+  reservationId: string,
+  movementId: string,
+  input: PatchPaymentMovementProofsInput,
+): Promise<StaffReservation> {
+  const { data } = await api.patch<StaffReservation>(
+    `/reservations/${reservationId}/movements/${movementId}/proofs`,
+    input,
+  );
+  return data;
+}
+
+/** Grace undo of the latest movement within the contract window. */
+export async function undoPaymentMovement(
+  reservationId: string,
+  movementId: string,
+): Promise<StaffReservation> {
+  const { data } = await api.post<StaffReservation>(
+    `/reservations/${reservationId}/movements/${movementId}/undo`,
   );
   return data;
 }

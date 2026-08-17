@@ -363,6 +363,21 @@
     },
     "noteLabel": "Catatan",
     "notePlaceholder": "Opsional — nomor kuitansi, siapa yang bayar…",
+    "proofLabel": "Bukti",
+    "proofOptional": "(opsional)",
+    "proofHint": "Screenshot transfer atau kuitansi. Bisa ditambah atau diubah nanti di cash timeline.",
+    "photos": {
+      "add": "Tambah foto",
+      "limit": "Maksimal {{max}} foto per collection.",
+      "counter": "{{index}} dari {{total}}",
+      "noPhotos": "Tidak ada foto",
+      "titleFallback": "Bukti pembayaran",
+      "previousAria": "Foto sebelumnya",
+      "nextAria": "Foto berikutnya",
+      "closeAria": "Tutup pratinjau",
+      "removeAria": "Hapus foto",
+      "nothingToPreview": "Tidak ada yang bisa dipratinjau."
+    },
     "zod": {
       "amountRequired": "Masukkan jumlah",
       "nothingToDo": "Tidak ada yang perlu di-collect atau direfund",
@@ -434,7 +449,31 @@
   "timeline": {
     "title": "Cash timeline",
     "subtitle": "Dibayar adalah jumlah dari pergerakan ini. Perubahan quote (Total) tidak dicatat di sini.",
-    "empty": "Belum ada pergerakan cash."
+    "empty": "Belum ada pergerakan cash.",
+    "undo": "Undo",
+    "undoAriaCollect": "Undo collection ini. Sisa {{time}}.",
+    "undoAriaRefund": "Undo refund ini. Sisa {{time}}.",
+    "undoConfirm": "Undo collection",
+    "undoConfirmRefund": "Undo refund",
+    "undoConfirmTitle": "Undo collection ini?",
+    "undoConfirmTitleRefund": "Undo refund ini?",
+    "undoConfirmDescription": "Undo collection {{amount}}? Dibayar akan kembali. Bisa dicatat ulang.",
+    "undoConfirmDescriptionRefund": "Undo refund {{amount}}? Dibayar akan naik kembali. Bisa dicatat ulang.",
+    "undoConfirmDescriptionFallback": "Undo collection ini? Dibayar akan kembali. Bisa dicatat ulang.",
+    "toastUndone": "Collection di-undo",
+    "toastUndoneRefund": "Refund di-undo",
+    "photos": {
+      "add": "Tambah foto",
+      "limit": "Maksimal {{max}} foto per collection.",
+      "counter": "{{index}} dari {{total}}",
+      "noPhotos": "Tidak ada foto",
+      "titleFallback": "Bukti pembayaran",
+      "previousAria": "Foto sebelumnya",
+      "nextAria": "Foto berikutnya",
+      "closeAria": "Tutup pratinjau",
+      "removeAria": "Hapus foto",
+      "nothingToPreview": "Tidak ada yang bisa dipratinjau."
+    }
   },
   "chosenUnitField": {
     "label": "Unit",

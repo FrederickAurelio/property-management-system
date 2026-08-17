@@ -19,6 +19,7 @@ import { CancelReservationDto } from '../../domain/reservations/dto/cancel-reser
 import { ConfirmEarlyDto } from '../../domain/reservations/dto/confirm-early.dto.js';
 import { CreateReservationDto } from '../../domain/reservations/dto/create-reservation.dto.js';
 import { ListReservationsQueryDto } from '../../domain/reservations/dto/list-reservations.query.dto.js';
+import { PatchPaymentMovementProofsDto } from '../../domain/reservations/dto/patch-payment-movement-proofs.dto.js';
 import { PostPaymentMovementDto } from '../../domain/reservations/dto/post-payment-movement.dto.js';
 import { PutReservationUtilitiesDto } from '../../domain/reservations/dto/put-reservation-utilities.dto.js';
 import { UpdateReservationDto } from '../../domain/reservations/dto/update-reservation.dto.js';
@@ -114,6 +115,24 @@ export class ReservationsController {
     @CurrentAdmin() admin: StaffAdmin,
   ): Promise<StaffReservation> {
     return this.reservationsService.postMovement(id, dto, admin);
+  }
+
+  @Patch(':id/movements/:movementId/proofs')
+  patchMovementProofs(
+    @Param('id') id: string,
+    @Param('movementId') movementId: string,
+    @Body() dto: PatchPaymentMovementProofsDto,
+  ): Promise<StaffReservation> {
+    return this.reservationsService.patchMovementProofs(id, movementId, dto);
+  }
+
+  @Post(':id/movements/:movementId/undo')
+  undoMovement(
+    @Param('id') id: string,
+    @Param('movementId') movementId: string,
+    @CurrentAdmin() admin: StaffAdmin,
+  ): Promise<StaffReservation> {
+    return this.reservationsService.undoMovement(id, movementId, admin);
   }
 
   @Post(':id/accept-ical-dates')
