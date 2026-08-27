@@ -125,7 +125,7 @@ Media: jsonb `MediaItem` (`coverImage` / `media[]`); `url` is an HTTPS CDN/objec
 | `GET` | `/staff/archive/config` | `{ provider }` — Garage archive proofs (parallel to media) |
 | `POST` | `/staff/archive/upload-intent` | `{ kind, mimeType, byteSize, name? }` → `ArchiveUploadIntent` |
 
-Seed: Skybreeze Sentraland (1 property, 5 types, 8 units) + bootstrap `SUPER_ADMIN`.
+Seed: Skybreeze Sentraland (1 property, **9 unit types**, **60 units**) + bootstrap `SUPER_ADMIN`. Fresh DB: `SEED_DEMO_INVENTORY=1 pnpm --filter @cabin/api prisma:seed`. Replace inventory on existing DB: `pnpm --filter @cabin/api import:sentraland-inventory` (destructive — wipes Skybreeze units/types and their reservations/blocks first). Preview: `DRY_RUN=1 pnpm --filter @cabin/api import:sentraland-inventory`.
 
 ## HTTP contract
 
@@ -171,7 +171,7 @@ IDE must match CLI (`pnpm --filter @cabin/api lint`). Open [`cabin.code-workspac
 
 Env: **one** file — repo root `.env`. Schema: `apps/api/prisma/schema.prisma`. Client: `apps/api/src/generated/prisma` (gitignored).
 
-Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`) + Skybreeze inventory (idempotent by property code).
+Seed: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` (defaults in `.env.example`) + Skybreeze Sentraland inventory manifest (`src/scripts/sentraland-inventory.ts`). Existing DB inventory replace: `import:sentraland-inventory` (not plain `prisma:seed`).
 
 ## Security
 
