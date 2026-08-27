@@ -1,0 +1,225 @@
+# Deploy to VPS via GHCR (build/push on GitHub, pull on VPS).
+# Parallel to deploy-vps.yml (release branch / legacy VPS) — separate secret names.
+#
+# Secrets: VPS_HOST_MAIN, SSH_USER_MAIN, SSH_PRIVATE_KEY_MAIN
+# Path: ~/property-management-system · branch: main
+# Compose: docker-compose.yml + docker-compose.ci.yml + docker-compose.domain.yml
+
+name: Deploy to VPS (main)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps-main
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image owner (lowercase for Docker)
+        id: meta
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Promote cabin-api latest to previous
+        run: |
+          IMG="${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/cabin-api"
+          if docker pull "${IMG}:latest"; then
+            docker tag "${IMG}:latest" "${IMG}:previous"
+            docker push "${IMG}:previous"
+          else
+            echo "No existing cabin-api:latest yet; skip previous promote."
+          fi
+
+      - name: Promote cabin-pms latest to previous
+        run: |
+          IMG="${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/cabin-pms"
+          if docker pull "${IMG}:latest"; then
+            docker tag "${IMG}:latest" "${IMG}:previous"
+            docker push "${IMG}:previous"
+          else
+            echo "No existing cabin-pms:latest yet; skip previous promote."
+          fi
+
+      - name: Promote cabin-web latest to previous
+        run: |
+          IMG="${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/cabin-web"
+          if docker pull "${IMG}:latest"; then
+            docker tag "${IMG}:latest" "${IMG}:previous"
+            docker push "${IMG}:previous"
+          else
+            echo "No existing cabin-web:latest yet; skip previous promote."
+          fi
+
+      - name: Build and push cabin-api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          build-args: |
+            APT_MIRROR=
+            NPM_REGISTRY=
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/cabin-api:latest
+          cache-from: type=gha,scope=cabin-api
+          cache-to: type=gha,mode=max,scope=cabin-api
+
+      - name: Build and push cabin-pms
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/pms/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          build-args: |
+            APT_MIRROR=
+            NPM_REGISTRY=
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/cabin-pms:latest
+          cache-from: type=gha,scope=cabin-pms
+          cache-to: type=gha,mode=max,scope=cabin-pms
+
+      - name: Build and push cabin-web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          build-args: |
+            APT_MIRROR=
+            NPM_REGISTRY=
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/cabin-web:latest
+          cache-from: type=gha,scope=cabin-web
+          cache-to: type=gha,mode=max,scope=cabin-web
+
+      - name: Delete untagged cabin-api package versions
+        uses: actions/delete-package-versions@v5
+        continue-on-error: true
+        with:
+          package-name: cabin-api
+          package-type: container
+          delete-only-untagged-versions: true
+          min-versions-to-keep: 0
+
+      - name: Delete untagged cabin-pms package versions
+        uses: actions/delete-package-versions@v5
+        continue-on-error: true
+        with:
+          package-name: cabin-pms
+          package-type: container
+          delete-only-untagged-versions: true
+          min-versions-to-keep: 0
+
+      - name: Delete untagged cabin-web package versions
+        uses: actions/delete-package-versions@v5
+        continue-on-error: true
+        with:
+          package-name: cabin-web
+          package-type: container
+          delete-only-untagged-versions: true
+          min-versions-to-keep: 0
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    timeout-minutes: 360
+    steps:
+      - name: Set image owner
+        id: meta
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST_MAIN }}
+          username: ${{ secrets.SSH_USER_MAIN }}
+          key: ${{ secrets.SSH_PRIVATE_KEY_MAIN }}
+          command_timeout: 6h
+          script: |
+            set -e
+            cd ~/property-management-system
+            find .git -type f -name '*.lock' -delete 2>/dev/null || true
+            git fetch origin
+            git reset --hard origin/main
+
+            OWNER="${{ steps.meta.outputs.owner }}"
+            API="ghcr.io/${OWNER}/cabin-api"
+            PMS="ghcr.io/${OWNER}/cabin-pms"
+            WEB="ghcr.io/${OWNER}/cabin-web"
+
+            if docker inspect cabin-api >/dev/null 2>&1; then
+              docker tag "$(docker inspect -f '{{.Image}}' cabin-api)" "${API}:previous" || true
+            fi
+            if docker inspect cabin-pms >/dev/null 2>&1; then
+              docker tag "$(docker inspect -f '{{.Image}}' cabin-pms)" "${PMS}:previous" || true
+            fi
+            if docker inspect cabin-web >/dev/null 2>&1; then
+              docker tag "$(docker inspect -f '{{.Image}}' cabin-web)" "${WEB}:previous" || true
+            fi
+
+            export DOCKER_CLIENT_TIMEOUT=3600
+            export COMPOSE_HTTP_TIMEOUT=3600
+            export IMAGE_API="${API}:latest"
+            export IMAGE_PMS="${PMS}:latest"
+            export IMAGE_WEB="${WEB}:latest"
+
+            # Ubuntu apt docker-compose v1 crashes on Docker Engine 25+ during recreate.
+            if ! docker compose version >/dev/null 2>&1; then
+              mkdir -p "${HOME}/.docker/cli-plugins"
+              curl -fsSL "https://github.com/docker/compose/releases/download/v5.4.0/docker-compose-linux-$(uname -m)" \
+                -o "${HOME}/.docker/cli-plugins/docker-compose"
+              chmod +x "${HOME}/.docker/cli-plugins/docker-compose"
+            fi
+
+            for attempt in 1 2 3 4 5; do
+              if docker compose -f docker-compose.yml -f docker-compose.ci.yml -f docker-compose.domain.yml pull; then
+                break
+              fi
+              if [ "$attempt" -eq 5 ]; then
+                echo "GHCR pull failed after 5 attempts"
+                exit 1
+              fi
+              delay=$((attempt * 30))
+              echo "GHCR pull attempt ${attempt} failed; retrying in ${delay}s"
+              sleep "$delay"
+            done
+
+            docker compose -f docker-compose.yml -f docker-compose.ci.yml -f docker-compose.domain.yml up -d --remove-orphans
+            docker compose -f docker-compose.yml -f docker-compose.ci.yml -f docker-compose.domain.yml exec -T api npx prisma migrate deploy
+            docker compose -f docker-compose.yml -f docker-compose.ci.yml -f docker-compose.domain.yml exec -T api node dist/scripts/seed.js
+
+            docker images --format '{{.Repository}}:{{.Tag}}' \
+              | grep -E 'cabin-api:|cabin-pms:|cabin-web:' \
+              | grep -vE ':(latest|previous)$' \
+              | xargs -r docker rmi || true
+            docker image prune -f
+            docker container prune -f
