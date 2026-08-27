@@ -171,4 +171,4 @@ Re-apply bucket CORS with HTTPS PMS origin (`https://pms.<domain>`). Restart `ap
 
 ## Secrets
 
-Replace `rpc_secret`, `admin_token`, and `metrics_token` in [`garage.toml`](garage.toml) before shared/prod use. Rotate `GARAGE_DEFAULT_*` / `ARCHIVE_S3_*` away from repo example placeholders.
+Rotate `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN`, `GARAGE_METRICS_TOKEN`, `GARAGE_DEFAULT_*`, and matching `ARCHIVE_S3_*` in root `.env` before prod (compose passes them as `GARAGE_*` env — not in [`garage.toml`](garage.toml)).

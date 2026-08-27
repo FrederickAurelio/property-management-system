@@ -10,8 +10,8 @@ replication_factor = 1
 
 rpc_bind_addr = "[::]:3901"
 rpc_public_addr = "127.0.0.1:3901"
-# Local/dev default — replace for any shared/prod cluster (openssl rand -hex 32).
-rpc_secret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+# rpc_secret / admin_token / metrics_token → root `.env` via compose (GARAGE_RPC_SECRET, …).
+# Garage reads GARAGE_* env vars (override toml). Do not commit real secrets here.
 
 [s3_api]
 s3_region = "garage"
@@ -25,6 +25,3 @@ index = "index.html"
 
 [admin]
 api_bind_addr = "[::]:3903"
-# Local/dev defaults — replace for prod (openssl rand -base64 32).
-admin_token = "cabin-garage-admin-token-change-me"
-metrics_token = "cabin-garage-metrics-token-change-me"

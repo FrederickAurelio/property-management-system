@@ -1,6 +1,6 @@
 # Domain / host nginx edge — no public Docker ports.
-# Host nginx on 80/443 proxies to 127.0.0.1 binds below (see deploy/nginx/skybreeze-cabin.conf).
-# Use with: docker-compose.yml + docker-compose.ci.yml + this file (skybreeze VPS / GHCR deploy).
+# Host nginx on 80/443 proxies to 127.0.0.1 binds below (VPS-only site config, not in repo).
+# Use with: docker-compose.yml + docker-compose.ci.yml + this file (domain / host-nginx VPS deploy).
 
 services:
   pms:

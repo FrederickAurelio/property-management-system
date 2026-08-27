@@ -126,6 +126,9 @@ services:
       GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_DEFAULT_ACCESS_KEY}
       GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_DEFAULT_SECRET_KEY}
       GARAGE_DEFAULT_BUCKET: ${GARAGE_DEFAULT_BUCKET:-cabin-archive}
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN}
     volumes:
       - ./deploy/garage/garage.toml:/etc/garage.toml:ro
       - garage_meta:/var/lib/garage/meta

@@ -40,6 +40,9 @@ services:
       GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_DEFAULT_ACCESS_KEY:-GKaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
       GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_DEFAULT_SECRET_KEY:-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}
       GARAGE_DEFAULT_BUCKET: ${GARAGE_DEFAULT_BUCKET:-cabin-archive}
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-cabin-garage-admin-token-change-me}
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:-cabin-garage-metrics-token-change-me}
     ports:
       - '127.0.0.1:3900:3900'
       - '127.0.0.1:3903:3903'
