@@ -32,7 +32,9 @@ import {
 import {
   handleError,
   handleSuccess,
+  resetUnauthorizedStreak,
   staffLogin,
+  staffSession,
   staffSessionQueryKey,
 } from "@/lib/api";
 
@@ -84,10 +86,21 @@ export function LoginForm() {
   const mutation = useMutation({
     mutationFn: ({ username, password }: LoginValues) =>
       staffLogin(username, password),
-    onSuccess: (admin) => {
+    onSuccess: async () => {
       form.reset({ username: "", password: "" });
       setShowPassword(false);
-      queryClient.setQueryData(staffSessionQueryKey, admin);
+      resetUnauthorizedStreak();
+      try {
+        // Verify session cookie before entering the app (setQueryData alone masked 401 loops).
+        await queryClient.fetchQuery({
+          queryKey: staffSessionQueryKey,
+          queryFn: () => staffSession({ skipUnauthorizedRedirect: true }),
+        });
+      } catch (error) {
+        queryClient.removeQueries({ queryKey: staffSessionQueryKey });
+        handleError(error);
+        return;
+      }
       handleSuccess(t("toasts.signedIn"));
       void navigate("/", { replace: true });
     },

@@ -22,15 +22,70 @@ declare module "axios" {
 const GATEWAY_STATUSES = new Set([502, 503, 504]);
 
 /**
- * Hook for AUTH_UNAUTHORIZED (except login). Wire to router when routes exist.
+ * Hooks for AUTH_UNAUTHORIZED (except login). Wire in `UnauthorizedRedirect`.
  * Default: no-op; still throws ApiError.
  */
 let onUnauthorized: (() => void) | undefined;
+let onSessionInvalidated: (() => void) | undefined;
+let onForceLogout: (() => void) | undefined;
+
+let unauthorizedStreak = 0;
+let lastUnauthorizedAt = 0;
+let unauthorizedNavigatePending = false;
+
+const UNAUTHORIZED_STREAK_WINDOW_MS = 60_000;
+const UNAUTHORIZED_FORCE_LOGOUT_COUNT = 3;
+const UNAUTHORIZED_NAV_DEBOUNCE_MS = 500;
 
 export function setUnauthorizedHandler(
   handler: (() => void) | undefined,
 ): void {
   onUnauthorized = handler;
+}
+
+/** Clear cached session row when the cookie is rejected (before redirect). */
+export function setSessionInvalidatedHandler(
+  handler: (() => void) | undefined,
+): void {
+  onSessionInvalidated = handler;
+}
+
+/** After repeated AUTH_UNAUTHORIZED, wipe client state to break redirect/toast loops. */
+export function setForceLogoutHandler(handler: (() => void) | undefined): void {
+  onForceLogout = handler;
+}
+
+/** Call after a verified login so streak counting does not carry over. */
+export function resetUnauthorizedStreak(): void {
+  unauthorizedStreak = 0;
+  lastUnauthorizedAt = 0;
+  unauthorizedNavigatePending = false;
+}
+
+function handleAuthUnauthorized(): void {
+  const now = Date.now();
+  if (now - lastUnauthorizedAt > UNAUTHORIZED_STREAK_WINDOW_MS) {
+    unauthorizedStreak = 0;
+  }
+  lastUnauthorizedAt = now;
+  unauthorizedStreak += 1;
+
+  onSessionInvalidated?.();
+
+  if (unauthorizedStreak >= UNAUTHORIZED_FORCE_LOGOUT_COUNT) {
+    unauthorizedStreak = 0;
+    onForceLogout?.();
+  }
+
+  if (unauthorizedNavigatePending) {
+    return;
+  }
+
+  unauthorizedNavigatePending = true;
+  onUnauthorized?.();
+  window.setTimeout(() => {
+    unauthorizedNavigatePending = false;
+  }, UNAUTHORIZED_NAV_DEBOUNCE_MS);
 }
 
 function isApiErrorBody(value: unknown): value is ApiErrorBody {
@@ -89,7 +144,7 @@ function mapAxiosError(error: AxiosError): ApiError {
         status === 401 &&
         apiError.code === ApiErrorCode.AUTH_UNAUTHORIZED
       ) {
-        onUnauthorized?.();
+        handleAuthUnauthorized();
       }
 
       return apiError;

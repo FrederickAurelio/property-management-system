@@ -62,6 +62,10 @@ export function handleSuccess(message: string): void {
 /** Toast an error from `ApiError` or unknown throwables (Sonner). */
 export function handleError(error: unknown): void {
   if (error instanceof ApiError) {
+    // Session hook redirects; avoid toast spam while shell still has stale cache.
+    if (error.code === ApiErrorCode.AUTH_UNAUTHORIZED) {
+      return;
+    }
     toast.error(messageForApiError(error), {
       description: error.requestId
         ? `requestId ${error.requestId}`

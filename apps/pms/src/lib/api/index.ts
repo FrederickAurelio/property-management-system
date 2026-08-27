@@ -1,4 +1,10 @@
-export { api, setUnauthorizedHandler } from "./client";
+export {
+  api,
+  resetUnauthorizedStreak,
+  setForceLogoutHandler,
+  setSessionInvalidatedHandler,
+  setUnauthorizedHandler,
+} from "./client";
 export { handleError, handleSuccess } from "./toast";
 export { applyApiFieldError } from "./field-error";
 export {
