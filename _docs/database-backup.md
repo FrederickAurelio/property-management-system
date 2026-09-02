@@ -113,8 +113,35 @@ find /root/backups -name 'cabin-*.dump' -mtime +14 -delete
 **Cron example** (`crontab -e` as root):
 
 ```cron
-15 2 * * * cd /root/property-management-system && /root/property-management-system/deploy/backup/backup-db.sh
+15 2 * * * cd /root/property-management-system && bash /root/property-management-system/deploy/backup/backup-db.sh >> /var/log/cabin-backup.log 2>&1
 ```
+
+### VPS compatibility (Ubuntu, Alibaba Linux, …)
+
+Scripts require **bash** (not plain `sh`) and **Docker Engine** with either:
+
+- **`docker compose`** v2 plugin (preferred), or
+- legacy **`docker-compose`** v1 binary (fallback for `pg_dump` / `migrate` exec)
+
+Deploy runs [`deploy/lib/compose.sh`](../deploy/lib/compose.sh) `compose_bootstrap_if_missing` to install the v2 plugin when only broken apt `docker-compose` v1 is present (common on Ubuntu / Alibaba Linux images).
+
+| Concern | Notes |
+|---------|--------|
+| Host OS | Ubuntu, Debian, Alibaba Linux, CentOS/RHEL — backup runs **inside** the `postgres:16-alpine` container; host does not need `pg_dump` installed |
+| Shell | Use `bash deploy/backup/backup-db.sh` in cron, or invoke the script directly (shebang uses `env bash`) |
+| Line endings | Keep `.sh` files **LF** (not CRLF) or shebang breaks on Linux |
+| Compose project | Scripts read optional `COMPOSE_FILE_ARGS` (same `-f` flags as deploy) |
+| Cron user | Default `/root/backups` assumes **root** crontab; override `BACKUP_DIR` if needed |
+
+### Pre-migrate backup (deploy)
+
+VPS deploy runs `bash deploy/vps-migrate-deploy.sh` instead of calling `prisma migrate deploy` directly:
+
+1. `prisma migrate status` — if the DB is already up to date, **no extra backup**.
+2. If migrations are **pending**, run `backup-db.sh` with tag `pre-migrate` → `cabin-pre-migrate-YYYY-MM-DD.dump`.
+3. `prisma migrate deploy`.
+
+Code-only deploys (no pending migrations) skip step 2. Failed migrations abort deploy until fixed manually.
 
 Upload off-site (after `rclone config` for B2/R2):
 
@@ -179,7 +206,6 @@ Repeat after large Prisma migrations.
 ## Out of scope (for now)
 
 - Point-in-time recovery (WAL / pgBackRest) — only needed if sub-hour RPO is required.
-- Automated backup script in CI — backup runs **on the VPS** where Postgres lives.
 - Garage / Loki backup jobs.
 
 ---

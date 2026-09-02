@@ -162,6 +162,10 @@ jobs:
             export IMAGE_PMS="${PMS}:latest"
             export IMAGE_WEB="${WEB}:latest"
 
+            # shellcheck source=deploy/lib/compose.sh
+            source deploy/lib/compose.sh
+            compose_bootstrap_if_missing
+
             # Mainland China routes to GHCR can reset long layer downloads.
             # Docker keeps completed layers, so retries resume remaining work.
             for attempt in 1 2 3 4 5; do
@@ -178,7 +182,7 @@ jobs:
             done
 
             docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --remove-orphans
-            docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T api npx prisma migrate deploy
+            COMPOSE_FILE_ARGS="-f docker-compose.yml -f docker-compose.ci.yml" bash ./deploy/vps-migrate-deploy.sh
             # Idempotent bootstrap (SUPER_ADMIN + demo inventory if missing)
             docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T api node dist/scripts/seed.js
 

@@ -111,7 +111,7 @@ Money quote (locked): stay Total suggests `periodCount ×` matching rack (`billi
 | Shared libs | `packages/README.md` + that package’s `AGENTS.md` |
 | External vendors (media, payments, …) | [`_docs/integrations-pattern.md`](_docs/integrations-pattern.md) · media: [`_docs/media-upload-strategy.md`](_docs/media-upload-strategy.md) |
 | API request logs (Loki + PMS) | [`_docs/request-logs.md`](_docs/request-logs.md) · [`deploy/loki/README.md`](deploy/loki/README.md) |
-| Postgres backup (VPS) | [`_docs/database-backup.md`](_docs/database-backup.md) · [`deploy/backup/backup-db.sh`](deploy/backup/backup-db.sh) |
+| Postgres backup (VPS) | [`_docs/database-backup.md`](_docs/database-backup.md) · [`deploy/backup/backup-db.sh`](deploy/backup/backup-db.sh) · [`deploy/vps-migrate-deploy.sh`](deploy/vps-migrate-deploy.sh) |
 | Backend | `apps/api/AGENTS.md` (audience: `staff` / `domain` / `public`) |
 | Staff UI | `apps/pms/AGENTS.md` |
 | Public site | `apps/web/AGENTS.md` + `apps/web/PRODUCT.md` (Impeccable) |

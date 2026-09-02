@@ -55,8 +55,11 @@ jobs:
             docker compose build --progress=plain api
             docker compose build --progress=plain pms
             docker compose build --progress=plain web
+            # shellcheck source=deploy/lib/compose.sh
+            source deploy/lib/compose.sh
+            compose_bootstrap_if_missing
             docker compose up -d --remove-orphans
-            docker compose exec -T api npx prisma migrate deploy
+            bash ./deploy/vps-migrate-deploy.sh
             docker compose exec -T api node dist/scripts/seed.js
 
             for img in cabin-api cabin-pms cabin-web; do

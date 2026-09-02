@@ -1,3 +1,7 @@
 # Agent UI skills (Impeccable scripts, etc.) are tooling, not product code.
 # Keep them in git for shared Cursor defaults; exclude from GitHub language stats.
 .cursor/skills/** linguist-vendored
+
+# VPS shell scripts must stay LF or Linux shebang/cron breaks (Ubuntu, Alibaba Linux, …).
+*.sh text eol=lf
+deploy/** text eol=lf

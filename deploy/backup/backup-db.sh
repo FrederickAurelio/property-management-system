@@ -4,10 +4,20 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
+# shellcheck source=../lib/compose.sh
+source "${LIB_DIR}/compose.sh"
+
 BACKUP_DIR="${BACKUP_DIR:-/root/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
+BACKUP_TAG="${BACKUP_TAG:-}"
 STAMP="$(date +%F)"
-OUT_FILE="${BACKUP_DIR}/cabin-${STAMP}.dump"
+if [ -n "${BACKUP_TAG}" ]; then
+  OUT_FILE="${BACKUP_DIR}/cabin-${BACKUP_TAG}-${STAMP}.dump"
+else
+  OUT_FILE="${BACKUP_DIR}/cabin-${STAMP}.dump"
+fi
+TMP_FILE="${OUT_FILE}.tmp.$$"
 
 mkdir -p "${BACKUP_DIR}"
 cd "${ROOT_DIR}"
@@ -20,11 +30,22 @@ set +a
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
 POSTGRES_DB="${POSTGRES_DB:-cabin_pms}"
 
-docker compose exec -T postgres pg_dump \
+compose_read_args
+compose_ensure
+
+cleanup_tmp() {
+  rm -f "${TMP_FILE}"
+}
+trap cleanup_tmp EXIT
+
+compose exec -T postgres pg_dump \
   -U "${POSTGRES_USER}" \
   -Fc \
   "${POSTGRES_DB}" \
-  > "${OUT_FILE}"
+  > "${TMP_FILE}"
+
+mv "${TMP_FILE}" "${OUT_FILE}"
+trap - EXIT
 
 find "${BACKUP_DIR}" -name 'cabin-*.dump' -mtime +"${RETENTION_DAYS}" -delete
 
