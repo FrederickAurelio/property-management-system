@@ -9,6 +9,7 @@ import {
   type UtilityAddon,
   type UtilityAddonLine,
   type UtilitySchemeSnapshot,
+  type UtilityStatementPayee,
 } from '@cabin/api-contract';
 import type { UtilityStatementFillInput } from './utility-statement-fill.js';
 import { utilityStatementAmountDueIdr } from './utility-statement-layout.js';
@@ -122,6 +123,7 @@ export function utilityStatementFilename(
 export function buildUtilityStatementFillInput(
   reservation: StaffReservation,
   chargeYearMonth: string,
+  payee: UtilityStatementPayee,
 ): UtilityStatementFillInput {
   const periods = reconstructUtilityPeriods({
     checkInDate: reservation.checkInDate,
@@ -194,5 +196,8 @@ export function buildUtilityStatementFillInput(
     periodSubtotalIdr,
     adminAmountIdr,
     dueAmountIdr,
+    bankName: payee.bankName,
+    accountName: payee.accountName,
+    accountNumber: payee.accountNumber,
   };
 }

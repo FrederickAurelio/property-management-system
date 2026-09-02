@@ -8,6 +8,7 @@ import {
   sumAdminChargesIdr,
   type ArchiveItem,
   type StaffReservation,
+  type UtilityStatementPayee,
 } from "@cabin/api-contract";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, Trash2Icon } from "lucide-react";
@@ -18,7 +19,6 @@ import { IdrAmountInput } from "@/components/form/idr-amount-input";
 import { YearMonthField } from "@/components/form/year-month-field";
 import { YmdDateField } from "@/components/form/ymd-date-field";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   InputGroup,
@@ -39,7 +39,9 @@ import {
   handleSuccess,
   downloadReservationUtilityStatement,
   putReservationUtilities,
+  saveUtilityStatementBankAccount,
   syncReservationCaches,
+  syncUtilityStatementBankAccountCaches,
 } from "@/lib/api";
 import { formatDecimalInput } from "@/lib/decimal-input";
 import { toast } from "sonner";
@@ -61,6 +63,7 @@ import {
   type UtilityPeriod,
 } from "./utilities-period-model";
 import { PeriodUtilityRulesDialog } from "./period-utility-rules-dialog";
+import { UtilityStatementExportDialog } from "./utility-statement-export-dialog";
 
 const COL_KIND = "w-44";
 const COL_METER = "w-40";
@@ -296,21 +299,30 @@ export function UtilitiesSheet({
   });
 
   const exportMutation = useMutation({
-    mutationFn: async (period: UtilityPeriod) => {
+    mutationFn: async ({
+      period,
+      payee,
+    }: {
+      period: UtilityPeriod;
+      payee: UtilityStatementPayee;
+    }) => {
       const saved = await putReservationUtilities(
         reservation.id,
         utilitiesPayload(),
       );
+      const recents = await saveUtilityStatementBankAccount(payee);
       const { blob, filename } = await downloadReservationUtilityStatement(
         saved.id,
         period.chargeYearMonth,
+        payee,
       );
-      return { saved, blob, filename };
+      return { saved, recents, blob, filename };
     },
-    onSuccess: ({ saved, blob, filename }) => {
+    onSuccess: ({ saved, recents, blob, filename }) => {
       setPendingExport(null);
       setPeriods(seedPeriods(utilitiesSeedInput(saved)));
       setPhotoUploading(false);
+      syncUtilityStatementBankAccountCaches(queryClient, recents);
       syncReservationCaches(queryClient, saved);
       triggerBrowserDownload(blob, filename);
       handleSuccess(t("reservations:utilitiesSheet.toastExported"));
@@ -485,22 +497,20 @@ export function UtilitiesSheet({
           }}
         />
       )}
-      <ConfirmDialog
+      <UtilityStatementExportDialog
+        key={pendingExport?.key ?? "closed"}
         open={pendingExport != null}
+        exportPending={exportMutation.isPending}
         onOpenChange={(open) => {
           if (!open) {
             setPendingExport(null);
           }
         }}
-        title={t("reservations:utilitiesSheet.exportConfirmTitle")}
-        description={t("reservations:utilitiesSheet.exportConfirmDescription")}
-        confirmLabel={t("reservations:utilitiesSheet.exportConfirm")}
-        confirmDisabled={exportMutation.isPending}
-        onConfirm={() => {
+        onConfirm={(payee) => {
           if (!pendingExport) {
             return;
           }
-          exportMutation.mutate(pendingExport);
+          exportMutation.mutate({ period: pendingExport, payee });
         }}
       />
     </>

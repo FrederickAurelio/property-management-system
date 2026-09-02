@@ -14,7 +14,9 @@ import {
   type StaffReservation,
   type StaffReservationListFilters,
   type StaffReservationListItem,
+  type StaffUtilityStatementBankAccount,
   type UpdateStaffReservationInput,
+  type UtilityStatementPayee,
 } from "@cabin/api-contract";
 import type { QueryClient } from "@tanstack/react-query";
 import { api } from "./client";
@@ -25,6 +27,7 @@ import {
   staffReservationsListQueryKeyPrefix,
   staffUnitsAvailabilityQueryKeyPrefix,
   staffUnitsOccupancyQueryKeyPrefix,
+  staffUtilityStatementBankAccountsQueryKey,
 } from "./query-keys";
 
 export type ListReservationsParams = StaffReservationListFilters & {
@@ -214,11 +217,17 @@ function filenameFromContentDisposition(
 export async function downloadReservationUtilityStatement(
   id: string,
   chargeYearMonth: string,
+  payee: UtilityStatementPayee,
 ): Promise<{ blob: Blob; filename: string }> {
   const response = await api.get<Blob>(
     `/reservations/${id}/utility-statement`,
     {
-      params: { chargeYearMonth },
+      params: {
+        chargeYearMonth,
+        bankName: payee.bankName,
+        accountName: payee.accountName,
+        accountNumber: payee.accountNumber,
+      },
       responseType: "blob",
       headers: { Accept: "application/pdf" },
     },
@@ -228,6 +237,33 @@ export async function downloadReservationUtilityStatement(
       response.headers["content-disposition"] as string | undefined,
     ) ?? `utility-statement-${chargeYearMonth}.pdf`;
   return { blob: response.data, filename };
+}
+
+export async function listUtilityStatementBankAccounts(): Promise<
+  StaffUtilityStatementBankAccount[]
+> {
+  const { data } = await api.get<StaffUtilityStatementBankAccount[]>(
+    "/reservations/utility-statement-bank-accounts",
+  );
+  return data;
+}
+
+/** Upsert one transfer account and return the latest 5. */
+export async function saveUtilityStatementBankAccount(
+  input: UtilityStatementPayee,
+): Promise<StaffUtilityStatementBankAccount[]> {
+  const { data } = await api.post<StaffUtilityStatementBankAccount[]>(
+    "/reservations/utility-statement-bank-accounts",
+    input,
+  );
+  return data;
+}
+
+export function syncUtilityStatementBankAccountCaches(
+  queryClient: QueryClient,
+  items: StaffUtilityStatementBankAccount[],
+): void {
+  queryClient.setQueryData(staffUtilityStatementBankAccountsQueryKey, items);
 }
 
 export async function confirmReservation(

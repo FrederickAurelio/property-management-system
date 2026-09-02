@@ -84,6 +84,7 @@ describe('GotenbergPdfConvertAdapter', () => {
     const init = fetchSpy.mock.calls[0]?.[1];
     expect(init?.body).toBeInstanceOf(FormData);
     expect((init?.body as FormData).get('exportFormFields')).toBe('false');
+    expect((init?.body as FormData).get('skipEmptyPages')).toBe('true');
     expect((init?.body as FormData).get('singlePageSheets')).toBeNull();
   });
 });

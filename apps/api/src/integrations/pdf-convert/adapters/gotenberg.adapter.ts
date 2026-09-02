@@ -33,6 +33,7 @@ export class GotenbergPdfConvertAdapter implements PdfConvertPort {
     // Honor the xlsx pageSetup (A4 + ~0.7" margins + fit 1×1). singlePageSheets
     // ignores paper size and flushes the sheet to the page edge, clipping borders.
     form.append('exportFormFields', 'false');
+    form.append('skipEmptyPages', 'true');
 
     let response: Response;
     try {

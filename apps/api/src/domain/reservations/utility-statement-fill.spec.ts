@@ -14,6 +14,7 @@ import {
   fillUtilityStatementWorkbook,
   findRowByUniqueLabel,
   findRowContainingLabel,
+  findStatementPrintLastRow,
   namedCell,
   openUtilityStatementWorkbook,
   writeUtilityStatementFooter,
@@ -79,6 +80,9 @@ function exampleInput(
     periodSubtotalIdr: elecKindTotal + 50_000,
     adminAmountIdr: 6_500,
     dueAmountIdr: elecKindTotal + 50_000 + 6_500,
+    bankName: 'BANK RAKYAT INDONESIA (BRI)',
+    accountName: 'PERUMNAS PROJECT SUKARAMAI',
+    accountNumber: '036701001560300',
     ...overrides,
   };
 }
@@ -297,6 +301,16 @@ describe('utility-statement exceljs fill', () => {
     expect(sheet.getCell(`L${dueRow}`).alignment?.horizontal).toBe('center');
     expect(sheet.pageSetup.fitToPage).toBe(true);
     expect(sheet.pageSetup.fitToHeight).toBe(1);
+    expect(sheet.pageSetup.fitToWidth).toBe(1);
+    expect(sheet.pageSetup.showGridLines).toBe(false);
+    expect(sheet.pageSetup.showRowColHeaders).toBe(false);
+    const lastPrintRow = findStatementPrintLastRow(sheet);
+    const lastNoteRow = findRowContainingLabel(
+      sheet,
+      UTILITY_STATEMENT_NOTE_SNIPPETS.unpaidIfNoProof,
+    );
+    expect(lastPrintRow).toBeGreaterThan(lastNoteRow);
+    expect(sheet.pageSetup.printArea).toBe(`A2:M${lastPrintRow}`);
     expect(sheet.pageSetup.margins?.left).toBe(
       UTILITY_STATEMENT_PRINT_MARGINS_IN.left,
     );
@@ -309,6 +323,23 @@ describe('utility-statement exceljs fill', () => {
     expect(sheet.pageSetup.margins?.bottom).toBe(
       UTILITY_STATEMENT_PRINT_MARGINS_IN.bottom,
     );
+  });
+
+  it('writes Cara Pembayaran F cells from input', async () => {
+    const input = exampleInput({
+      bankName: 'BCA',
+      accountName: 'PT CABIN',
+      accountNumber: '1234567890',
+    });
+    const wb = await fillUtilityStatementWorkbook(input);
+    const sheet = wb.getWorksheet('Sheet1') ?? wb.worksheets[0];
+    const bankRow = findRowContainingLabel(sheet, 'Nama Bank');
+    const nameRow = findRowContainingLabel(sheet, 'A.N');
+    const rekRow = findRowByUniqueLabel(sheet, 'No. Rek');
+    expect(sheet.getCell(`F${bankRow}`).value).toBe('BCA');
+    expect(sheet.getCell(`F${nameRow}`).value).toBe('PT CABIN');
+    expect(sheet.getCell(`F${rekRow}`).value).toBe('1234567890');
+    expect(sheet.getCell(`F${rekRow}`).isMerged).toBe(true);
   });
 
   it('period subtotal excludes admin', async () => {

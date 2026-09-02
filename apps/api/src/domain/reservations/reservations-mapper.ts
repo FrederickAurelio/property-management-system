@@ -204,9 +204,9 @@ function unitTypeSchemeForResolve(
     electricityMinKwh: Number(unitType.electricityMinKwh ?? 0),
     adminFeeIdrPerMonth: unitType.adminFeeIdrPerMonth ?? 0,
     utilityAddons: addons.map((row) => ({
-      utility: row.utility as UtilityAddon['utility'],
+      utility: row.utility,
       name: row.name,
-      kind: row.kind as UtilityAddon['kind'],
+      kind: row.kind,
       value: row.value,
       sortOrder: row.sortOrder,
     })),

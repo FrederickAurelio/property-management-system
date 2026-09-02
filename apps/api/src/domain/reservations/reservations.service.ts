@@ -48,7 +48,10 @@ import {
   type StaffAdmin,
   type StaffReservation,
   type StaffReservationListItem,
+  type StaffUtilityStatementBankAccount,
   type StayBillingPeriod as StayBillingPeriodType,
+  type UtilityStatementPayee,
+  UTILITY_STATEMENT_BANK_ACCOUNT_RECENT_MAX,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
 import { PDF_CONVERT } from '../../integrations/pdf-convert/pdf-convert.port.js';
@@ -88,6 +91,22 @@ import { fillUtilityStatementXlsx } from './utility-statement-fill.js';
 
 /** Fallback when boards list all properties (doc prefers property-scoped boards). */
 const DEFAULT_BOARD_TIMEZONE = 'Asia/Jakarta';
+
+function toStaffUtilityStatementBankAccount(row: {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  lastUsedAt: Date;
+}): StaffUtilityStatementBankAccount {
+  return {
+    id: row.id,
+    bankName: row.bankName,
+    accountName: row.accountName,
+    accountNumber: row.accountNumber,
+    lastUsedAt: row.lastUsedAt.toISOString(),
+  };
+}
 
 function uniqueChargeMonthsOrThrow(
   charges: ReadonlyArray<{ chargeDate: string }>,
@@ -459,15 +478,63 @@ export class ReservationsService {
   async getUtilityStatementPdf(
     id: string,
     chargeYearMonth: string,
+    payee: UtilityStatementPayee,
   ): Promise<{ pdf: Buffer; filename: string }> {
     const reservation = await this.getById(id);
-    const input = buildUtilityStatementFillInput(reservation, chargeYearMonth);
+    const input = buildUtilityStatementFillInput(
+      reservation,
+      chargeYearMonth,
+      payee,
+    );
     const xlsx = await fillUtilityStatementXlsx(input);
     const pdf = await this.pdfConvert.convertXlsxToPdf(xlsx);
     return {
       pdf,
       filename: utilityStatementFilename(reservation.unitCode, chargeYearMonth),
     };
+  }
+
+  async listUtilityStatementBankAccounts(): Promise<
+    StaffUtilityStatementBankAccount[]
+  > {
+    const rows = await this.prisma.utilityStatementBankAccount.findMany({
+      orderBy: { lastUsedAt: 'desc' },
+      take: UTILITY_STATEMENT_BANK_ACCOUNT_RECENT_MAX,
+    });
+    return rows.map(toStaffUtilityStatementBankAccount);
+  }
+
+  async saveUtilityStatementBankAccount(
+    payee: UtilityStatementPayee,
+  ): Promise<StaffUtilityStatementBankAccount[]> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.utilityStatementBankAccount.upsert({
+        where: {
+          bankName_accountName_accountNumber: {
+            bankName: payee.bankName,
+            accountName: payee.accountName,
+            accountNumber: payee.accountNumber,
+          },
+        },
+        create: {
+          bankName: payee.bankName,
+          accountName: payee.accountName,
+          accountNumber: payee.accountNumber,
+        },
+        update: { lastUsedAt: new Date() },
+      });
+      const extras = await tx.utilityStatementBankAccount.findMany({
+        orderBy: { lastUsedAt: 'desc' },
+        skip: UTILITY_STATEMENT_BANK_ACCOUNT_RECENT_MAX,
+        select: { id: true },
+      });
+      if (extras.length > 0) {
+        await tx.utilityStatementBankAccount.deleteMany({
+          where: { id: { in: extras.map((row) => row.id) } },
+        });
+      }
+    });
+    return this.listUtilityStatementBankAccounts();
   }
 
   async create(
@@ -1786,13 +1853,13 @@ export class ReservationsService {
       maintenanceFeeIdrPerMonth: scheme.maintenanceFeeIdrPerMonth,
       electricityMinKwh: scheme.electricityMinKwh,
       adminFeeIdrPerMonth: scheme.adminFeeIdrPerMonth,
-      utilityAddons: scheme.utilityAddons as Prisma.InputJsonValue,
+      utilityAddons: scheme.utilityAddons,
     }));
     const denorm =
       persistable.length > 0
         ? [...persistable].sort((a, b) =>
             a.chargeYearMonth.localeCompare(b.chargeYearMonth),
-          )[persistable.length - 1]!
+          )[persistable.length - 1]
         : snapshot;
 
     await this.prisma.$transaction(async (tx) => {

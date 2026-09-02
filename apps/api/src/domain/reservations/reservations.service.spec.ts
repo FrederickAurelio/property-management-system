@@ -245,6 +245,11 @@ describe('ReservationsService', () => {
       deleteMany: jest.Mock;
       createMany: jest.Mock;
     };
+    utilityStatementBankAccount: {
+      findMany: jest.Mock;
+      upsert: jest.Mock;
+      deleteMany: jest.Mock;
+    };
     $transaction: jest.Mock;
     $queryRaw: jest.Mock;
   };
@@ -308,6 +313,11 @@ describe('ReservationsService', () => {
       reservationUtilityPeriodScheme: {
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
         createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      utilityStatementBankAccount: {
+        findMany: jest.fn(),
+        upsert: jest.fn(),
+        deleteMany: jest.fn(),
       },
       $transaction: jest.fn(async (arg: unknown) => {
         if (Array.isArray(arg)) {
@@ -1801,6 +1811,11 @@ describe('ReservationsService', () => {
   });
 
   describe('getUtilityStatementPdf', () => {
+    const statementPayee = {
+      bankName: 'BCA',
+      accountName: 'PT CABIN',
+      accountNumber: '1234567890',
+    };
     const elecAddons = [
       {
         utility: UtilityKind.ELECTRICITY,
@@ -1848,7 +1863,11 @@ describe('ReservationsService', () => {
       const pdf = Buffer.from('%PDF-1.4 test');
       pdfConvert.convertXlsxToPdf.mockResolvedValue(pdf);
 
-      const result = await service.getUtilityStatementPdf('res_1', '2026-06');
+      const result = await service.getUtilityStatementPdf(
+        'res_1',
+        '2026-06',
+        statementPayee,
+      );
 
       expect(result.filename).toBe('utility-statement-A1-2026-06.pdf');
       expect(result.pdf.equals(pdf)).toBe(true);
@@ -1861,7 +1880,7 @@ describe('ReservationsService', () => {
       prisma.reservation.findUnique.mockResolvedValue(staffDetailRow());
 
       await expect(
-        service.getUtilityStatementPdf('res_1', '2026-06'),
+        service.getUtilityStatementPdf('res_1', '2026-06', statementPayee),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(pdfConvert.convertXlsxToPdf).not.toHaveBeenCalled();
     });
@@ -1886,10 +1905,78 @@ describe('ReservationsService', () => {
       );
 
       await expect(
-        service.getUtilityStatementPdf('res_1', '2026-06'),
+        service.getUtilityStatementPdf('res_1', '2026-06', statementPayee),
       ).rejects.toMatchObject({
         response: { code: ApiErrorCode.PDF_UNAVAILABLE },
       });
+    });
+  });
+
+  describe('utility-statement bank accounts', () => {
+    const payee = {
+      bankName: 'BCA',
+      accountName: 'PT CABIN',
+      accountNumber: '1234567890',
+    };
+
+    it('lists the five most recent accounts', async () => {
+      prisma.utilityStatementBankAccount.findMany.mockResolvedValue([
+        {
+          id: 'acc_1',
+          bankName: payee.bankName,
+          accountName: payee.accountName,
+          accountNumber: payee.accountNumber,
+          lastUsedAt: new Date('2026-09-02T00:00:00.000Z'),
+        },
+      ]);
+
+      const rows = await service.listUtilityStatementBankAccounts();
+
+      expect(prisma.utilityStatementBankAccount.findMany).toHaveBeenCalledWith({
+        orderBy: { lastUsedAt: 'desc' },
+        take: 5,
+      });
+      expect(rows).toEqual([
+        {
+          id: 'acc_1',
+          ...payee,
+          lastUsedAt: '2026-09-02T00:00:00.000Z',
+        },
+      ]);
+    });
+
+    it('upserts then drops accounts beyond five', async () => {
+      prisma.utilityStatementBankAccount.upsert.mockResolvedValue({});
+      prisma.utilityStatementBankAccount.findMany
+        .mockResolvedValueOnce([{ id: 'acc_old' }])
+        .mockResolvedValueOnce([
+          {
+            id: 'acc_1',
+            bankName: payee.bankName,
+            accountName: payee.accountName,
+            accountNumber: payee.accountNumber,
+            lastUsedAt: new Date('2026-09-02T00:00:00.000Z'),
+          },
+        ]);
+      prisma.utilityStatementBankAccount.deleteMany.mockResolvedValue({
+        count: 1,
+      });
+
+      const rows = await service.saveUtilityStatementBankAccount(payee);
+
+      expect(prisma.utilityStatementBankAccount.upsert).toHaveBeenCalledWith({
+        where: {
+          bankName_accountName_accountNumber: payee,
+        },
+        create: payee,
+        update: { lastUsedAt: expect.any(Date) as Date },
+      });
+      expect(
+        prisma.utilityStatementBankAccount.deleteMany,
+      ).toHaveBeenCalledWith({
+        where: { id: { in: ['acc_old'] } },
+      });
+      expect(rows).toHaveLength(1);
     });
   });
 });

@@ -465,3 +465,16 @@ model CalendarBlock {
   /// DB: CalendarBlock_end_after_start_check — endDate > startDate
   /// DB: CalendarBlock_unit_excl — gist exclusion on unitId + daterange
 }
+
+/// Last 5 transfer accounts used on utility-statement PDF export (Cara Pembayaran).
+model UtilityStatementBankAccount {
+  id            String   @id @default(cuid())
+  bankName      String   @db.VarChar(128)
+  accountName   String   @db.VarChar(128)
+  accountNumber String   @db.VarChar(32)
+  lastUsedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@unique([bankName, accountName, accountNumber])
+  @@index([lastUsedAt])
+}

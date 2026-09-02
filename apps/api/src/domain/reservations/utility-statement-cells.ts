@@ -129,6 +129,24 @@ export const UTILITY_STATEMENT_NOTE_SNIPPETS = {
 } as const;
 
 /**
+ * Cara Pembayaran labels (column D). Values go in column F on the same row
+ * (virgin template F42 / F43 / F44). Find by label after add-on expansion —
+ * those row numbers are not stable.
+ */
+export const UTILITY_STATEMENT_PAYMENT_LABELS = {
+  bankName: 'Nama Bank',
+  accountName: 'A.N',
+  accountNumber: 'No. Rek',
+} as const;
+
+/** Virgin-template value cells (invalid after add-on insert/delete). */
+export const UTILITY_STATEMENT_PAYMENT_VALUE_CELLS = {
+  bankName: 'F42',
+  accountName: 'F43',
+  accountNumber: 'F44',
+} as const;
+
+/**
  * Print margins (inches) on the hand-edited template.
  * Keep these on the sheet so LibreOffice PDF / paper print leaves the
  * payment-box border inside the printable area (not flush to the page edge).

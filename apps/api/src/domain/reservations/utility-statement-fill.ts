@@ -8,6 +8,8 @@ import {
   UTILITY_STATEMENT_HEADER_CELLS,
   UTILITY_STATEMENT_NAMES,
   UTILITY_STATEMENT_NOTE_SNIPPETS,
+  UTILITY_STATEMENT_PAYMENT_LABELS,
+  UTILITY_STATEMENT_PRINT_MARGINS_IN,
   UTILITY_STATEMENT_RATE_NUM_FMT,
   UTILITY_STATEMENT_SECTION_LABELS,
   UTILITY_STATEMENT_SHEET,
@@ -48,6 +50,9 @@ export type UtilityStatementFillInput = {
   periodSubtotalIdr: number;
   adminAmountIdr: number;
   dueAmountIdr: number;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
 };
 
 const A1_IN_RANGE = /\$([A-Z]+)\$(\d+)/;
@@ -458,6 +463,40 @@ function tryUnmerge(sheet: Worksheet, range: string): void {
   }
 }
 
+/** Cara Pembayaran values in F — look up by label after add-on row shifts. */
+export function writeUtilityStatementPayment(
+  sheet: Worksheet,
+  input: Pick<
+    UtilityStatementFillInput,
+    'bankName' | 'accountName' | 'accountNumber'
+  >,
+): void {
+  writePaymentValue(
+    sheet,
+    UTILITY_STATEMENT_PAYMENT_LABELS.bankName,
+    input.bankName,
+  );
+  writePaymentValue(
+    sheet,
+    UTILITY_STATEMENT_PAYMENT_LABELS.accountName,
+    input.accountName,
+  );
+  writePaymentValue(
+    sheet,
+    UTILITY_STATEMENT_PAYMENT_LABELS.accountNumber,
+    input.accountNumber,
+  );
+}
+
+function writePaymentValue(
+  sheet: Worksheet,
+  snippet: string,
+  value: string,
+): void {
+  const row = findRowContainingLabel(sheet, snippet);
+  sheet.getCell(`F${row}`).value = value;
+}
+
 /** exceljs spliceRows does not rewrite F:I on the No. Rek row. */
 function restoreAccountNumberMerge(sheet: Worksheet): void {
   const rekRow = findRowByUniqueLabel(sheet, 'No. Rek');
@@ -473,17 +512,58 @@ function restoreAccountNumberMerge(sheet: Worksheet): void {
   sheet.mergeCells(`F${rekRow}:I${rekRow}`);
 }
 
-function fitStatementToOnePage(sheet: Worksheet): void {
+/** A4 portrait — matches the hand-edited template (`paperSize` 9 in Excel). */
+const UTILITY_STATEMENT_PAPER_SIZE_A4 = 9;
+
+function outerFrameBottomStyle(
+  sheet: Worksheet,
+  row: number,
+): string | undefined {
+  return (
+    sheet.getCell(`A${row}`).border?.bottom?.style ??
+    sheet.getCell(`M${row}`).border?.bottom?.style
+  );
+}
+
+/**
+ * Last row for `printArea` — through the outer-frame closure row (medium bottom
+ * on A/M), not only the last note line. Template uses A2:M51; stopping at the
+ * note row (50) clips that closure border in LibreOffice PDF / paper print.
+ */
+export function findStatementPrintLastRow(sheet: Worksheet): number {
   const lastNoteRow = findRowContainingLabel(
     sheet,
     UTILITY_STATEMENT_NOTE_SNIPPETS.unpaidIfNoProof,
   );
-  sheet.pageSetup.fitToPage = true;
-  sheet.pageSetup.fitToWidth = 1;
-  sheet.pageSetup.fitToHeight = 1;
-  sheet.pageSetup.orientation = 'portrait';
-  sheet.pageSetup.paperSize = 9;
-  sheet.pageSetup.printArea = `A2:M${lastNoteRow}`;
+  const closureRow = lastNoteRow + 1;
+  const bottom = outerFrameBottomStyle(sheet, closureRow);
+  if (bottom === 'medium' || bottom === 'double') {
+    return closureRow;
+  }
+  return lastNoteRow;
+}
+
+function fitStatementToOnePage(sheet: Worksheet): void {
+  const lastPrintRow = findStatementPrintLastRow(sheet);
+  const { pageSetup } = sheet;
+  pageSetup.fitToPage = true;
+  pageSetup.fitToWidth = 1;
+  pageSetup.fitToHeight = 1;
+  pageSetup.orientation = 'portrait';
+  pageSetup.paperSize = UTILITY_STATEMENT_PAPER_SIZE_A4;
+  pageSetup.printArea = `A2:M${lastPrintRow}`;
+  pageSetup.margins = {
+    left: UTILITY_STATEMENT_PRINT_MARGINS_IN.left,
+    right: UTILITY_STATEMENT_PRINT_MARGINS_IN.right,
+    top: UTILITY_STATEMENT_PRINT_MARGINS_IN.top,
+    bottom: UTILITY_STATEMENT_PRINT_MARGINS_IN.bottom,
+    header: UTILITY_STATEMENT_PRINT_MARGINS_IN.header,
+    footer: UTILITY_STATEMENT_PRINT_MARGINS_IN.footer,
+  };
+  pageSetup.horizontalCentered = false;
+  pageSetup.verticalCentered = false;
+  pageSetup.showGridLines = false;
+  pageSetup.showRowColHeaders = false;
 }
 
 function restoreMeterBlockVisibility(sheet: Worksheet): void {
@@ -507,6 +587,7 @@ export async function fillUtilityStatementWorkbook(
   restoreMeterBlockVisibility(sheet);
   expandUtilityStatementAddonRows(wb, input);
   writeUtilityStatementFooter(wb, input);
+  writeUtilityStatementPayment(sheet, input);
   restoreAccountNumberMerge(sheet);
   fitStatementToOnePage(sheet);
   return wb;

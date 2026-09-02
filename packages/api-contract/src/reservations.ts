@@ -551,6 +551,24 @@ export type PutReservationUtilitiesInput = {
   periodSchemes?: UtilityPeriodScheme[];
 };
 
+/** Cara Pembayaran box on the utility statement PDF (template F42 / F43 / F44). */
+export const UTILITY_STATEMENT_BANK_NAME_MAX = 128;
+export const UTILITY_STATEMENT_ACCOUNT_NAME_MAX = 128;
+export const UTILITY_STATEMENT_ACCOUNT_NUMBER_MAX = 32;
+export const UTILITY_STATEMENT_BANK_ACCOUNT_RECENT_MAX = 5;
+
+export type UtilityStatementPayee = {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+};
+
+/** Staff recents for statement transfer details (`GET`/`POST` bank-accounts). */
+export type StaffUtilityStatementBankAccount = UtilityStatementPayee & {
+  id: string;
+  lastUsedAt: string;
+};
+
 /**
  * First day of `ymd`'s calendar month.
  * `2026-05-10` → `2026-05-01`.

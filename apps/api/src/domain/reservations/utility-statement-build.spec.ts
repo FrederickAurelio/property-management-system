@@ -119,10 +119,18 @@ describe('buildUtilityStatementFillInput', () => {
       { includeUtilities: true },
     );
 
-    const may = buildUtilityStatementFillInput(reservation, '2026-06');
-    const june = buildUtilityStatementFillInput(reservation, '2026-07');
+    const payee = {
+      bankName: 'BCA',
+      accountName: 'PT CABIN',
+      accountNumber: '1234567890',
+    };
+    const may = buildUtilityStatementFillInput(reservation, '2026-06', payee);
+    const june = buildUtilityStatementFillInput(reservation, '2026-07', payee);
     expect(may.elecRate).toBe(1750);
     expect(may.elecUsageAmountIdr).toBe(Math.floor(100 * 1750));
+    expect(may.bankName).toBe('BCA');
+    expect(may.accountName).toBe('PT CABIN');
+    expect(may.accountNumber).toBe('1234567890');
     expect(june.elecRate).toBe(1850);
     expect(june.elecUsageAmountIdr).toBe(Math.floor(100 * 1850));
   });

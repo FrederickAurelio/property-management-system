@@ -15,6 +15,7 @@ import type {
   StaffAdmin,
   StaffReservation,
   StaffReservationListItem,
+  StaffUtilityStatementBankAccount,
 } from '@cabin/api-contract';
 import { CancelReservationDto } from '../../domain/reservations/dto/cancel-reservation.dto.js';
 import { ConfirmEarlyDto } from '../../domain/reservations/dto/confirm-early.dto.js';
@@ -24,6 +25,7 @@ import { PatchPaymentMovementProofsDto } from '../../domain/reservations/dto/pat
 import { PostPaymentMovementDto } from '../../domain/reservations/dto/post-payment-movement.dto.js';
 import { PutReservationUtilitiesDto } from '../../domain/reservations/dto/put-reservation-utilities.dto.js';
 import { UpdateReservationDto } from '../../domain/reservations/dto/update-reservation.dto.js';
+import { UtilityStatementPayeeDto } from '../../domain/reservations/dto/utility-statement-payee.dto.js';
 import { UtilityStatementQueryDto } from '../../domain/reservations/dto/utility-statement.query.dto.js';
 import { ReservationsService } from '../../domain/reservations/reservations.service.js';
 import { CurrentAdmin } from '../auth/decorators/current-admin.decorator.js';
@@ -52,6 +54,20 @@ export class ReservationsController {
     return this.reservationsService.create(dto, admin);
   }
 
+  @Get('utility-statement-bank-accounts')
+  listUtilityStatementBankAccounts(): Promise<
+    StaffUtilityStatementBankAccount[]
+  > {
+    return this.reservationsService.listUtilityStatementBankAccounts();
+  }
+
+  @Post('utility-statement-bank-accounts')
+  saveUtilityStatementBankAccount(
+    @Body() dto: UtilityStatementPayeeDto,
+  ): Promise<StaffUtilityStatementBankAccount[]> {
+    return this.reservationsService.saveUtilityStatementBankAccount(dto);
+  }
+
   @Get(':id')
   getById(@Param('id') id: string): Promise<StaffReservation> {
     return this.reservationsService.getById(id);
@@ -66,6 +82,11 @@ export class ReservationsController {
       await this.reservationsService.getUtilityStatementPdf(
         id,
         query.chargeYearMonth,
+        {
+          bankName: query.bankName,
+          accountName: query.accountName,
+          accountNumber: query.accountNumber,
+        },
       );
     return new StreamableFile(pdf, {
       type: 'application/pdf',

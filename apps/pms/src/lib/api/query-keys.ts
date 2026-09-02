@@ -264,3 +264,10 @@ export type StaffDashboardQueryParams = {
 export function staffDashboardQueryKey(params: StaffDashboardQueryParams) {
   return [...staffDashboardQueryKeyPrefix, params] as const;
 }
+
+/** Last 5 Cara Pembayaran transfer accounts (utility-statement PDF). */
+export const staffUtilityStatementBankAccountsQueryKey = [
+  "staff",
+  "reservations",
+  "utility-statement-bank-accounts",
+] as const;
