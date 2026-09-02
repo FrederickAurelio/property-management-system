@@ -1,7 +1,16 @@
 /* anchor: Linear-dense / Stripe-data calendar grid, diverge: frozen unit col + absolute bars */
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  isOccupyingReservationStatus,
   isUnitStatusBookable,
+  ReservationStatus,
   type StaffCalendarBlock,
   type StaffCalendarStay,
   type StaffCalendarUnit,
@@ -26,6 +35,7 @@ import {
   type CalendarSelection,
   type DragState,
 } from "./calendar-selection";
+import { CalendarHistoryRail } from "./calendar-history-rail";
 import { CalendarStayBar } from "./calendar-stay-bar";
 
 const DAY_COL_MIN = 52;
@@ -189,216 +199,241 @@ export function CalendarGrid({
         {groups.map((group) => {
           const isCollapsed = collapsedGroupKeys.has(group.key);
           return (
-          <div key={group.key}>
-            <button
-              type="button"
-              className={cn(
-                "sticky top-11 z-15 flex w-full min-w-max border-b border-border bg-muted/40 text-left text-xs font-medium text-muted-foreground shadow-sm hover:bg-muted/60",
-                HEADER_ROW_CLASS,
-              )}
-              onClick={() => toggleGroupCollapsed(group.key)}
-              aria-expanded={!isCollapsed}
-              aria-label={
-                isCollapsed
-                  ? t("calendar:grid.expandGroup", { name: group.label })
-                  : t("calendar:grid.collapseGroup", { name: group.label })
-              }
-            >
-              <span
-                className="sticky left-0 z-16 flex min-w-0 items-start gap-1 bg-muted px-2 py-1.5"
-                style={{ maxWidth: unitCol, width: unitCol }}
+            <div key={group.key}>
+              <button
+                type="button"
+                className={cn(
+                  "sticky top-11 z-15 flex w-full min-w-max border-b border-border bg-muted/40 text-left text-xs font-medium text-muted-foreground shadow-sm hover:bg-muted/60",
+                  HEADER_ROW_CLASS,
+                )}
+                onClick={() => toggleGroupCollapsed(group.key)}
+                aria-expanded={!isCollapsed}
+                aria-label={
+                  isCollapsed
+                    ? t("calendar:grid.expandGroup", { name: group.label })
+                    : t("calendar:grid.collapseGroup", { name: group.label })
+                }
               >
-                <ChevronDownIcon
-                  className={cn(
-                    "mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-                    isCollapsed && "-rotate-90",
-                  )}
-                  aria-hidden
-                />
                 <span
-                  className="min-w-0 leading-4 wrap-break-word line-clamp-2"
-                  title={group.label}
+                  className="sticky left-0 z-16 flex min-w-0 items-start gap-1 bg-muted px-2 py-1.5"
+                  style={{ maxWidth: unitCol, width: unitCol }}
                 >
-                  {group.label}
-                </span>
-              </span>
-            </button>
-            {!isCollapsed &&
-            group.units.map((unit) => {
-              const bookable = isUnitStatusBookable(unit.status);
-              const unitStays = staysByUnit.get(unit.id) ?? [];
-              const unitBlocks = blocksByUnit.get(unit.id) ?? [];
-              return (
-                <div
-                  key={unit.id}
-                  className={cn(
-                    "grid border-b border-border last:border-b-0",
-                    !bookable && "opacity-60",
-                  )}
-                  style={{
-                    gridTemplateColumns: `${unitCol} ${daysWidth}`,
-                    minHeight: ROW_H,
-                  }}
-                >
-                  <div
+                  <ChevronDownIcon
                     className={cn(
-                      "sticky left-0 z-10 flex min-w-0 items-center gap-1.5 overflow-hidden border-r border-border bg-background px-3 text-sm",
-                      !bookable && "text-muted-foreground",
+                      "mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+                      isCollapsed && "-rotate-90",
                     )}
-                    style={{ minHeight: ROW_H }}
-                    title={unitLabel(unit)}
+                    aria-hidden
+                  />
+                  <span
+                    className="line-clamp-2 min-w-0 leading-4 wrap-break-word"
+                    title={group.label}
                   >
-                    <span className="min-w-0 truncate font-medium">
-                      {unit.code}
-                    </span>
-                    {!bookable && (
-                      <span className="shrink-0 rounded border border-border px-1 text-[10px] text-muted-foreground">
-                        {unit.status === "MAINTENANCE"
-                          ? t("calendar:grid.maintenance")
-                          : t("calendar:grid.off")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    className="relative"
-                    style={{ minHeight: ROW_H }}
-                    onPointerLeave={() => {
-                      if (dragRef.current?.unitId === unit.id) {
-                        /* keep drag until pointer up */
-                      }
-                    }}
-                  >
+                    {group.label}
+                  </span>
+                </span>
+              </button>
+              {!isCollapsed &&
+                group.units.map((unit) => {
+                  const bookable = isUnitStatusBookable(unit.status);
+                  const unitStays = staysByUnit.get(unit.id) ?? [];
+                  const historyStays = unitStays.filter(
+                    (stay) => stay.status === ReservationStatus.CHECKED_OUT,
+                  );
+                  const occupyingStays = unitStays.filter((stay) =>
+                    isOccupyingReservationStatus(stay.status),
+                  );
+                  const unitBlocks = blocksByUnit.get(unit.id) ?? [];
+                  return (
                     <div
-                      className="absolute inset-0 grid"
+                      key={unit.id}
+                      className={cn(
+                        "grid border-b border-border last:border-b-0",
+                        !bookable && "opacity-60",
+                      )}
                       style={{
-                        gridTemplateColumns: `repeat(${days.length}, minmax(${DAY_COL_MIN}px, 1fr))`,
+                        gridTemplateColumns: `${unitCol} ${daysWidth}`,
+                        minHeight: ROW_H,
                       }}
                     >
-                      {days.map((ymd) => {
-                        const isToday = ymd === todayYmd;
-                        const selected = isDayInSelection(
-                          unit.id,
-                          ymd,
-                          drag,
-                          null,
-                        );
-                        return (
-                          <div
-                            key={ymd}
-                            role="presentation"
-                            className={cn(
-                              "border-r border-border/40 last:border-r-0",
-                              isToday && "bg-primary/5",
-                              selected && "bg-primary/15",
-                              bookable && "cursor-cell",
-                            )}
-                            onPointerDown={(e) => {
-                              if (!bookable || e.button !== 0) return;
-                              e.preventDefault();
-                              setDragBoth({
-                                unitId: unit.id,
-                                anchorYmd: ymd,
-                                hoverYmd: ymd,
-                              });
-                            }}
-                            onPointerEnter={() => {
-                              const current = dragRef.current;
-                              if (!current || current.unitId !== unit.id) {
-                                return;
-                              }
-                              setDragBoth({ ...current, hoverYmd: ymd });
-                            }}
-                          />
-                        );
-                      })}
+                      <div
+                        className={cn(
+                          "sticky left-0 z-10 flex min-w-0 items-center gap-1.5 overflow-hidden border-r border-border bg-background px-3 text-sm",
+                          !bookable && "text-muted-foreground",
+                        )}
+                        style={{ minHeight: ROW_H }}
+                        title={unitLabel(unit)}
+                      >
+                        <span className="min-w-0 truncate font-medium">
+                          {unit.code}
+                        </span>
+                        {!bookable && (
+                          <span className="shrink-0 rounded border border-border px-1 text-[10px] text-muted-foreground">
+                            {unit.status === "MAINTENANCE"
+                              ? t("calendar:grid.maintenance")
+                              : t("calendar:grid.off")}
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        className="relative"
+                        style={{ minHeight: ROW_H }}
+                        onPointerLeave={() => {
+                          if (dragRef.current?.unitId === unit.id) {
+                            /* keep drag until pointer up */
+                          }
+                        }}
+                      >
+                        <div
+                          className="absolute inset-0 grid"
+                          style={{
+                            gridTemplateColumns: `repeat(${days.length}, minmax(${DAY_COL_MIN}px, 1fr))`,
+                          }}
+                        >
+                          {days.map((ymd) => {
+                            const isToday = ymd === todayYmd;
+                            const selected = isDayInSelection(
+                              unit.id,
+                              ymd,
+                              drag,
+                              null,
+                            );
+                            return (
+                              <div
+                                key={ymd}
+                                role="presentation"
+                                className={cn(
+                                  "border-r border-border/40 last:border-r-0",
+                                  isToday && "bg-primary/5",
+                                  selected && "bg-primary/15",
+                                  bookable && "cursor-cell",
+                                )}
+                                onPointerDown={(e) => {
+                                  if (!bookable || e.button !== 0) return;
+                                  e.preventDefault();
+                                  setDragBoth({
+                                    unitId: unit.id,
+                                    anchorYmd: ymd,
+                                    hoverYmd: ymd,
+                                  });
+                                }}
+                                onPointerEnter={() => {
+                                  const current = dragRef.current;
+                                  if (!current || current.unitId !== unit.id) {
+                                    return;
+                                  }
+                                  setDragBoth({ ...current, hoverYmd: ymd });
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+
+                        {historyStays.map((stay) => {
+                          const span = spanColumns(
+                            stay.checkInDate,
+                            stay.checkOutDate,
+                            days,
+                          );
+                          if (!span) return null;
+                          return (
+                            <CalendarHistoryRail
+                              key={stay.id}
+                              stay={stay}
+                              clippedStart={span.clippedStart}
+                              clippedEnd={span.clippedEnd}
+                              style={barBoxStyle(span, days.length)}
+                              onClick={() => onStayClick(stay)}
+                            />
+                          );
+                        })}
+                        {occupyingStays.map((stay) => {
+                          const hasOpenHold =
+                            stay.inventoryEndDate > stay.checkOutDate;
+                          if (!hasOpenHold) {
+                            const span = spanColumns(
+                              stay.checkInDate,
+                              stay.inventoryEndDate,
+                              days,
+                            );
+                            if (!span) return null;
+                            return (
+                              <CalendarStayBar
+                                key={stay.id}
+                                stay={stay}
+                                segment="full"
+                                clippedStart={span.clippedStart}
+                                clippedEnd={span.clippedEnd}
+                                style={barBoxStyle(span, days.length)}
+                                onClick={() => onStayClick(stay)}
+                              />
+                            );
+                          }
+
+                          const contractSpan = spanColumns(
+                            stay.checkInDate,
+                            stay.checkOutDate,
+                            days,
+                          );
+                          const holdSpan = spanColumns(
+                            stay.checkOutDate,
+                            stay.inventoryEndDate,
+                            days,
+                          );
+                          return (
+                            <Fragment key={stay.id}>
+                              {contractSpan && (
+                                <CalendarStayBar
+                                  stay={stay}
+                                  segment="contract"
+                                  clippedStart={contractSpan.clippedStart}
+                                  clippedEnd={
+                                    contractSpan.clippedEnd || Boolean(holdSpan)
+                                  }
+                                  style={barBoxStyle(contractSpan, days.length)}
+                                  onClick={() => onStayClick(stay)}
+                                />
+                              )}
+                              {holdSpan && (
+                                <CalendarStayBar
+                                  stay={stay}
+                                  segment="hold"
+                                  clippedStart={
+                                    holdSpan.clippedStart ||
+                                    Boolean(contractSpan)
+                                  }
+                                  clippedEnd={holdSpan.clippedEnd}
+                                  style={barBoxStyle(holdSpan, days.length)}
+                                  onClick={() => onStayClick(stay)}
+                                />
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                        {unitBlocks.map((block) => {
+                          const span = spanColumns(
+                            block.startDate,
+                            block.endDate,
+                            days,
+                          );
+                          if (!span) return null;
+                          return (
+                            <CalendarBlockBar
+                              key={block.id}
+                              block={block}
+                              clippedStart={span.clippedStart}
+                              clippedEnd={span.clippedEnd}
+                              style={barBoxStyle(span, days.length)}
+                              onClick={() => onBlockClick(block)}
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
-
-                    {unitStays.map((stay) => {
-                      const hasOpenHold =
-                        stay.inventoryEndDate > stay.checkOutDate;
-                      if (!hasOpenHold) {
-                        const span = spanColumns(
-                          stay.checkInDate,
-                          stay.inventoryEndDate,
-                          days,
-                        );
-                        if (!span) return null;
-                        return (
-                          <CalendarStayBar
-                            key={stay.id}
-                            stay={stay}
-                            segment="full"
-                            clippedStart={span.clippedStart}
-                            clippedEnd={span.clippedEnd}
-                            style={barBoxStyle(span, days.length)}
-                            onClick={() => onStayClick(stay)}
-                          />
-                        );
-                      }
-
-                      const contractSpan = spanColumns(
-                        stay.checkInDate,
-                        stay.checkOutDate,
-                        days,
-                      );
-                      const holdSpan = spanColumns(
-                        stay.checkOutDate,
-                        stay.inventoryEndDate,
-                        days,
-                      );
-                      return (
-                        <Fragment key={stay.id}>
-                          {contractSpan ? (
-                            <CalendarStayBar
-                              stay={stay}
-                              segment="contract"
-                              clippedStart={contractSpan.clippedStart}
-                              clippedEnd={
-                                contractSpan.clippedEnd || Boolean(holdSpan)
-                              }
-                              style={barBoxStyle(contractSpan, days.length)}
-                              onClick={() => onStayClick(stay)}
-                            />
-                          ) : null}
-                          {holdSpan ? (
-                            <CalendarStayBar
-                              stay={stay}
-                              segment="hold"
-                              clippedStart={
-                                holdSpan.clippedStart || Boolean(contractSpan)
-                              }
-                              clippedEnd={holdSpan.clippedEnd}
-                              style={barBoxStyle(holdSpan, days.length)}
-                              onClick={() => onStayClick(stay)}
-                            />
-                          ) : null}
-                        </Fragment>
-                      );
-                    })}
-                    {unitBlocks.map((block) => {
-                      const span = spanColumns(
-                        block.startDate,
-                        block.endDate,
-                        days,
-                      );
-                      if (!span) return null;
-                      return (
-                        <CalendarBlockBar
-                          key={block.id}
-                          block={block}
-                          clippedStart={span.clippedStart}
-                          clippedEnd={span.clippedEnd}
-                          style={barBoxStyle(span, days.length)}
-                          onClick={() => onBlockClick(block)}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+            </div>
           );
         })}
       </div>

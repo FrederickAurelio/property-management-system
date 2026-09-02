@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiFieldReason,
-  OCCUPYING_RESERVATION_STATUSES,
+  CALENDAR_PAINT_RESERVATION_STATUSES,
   type StaffAdmin,
   type StaffCalendarBlock,
   type StaffPropertyCalendar,
@@ -68,7 +68,7 @@ export class CalendarService {
       this.prisma.reservation.findMany({
         where: {
           propertyId,
-          status: { in: [...OCCUPYING_RESERVATION_STATUSES] },
+          status: { in: [...CALENDAR_PAINT_RESERVATION_STATUSES] },
           icalOverlapHold: false,
           checkInDate: { lt: to },
           inventoryEndDate: { gt: from },

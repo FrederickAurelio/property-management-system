@@ -63,7 +63,7 @@ describe('CalendarService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('returns units, occupying stays, and blocks', async () => {
+    it('returns units, paint stays, and blocks', async () => {
       prisma.property.findUnique.mockResolvedValue({ id: 'prop_1' });
       prisma.unit.findMany.mockResolvedValue([
         {
@@ -135,9 +135,56 @@ describe('CalendarService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             inventoryEndDate: { gt: expect.any(Date) as Date },
+            status: {
+              in: [
+                ReservationStatus.UNCONFIRMED,
+                ReservationStatus.CONFIRMED,
+                ReservationStatus.CHECKED_IN,
+                ReservationStatus.CHECKED_OUT,
+              ],
+            },
           }) as Record<string, unknown>,
         }) as Record<string, unknown>,
       );
+    });
+
+    it('maps checked-out stays onto the paint payload', async () => {
+      prisma.property.findUnique.mockResolvedValue({ id: 'prop_1' });
+      prisma.unit.findMany.mockResolvedValue([]);
+      prisma.reservation.findMany.mockResolvedValue([
+        {
+          id: 'r-out',
+          unitId: 'u1',
+          source: ReservationSource.MANUAL,
+          status: ReservationStatus.CHECKED_OUT,
+          checkInDate: new Date('2026-08-01T00:00:00.000Z'),
+          checkOutDate: new Date('2026-08-03T00:00:00.000Z'),
+          inventoryEndDate: new Date('2026-08-03T00:00:00.000Z'),
+          guestName: 'Sari',
+          totalAmountIdr: BigInt(0),
+          paidAmountIdr: BigInt(0),
+          paymentStatus: 'PAID',
+          collectedVia: null,
+          icalSyncWarning: null,
+          property: { timezone: 'Asia/Jakarta' },
+        },
+      ]);
+      prisma.calendarBlock.findMany.mockResolvedValue([]);
+
+      const cal = await service.getPropertyCalendar('prop_1', {
+        from: '2026-08-01',
+        to: '2026-08-15',
+      });
+
+      expect(cal.stays).toEqual([
+        expect.objectContaining({
+          id: 'r-out',
+          status: ReservationStatus.CHECKED_OUT,
+          guestName: 'Sari',
+          checkInDate: '2026-08-01',
+          checkOutDate: '2026-08-03',
+        }),
+      ]);
     });
   });
 

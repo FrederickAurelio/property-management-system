@@ -43,8 +43,9 @@ Calendar does **not** replace boards. Boards stay on Reservations. Check-in / Co
 | Columns | Calendar days in the visible range. |
 | Today | Distinct vertical marker / column highlight. |
 | Stay bars | Occupying reservations spanning check-in → **inventory end** (exclusive; FAR for open MONTHLY/YEARLY holds — bar clips at the window edge). When `inventoryEndDate > checkOutDate`, paint **two segments**: source-tinted contract `[checkIn, checkOut)` + cream/amber **inventory hold** `[checkOut, inventoryEnd)`. Contract `checkOutDate` remains for desk/money. |
+| History rails | `CHECKED_OUT` — thin outlined rail on `[checkIn, checkOut)` (dashed border, no fill, no hatch); does not occupy. |
 | Block bars | `CalendarBlock` spans — visually distinct from stays (e.g. hatched / muted; no guest name). |
-| Empty cells | Free nights — clickable / selectable for create. |
+| Empty cells | Free nights (including nights with only a history rail) — clickable / selectable for create. |
 
 **Default range:** **14 days starting today** (desk “next two weeks”). Prev/next **slides by 7 days** (half overlap). **Today** jumps back to the default window anchored on today.
 
@@ -56,11 +57,9 @@ Month toggle is optional later; do not require a full-month grid if 14-day is cl
 
 ### Occupying stays (from `Reservation`)
 
-Show only statuses that **occupy** the unit calendar:
+Show occupying statuses as **live** bars (full height; they occupy):
 
 `UNCONFIRMED` · `CONFIRMED` · `CHECKED_IN`
-
-Hide on the grid: `CHECKED_OUT` · `CANCELLED` (they do not occupy).
 
 | On the bar | Content |
 |------------|---------|
@@ -72,6 +71,12 @@ Hide on the grid: `CHECKED_OUT` · `CANCELLED` (they do not occupy).
 | iCal warning | OTA issue affordance when `icalSyncWarning` set (plain-language title on hover) |
 
 Click stay bar → reservation detail (`/reservations/:id`), preserving a way back to calendar (return URL or location state). Same primary/secondary actions as detail; do not invent calendar-only action names.
+
+### Checked-out history (paint only)
+
+`CHECKED_OUT` still paints — a **thin outlined rail** along the bottom of the row (dashed border, empty fill, muted guest name · out). No source tint and no block hatch. History does **not** occupy: empty cells above the rail stay selectable for create / block. Click the rail → reservation detail. A live stay or block on the same nights stacks above and wins clicks.
+
+Hide on the grid: `CANCELLED` (did not happen).
 
 ### Calendar blocks (non-guest busy)
 
@@ -165,6 +170,7 @@ Returns everything needed to paint the grid in **one** response (or a small fixe
 
 - Units for the property (id, code, status, unit type id/name/sort)
 - Occupying reservations overlapping `[from, to)` (id, unitId, guest, source, status, dates, payment summary / due cues, late flags, ical warning)
+- Checked-out history overlapping the range (same stay slice; paint-only — overlap / occupancy extras ignore them)
 - Calendar blocks overlapping the range (id, unitId, kind, dates, note)
 
 Do not page like the reservations infinite list. Range is bounded by the UI window.
@@ -212,9 +218,9 @@ Existing helpers to lean on:
 
 - Anchor: Linear-dense / Stripe-data admin (same as rest of PMS). Skills: `shadcn` + `product-ui-design`.
 - One composition: toolbar + grid. No marketing hero, no four-cell stat strip, no glowing dots.
-- Stay vs block must be distinguishable at a glance without reading every label.
+- Stay vs block vs checked-out history must be distinguishable at a glance without reading every label.
 - Source color language should match Reservations list where practical.
-- Cancelled/checked-out stays are absent from the grid (not muted rows — they simply don’t occupy).
+- Checked-out stays are a thin outlined rail (dashed border, no fill, no hatch). Cancelled stays are absent.
 
 ---
 
@@ -238,6 +244,7 @@ Until iCal ships, calendar still shows manual stays + blocks.
 - [x] Date window default 14 days from today; prev / next step 7 days; Today resets
 - [x] Today column marker
 - [x] Occupying reservation bars with guest/source/status cues
+- [x] Checked-out history rails (paint only; nights stay free to create)
 - [x] Click bar → reservation detail (back to calendar possible) — live stays
 - [x] Empty cell / range → create reservation (dates + unit prefilled when Nest unit on row)
 - [x] Toolbar New reservation → create + Choose unit

@@ -2,7 +2,6 @@
 import type { CSSProperties } from "react";
 import {
   balanceDueIdr,
-  isPlaceholderGuestName,
   refundDueIdr,
   type ReservationSource,
   type StaffCalendarStay,
@@ -18,6 +17,7 @@ import {
   formatReservationStatus,
   reservationLateCue,
 } from "@/pages/reservations/reservation-format";
+import { stayPrimaryLabel } from "./calendar-stay-label";
 
 const sourceBarClass: Record<ReservationSource, string> = {
   MANUAL: "border-border bg-muted text-foreground dark:bg-muted/80",
@@ -34,15 +34,6 @@ const sourceBarClass: Record<ReservationSource, string> = {
 /** Soft slate — open inventory hold past contract checkout. */
 const inventoryHoldBarClass =
   "border-inventory-hold-foreground/25 bg-inventory-hold text-inventory-hold-foreground";
-
-function stayPrimaryLabel(stay: StaffCalendarStay, t: TFunction): string {
-  if (stay.status === "UNCONFIRMED" && isPlaceholderGuestName(stay.guestName)) {
-    return t("calendar:stayBar.needsDetails", {
-      source: formatReservationSource(stay.source),
-    });
-  }
-  return stay.guestName;
-}
 
 function moneyCue(stay: StaffCalendarStay, t: TFunction): string | null {
   const due = balanceDueIdr(stay.totalAmountIdr, stay.paidAmountIdr);

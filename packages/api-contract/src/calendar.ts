@@ -1,11 +1,20 @@
 import type { UnitStatus } from './inventory.js';
-import type {
-  CollectedVia,
-  IcalSyncWarning,
-  PaymentStatus,
-  ReservationSource,
+import {
+  OCCUPYING_RESERVATION_STATUSES,
   ReservationStatus,
+  type CollectedVia,
+  type IcalSyncWarning,
+  type PaymentStatus,
+  type ReservationSource,
 } from './reservations.js';
+
+/**
+ * Statuses returned on the property calendar aggregate (paint).
+ * Occupying plus `CHECKED_OUT` history — history does **not** occupy.
+ * Overlap / availability / iCal busy stay on `OCCUPYING_RESERVATION_STATUSES`.
+ */
+export const CALENDAR_PAINT_RESERVATION_STATUSES: readonly ReservationStatus[] =
+  [...OCCUPYING_RESERVATION_STATUSES, ReservationStatus.CHECKED_OUT];
 
 /** Non-guest busy on the unit calendar — not an OTA stub. */
 export const CalendarBlockKind = {
@@ -38,8 +47,9 @@ export type StaffCalendarUnit = {
 };
 
 /**
- * Occupying stay slice for calendar bars.
+ * Stay slice for calendar bars (occupying + checked-out history).
  * Subset of StaffReservation — enough to paint + open detail.
+ * `CHECKED_OUT` is paint-only; occupancy extras must filter occupying statuses.
  */
 export type StaffCalendarStay = {
   id: string;
@@ -76,6 +86,7 @@ export type StaffCalendarBlock = {
 /**
  * Aggregate paint payload for `GET /staff/properties/:propertyId/calendar`.
  * Range is `[from, to)` property-local dates.
+ * `stays` includes occupying bars and checked-out history (not cancelled).
  */
 export type StaffPropertyCalendar = {
   propertyId: string;

@@ -25,7 +25,8 @@
     "refund": "Refund {{amount}}",
     "late": "Late",
     "ota": "OTA",
-    "inventoryHold": "Inventory hold"
+    "inventoryHold": "Inventory hold",
+    "checkedOut": "out"
   },
   "blockLabels": {
     "maintenance": "Maintenance",

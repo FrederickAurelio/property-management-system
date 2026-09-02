@@ -25,7 +25,8 @@
     "refund": "Refund {{amount}}",
     "late": "Telat",
     "ota": "OTA",
-    "inventoryHold": "Hold inventori"
+    "inventoryHold": "Hold inventori",
+    "checkedOut": "keluar"
   },
   "blockLabels": {
     "maintenance": "Perbaikan",
