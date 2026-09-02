@@ -7,13 +7,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 # shellcheck source=../lib/compose.sh
 source "${LIB_DIR}/compose.sh"
+# shellcheck source=../lib/env.sh
+source "${LIB_DIR}/env.sh"
 
 cd "${ROOT_DIR}"
 
-# shellcheck disable=SC1091
-set -a
-[ -f .env ] && . ./.env
-set +a
+load_root_env
 
 if [ -z "${BACKUP_DIR:-}" ]; then
   if [ "$(id -u)" -eq 0 ]; then
