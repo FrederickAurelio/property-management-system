@@ -1,18 +1,12 @@
-/* anchor: Linear-dense utilities sheet, diverge: monthly meter + maintenance tables */
+/* anchor: Linear-dense / Stripe-data period sheet, diverge: nested utility rows per billed month */
 import { useState } from "react";
 import {
-  UtilityKind,
   UTILITY_METER_VALUE_MAX,
   computeMeterIntervalCharges,
-  defaultFirstMaintenanceChargeYearMonth,
-  defaultNextMaintenanceChargeYearMonth,
-  defaultNextUtilityReadingDateYmd,
-  yearMonthToChargeDateYmd,
-  ymdYearMonth,
+  type ArchiveItem,
   type StaffReservation,
 } from "@cabin/api-contract";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ArchiveItem } from "@cabin/api-contract";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
@@ -27,7 +21,14 @@ import {
   InputGroupAddon,
   InputGroupText,
 } from "@/components/ui/input-group";
-import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ArchiveProofField } from "@/components/media/archive-proof-field";
 import {
   handleError,
@@ -35,87 +36,40 @@ import {
   putReservationUtilities,
   syncReservationCaches,
 } from "@/lib/api";
+import { formatDecimalInput } from "@/lib/decimal-input";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { formatIdr } from "@/pages/properties/inventory-types";
+import { formatDateYmd, formatMoneyOrDash } from "./reservation-format";
 import {
-  formatDecimalInput,
-  formatIdr,
-  plainFromMeterValue,
-} from "@/pages/properties/inventory-types";
-import { formatMoneyOrDash } from "./reservation-format";
+  addPeriod,
+  deletePeriod,
+  flattenPeriods,
+  meterAmountIdr,
+  meterUsage,
+  patchPeriod,
+  periodSubtotalIdr,
+  seedPeriods,
+  type UtilityEnd,
+  type UtilityPeriod,
+} from "./utilities-period-model";
 
-type MeterRow = {
-  key: string;
-  readingDate: string;
-  /** Canonical plain meter string (`"1234.5"`) for Number(). */
-  meterDigits: string;
-  /** Garage meteran proof photos. */
-  proofImages: ArchiveItem[];
-};
-
-type MaintRow = {
-  key: string;
-  /** Calendar month `YYYY-MM` (desk); API stores as 1st of month. */
-  chargeYearMonth: string;
-  amountDigits: string;
-};
-
-function newKey(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function seedMeterRows(
-  reservation: StaffReservation,
-  utility: typeof UtilityKind.ELECTRICITY | typeof UtilityKind.WATER,
-): MeterRow[] {
-  const existing = (reservation.utilityReadings ?? []).filter(
-    (r) => r.utility === utility,
-  );
-  if (existing.length > 0) {
-    return existing.map((r) => ({
-      key: r.id,
-      readingDate: r.readingDate,
-      meterDigits: plainFromMeterValue(Number(r.meterValue)),
-      proofImages: r.proofImages ?? [],
-    }));
-  }
-  return [
-    {
-      key: newKey(),
-      readingDate: reservation.checkInDate,
-      meterDigits: "",
-      proofImages: [],
-    },
-  ];
-}
-
-function seedMaintRows(reservation: StaffReservation): MaintRow[] {
-  const existing = reservation.maintenanceCharges ?? [];
-  if (existing.length > 0) {
-    return existing.map((c) => ({
-      key: c.id,
-      chargeYearMonth: ymdYearMonth(c.chargeDate) ?? c.chargeDate.slice(0, 7),
-      amountDigits: String(c.amountIdr),
-    }));
-  }
-  return [];
-}
+const COL_KIND = "w-36";
+const COL_METER = "w-40";
+const COL_USAGE = "w-24";
+const COL_AMOUNT = "w-32";
+const COL_PHOTO = "w-24";
 
 function meterChargeTotal(
-  rows: MeterRow[],
+  readings: Array<{ readingDate: string; meterValue: number }>,
   rate: number,
 ): { total: number; error: string | null } {
-  const parsed = rows
-    .filter((r) => r.readingDate && r.meterDigits !== "")
-    .map((r) => ({
-      readingDate: r.readingDate,
-      meterValue: Number(r.meterDigits),
-    }));
-  if (parsed.length < 2) {
+  if (readings.length < 2) {
     return { total: 0, error: null };
   }
   try {
     return {
-      total: computeMeterIntervalCharges(parsed, rate).totalAmountIdr,
+      total: computeMeterIntervalCharges(readings, rate).totalAmountIdr,
       error: null,
     };
   } catch (e) {
@@ -126,29 +80,73 @@ function meterChargeTotal(
   }
 }
 
-function maintChargeTotal(rows: MaintRow[]): {
+function maintChargeTotal(periods: UtilityPeriod[]): {
   total: number;
   error: string | null;
 } {
   const seen = new Set<string>();
   let sum = 0;
-  for (const row of rows) {
-    if (row.chargeYearMonth) {
-      if (seen.has(row.chargeYearMonth)) {
+  for (const period of periods) {
+    if (period.chargeYearMonth) {
+      if (seen.has(period.chargeYearMonth)) {
         return { total: 0, error: "DUPLICATE_MONTH" };
       }
-      seen.add(row.chargeYearMonth);
+      seen.add(period.chargeYearMonth);
     }
-    if (row.amountDigits === "") {
+    if (period.amountDigits === "") {
       continue;
     }
-    const n = Number(row.amountDigits);
+    const n = Number(period.amountDigits);
     if (!Number.isFinite(n) || n < 0) {
       return { total: 0, error: "INVALID_AMOUNT" };
     }
     sum += Math.floor(n);
   }
   return { total: sum, error: null };
+}
+
+function formatUsageCell(usage: number | null): string {
+  if (usage == null) {
+    return "…";
+  }
+  if (usage < 0) {
+    return "—";
+  }
+  return formatDecimalInput(String(usage));
+}
+
+function RateField({
+  label,
+  value,
+  onValueChange,
+  suffix,
+  currencyPrefix,
+}: {
+  label: string;
+  value: string;
+  onValueChange: (next: string) => void;
+  suffix: string;
+  currencyPrefix: string;
+}) {
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <InputGroup>
+        <InputGroupAddon>
+          <InputGroupText>{currencyPrefix}</InputGroupText>
+        </InputGroupAddon>
+        <IdrAmountInput
+          data-slot="input-group-control"
+          className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0"
+          value={value}
+          onValueChange={onValueChange}
+        />
+        <InputGroupAddon align="inline-end">
+          <InputGroupText>{suffix}</InputGroupText>
+        </InputGroupAddon>
+      </InputGroup>
+    </Field>
+  );
 }
 
 export function UtilitiesSheet({
@@ -172,22 +170,18 @@ export function UtilitiesSheet({
   const [maintFeeDigits, setMaintFeeDigits] = useState(
     String(reservation.maintenanceFeeIdrPerMonth),
   );
-  const [elecRows, setElecRows] = useState(() =>
-    seedMeterRows(reservation, UtilityKind.ELECTRICITY),
-  );
-  const [waterRows, setWaterRows] = useState(() =>
-    seedMeterRows(reservation, UtilityKind.WATER),
-  );
-  const [maintRows, setMaintRows] = useState(() => seedMaintRows(reservation));
+  const [periods, setPeriods] = useState(() => seedPeriods(reservation));
   const [photoUploading, setPhotoUploading] = useState(false);
 
   const elecRate = Number(elecRateDigits) || 0;
   const waterRate = Number(waterRateDigits) || 0;
   const maintDefault = Number(maintFeeDigits) || 0;
+  const currencyPrefix = t("reservations:utilitiesSheet.currencyPrefix");
 
-  const elecSummary = meterChargeTotal(elecRows, elecRate);
-  const waterSummary = meterChargeTotal(waterRows, waterRate);
-  const maintTotal = maintChargeTotal(maintRows);
+  const flat = flattenPeriods(periods);
+  const elecSummary = meterChargeTotal(flat.electricityReadings, elecRate);
+  const waterSummary = meterChargeTotal(flat.waterReadings, waterRate);
+  const maintTotal = maintChargeTotal(periods);
   const sheetError =
     elecSummary.error ?? waterSummary.error ?? maintTotal.error;
 
@@ -210,34 +204,14 @@ export function UtilitiesSheet({
         electricityRateIdrPerKwh: Math.floor(elecRate),
         waterRateIdrPerM3: Math.floor(waterRate),
         maintenanceFeeIdrPerMonth: Math.floor(maintDefault),
-        electricityReadings: elecRows
-          .filter((r) => r.readingDate && r.meterDigits !== "")
-          .map((r) => ({
-            utility: UtilityKind.ELECTRICITY,
-            readingDate: r.readingDate,
-            meterValue: Number(r.meterDigits),
-            proofImages: r.proofImages,
-          })),
-        waterReadings: waterRows
-          .filter((r) => r.readingDate && r.meterDigits !== "")
-          .map((r) => ({
-            utility: UtilityKind.WATER,
-            readingDate: r.readingDate,
-            meterValue: Number(r.meterDigits),
-            proofImages: r.proofImages,
-          })),
-        maintenanceCharges: maintRows
-          .filter((r) => r.chargeYearMonth && r.amountDigits !== "")
-          .map((r) => ({
-            chargeDate: yearMonthToChargeDateYmd(r.chargeYearMonth),
-            amountIdr: Math.floor(Number(r.amountDigits)),
-          })),
+        electricityReadings: flat.electricityReadings,
+        waterReadings: flat.waterReadings,
+        maintenanceCharges: flat.maintenanceCharges,
       });
     },
     onSuccess: (saved) => {
-      setElecRows(seedMeterRows(saved, UtilityKind.ELECTRICITY));
-      setWaterRows(seedMeterRows(saved, UtilityKind.WATER));
-      setMaintRows(seedMaintRows(saved));
+      setPeriods(seedPeriods(saved));
+      setPhotoUploading(false);
       syncReservationCaches(queryClient, saved);
       handleSuccess(t("reservations:utilitiesSheet.toastSaved"));
       onOpenChange(false);
@@ -246,38 +220,6 @@ export function UtilitiesSheet({
       handleError(error);
     },
   });
-
-  function addMeterRow(rows: MeterRow[], setRows: (rows: MeterRow[]) => void) {
-    const last = rows[rows.length - 1];
-    const nextDate = last
-      ? defaultNextUtilityReadingDateYmd(last.readingDate)
-      : reservation.checkInDate;
-    setRows([
-      ...rows,
-      {
-        key: newKey(),
-        readingDate: nextDate,
-        // Prefill from previous reading so staff bumps usage, not retype the whole meter.
-        meterDigits: last?.meterDigits ?? "",
-        proofImages: [],
-      },
-    ]);
-  }
-
-  function addMaintRow() {
-    const last = maintRows[maintRows.length - 1];
-    const nextMonth = last?.chargeYearMonth
-      ? defaultNextMaintenanceChargeYearMonth(last.chargeYearMonth)
-      : defaultFirstMaintenanceChargeYearMonth(reservation.checkInDate);
-    setMaintRows([
-      ...maintRows,
-      {
-        key: newKey(),
-        chargeYearMonth: nextMonth,
-        amountDigits: maintDefault > 0 ? String(maintDefault) : "",
-      },
-    ]);
-  }
 
   return (
     <ResponsiveFormShell
@@ -316,217 +258,93 @@ export function UtilitiesSheet({
     >
       <div className="flex flex-col gap-6">
         <FieldGroup className="grid gap-3 sm:grid-cols-3">
-          <Field>
-            <FieldLabel>{t("reservations:utilitiesSheet.elecRate")}</FieldLabel>
-            <InputGroup>
-              <InputGroupAddon>
-                <InputGroupText>
-                  {t("reservations:utilitiesSheet.currencyPrefix")}
-                </InputGroupText>
-              </InputGroupAddon>
-              <IdrAmountInput
-                data-slot="input-group-control"
-                className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0"
-                value={elecRateDigits}
-                onValueChange={setElecRateDigits}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText>
-                  {t("reservations:utilitiesSheet.perKwh")}
-                </InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
-          </Field>
-          <Field>
-            <FieldLabel>
-              {t("reservations:utilitiesSheet.waterRate")}
-            </FieldLabel>
-            <InputGroup>
-              <InputGroupAddon>
-                <InputGroupText>
-                  {t("reservations:utilitiesSheet.currencyPrefix")}
-                </InputGroupText>
-              </InputGroupAddon>
-              <IdrAmountInput
-                data-slot="input-group-control"
-                className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0"
-                value={waterRateDigits}
-                onValueChange={setWaterRateDigits}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText>
-                  {t("reservations:utilitiesSheet.perM3")}
-                </InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
-          </Field>
-          <Field>
-            <FieldLabel>
-              {t("reservations:utilitiesSheet.maintDefault")}
-            </FieldLabel>
-            <InputGroup>
-              <InputGroupAddon>
-                <InputGroupText>
-                  {t("reservations:utilitiesSheet.currencyPrefix")}
-                </InputGroupText>
-              </InputGroupAddon>
-              <IdrAmountInput
-                data-slot="input-group-control"
-                className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0"
-                value={maintFeeDigits}
-                onValueChange={setMaintFeeDigits}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText>
-                  {t("reservations:utilitiesSheet.perMonth")}
-                </InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
-          </Field>
+          <RateField
+            label={t("reservations:utilitiesSheet.elecRate")}
+            value={elecRateDigits}
+            onValueChange={setElecRateDigits}
+            suffix={t("reservations:utilitiesSheet.perKwh")}
+            currencyPrefix={currencyPrefix}
+          />
+          <RateField
+            label={t("reservations:utilitiesSheet.waterRate")}
+            value={waterRateDigits}
+            onValueChange={setWaterRateDigits}
+            suffix={t("reservations:utilitiesSheet.perM3")}
+            currencyPrefix={currencyPrefix}
+          />
+          <RateField
+            label={t("reservations:utilitiesSheet.maintDefault")}
+            value={maintFeeDigits}
+            onValueChange={setMaintFeeDigits}
+            suffix={t("reservations:utilitiesSheet.perMonth")}
+            currencyPrefix={currencyPrefix}
+          />
         </FieldGroup>
 
-        <MeterTable
-          title={t("reservations:utilitiesSheet.electricity")}
-          unitLabel="kWh"
-          rows={elecRows}
-          setRows={setElecRows}
-          rate={elecRate}
-          summary={elecSummary}
-          onAdd={() => {
-            addMeterRow(elecRows, setElecRows);
-          }}
-          addLabel={t("reservations:utilitiesSheet.addReading")}
-          errorMeter={t("reservations:utilitiesSheet.errorMeterDecrease")}
-          errorDup={t("reservations:utilitiesSheet.errorDuplicateDate")}
-          onPhotoUploadingChange={setPhotoUploading}
-          propertyTimezone={reservation.propertyTimezone}
-        />
-
-        <Separator />
-
-        <MeterTable
-          title={t("reservations:utilitiesSheet.water")}
-          unitLabel="m³"
-          rows={waterRows}
-          setRows={setWaterRows}
-          rate={waterRate}
-          summary={waterSummary}
-          onAdd={() => {
-            addMeterRow(waterRows, setWaterRows);
-          }}
-          addLabel={t("reservations:utilitiesSheet.addReading")}
-          errorMeter={t("reservations:utilitiesSheet.errorMeterDecrease")}
-          errorDup={t("reservations:utilitiesSheet.errorDuplicateDate")}
-          onPhotoUploadingChange={setPhotoUploading}
-          propertyTimezone={reservation.propertyTimezone}
-        />
-
-        <Separator />
-
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">
-              {t("reservations:utilitiesSheet.maintenance")}
-            </p>
+        <div className="flex flex-col gap-4">
+          {periods.map((period, index) => (
+            <PeriodBlock
+              key={period.key}
+              period={period}
+              index={index}
+              canDelete={periods.length > 1}
+              elecRate={elecRate}
+              waterRate={waterRate}
+              currencyPrefix={currencyPrefix}
+              propertyTimezone={reservation.propertyTimezone}
+              onPhotoUploadingChange={setPhotoUploading}
+              onPatch={(patch) => {
+                setPeriods((prev) => patchPeriod(prev, index, patch));
+              }}
+              onDelete={() => {
+                setPeriods((prev) => deletePeriod(prev, index));
+              }}
+            />
+          ))}
+          <div>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={addMaintRow}
+              onClick={() => {
+                setPeriods((prev) =>
+                  addPeriod(prev, { maintenanceFeeIdrPerMonth: maintDefault }),
+                );
+              }}
             >
               <PlusIcon data-icon="inline-start" />
-              {t("reservations:utilitiesSheet.addMonth")}
+              {t("reservations:utilitiesSheet.addPeriod")}
             </Button>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-md text-sm">
-              <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium">
-                    {t("reservations:utilitiesSheet.colMonth")}
-                  </th>
-                  <th className="px-3 py-2 font-medium">
-                    {t("reservations:utilitiesSheet.colAmount")}
-                  </th>
-                  <th className="w-10 px-2 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {maintRows.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="px-3 py-4 text-muted-foreground">
-                      {t("reservations:utilitiesSheet.emptyMaint")}
-                    </td>
-                  </tr>
-                )}
-                {maintRows.map((row, index) => (
-                  <tr key={row.key} className="border-t border-border">
-                    <td className="px-3 py-2">
-                      <YearMonthField
-                        value={row.chargeYearMonth}
-                        onChange={(ym) => {
-                          const next = [...maintRows];
-                          next[index] = {
-                            ...row,
-                            chargeYearMonth: ym,
-                          };
-                          setMaintRows(next);
-                        }}
-                        placeholder={t("reservations:utilitiesSheet.colMonth")}
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <InputGroup>
-                        <InputGroupAddon>
-                          <InputGroupText>
-                            {t("reservations:utilitiesSheet.currencyPrefix")}
-                          </InputGroupText>
-                        </InputGroupAddon>
-                        <IdrAmountInput
-                          data-slot="input-group-control"
-                          className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0"
-                          value={row.amountDigits}
-                          onValueChange={(v) => {
-                            const next = [...maintRows];
-                            next[index] = { ...row, amountDigits: v };
-                            setMaintRows(next);
-                          }}
-                        />
-                      </InputGroup>
-                    </td>
-                    <td className="px-2 py-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t("common:actions.delete")}
-                        onClick={() => {
-                          setMaintRows(maintRows.filter((_, i) => i !== index));
-                        }}
-                      >
-                        <Trash2Icon />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-                {maintTotal.error === "DUPLICATE_MONTH" && (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-3 py-2 text-sm text-destructive"
-                    >
-                      {t("reservations:utilitiesSheet.errorDuplicateMonth")}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-sm tabular-nums">
-            {t("reservations:utilitiesSheet.subtotal")}:{" "}
-            <span className="font-medium">{formatIdr(maintTotal.total)}</span>
-          </p>
         </div>
+
+        {elecSummary.error === "METER_DECREASED" && (
+          <p className="text-sm text-destructive">
+            {t("reservations:utilitiesSheet.errorMeterDecrease")}
+          </p>
+        )}
+        {elecSummary.error === "DUPLICATE_READING_DATE" && (
+          <p className="text-sm text-destructive">
+            {t("reservations:utilitiesSheet.errorDuplicateDate")}
+          </p>
+        )}
+        {waterSummary.error === "METER_DECREASED" &&
+          elecSummary.error !== "METER_DECREASED" && (
+            <p className="text-sm text-destructive">
+              {t("reservations:utilitiesSheet.errorMeterDecrease")}
+            </p>
+          )}
+        {waterSummary.error === "DUPLICATE_READING_DATE" &&
+          elecSummary.error !== "DUPLICATE_READING_DATE" && (
+            <p className="text-sm text-destructive">
+              {t("reservations:utilitiesSheet.errorDuplicateDate")}
+            </p>
+          )}
+        {maintTotal.error === "DUPLICATE_MONTH" && (
+          <p className="text-sm text-destructive">
+            {t("reservations:utilitiesSheet.errorDuplicateMonth")}
+          </p>
+        )}
 
         <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
           <p className="text-muted-foreground">
@@ -551,175 +369,342 @@ export function UtilitiesSheet({
   );
 }
 
-function MeterTable({
-  title,
-  unitLabel,
-  rows,
-  setRows,
-  rate,
-  summary,
-  onAdd,
-  addLabel,
-  errorMeter,
-  errorDup,
-  onPhotoUploadingChange,
+function PeriodBlock({
+  period,
+  index,
+  canDelete,
+  elecRate,
+  waterRate,
+  currencyPrefix,
   propertyTimezone,
+  onPatch,
+  onDelete,
+  onPhotoUploadingChange,
 }: {
-  title: string;
-  unitLabel: string;
-  rows: MeterRow[];
-  setRows: (rows: MeterRow[]) => void;
-  rate: number;
-  summary: { total: number; error: string | null };
-  onAdd: () => void;
-  addLabel: string;
-  errorMeter: string;
-  errorDup: string;
-  onPhotoUploadingChange?: (uploading: boolean) => void;
+  period: UtilityPeriod;
+  index: number;
+  canDelete: boolean;
+  elecRate: number;
+  waterRate: number;
+  currencyPrefix: string;
   propertyTimezone: string;
+  onPatch: (patch: Partial<UtilityPeriod>) => void;
+  onDelete: () => void;
+  onPhotoUploadingChange?: (uploading: boolean) => void;
 }) {
   const { t } = useTranslation(["reservations", "common"]);
-  const intervals =
-    summary.error == null
-      ? (() => {
-          try {
-            const parsed = rows
-              .filter((r) => r.readingDate && r.meterDigits !== "")
-              .map((r) => ({
-                readingDate: r.readingDate,
-                meterValue: Number(r.meterDigits),
-              }));
-            if (parsed.length < 2) {
-              return [];
-            }
-            return computeMeterIntervalCharges(parsed, rate).intervals;
-          } catch {
-            return [];
-          }
-        })()
-      : [];
+  const isFirst = index === 0;
+  const subtotal = periodSubtotalIdr(period, elecRate, waterRate);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">{title}</p>
-        <Button type="button" variant="outline" size="sm" onClick={onAdd}>
-          <PlusIcon data-icon="inline-start" />
-          {addLabel}
-        </Button>
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {isFirst ? (
+            <Field className="w-auto">
+              <FieldLabel className="sr-only">
+                {t("reservations:utilitiesSheet.startDate")}
+              </FieldLabel>
+              <YmdDateField
+                value={period.startDate}
+                timeZone={propertyTimezone}
+                onChange={(ymd) => {
+                  onPatch({ startDate: ymd });
+                }}
+              />
+            </Field>
+          ) : (
+            <span className="text-sm text-muted-foreground tabular-nums">
+              {formatDateYmd(period.startDate)}
+            </span>
+          )}
+          <span className="text-muted-foreground">→</span>
+          <Field className="w-auto">
+            <FieldLabel className="sr-only">
+              {t("reservations:utilitiesSheet.endDate")}
+            </FieldLabel>
+            <YmdDateField
+              value={period.endDate}
+              timeZone={propertyTimezone}
+              onChange={(ymd) => {
+                onPatch({ endDate: ymd });
+              }}
+            />
+          </Field>
+        </div>
+        <div className="flex items-center gap-1">
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {t("reservations:utilitiesSheet.periodSubtotal")}{" "}
+            <span className="font-medium text-foreground">
+              {formatIdr(subtotal)}
+            </span>
+          </p>
+          {canDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("reservations:utilitiesSheet.deletePeriodAria")}
+              onClick={onDelete}
+            >
+              <Trash2Icon />
+            </Button>
+          )}
+        </div>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-2xl text-sm">
-          <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2 font-medium">
-                {t("reservations:utilitiesSheet.colDate")}
-              </th>
-              <th className="px-3 py-2 font-medium">
-                {t("reservations:utilitiesSheet.colMeter", { unit: unitLabel })}
-              </th>
-              <th className="px-3 py-2 font-medium">
+
+      <div className="rounded-lg border border-border">
+        <Table className="min-w-[48.75rem] table-fixed">
+          <colgroup>
+            <col className={COL_KIND} />
+            <col className={COL_METER} />
+            <col className={COL_METER} />
+            <col className={COL_USAGE} />
+            <col className={COL_AMOUNT} />
+            <col className={COL_PHOTO} />
+          </colgroup>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead
+                className={cn(
+                  COL_KIND,
+                  "text-xs font-medium text-muted-foreground",
+                )}
+              >
+                {t("reservations:utilitiesSheet.colKind")}
+              </TableHead>
+              <TableHead
+                className={cn(
+                  COL_METER,
+                  "text-xs font-medium text-muted-foreground",
+                )}
+              >
+                {t("reservations:utilitiesSheet.colStart")}
+              </TableHead>
+              <TableHead
+                className={cn(
+                  COL_METER,
+                  "text-xs font-medium text-muted-foreground",
+                )}
+              >
+                {t("reservations:utilitiesSheet.colEnd")}
+              </TableHead>
+              <TableHead
+                className={cn(
+                  COL_USAGE,
+                  "text-right text-xs font-medium text-muted-foreground",
+                )}
+              >
                 {t("reservations:utilitiesSheet.colUsage")}
-              </th>
-              <th className="px-3 py-2 font-medium">
-                {t("reservations:utilitiesSheet.currencyPrefix")}
-              </th>
-              <th className="px-3 py-2 font-medium">
+              </TableHead>
+              <TableHead
+                className={cn(
+                  COL_AMOUNT,
+                  "text-right text-xs font-medium text-muted-foreground",
+                )}
+              >
+                {t("reservations:utilitiesSheet.colAmount")}
+              </TableHead>
+              <TableHead
+                className={cn(
+                  COL_PHOTO,
+                  "text-xs font-medium text-muted-foreground",
+                )}
+              >
                 {t("reservations:utilitiesSheet.colPhoto")}
-              </th>
-              <th className="w-10 px-2 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => {
-              const interval = intervals.find(
-                (i) => i.toDate === row.readingDate,
-              );
-              return (
-                <tr key={row.key} className="border-t border-border">
-                  <td className="px-3 py-2">
-                    <YmdDateField
-                      value={row.readingDate}
-                      timeZone={propertyTimezone}
-                      onChange={(ymd) => {
-                        const next = [...rows];
-                        next[index] = {
-                          ...row,
-                          readingDate: ymd,
-                        };
-                        setRows(next);
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <MeterKindRow
+              kindLabel={t("reservations:utilitiesSheet.electricity")}
+              unitLabel={t("reservations:utilitiesSheet.unitKwh")}
+              start={period.elecStart}
+              end={period.elecEnd}
+              rate={elecRate}
+              startEditable={isFirst}
+              startLabel={`${t("reservations:utilitiesSheet.electricity")} ${t("reservations:utilitiesSheet.colStart")}`}
+              endLabel={`${t("reservations:utilitiesSheet.electricity")} ${t("reservations:utilitiesSheet.colEnd")}`}
+              onStartChange={(elecStart) => {
+                onPatch({ elecStart });
+              }}
+              onEndChange={(elecEnd) => {
+                onPatch({ elecEnd });
+              }}
+              onPhotoUploadingChange={onPhotoUploadingChange}
+            />
+            <MeterKindRow
+              kindLabel={t("reservations:utilitiesSheet.water")}
+              unitLabel={t("reservations:utilitiesSheet.unitM3")}
+              start={period.waterStart}
+              end={period.waterEnd}
+              rate={waterRate}
+              startEditable={isFirst}
+              startLabel={`${t("reservations:utilitiesSheet.water")} ${t("reservations:utilitiesSheet.colStart")}`}
+              endLabel={`${t("reservations:utilitiesSheet.water")} ${t("reservations:utilitiesSheet.colEnd")}`}
+              onStartChange={(waterStart) => {
+                onPatch({ waterStart });
+              }}
+              onEndChange={(waterEnd) => {
+                onPatch({ waterEnd });
+              }}
+              onPhotoUploadingChange={onPhotoUploadingChange}
+            />
+            <TableRow className="hover:bg-transparent">
+              <TableCell className={cn(COL_KIND, "align-top")}>
+                <span className="text-sm font-medium">
+                  {t("reservations:utilitiesSheet.maintenance")}
+                </span>
+              </TableCell>
+              <TableCell
+                className={cn(COL_METER, "align-top text-muted-foreground")}
+              >
+                —
+              </TableCell>
+              <TableCell className={cn(COL_METER, "align-top")}>
+                <Field>
+                  <FieldLabel className="sr-only">
+                    {t("reservations:utilitiesSheet.colMonth")}
+                  </FieldLabel>
+                  <YearMonthField
+                    value={period.chargeYearMonth}
+                    onChange={(ym) => {
+                      onPatch({ chargeYearMonth: ym });
+                    }}
+                    placeholder={t("reservations:utilitiesSheet.colMonth")}
+                  />
+                </Field>
+              </TableCell>
+              <TableCell
+                className={cn(
+                  COL_USAGE,
+                  "text-right align-top text-muted-foreground",
+                )}
+              >
+                —
+              </TableCell>
+              <TableCell className={cn(COL_AMOUNT, "align-top")}>
+                <Field>
+                  <FieldLabel className="sr-only">
+                    {t("reservations:utilitiesSheet.colAmount")}
+                  </FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <InputGroupText>{currencyPrefix}</InputGroupText>
+                    </InputGroupAddon>
+                    <IdrAmountInput
+                      data-slot="input-group-control"
+                      className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0"
+                      value={period.amountDigits}
+                      onValueChange={(amountDigits) => {
+                        onPatch({ amountDigits });
                       }}
                     />
-                  </td>
-                  <td className="px-3 py-2">
-                    <DecimalAmountInput
-                      value={row.meterDigits}
-                      max={UTILITY_METER_VALUE_MAX}
-                      onValueChange={(plain) => {
-                        const next = [...rows];
-                        next[index] = {
-                          ...row,
-                          meterDigits: plain,
-                        };
-                        setRows(next);
-                      }}
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground tabular-nums">
-                    {interval
-                      ? formatDecimalInput(plainFromMeterValue(interval.usage))
-                      : index === 0
-                        ? "—"
-                        : "…"}
-                  </td>
-                  <td className="px-3 py-2 tabular-nums">
-                    {interval ? formatIdr(interval.amountIdr) : "—"}
-                  </td>
-                  <td className="px-3 py-2">
-                    <ArchiveProofField
-                      value={row.proofImages}
-                      onUploadingChange={onPhotoUploadingChange}
-                      onChange={(proofImages) => {
-                        const next = [...rows];
-                        next[index] = {
-                          ...row,
-                          proofImages,
-                        };
-                        setRows(next);
-                      }}
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    {rows.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t("common:actions.delete")}
-                        onClick={() => {
-                          setRows(rows.filter((_, i) => i !== index));
-                        }}
-                      >
-                        <Trash2Icon />
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </InputGroup>
+                </Field>
+              </TableCell>
+              <TableCell
+                className={cn(COL_PHOTO, "align-top text-muted-foreground")}
+              >
+                —
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
-      {summary.error === "METER_DECREASED" && (
-        <p className="text-xs text-destructive">{errorMeter}</p>
-      )}
-      {summary.error === "DUPLICATE_READING_DATE" && (
-        <p className="text-xs text-destructive">{errorDup}</p>
-      )}
-      <p className="text-sm tabular-nums">
-        {t("reservations:utilitiesSheet.subtotal")}:{" "}
-        <span className="font-medium">{formatIdr(summary.total)}</span>
-      </p>
     </div>
+  );
+}
+
+function MeterKindRow({
+  kindLabel,
+  unitLabel,
+  start,
+  end,
+  rate,
+  startEditable,
+  startLabel,
+  endLabel,
+  onStartChange,
+  onEndChange,
+  onPhotoUploadingChange,
+}: {
+  kindLabel: string;
+  unitLabel: string;
+  start: UtilityEnd;
+  end: UtilityEnd;
+  rate: number;
+  startEditable: boolean;
+  startLabel: string;
+  endLabel: string;
+  onStartChange: (next: UtilityEnd) => void;
+  onEndChange: (next: UtilityEnd) => void;
+  onPhotoUploadingChange?: (uploading: boolean) => void;
+}) {
+  const usage = meterUsage(start, end);
+  const amount = meterAmountIdr(usage, rate);
+
+  return (
+    <TableRow className="hover:bg-transparent">
+      <TableCell className={cn(COL_KIND, "align-top")}>
+        <span className="text-sm font-medium">{kindLabel}</span>
+        <span className="text-muted-foreground"> {unitLabel}</span>
+      </TableCell>
+      <TableCell className={cn(COL_METER, "align-top")}>
+        {startEditable ? (
+          <Field>
+            <FieldLabel className="sr-only">{startLabel}</FieldLabel>
+            <DecimalAmountInput
+              className="w-full"
+              value={start.meterDigits}
+              max={UTILITY_METER_VALUE_MAX}
+              onValueChange={(meterDigits) => {
+                onStartChange({ ...start, meterDigits });
+              }}
+            />
+          </Field>
+        ) : (
+          <span className="text-muted-foreground tabular-nums">
+            {start.meterDigits ? formatDecimalInput(start.meterDigits) : "—"}
+          </span>
+        )}
+      </TableCell>
+      <TableCell className={cn(COL_METER, "align-top")}>
+        <Field>
+          <FieldLabel className="sr-only">{endLabel}</FieldLabel>
+          <DecimalAmountInput
+            className="w-full"
+            value={end.meterDigits}
+            max={UTILITY_METER_VALUE_MAX}
+            onValueChange={(meterDigits) => {
+              onEndChange({ ...end, meterDigits });
+            }}
+          />
+        </Field>
+      </TableCell>
+      <TableCell
+        className={cn(
+          COL_USAGE,
+          "text-right align-top text-muted-foreground tabular-nums",
+        )}
+      >
+        {formatUsageCell(usage)}
+      </TableCell>
+      <TableCell
+        className={cn(COL_AMOUNT, "text-right align-top tabular-nums")}
+      >
+        {amount == null ? "—" : formatIdr(amount)}
+      </TableCell>
+      <TableCell className={cn(COL_PHOTO, "align-top")}>
+        <ArchiveProofField
+          layout="pair"
+          value={end.proofImages}
+          onUploadingChange={onPhotoUploadingChange}
+          onChange={(proofImages: ArchiveItem[]) => {
+            onEndChange({ ...end, proofImages });
+          }}
+        />
+      </TableCell>
+    </TableRow>
   );
 }

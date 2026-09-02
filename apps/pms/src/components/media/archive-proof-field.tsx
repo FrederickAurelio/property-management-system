@@ -5,9 +5,10 @@ import {
   UTILITY_READING_PROOF_MAX,
   type ArchiveItem,
 } from "@cabin/api-contract";
-import { Loader2Icon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { handleError, uploadArchiveFile } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { MediaPreviewDialog } from "./media-preview-dialog";
@@ -41,8 +42,12 @@ type ArchiveProofFieldProps = {
   onUploadingChange?: (uploading: boolean) => void;
   max?: number;
   labels?: ArchiveProofFieldLabels;
-  /** `row` = dashed “Add photo” control for forms; default icon-only for table cells. */
-  layout?: "compact" | "row";
+  /**
+   * `row` = dashed “Add photo” control for forms.
+   * `pair` = two squares (first thumb + add) for dense tables.
+   * default `compact` = wrap mosaic for timeline cells.
+   */
+  layout?: "compact" | "row" | "pair";
 };
 
 /** Compact multi-photo Garage proof upload + thumbs (utilities table + cash timeline). */
@@ -109,6 +114,124 @@ export function ArchiveProofField({
   }
 
   const canAdd = !readOnly && !uploading && value.length < max;
+  const extraCount = Math.max(0, value.length - 1);
+  const first = value[0];
+
+  function openFilePicker() {
+    inputRef.current?.click();
+  }
+
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept={ACCEPT}
+      multiple
+      className="sr-only"
+      disabled={uploading || readOnly}
+      onChange={(event) => {
+        void onPick(event.target.files);
+        event.target.value = "";
+      }}
+    />
+  );
+
+  const preview = (
+    <MediaPreviewDialog
+      open={previewOpen}
+      onOpenChange={setPreviewOpen}
+      items={value}
+      index={previewIndex}
+      onIndexChange={setPreviewIndex}
+      onRequestRemove={
+        readOnly
+          ? undefined
+          : (item) => {
+              void (async () => {
+                const next = value.filter((m) => m.id !== item.id);
+                try {
+                  await onChange(next);
+                } catch (error) {
+                  handleError(error);
+                  return;
+                }
+                const nextIndex = Math.max(0, previewIndex - 1);
+                if (value.length === 1) {
+                  setPreviewOpen(false);
+                } else {
+                  setPreviewIndex(nextIndex);
+                }
+              })();
+            }
+      }
+      labels={{
+        titleFallback: L.titleFallback,
+        counter: L.counter,
+        noItems: L.noPhotos,
+        previousAria: L.previousAria,
+        nextAria: L.nextAria,
+        closeAria: L.closeAria,
+        removeAria: L.removeAria,
+        nothingToPreview: L.nothingToPreview,
+      }}
+    />
+  );
+
+  if (layout === "pair") {
+    const moreOverlay =
+      extraCount > 0
+        ? t("reservations:utilitiesSheet.photos.moreOverlay", {
+            count: extraCount,
+          })
+        : undefined;
+    const moreAria =
+      extraCount > 0
+        ? t("reservations:utilitiesSheet.photos.moreAria", {
+            count: extraCount,
+          })
+        : undefined;
+
+    return (
+      <div className="flex w-[4.875rem] shrink-0 gap-1.5">
+        {first ? (
+          <ArchiveProofThumb
+            item={first}
+            overlay={moreOverlay}
+            overlayAria={moreAria}
+            onPreview={() => {
+              setPreviewIndex(0);
+              setPreviewOpen(true);
+            }}
+          />
+        ) : (
+          <span
+            className="size-9 shrink-0 rounded-md border border-border bg-muted"
+            aria-hidden
+          />
+        )}
+        {uploading ? (
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground">
+            <Spinner />
+          </span>
+        ) : canAdd ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9 shrink-0 rounded-md border-dashed text-muted-foreground hover:text-foreground"
+            aria-label={L.add}
+            onClick={openFilePicker}
+          >
+            <PlusIcon />
+          </Button>
+        ) : (
+          <span className="size-9 shrink-0" aria-hidden />
+        )}
+        {fileInput}
+        {preview}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -124,7 +247,7 @@ export function ArchiveProofField({
       ))}
       {uploading && (
         <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground">
-          <Loader2Icon className="size-4 animate-spin" />
+          <Spinner />
         </span>
       )}
       {canAdd && layout === "row" && (
@@ -133,9 +256,9 @@ export function ArchiveProofField({
           variant="outline"
           size="sm"
           className="h-9 border-dashed text-muted-foreground hover:text-foreground"
-          onClick={() => inputRef.current?.click()}
+          onClick={openFilePicker}
         >
-          <PlusIcon className="size-4" />
+          <PlusIcon data-icon="inline-start" />
           {L.add}
         </Button>
       )}
@@ -148,62 +271,13 @@ export function ArchiveProofField({
             "size-9 shrink-0 rounded-md border-dashed text-muted-foreground hover:text-foreground",
           )}
           aria-label={L.add}
-          onClick={() => inputRef.current?.click()}
+          onClick={openFilePicker}
         >
-          <PlusIcon className="size-4" />
+          <PlusIcon />
         </Button>
       )}
-      <input
-        ref={inputRef}
-        type="file"
-        accept={ACCEPT}
-        multiple
-        className="sr-only"
-        disabled={uploading || readOnly}
-        onChange={(event) => {
-          void onPick(event.target.files);
-          event.target.value = "";
-        }}
-      />
-
-      <MediaPreviewDialog
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        items={value}
-        index={previewIndex}
-        onIndexChange={setPreviewIndex}
-        onRequestRemove={
-          readOnly
-            ? undefined
-            : (item) => {
-                void (async () => {
-                  const next = value.filter((m) => m.id !== item.id);
-                  try {
-                    await onChange(next);
-                  } catch (error) {
-                    handleError(error);
-                    return;
-                  }
-                  const nextIndex = Math.max(0, previewIndex - 1);
-                  if (value.length === 1) {
-                    setPreviewOpen(false);
-                  } else {
-                    setPreviewIndex(nextIndex);
-                  }
-                })();
-              }
-        }
-        labels={{
-          titleFallback: L.titleFallback,
-          counter: L.counter,
-          noItems: L.noPhotos,
-          previousAria: L.previousAria,
-          nextAria: L.nextAria,
-          closeAria: L.closeAria,
-          removeAria: L.removeAria,
-          nothingToPreview: L.nothingToPreview,
-        }}
-      />
+      {fileInput}
+      {preview}
     </div>
   );
 }
