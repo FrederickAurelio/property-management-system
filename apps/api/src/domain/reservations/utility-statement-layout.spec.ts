@@ -36,6 +36,6 @@ describe('utility-statement-layout', () => {
     expect(parseStatementIsoDate('2026-09-17')).toEqual(
       new Date(Date.UTC(2026, 8, 17, 12, 0, 0)),
     );
-    expect(formatStatementDateShort('2026-09-02')).toBe('02/09/26');
+    expect(formatStatementDateShort('2026-10-01')).toBe('01/10/26');
   });
 });

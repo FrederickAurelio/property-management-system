@@ -55,7 +55,7 @@ export function parseStatementIsoDate(iso: string): Date | string {
   );
 }
 
-/** Compact `dd/mm/yy` text for the narrow Tanggal column (avoids ###). */
+/** Compact `dd/mm/yy` text for B12 Tanggal (period end; avoids ###). */
 export function formatStatementDateShort(iso: string): string {
   const parsed = parseStatementIsoDate(iso);
   if (!(parsed instanceof Date)) {

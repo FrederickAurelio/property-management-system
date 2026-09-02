@@ -6,7 +6,7 @@ import {
   UTILITY_STATEMENT_HEADER_CELLS,
   UTILITY_STATEMENT_NAMES,
   UTILITY_STATEMENT_NOTE_SNIPPETS,
-  UTILITY_STATEMENT_RATE_NUM_FMT,
+  UTILITY_STATEMENT_PRINT_MARGINS_IN,
   UTILITY_STATEMENT_SECTION_LABELS,
 } from './utility-statement-cells.js';
 import {
@@ -20,6 +20,17 @@ import {
   writeUtilityStatementNamedFields,
   type UtilityStatementFillInput,
 } from './utility-statement-fill.js';
+
+function cellString(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value && typeof value === 'object' && 'richText' in value) {
+    const rich = value as { richText: ReadonlyArray<{ text: string }> };
+    return rich.richText.map((part) => part.text).join('');
+  }
+  return '';
+}
 
 function exampleInput(
   overrides: Partial<UtilityStatementFillInput> = {},
@@ -113,7 +124,7 @@ describe('utility-statement exceljs fill', () => {
       new Date(Date.UTC(2026, 5, 1, 12, 0, 0)),
     );
     expect(namedCell(wb, UTILITY_STATEMENT_NAMES.statementDate).value).toBe(
-      '02/09/26',
+      '01/06/26',
     );
     expect(namedCell(wb, UTILITY_STATEMENT_NAMES.elecStartKwh).value).toBe(
       1000,
@@ -125,6 +136,13 @@ describe('utility-statement exceljs fill', () => {
     expect(namedCell(wb, UTILITY_STATEMENT_NAMES.elecBilledKwh).value).toBe(52);
     expect(namedCell(wb, UTILITY_STATEMENT_NAMES.elecChargeKwh).value).toBe(52);
     expect(namedCell(wb, UTILITY_STATEMENT_NAMES.elecRate).value).toBe(1700);
+    expect(namedCell(wb, UTILITY_STATEMENT_NAMES.elecRate).numFmt).toBe(
+      '#,##0',
+    );
+    expect(namedCell(wb, UTILITY_STATEMENT_NAMES.waterRate).value).toBe(7_000);
+    expect(namedCell(wb, UTILITY_STATEMENT_NAMES.waterRate).numFmt).toBe(
+      '#,##0',
+    );
     expect(namedCell(wb, UTILITY_STATEMENT_NAMES.elecUsageAmount).value).toBe(
       Math.floor(52 * 1700),
     );
@@ -177,42 +195,48 @@ describe('utility-statement exceljs fill', () => {
       sheet.getCell(`${UTILITY_ADDON_ROW_LAYOUT.kindCol}${pjuRow}`).value ??
         null,
     ).toBeNull();
-    expect(sheet.getCell(`D${dueRow}`).alignment?.horizontal).toBe('left');
     expect(sheet.getCell(`J${dueRow}`).value).toBe(':');
     expect(sheet.getCell(`K${dueRow}`).value).toBe('Rp');
+    expect(sheet.getCell(`L${dueRow}`).isMerged).toBe(false);
   });
 
   it('matches original statement presentation after fill', async () => {
-    const wb = await fillUtilityStatementWorkbook(exampleInput());
+    const input = exampleInput();
+    const wb = await fillUtilityStatementWorkbook(input);
     const sheet = wb.getWorksheet('Sheet1') ?? wb.worksheets[0];
     const listrik = findRowByUniqueLabel(
       sheet,
       UTILITY_STATEMENT_SECTION_LABELS.electricity,
     );
+    expect(listrik).toBe(13);
     expect(sheet.getRow(listrik).hidden).toBeFalsy();
     expect(sheet.getRow(listrik + 1).hidden).toBeFalsy();
     expect(sheet.getRow(listrik + 2).hidden).toBeFalsy();
     expect(sheet.getRow(listrik + 3).hidden).toBe(true);
     expect(sheet.getRow(listrik + 4).hidden).toBe(true);
 
-    expect(namedCell(wb, UTILITY_STATEMENT_NAMES.waterRate).numFmt).toBe(
-      UTILITY_STATEMENT_RATE_NUM_FMT,
+    expect(namedCell(wb, UTILITY_STATEMENT_NAMES.waterRate).font?.name).toBe(
+      'Calibri',
     );
-    expect(sheet.getColumn('I').width).toBe(8);
+    const virgin = await openUtilityStatementWorkbook();
+    const virginSheet = virgin.getWorksheet('Sheet1') ?? virgin.worksheets[0];
+    expect(sheet.getColumn('G').width).toBe(virginSheet.getColumn('G').width);
+    expect(sheet.getColumn('I').width).toBe(virginSheet.getColumn('I').width);
+    expect(sheet.getColumn('M').width).toBe(virginSheet.getColumn('M').width);
+    expect(sheet.getRow(3).height).toBe(23.25);
+    expect(sheet.getCell('G3').font).toMatchObject({
+      name: 'Calibri',
+      size: 18,
+      bold: true,
+      underline: true,
+    });
     expect(sheet.getCell('I9').value ?? null).toBeNull();
     expect(sheet.getCell('K9').value ?? null).toBeNull();
-
-    const payRow = findRowByUniqueLabel(
-      sheet,
-      '- Pembayaran dapat ditransfer ke rekening berikut :',
-    );
-    expect(sheet.getCell(`D${payRow}`).alignment?.horizontal).toBe('left');
 
     const rekRow = findRowByUniqueLabel(sheet, 'No. Rek');
     expect(sheet.getCell(`F${rekRow}`).isMerged).toBe(true);
     expect(sheet.getCell(`D${rekRow}`).border?.bottom?.style).toBe('medium');
-    expect(sheet.getCell(`D${rekRow}`).border?.left?.style).toBe('medium');
-    expect(sheet.getCell(`L${rekRow}`).border?.right?.style).toBe('medium');
+    expect(sheet.getCell(`J${rekRow}`).border?.right?.style).toBe('medium');
 
     const caraRow = findRowContainingLabel(
       sheet,
@@ -220,34 +244,71 @@ describe('utility-statement exceljs fill', () => {
     );
     expect(sheet.getCell(`D${caraRow}`).border?.top?.style).toBe('medium');
     expect(sheet.getCell(`D${caraRow}`).border?.left?.style).toBe('medium');
-    expect(sheet.getCell(`F${caraRow - 1}`).border?.bottom).toBeUndefined();
 
     const jatuhRow = findRowContainingLabel(
       sheet,
       UTILITY_STATEMENT_NOTE_SNIPPETS.jatuhTempo,
     );
-    const jatuhValue = sheet.getCell(`D${jatuhRow}`).value;
-    expect(typeof jatuhValue).toBe('string');
+    const jatuhValue = cellString(sheet.getCell(`B${jatuhRow}`).value);
     expect(jatuhValue).toContain('Tanggal Jatuh tempo');
-    expect(sheet.getCell(`B${jatuhRow}`).value ?? null).toBeNull();
+
+    const catatanRow = findRowContainingLabel(
+      sheet,
+      UTILITY_STATEMENT_NOTE_SNIPPETS.catatan,
+    );
+    expect(sheet.getCell(`B${catatanRow}`).font).toMatchObject({
+      name: 'Calibri',
+      size: 9,
+      underline: true,
+    });
 
     const disconnectRow = findRowContainingLabel(
       sheet,
       UTILITY_STATEMENT_NOTE_SNIPPETS.disconnect,
     );
-    const disconnectValue = sheet.getCell(`D${disconnectRow}`).value;
-    expect(typeof disconnectValue).toBe('string');
+    const disconnectValue = cellString(
+      sheet.getCell(`B${disconnectRow}`).value,
+    );
     expect(disconnectValue).toContain('Apabila penghuni belum melunasi');
-    expect(sheet.getCell(`B${disconnectRow}`).value ?? null).toBeNull();
-    expect(sheet.getCell(`J${disconnectRow}`).border?.right).toBeUndefined();
-    expect(sheet.getCell(`J${jatuhRow}`).border?.right).toBeUndefined();
+    expect(sheet.getCell(`B${disconnectRow}`).font?.name).toBe('Calibri');
+    expect(sheet.getCell(`B${disconnectRow}`).font?.bold).toBe(true);
 
     const dueRow = findRowByUniqueLabel(
       sheet,
       UTILITY_STATEMENT_FOOTER_LABELS.due,
     );
     expect(sheet.getCell(`D${dueRow}`).isMerged).toBe(true);
-    expect(sheet.getCell(`D${dueRow}`).alignment?.horizontal).toBe('left');
+    expect(sheet.getCell(`D${dueRow}`).font?.name).toBe('Calibri');
+    expect(sheet.getCell(`D${dueRow}`).value).toBe(
+      UTILITY_STATEMENT_FOOTER_LABELS.due,
+    );
+    expect(sheet.getCell(`J${dueRow}`).value).toBe(':');
+    expect(sheet.getCell(`K${dueRow}`).value).toBe('Rp');
+    expect(sheet.getCell(`L${dueRow}`).value).toBe(
+      input.periodSubtotalIdr + input.adminAmountIdr,
+    );
+    expect(sheet.getCell(`L${dueRow}`).isMerged).toBe(false);
+    expect(sheet.getCell(`L${dueRow}`).numFmt).toBe('#,##0.00');
+    expect(sheet.getCell(`L${dueRow}`).font).toMatchObject({
+      name: 'Calibri',
+      size: 12,
+      bold: true,
+    });
+    expect(sheet.getCell(`L${dueRow}`).alignment?.horizontal).toBe('center');
+    expect(sheet.pageSetup.fitToPage).toBe(true);
+    expect(sheet.pageSetup.fitToHeight).toBe(1);
+    expect(sheet.pageSetup.margins?.left).toBe(
+      UTILITY_STATEMENT_PRINT_MARGINS_IN.left,
+    );
+    expect(sheet.pageSetup.margins?.right).toBe(
+      UTILITY_STATEMENT_PRINT_MARGINS_IN.right,
+    );
+    expect(sheet.pageSetup.margins?.top).toBe(
+      UTILITY_STATEMENT_PRINT_MARGINS_IN.top,
+    );
+    expect(sheet.pageSetup.margins?.bottom).toBe(
+      UTILITY_STATEMENT_PRINT_MARGINS_IN.bottom,
+    );
   });
 
   it('period subtotal excludes admin', async () => {
@@ -272,5 +333,12 @@ describe('utility-statement exceljs fill', () => {
     expect(
       sheet.getCell(`${UTILITY_STATEMENT_AMOUNT_COLUMN}${periodRow}`).value,
     ).not.toBe(elecKindTotal + 50_000 + 99_000);
+    const dueRow = findRowByUniqueLabel(
+      sheet,
+      UTILITY_STATEMENT_FOOTER_LABELS.due,
+    );
+    expect(
+      sheet.getCell(`${UTILITY_STATEMENT_AMOUNT_COLUMN}${dueRow}`).value,
+    ).toBe(elecKindTotal + 50_000 + 99_000);
   });
 });

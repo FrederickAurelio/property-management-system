@@ -21,10 +21,13 @@
  *    elec + water + maintenance, not Admin. Due = period subtotal + Admin
  *    (utilities-only; no rent / stay Paid line).
  *
- * Styling is cloned from `apps/pms/utilities-template.xlsx` (left statement):
- * medium outer box, boxed unit code, accounting formats, underlines.
- * Virgin footer names exist for preview only. Do not treat `$L$37` as stable
- * after add-on expansion.
+ * Styling lives in `apps/api/assets/utility-statement.xlsx` (hand-edited).
+ * Do not regenerate that file from an external Utilities.xlsx. Due label is
+ * merged D:I so "adalah" is not clipped by the colon, colon in J, due amount
+ * in L only (no L:M merge). Compact `#,##0.00` so 12pt does not ###.
+ * Amounts keep template alignment (center / accounting). Fill writes values
+ * and re-applies the due merge after add-on expansion. Virgin footer names
+ * exist for preview only. Do not treat `$L$35` as stable after add-on expansion.
  */
 
 export const UTILITY_STATEMENT_SHEET = 'Sheet1';
@@ -38,6 +41,9 @@ export const UTILITY_STATEMENT_IDR_NUM_FMT =
 
 /** Compact thousands format for Rp/kWh and Rp/m3 — accounting pads overflow column I as ###. */
 export const UTILITY_STATEMENT_RATE_NUM_FMT = '#,##0';
+
+/** Due amount in L only — accounting pads + 12pt overflow as ###. */
+export const UTILITY_STATEMENT_DUE_NUM_FMT = '#,##0.00';
 
 /** Header boxed cells (not single-cell defined names). */
 export const UTILITY_STATEMENT_HEADER_CELLS = {
@@ -58,7 +64,7 @@ export const UTILITY_STATEMENT_NAMES = {
   periodStart: 'PeriodStart',
   periodEnd: 'PeriodEnd',
   billingNo: 'BillingNo', // legacy; fill uses UTILITY_STATEMENT_HEADER_CELLS
-  statementDate: 'StatementDate',
+  statementDate: 'StatementDate', // B12 Tanggal = period end (F8), not today
   maintenanceAmount: 'MaintenanceAmount',
   elecStartKwh: 'ElecStartKwh',
   elecEndKwh: 'ElecEndKwh',
@@ -98,7 +104,7 @@ export const UTILITY_ADDON_ROW_LAYOUT = {
 export const UTILITY_STATEMENT_FOOTER_LABELS = {
   periodSubtotal: 'Tagihan Bulan ini',
   admin: 'Admin',
-  /** Label is D:I (merged, left). Colon in J, "Rp" in K, amount in L. */
+  /** Label is D:I (merged). Colon in J, "Rp" in K, amount in L. */
   due: 'Tagihan yang harus dibayar saat ini adalah',
 } as const;
 
@@ -109,7 +115,7 @@ export const UTILITY_STATEMENT_SECTION_LABELS = {
   hasilAkhir: 'Hasil Akhir Tagihan :',
 } as const;
 
-/** Footer notes / payment box — indent in column D (not B against the outer frame). */
+/** Footer notes live in column B (original overflow). Payment box is D–J. */
 export const UTILITY_STATEMENT_NOTE_SNIPPETS = {
   catatan: 'Catatan :',
   jatuhTempo: 'Tanggal Jatuh tempo',
@@ -120,6 +126,20 @@ export const UTILITY_STATEMENT_NOTE_SNIPPETS = {
   unpaidIfNoProof: 'Jika tidak mengirim bukti pembayaran',
   caraPembayaran: 'Cara Pembayaran',
   payTransfer: '- Pembayaran dapat ditransfer ke rekening berikut :',
+} as const;
+
+/**
+ * Print margins (inches) on the hand-edited template.
+ * Keep these on the sheet so LibreOffice PDF / paper print leaves the
+ * payment-box border inside the printable area (not flush to the page edge).
+ */
+export const UTILITY_STATEMENT_PRINT_MARGINS_IN = {
+  left: 0.7,
+  right: 0.7,
+  top: 0.75,
+  bottom: 0.75,
+  header: 0.3,
+  footer: 0.3,
 } as const;
 
 /**

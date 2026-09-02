@@ -72,7 +72,7 @@ describe('GotenbergPdfConvertAdapter', () => {
   it('returns PDF bytes on 200', async () => {
     process.env.GOTENBERG_URL = 'http://127.0.0.1:3001';
     const pdf = Buffer.from('%PDF-1.4 fake');
-    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(pdf, {
         status: 200,
         headers: { 'Content-Type': 'application/pdf' },
@@ -81,5 +81,9 @@ describe('GotenbergPdfConvertAdapter', () => {
 
     const out = await adapter.convertXlsxToPdf(xlsx);
     expect(out.equals(pdf)).toBe(true);
+    const init = fetchSpy.mock.calls[0]?.[1];
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect((init?.body as FormData).get('exportFormFields')).toBe('false');
+    expect((init?.body as FormData).get('singlePageSheets')).toBeNull();
   });
 });

@@ -1,17 +1,11 @@
-import {
-  Workbook,
-  type Borders,
-  type Cell,
-  type CellValue,
-  type Worksheet,
-} from 'exceljs';
+import { Workbook, type Cell, type CellValue, type Worksheet } from 'exceljs';
 import { UtilityAddonKind, type UtilityAddonLine } from '@cabin/api-contract';
 import {
   UTILITY_ADDON_ROW_LAYOUT,
   UTILITY_STATEMENT_AMOUNT_COLUMN,
+  UTILITY_STATEMENT_DUE_NUM_FMT,
   UTILITY_STATEMENT_FOOTER_LABELS,
   UTILITY_STATEMENT_HEADER_CELLS,
-  UTILITY_STATEMENT_IDR_NUM_FMT,
   UTILITY_STATEMENT_NAMES,
   UTILITY_STATEMENT_NOTE_SNIPPETS,
   UTILITY_STATEMENT_RATE_NUM_FMT,
@@ -23,6 +17,7 @@ import {
   parseBillingNoForStatement,
   parseStatementIsoDate,
   parseUnitCodeForStatement,
+  utilityStatementAmountDueIdr,
 } from './utility-statement-layout.js';
 import { utilityStatementTemplatePath } from './utility-statement-path.js';
 
@@ -97,79 +92,19 @@ function writeNamed(wb: Workbook, name: string, value: CellValue): void {
   namedCell(wb, name).value = value;
 }
 
-function cloneCellChrome(cell: Cell): {
-  font?: Cell['font'];
-  border?: Cell['border'];
-  fill?: Cell['fill'];
-} {
-  return {
-    font: cell.font ? { ...cell.font } : undefined,
-    border: cell.border
-      ? (JSON.parse(JSON.stringify(cell.border)) as Cell['border'])
-      : undefined,
-    fill: cell.fill
-      ? (JSON.parse(JSON.stringify(cell.fill)) as Cell['fill'])
-      : undefined,
-  };
-}
-
-function assignIsolatedStyle(
-  cell: Cell,
-  extras: {
-    numFmt: string;
-    alignment: NonNullable<Cell['alignment']>;
-  },
-): void {
-  cell.style = {
-    ...cloneCellChrome(cell),
-    numFmt: extras.numFmt,
-    alignment: extras.alignment,
-  };
-}
-
-/** Standard IDR amount cell — thousands separators, right-aligned in column L. */
+/** Write an amount without touching the template font / alignment / numFmt. */
 export function writeIdrAmount(cell: Cell, value: number): void {
   cell.value = value;
-  assignIsolatedStyle(cell, {
-    numFmt: UTILITY_STATEMENT_IDR_NUM_FMT,
-    alignment: { vertical: 'middle', horizontal: 'right', wrapText: false },
-  });
-}
-
-function writeRateAmount(cell: Cell, value: number): void {
-  cell.value = value;
-  assignIsolatedStyle(cell, {
-    numFmt: UTILITY_STATEMENT_RATE_NUM_FMT,
-    alignment: { vertical: 'middle', horizontal: 'right', wrapText: false },
-  });
-}
-
-function writeTextLeft(cell: Cell, value: CellValue, wrapText = false): void {
-  cell.value = value;
-  assignIsolatedStyle(cell, {
-    numFmt: '@',
-    alignment: { vertical: 'middle', horizontal: 'left', wrapText },
-  });
-}
-
-function writeTextCenter(cell: Cell, value: CellValue): void {
-  cell.value = value;
-  assignIsolatedStyle(cell, {
-    numFmt: '@',
-    alignment: { vertical: 'middle', horizontal: 'center', wrapText: false },
-  });
-}
-
-function tryUnmerge(sheet: Worksheet, range: string): void {
-  try {
-    sheet.unMergeCells(range);
-  } catch {
-    // not merged
-  }
 }
 
 function writeNamedIdrAmount(wb: Workbook, name: string, value: number): void {
   writeIdrAmount(namedCell(wb, name), value);
+}
+
+function writeNamedRate(wb: Workbook, name: string, value: number): void {
+  const cell = namedCell(wb, name);
+  cell.value = value;
+  cell.numFmt = UTILITY_STATEMENT_RATE_NUM_FMT;
 }
 
 function cellText(value: CellValue): string {
@@ -246,19 +181,16 @@ function writeAddonRow(
   line: UtilityAddonLine,
 ): void {
   const row = sheet.getRow(rowNumber);
-  writeTextLeft(row.getCell(UTILITY_ADDON_ROW_LAYOUT.nameCol), line.name);
+  row.getCell(UTILITY_ADDON_ROW_LAYOUT.nameCol).value = line.name;
   // Leave E empty so long names overflow instead of clipping at the colon.
   row.getCell('E').value = null;
   if (line.kind === UtilityAddonKind.PERCENT) {
     row.getCell(UTILITY_ADDON_ROW_LAYOUT.kindCol).value = null;
     const rateCell = row.getCell(UTILITY_ADDON_ROW_LAYOUT.rateCol);
     rateCell.value = line.value / 100;
-    assignIsolatedStyle(rateCell, {
-      numFmt: '0%',
-      alignment: { vertical: 'middle', horizontal: 'right', wrapText: false },
-    });
+    rateCell.numFmt = '0%';
   } else {
-    writeTextCenter(row.getCell(UTILITY_ADDON_ROW_LAYOUT.kindCol), 'konstan');
+    row.getCell(UTILITY_ADDON_ROW_LAYOUT.kindCol).value = 'konstan';
     row.getCell(UTILITY_ADDON_ROW_LAYOUT.rateCol).value = null;
   }
   writeIdrAmount(
@@ -339,9 +271,10 @@ export function writeUtilityStatementNamedFields(
     UTILITY_STATEMENT_NAMES.periodEnd,
     parseStatementIsoDate(input.periodEnd),
   );
-  writeTextLeft(
-    namedCell(wb, UTILITY_STATEMENT_NAMES.statementDate),
-    formatStatementDateShort(input.statementDate),
+  writeNamed(
+    wb,
+    UTILITY_STATEMENT_NAMES.statementDate,
+    formatStatementDateShort(input.periodEnd),
   );
   writeNamedIdrAmount(
     wb,
@@ -357,10 +290,7 @@ export function writeUtilityStatementNamedFields(
   );
   writeNamed(wb, UTILITY_STATEMENT_NAMES.elecBilledKwh, input.elecBilledKwh);
   writeNamed(wb, UTILITY_STATEMENT_NAMES.elecChargeKwh, input.elecBilledKwh);
-  writeRateAmount(
-    namedCell(wb, UTILITY_STATEMENT_NAMES.elecRate),
-    input.elecRate,
-  );
+  writeNamedRate(wb, UTILITY_STATEMENT_NAMES.elecRate, input.elecRate);
   writeNamedIdrAmount(
     wb,
     UTILITY_STATEMENT_NAMES.elecUsageAmount,
@@ -369,10 +299,7 @@ export function writeUtilityStatementNamedFields(
   writeNamed(wb, UTILITY_STATEMENT_NAMES.waterStartM3, input.waterStartM3);
   writeNamed(wb, UTILITY_STATEMENT_NAMES.waterEndM3, input.waterEndM3);
   writeNamed(wb, UTILITY_STATEMENT_NAMES.waterUsage, input.waterUsage);
-  writeRateAmount(
-    namedCell(wb, UTILITY_STATEMENT_NAMES.waterRate),
-    input.waterRate,
-  );
+  writeNamedRate(wb, UTILITY_STATEMENT_NAMES.waterRate, input.waterRate);
   writeNamedIdrAmount(
     wb,
     UTILITY_STATEMENT_NAMES.waterUsageAmount,
@@ -449,11 +376,6 @@ export function writeUtilityStatementFooter(
     sheet,
     UTILITY_STATEMENT_FOOTER_LABELS.periodSubtotal,
   );
-  writeTextLeft(
-    sheet.getCell(`D${periodRow}`),
-    UTILITY_STATEMENT_FOOTER_LABELS.periodSubtotal,
-  );
-  writeTextCenter(sheet.getCell(`K${periodRow}`), ':');
   writeIdrAmount(
     sheet.getCell(`${UTILITY_STATEMENT_AMOUNT_COLUMN}${periodRow}`),
     input.periodSubtotalIdr,
@@ -463,11 +385,6 @@ export function writeUtilityStatementFooter(
     sheet,
     UTILITY_STATEMENT_FOOTER_LABELS.admin,
   );
-  writeTextLeft(
-    sheet.getCell(`D${adminRow}`),
-    UTILITY_STATEMENT_FOOTER_LABELS.admin,
-  );
-  writeTextCenter(sheet.getCell(`K${adminRow}`), ':');
   writeIdrAmount(
     sheet.getCell(`${UTILITY_STATEMENT_AMOUNT_COLUMN}${adminRow}`),
     input.adminAmountIdr,
@@ -477,31 +394,96 @@ export function writeUtilityStatementFooter(
     sheet,
     UTILITY_STATEMENT_FOOTER_LABELS.due,
   );
-  styleDueAmountRow(sheet, dueRow, input.dueAmountIdr);
+  layoutDueAmountRow(
+    sheet,
+    dueRow,
+    utilityStatementAmountDueIdr({
+      periodSubtotalIdr: input.periodSubtotalIdr,
+      adminAmountIdr: input.adminAmountIdr,
+    }),
+  );
 }
 
-function styleDueAmountRow(
+function cloneFont(cell: Cell): Cell['font'] | undefined {
+  return cell.font ? { ...cell.font } : undefined;
+}
+
+/**
+ * Full "adalah" in D:I so H's colon cannot clip it to "adal:".
+ * Colon stays Calibri in J; Rp / amount keep template chrome.
+ */
+function layoutDueAmountRow(
   sheet: Worksheet,
   rowNumber: number,
   amount: number,
 ): void {
+  const dueCell = sheet.getCell(`D${rowNumber}`);
+  const dueFont = cloneFont(dueCell);
+  const colonFont =
+    cloneFont(sheet.getCell(`J${rowNumber}`)) ??
+    cloneFont(sheet.getCell(`H${rowNumber}`));
   tryUnmerge(sheet, `D${rowNumber}:J${rowNumber}`);
-  tryUnmerge(sheet, `D${rowNumber}:G${rowNumber}`);
   tryUnmerge(sheet, `D${rowNumber}:I${rowNumber}`);
-  for (const col of ['E', 'F', 'G', 'H', 'I']) {
+  tryUnmerge(sheet, `D${rowNumber}:G${rowNumber}`);
+  for (const col of ['E', 'F', 'G', 'H', 'I'] as const) {
     sheet.getCell(`${col}${rowNumber}`).value = null;
   }
   sheet.mergeCells(`D${rowNumber}:I${rowNumber}`);
-  writeTextLeft(
-    sheet.getCell(`D${rowNumber}`),
-    UTILITY_STATEMENT_FOOTER_LABELS.due,
-  );
-  writeTextCenter(sheet.getCell(`J${rowNumber}`), ':');
-  writeTextLeft(sheet.getCell(`K${rowNumber}`), 'Rp');
+  dueCell.value = UTILITY_STATEMENT_FOOTER_LABELS.due;
+  if (dueFont) {
+    dueCell.font = dueFont;
+  }
+  const colonCell = sheet.getCell(`J${rowNumber}`);
+  colonCell.value = ':';
+  if (colonFont) {
+    colonCell.font = colonFont;
+  }
   writeIdrAmount(
     sheet.getCell(`${UTILITY_STATEMENT_AMOUNT_COLUMN}${rowNumber}`),
     amount,
   );
+  tryUnmerge(sheet, `L${rowNumber}:M${rowNumber}`);
+  sheet.getCell(`M${rowNumber}`).value = null;
+  const amountCell = sheet.getCell(
+    `${UTILITY_STATEMENT_AMOUNT_COLUMN}${rowNumber}`,
+  );
+  amountCell.numFmt = UTILITY_STATEMENT_DUE_NUM_FMT;
+}
+
+function tryUnmerge(sheet: Worksheet, range: string): void {
+  try {
+    sheet.unMergeCells(range);
+  } catch {
+    // not merged
+  }
+}
+
+/** exceljs spliceRows does not rewrite F:I on the No. Rek row. */
+function restoreAccountNumberMerge(sheet: Worksheet): void {
+  const rekRow = findRowByUniqueLabel(sheet, 'No. Rek');
+  if (sheet.getCell(`F${rekRow}`).isMerged) {
+    return;
+  }
+  tryUnmerge(sheet, `F${rekRow}:I${rekRow}`);
+  const account = sheet.getCell(`F${rekRow}`).value;
+  for (const col of ['G', 'H', 'I'] as const) {
+    sheet.getCell(`${col}${rekRow}`).value = null;
+  }
+  sheet.getCell(`F${rekRow}`).value = account;
+  sheet.mergeCells(`F${rekRow}:I${rekRow}`);
+}
+
+function fitStatementToOnePage(sheet: Worksheet): void {
+  const lastNoteRow = findRowContainingLabel(
+    sheet,
+    UTILITY_STATEMENT_NOTE_SNIPPETS.unpaidIfNoProof,
+  );
+  sheet.pageSetup.fitToPage = true;
+  sheet.pageSetup.fitToWidth = 1;
+  sheet.pageSetup.fitToHeight = 1;
+  sheet.pageSetup.orientation = 'portrait';
+  sheet.pageSetup.paperSize = 9;
+  sheet.pageSetup.printArea = `A2:M${lastNoteRow}`;
 }
 
 function restoreMeterBlockVisibility(sheet: Worksheet): void {
@@ -516,245 +498,17 @@ function restoreMeterBlockVisibility(sheet: Worksheet): void {
   sheet.getRow(listrik + 4).hidden = true;
 }
 
-const MEDIUM_EDGE = { style: 'medium' as const };
-const DOUBLE_EDGE = { style: 'double' as const };
-
-function setIsolatedBorder(cell: Cell, border: Partial<Borders>): void {
-  const cloned = JSON.parse(JSON.stringify(border)) as Partial<Borders>;
-  cell.style = {
-    ...cloneCellChrome(cell),
-    numFmt: cell.numFmt ?? '@',
-    alignment: cell.alignment ?? {
-      vertical: 'middle',
-      horizontal: 'left',
-      wrapText: false,
-    },
-    border: cloned,
-  };
-}
-
-function clearInnerBorder(cell: Cell): void {
-  cell.border = {};
-}
-
-function relocateNoteToContentColumn(
-  sheet: Worksheet,
-  snippet: string,
-): number {
-  const rowNumber = findRowContainingLabel(sheet, snippet);
-  const fromB = cellText(sheet.getCell(`B${rowNumber}`).value);
-  const fromD = cellText(sheet.getCell(`D${rowNumber}`).value);
-  const text = fromD.includes(snippet) ? fromD : fromB;
-  tryUnmerge(sheet, `D${rowNumber}:L${rowNumber}`);
-  writeTextLeft(sheet.getCell(`D${rowNumber}`), text, true);
-  sheet.getCell(`B${rowNumber}`).value = null;
-  clearInnerBorder(sheet.getCell(`B${rowNumber}`));
-  for (const col of ['C', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']) {
-    const cell = sheet.getCell(`${col}${rowNumber}`);
-    if (cellText(cell.value) === text) {
-      cell.value = null;
-    }
-    clearInnerBorder(cell);
-  }
-  sheet.mergeCells(`D${rowNumber}:L${rowNumber}`);
-  if (text.length > 70) {
-    sheet.getRow(rowNumber).height = 32;
-  }
-  setIsolatedBorder(sheet.getCell(`A${rowNumber}`), { left: MEDIUM_EDGE });
-  setIsolatedBorder(sheet.getCell(`M${rowNumber}`), { right: MEDIUM_EDGE });
-  return rowNumber;
-}
-
-function paintPaymentBox(
-  sheet: Worksheet,
-  titleRow: number,
-  lastRow: number,
-): void {
-  const boxCols = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as const;
-  if (titleRow > 1) {
-    for (const col of boxCols) {
-      const above = sheet.getCell(`${col}${titleRow - 1}`);
-      if (above.border?.bottom) {
-        const next = { ...(above.border ?? {}) };
-        delete next.bottom;
-        setIsolatedBorder(above, next);
-      }
-    }
-  }
-  for (let rowNumber = titleRow; rowNumber <= lastRow; rowNumber++) {
-    clearInnerBorder(sheet.getCell(`C${rowNumber}`));
-    const isTitle = rowNumber === titleRow;
-    const isLast = rowNumber === lastRow;
-    for (const col of boxCols) {
-      const left = col === 'D';
-      const right = col === 'L';
-      setIsolatedBorder(sheet.getCell(`${col}${rowNumber}`), {
-        left: left ? MEDIUM_EDGE : undefined,
-        right: right ? MEDIUM_EDGE : undefined,
-        top: isTitle ? MEDIUM_EDGE : undefined,
-        bottom: isLast ? MEDIUM_EDGE : undefined,
-      });
-    }
-  }
-  sheet.getRow(lastRow).height = 22;
-}
-
-function clearPaymentBoxWallsBelow(
-  sheet: Worksheet,
-  boxLastRow: number,
-  lastNoteRow: number,
-): void {
-  for (let rowNumber = boxLastRow + 1; rowNumber <= lastNoteRow; rowNumber++) {
-    for (const col of ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']) {
-      const cell = sheet.getCell(`${col}${rowNumber}`);
-      const next = { ...(cell.border ?? {}) };
-      delete next.left;
-      delete next.right;
-      delete next.top;
-      if (rowNumber !== lastNoteRow) {
-        delete next.bottom;
-      }
-      setIsolatedBorder(cell, next);
-    }
-    setIsolatedBorder(sheet.getCell(`A${rowNumber}`), { left: MEDIUM_EDGE });
-    setIsolatedBorder(sheet.getCell(`M${rowNumber}`), { right: MEDIUM_EDGE });
-  }
-}
-
-function restoreOuterFrame(
-  sheet: Worksheet,
-  fromRow: number,
-  toRow: number,
-): void {
-  for (let rowNumber = fromRow; rowNumber <= toRow; rowNumber++) {
-    const leftCell = sheet.getCell(`A${rowNumber}`);
-    const rightCell = sheet.getCell(`M${rowNumber}`);
-    setIsolatedBorder(leftCell, {
-      ...(leftCell.border ?? {}),
-      left: MEDIUM_EDGE,
-    });
-    setIsolatedBorder(rightCell, {
-      ...(rightCell.border ?? {}),
-      right: MEDIUM_EDGE,
-    });
-  }
-}
-
-function trimOuterFrameBelowNotes(sheet: Worksheet, lastNoteRow: number): void {
-  for (const col of [
-    'A',
-    'B',
-    'C',
-    'D',
-    'E',
-    'F',
-    'G',
-    'H',
-    'I',
-    'J',
-    'K',
-    'L',
-    'M',
-  ]) {
-    const cell = sheet.getCell(`${col}${lastNoteRow}`);
-    const left = col === 'A' ? MEDIUM_EDGE : undefined;
-    const right = col === 'M' ? MEDIUM_EDGE : undefined;
-    setIsolatedBorder(cell, {
-      left,
-      right,
-      bottom: DOUBLE_EDGE,
-    });
-  }
-  for (
-    let rowNumber = lastNoteRow + 1;
-    rowNumber <= lastNoteRow + 3;
-    rowNumber++
-  ) {
-    for (const col of [
-      'A',
-      'B',
-      'C',
-      'D',
-      'E',
-      'F',
-      'G',
-      'H',
-      'I',
-      'J',
-      'K',
-      'L',
-      'M',
-    ]) {
-      clearInnerBorder(sheet.getCell(`${col}${rowNumber}`));
-    }
-  }
-  sheet.pageSetup.printArea = `A2:M${lastNoteRow}`;
-}
-
-function repairPaymentAndAccount(sheet: Worksheet): void {
-  const noteSnippets = [
-    UTILITY_STATEMENT_NOTE_SNIPPETS.catatan,
-    UTILITY_STATEMENT_NOTE_SNIPPETS.jatuhTempo,
-    UTILITY_STATEMENT_NOTE_SNIPPETS.disconnect,
-    UTILITY_STATEMENT_NOTE_SNIPPETS.computerPrint,
-    UTILITY_STATEMENT_NOTE_SNIPPETS.rekeningOnly,
-    UTILITY_STATEMENT_NOTE_SNIPPETS.transferProof,
-    UTILITY_STATEMENT_NOTE_SNIPPETS.unpaidIfNoProof,
-  ];
-  let lastNoteRow = 0;
-  for (const snippet of noteSnippets) {
-    lastNoteRow = Math.max(
-      lastNoteRow,
-      relocateNoteToContentColumn(sheet, snippet),
-    );
-  }
-
-  const titleRow = findRowContainingLabel(
-    sheet,
-    UTILITY_STATEMENT_NOTE_SNIPPETS.caraPembayaran,
-  );
-  const rekRow = findRowByUniqueLabel(sheet, 'No. Rek');
-
-  writeTextLeft(
-    sheet.getCell(`E${titleRow}`),
-    cellText(sheet.getCell(`E${titleRow}`).value) || ': ',
-  );
-
-  const payRow = findRowByUniqueLabel(
-    sheet,
-    UTILITY_STATEMENT_NOTE_SNIPPETS.payTransfer,
-  );
-  writeTextLeft(
-    sheet.getCell(`D${payRow}`),
-    UTILITY_STATEMENT_NOTE_SNIPPETS.payTransfer,
-  );
-
-  tryUnmerge(sheet, `F${rekRow}:I${rekRow}`);
-  const account = sheet.getCell(`F${rekRow}`).value;
-  for (const col of ['G', 'H', 'I']) {
-    sheet.getCell(`${col}${rekRow}`).value = null;
-  }
-  writeTextLeft(sheet.getCell(`F${rekRow}`), account);
-  sheet.mergeCells(`F${rekRow}:I${rekRow}`);
-  paintPaymentBox(sheet, titleRow, rekRow);
-  clearPaymentBoxWallsBelow(sheet, rekRow, lastNoteRow);
-  restoreOuterFrame(sheet, 2, lastNoteRow);
-
-  trimOuterFrameBelowNotes(sheet, lastNoteRow);
-}
-
 export async function fillUtilityStatementWorkbook(
   input: UtilityStatementFillInput,
 ): Promise<Workbook> {
   const wb = await openUtilityStatementWorkbook();
   const sheet = sheetOf(wb);
-  sheet.getColumn('G').width = 4;
-  sheet.getColumn('I').width = 8;
   writeUtilityStatementNamedFields(wb, input);
   restoreMeterBlockVisibility(sheet);
   expandUtilityStatementAddonRows(wb, input);
   writeUtilityStatementFooter(wb, input);
-  repairPaymentAndAccount(sheetOf(wb));
+  restoreAccountNumberMerge(sheet);
+  fitStatementToOnePage(sheet);
   return wb;
 }
 
