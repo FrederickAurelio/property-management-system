@@ -5,6 +5,7 @@
 @import "@fontsource-variable/geist-mono";
 @import "@cabin/ui-tokens/tokens.css";
 @import "@cabin/ui-tokens/theme.css";
+@import "@cabin/ui-tokens/scrollbars.css";
 
 @custom-variant dark (&:is(.dark *));
 
