@@ -15,7 +15,9 @@
   "grid": {
     "unitColumn": "Unit",
     "maintenance": "Perbaikan",
-    "off": "Nonaktif"
+    "off": "Nonaktif",
+    "expandGroup": "Buka {{name}}",
+    "collapseGroup": "Tutup {{name}}"
   },
   "stayBar": {
     "needsDetails": "Perlu detail ({{source}})",

@@ -184,7 +184,7 @@ export function CalendarPage() {
       : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 p-4 md:p-6">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-2 p-4 md:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">
@@ -299,7 +299,9 @@ export function CalendarPage() {
       {propertyId && calendarQuery.isLoading && (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-64 w-full" />
+          <Skeleton
+            className="h-[min(480px,calc(100svh-17rem))] w-full md:h-[min(480px,calc(100svh-13rem))]"
+          />
         </div>
       )}
 
@@ -313,6 +315,8 @@ export function CalendarPage() {
 
       {calendarQuery.data && (
         <CalendarGrid
+          key={`${calendarQuery.data.propertyId}-${calendarQuery.data.from}-${calendarQuery.data.to}`}
+          className="max-h-[calc(100svh-17rem)] md:max-h-[calc(100svh-13rem)]"
           data={calendarQuery.data}
           todayYmd={today}
           onStayClick={onStayClick}

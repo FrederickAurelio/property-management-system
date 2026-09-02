@@ -15,7 +15,9 @@
   "grid": {
     "unitColumn": "Unit",
     "maintenance": "Maint.",
-    "off": "Off"
+    "off": "Off",
+    "expandGroup": "Expand {{name}}",
+    "collapseGroup": "Collapse {{name}}"
   },
   "stayBar": {
     "needsDetails": "Needs details ({{source}})",
