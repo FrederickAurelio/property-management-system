@@ -81,6 +81,8 @@ type UnitInventoryPickerProps = {
   initialUnitId?: string;
   /** Editing: ignore this reservation for DATE_OVERLAP. */
   excludeReservationId?: string;
+  /** Editing a calendar block: ignore that block for DATE_OVERLAP. */
+  excludeBlockId?: string;
 };
 
 function unitLabel(unit: Pick<StaffUnit, "code" | "name">): string {
@@ -159,6 +161,7 @@ export function UnitInventoryPicker({
   initialUnitTypeName = "",
   initialUnitId = "",
   excludeReservationId,
+  excludeBlockId,
 }: UnitInventoryPickerProps) {
   const { t } = useTranslation(["reservations", "common"]);
   const view: ExplorerView = "list";
@@ -228,12 +231,14 @@ export function UnitInventoryPicker({
       ...(datesReady ? { checkInDate, checkOutDate, billingPeriod } : {}),
       unitTypeId,
       ...(excludeReservationId ? { excludeReservationId } : {}),
+      ...(excludeBlockId ? { excludeBlockId } : {}),
     }),
     queryFn: () =>
       listAvailableUnits(propertyId, {
         ...(datesReady ? { checkInDate, checkOutDate, billingPeriod } : {}),
         unitTypeId,
         ...(excludeReservationId ? { excludeReservationId } : {}),
+        ...(excludeBlockId ? { excludeBlockId } : {}),
       }),
     enabled:
       open && layer === "units" && Boolean(propertyId) && Boolean(unitTypeId),

@@ -46,4 +46,9 @@ export class UnitMonthOccupancyQueryDto {
   @IsOptional()
   @IsString()
   excludeReservationId?: string;
+
+  /** When editing a calendar block, ignore that block in occupancy. */
+  @IsOptional()
+  @IsString()
+  excludeBlockId?: string;
 }

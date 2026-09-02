@@ -242,8 +242,9 @@ export function CalendarBlockSheet({
     : undefined;
 
   const extraOccupancyBlocks = useMemo(
-    () => occupancyExtrasForUnit(calendar, chosen?.unitId ?? unitId),
-    [calendar, chosen?.unitId, unitId],
+    () =>
+      occupancyExtrasForUnit(calendar, chosen?.unitId ?? unitId, block?.id),
+    [calendar, chosen?.unitId, unitId, block?.id],
   );
 
   const saveMutation = useMutation({
@@ -494,6 +495,7 @@ export function CalendarBlockSheet({
           initialUnitTypeId={chosen?.unitTypeId ?? ""}
           initialUnitTypeName={chosen?.unitTypeName ?? ""}
           initialUnitId={chosen?.unitId ?? ""}
+          excludeBlockId={block?.id}
           onConfirm={(next) => {
             setPicked(next);
             form.setValue("unitId", next.unitId, {

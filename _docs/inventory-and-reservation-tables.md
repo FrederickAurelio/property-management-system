@@ -660,7 +660,7 @@ Returns **all** matching units as `StaffUnitAvailability[]` (`StaffUnit` + `avai
 
 `blockReason` priority: `PROPERTY_INACTIVE` → `UNIT_TYPE_INACTIVE` → `UNIT_NOT_BOOKABLE` → `DATE_OVERLAP`.
 
-Unit POV (date picker): `GET /staff/units/:unitId/occupancy?yearMonth=YYYY-MM&excludeReservationId?` → `UnitMonthOccupancy` (busy `blocks` overlapping that month — stay ends use `inventoryEndDate`). PMS loads visible months (1–2), keeps prior months in the query cache as staff pages the calendar, and disables booked nights (exclusive busy end).
+Unit POV (date picker): `GET /staff/units/:unitId/occupancy?yearMonth=YYYY-MM&excludeReservationId?&excludeBlockId?` → `UnitMonthOccupancy` (busy `blocks` overlapping that month — stay ends use `inventoryEndDate`). Edit stay/block pickers pass the matching exclude so the current row is not painted busy. PMS loads visible months (1–2), keeps prior months in the query cache as staff pages the calendar, and disables booked nights (exclusive busy end).
 
 Type-level “how many left” for night D:
 

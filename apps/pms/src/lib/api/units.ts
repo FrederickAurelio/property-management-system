@@ -97,6 +97,7 @@ export async function getUnitMonthOccupancy(
     from?: string;
     to?: string;
     excludeReservationId?: string;
+    excludeBlockId?: string;
   },
 ): Promise<UnitMonthOccupancy> {
   const { data } = await api.get<UnitMonthOccupancy>(
@@ -109,6 +110,9 @@ export async function getUnitMonthOccupancy(
           : {}),
         ...(params.excludeReservationId
           ? { excludeReservationId: params.excludeReservationId }
+          : {}),
+        ...(params.excludeBlockId
+          ? { excludeBlockId: params.excludeBlockId }
           : {}),
       },
     },

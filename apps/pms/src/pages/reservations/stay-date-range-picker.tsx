@@ -290,6 +290,7 @@ type StayDateRangePickerProps = {
   unitId?: string;
   excludeReservationId?: string;
   extraOccupancyBlocks?: UnitOccupancyBlock[];
+  /** Editing a calendar block — omit it from occupancy (API + extras). */
   excludeOccupancyId?: string;
   copy?: "stay" | "block";
   /** Fires when the inline calendar panel opens/closes (for parent form footer gating). */
@@ -444,12 +445,14 @@ function StayDateRangePickerComponent({
       from: occupancyWindow.from,
       to: occupancyWindow.to,
       ...(excludeReservationId ? { excludeReservationId } : {}),
+      ...(excludeOccupancyId ? { excludeBlockId: excludeOccupancyId } : {}),
     }),
     queryFn: () =>
       getUnitMonthOccupancy(unitId!, {
         from: occupancyWindow.from,
         to: occupancyWindow.to,
         ...(excludeReservationId ? { excludeReservationId } : {}),
+        ...(excludeOccupancyId ? { excludeBlockId: excludeOccupancyId } : {}),
       }),
     enabled: open && Boolean(unitId),
     // Default query staleTime (30s). Writes invalidate occupancy via
@@ -459,10 +462,10 @@ function StayDateRangePickerComponent({
   const openHoldClipYmd = occupancyWindow.to;
 
   const occupancyBlocks = useMemo(() => {
-    const apiBlocks = occupancyQuery.data?.blocks ?? [];
-    const extras = (extraOccupancyBlocks ?? []).filter(
-      (b) => !excludeOccupancyId || b.reservationId !== excludeOccupancyId,
-    );
+    const omitSelf = (b: UnitOccupancyBlock) =>
+      !excludeOccupancyId || b.reservationId !== excludeOccupancyId;
+    const apiBlocks = (occupancyQuery.data?.blocks ?? []).filter(omitSelf);
+    const extras = (extraOccupancyBlocks ?? []).filter(omitSelf);
     return [...apiBlocks, ...extras];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

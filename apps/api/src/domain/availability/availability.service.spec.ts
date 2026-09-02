@@ -221,6 +221,40 @@ describe('AvailabilityService', () => {
     ]);
   });
 
+  it('omits excludeBlockId from occupancy blocks and horizon', async () => {
+    prisma.unit.findUnique.mockResolvedValue({ id: 'u1' });
+    prisma.reservation.findMany.mockResolvedValue([]);
+    prisma.calendarBlock.findMany.mockResolvedValue([]);
+    prisma.reservation.aggregate.mockResolvedValue({
+      _max: { inventoryEndDate: null },
+    });
+    prisma.calendarBlock.aggregate.mockResolvedValue({
+      _max: { endDate: new Date('2026-08-05T00:00:00.000Z') },
+    });
+
+    const occ = await service.getUnitMonthOccupancy('u1', {
+      yearMonth: '2026-08',
+      excludeBlockId: 'b_edit',
+    });
+
+    expect(occ.blocks).toEqual([]);
+    expect(occ.openHoldBlockedBefore).toBe('2026-08-05');
+    expect(prisma.calendarBlock.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { not: 'b_edit' },
+        }) as Record<string, unknown>,
+      }) as Record<string, unknown>,
+    );
+    expect(prisma.calendarBlock.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { not: 'b_edit' },
+        }) as Record<string, unknown>,
+      }) as Record<string, unknown>,
+    );
+  });
+
   it('returns occupying stays and calendar blocks for a calendar month', async () => {
     prisma.unit.findUnique.mockResolvedValue({ id: 'u1' });
     prisma.reservation.findMany.mockResolvedValue([

@@ -182,6 +182,7 @@ export function staffUnitOccupancyQueryKey(
     from?: string;
     to?: string;
     excludeReservationId?: string;
+    excludeBlockId?: string;
   },
 ) {
   return [...staffUnitsOccupancyQueryKeyPrefix, unitId, filters] as const;

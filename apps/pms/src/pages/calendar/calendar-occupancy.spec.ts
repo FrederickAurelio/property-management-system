@@ -1,7 +1,9 @@
 import {
+  CalendarBlockKind,
   PaymentStatus,
   ReservationSource,
   ReservationStatus,
+  type StaffCalendarBlock,
   type StaffCalendarStay,
   type StaffPropertyCalendar,
 } from "@cabin/api-contract";
@@ -29,6 +31,20 @@ function stay(
   };
 }
 
+function block(
+  patch: Pick<StaffCalendarBlock, "id" | "startDate" | "endDate">,
+): StaffCalendarBlock {
+  return {
+    propertyId: "p1",
+    unitId: "u1",
+    kind: CalendarBlockKind.MAINTENANCE,
+    note: null,
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    ...patch,
+  };
+}
+
 describe("occupancyExtrasForUnit", () => {
   const calendar: StaffPropertyCalendar = {
     propertyId: "p1",
@@ -49,11 +65,22 @@ describe("occupancyExtrasForUnit", () => {
         checkOutDate: "2026-08-08",
       }),
     ],
-    blocks: [],
+    blocks: [
+      block({
+        id: "blk",
+        startDate: "2026-08-10",
+        endDate: "2026-08-12",
+      }),
+    ],
   };
 
   it("omits checked-out history so those nights stay free", () => {
     const extras = occupancyExtrasForUnit(calendar, "u1");
+    expect(extras.map((b) => b.reservationId)).toEqual(["live", "blk"]);
+  });
+
+  it("omits the calendar block being edited so those nights stay selectable", () => {
+    const extras = occupancyExtrasForUnit(calendar, "u1", "blk");
     expect(extras.map((b) => b.reservationId)).toEqual(["live"]);
   });
 });

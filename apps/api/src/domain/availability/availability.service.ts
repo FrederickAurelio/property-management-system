@@ -140,6 +140,9 @@ export class AvailabilityService {
     const excludeStay = query.excludeReservationId
       ? { id: { not: query.excludeReservationId } }
       : {};
+    const excludeBlock = query.excludeBlockId
+      ? { id: { not: query.excludeBlockId } }
+      : {};
 
     const [stayRows, blockRows, stayHorizon, blockHorizon] = await Promise.all([
       this.prisma.reservation.findMany({
@@ -164,6 +167,7 @@ export class AvailabilityService {
           unitId,
           startDate: { lt: rangeEnd },
           endDate: { gt: rangeStart },
+          ...excludeBlock,
         },
         select: {
           id: true,
@@ -183,7 +187,7 @@ export class AvailabilityService {
         _max: { inventoryEndDate: true },
       }),
       this.prisma.calendarBlock.aggregate({
-        where: { unitId },
+        where: { unitId, ...excludeBlock },
         _max: { endDate: true },
       }),
     ]);
