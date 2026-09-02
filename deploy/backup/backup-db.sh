@@ -8,7 +8,21 @@ LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 # shellcheck source=../lib/compose.sh
 source "${LIB_DIR}/compose.sh"
 
-BACKUP_DIR="${BACKUP_DIR:-/root/backups}"
+cd "${ROOT_DIR}"
+
+# shellcheck disable=SC1091
+set -a
+[ -f .env ] && . ./.env
+set +a
+
+if [ -z "${BACKUP_DIR:-}" ]; then
+  if [ "$(id -u)" -eq 0 ]; then
+    BACKUP_DIR="/root/backups"
+  else
+    BACKUP_DIR="${HOME}/backups"
+  fi
+fi
+
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 BACKUP_TAG="${BACKUP_TAG:-}"
 STAMP="$(date +%F)"
@@ -20,12 +34,6 @@ fi
 TMP_FILE="${OUT_FILE}.tmp.$$"
 
 mkdir -p "${BACKUP_DIR}"
-cd "${ROOT_DIR}"
-
-# shellcheck disable=SC1091
-set -a
-[ -f .env ] && . ./.env
-set +a
 
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
 POSTGRES_DB="${POSTGRES_DB:-cabin_pms}"

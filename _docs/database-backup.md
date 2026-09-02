@@ -81,7 +81,7 @@ VPS (fast restore)          Off-site (survives VPS loss)
 
 | Destination | Role | Notes |
 |-------------|------|-------|
-| **`/root/backups/`** on VPS | Last 14 days | Quick restore; same disk as prod — not enough alone |
+| **`/root/backups/`** (root) or **`~/backups/`** (deploy SSH user) | Last 14 days | Quick restore; same disk as prod — not enough alone |
 | **Backblaze B2** | Primary off-site | ~$0.006/GB/mo; S3 API; `rclone` / `aws` CLI |
 | **Cloudflare R2** | Primary off-site | ~$0.015/GB/mo; zero egress; good if already on Cloudflare |
 | **Google Drive** | Optional extra | Fine for solo ops; API limits; not sole production copy |
@@ -113,7 +113,11 @@ find /root/backups -name 'cabin-*.dump' -mtime +14 -delete
 **Cron example** (`crontab -e` as root):
 
 ```cron
-15 2 * * * cd /root/property-management-system && bash /root/property-management-system/deploy/backup/backup-db.sh >> /var/log/cabin-backup.log 2>&1
+# root crontab — adjust repo path if needed
+15 2 * * * cd /root/property-management-system && bash deploy/backup/backup-db.sh >> /var/log/cabin-backup.log 2>&1
+
+# deploy SSH user (e.g. didik) — backups go to ~/backups/
+15 2 * * * cd /home/didik/property-management-system && bash deploy/backup/backup-db.sh >> /home/didik/cabin-backup.log 2>&1
 ```
 
 ### VPS compatibility (Ubuntu, Alibaba Linux, …)
@@ -131,7 +135,7 @@ Deploy runs [`deploy/lib/compose.sh`](../deploy/lib/compose.sh) `compose_bootstr
 | Shell | Use `bash deploy/backup/backup-db.sh` in cron, or invoke the script directly (shebang uses `env bash`) |
 | Line endings | Keep `.sh` files **LF** (not CRLF) or shebang breaks on Linux |
 | Compose project | Scripts read optional `COMPOSE_FILE_ARGS` (same `-f` flags as deploy) |
-| Cron user | Default `/root/backups` assumes **root** crontab; override `BACKUP_DIR` if needed |
+| Cron user | **root** → `/root/backups`; deploy SSH user (e.g. `didik`) → `~/backups`. Override with `BACKUP_DIR` in `.env` or cron |
 
 ### Pre-migrate backup (deploy)
 
