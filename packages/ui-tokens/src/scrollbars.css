@@ -1,4 +1,4 @@
-/* Global thin scrollbars — import after tokens.css in each app. */
+/* Global thin scrollbars — import after tokens.css in each app index.css. */
 
 @layer base {
   * {
@@ -6,27 +6,82 @@
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
 
-  *::-webkit-scrollbar {
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  div::-webkit-scrollbar,
+  main::-webkit-scrollbar,
+  section::-webkit-scrollbar,
+  aside::-webkit-scrollbar,
+  article::-webkit-scrollbar,
+  nav::-webkit-scrollbar,
+  header::-webkit-scrollbar,
+  footer::-webkit-scrollbar,
+  textarea::-webkit-scrollbar,
+  pre::-webkit-scrollbar {
     width: var(--scrollbar-size);
     height: var(--scrollbar-size);
   }
 
-  *::-webkit-scrollbar-track {
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track,
+  div::-webkit-scrollbar-track,
+  main::-webkit-scrollbar-track,
+  section::-webkit-scrollbar-track,
+  aside::-webkit-scrollbar-track,
+  article::-webkit-scrollbar-track,
+  nav::-webkit-scrollbar-track,
+  header::-webkit-scrollbar-track,
+  footer::-webkit-scrollbar-track,
+  textarea::-webkit-scrollbar-track,
+  pre::-webkit-scrollbar-track {
     background: var(--scrollbar-track);
   }
 
-  *::-webkit-scrollbar-thumb {
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb,
+  div::-webkit-scrollbar-thumb,
+  main::-webkit-scrollbar-thumb,
+  section::-webkit-scrollbar-thumb,
+  aside::-webkit-scrollbar-thumb,
+  article::-webkit-scrollbar-thumb,
+  nav::-webkit-scrollbar-thumb,
+  header::-webkit-scrollbar-thumb,
+  footer::-webkit-scrollbar-thumb,
+  textarea::-webkit-scrollbar-thumb,
+  pre::-webkit-scrollbar-thumb {
     background-color: var(--scrollbar-thumb);
     border-radius: var(--scrollbar-size);
     border: 2px solid transparent;
     background-clip: padding-box;
   }
 
-  *::-webkit-scrollbar-thumb:hover {
+  html::-webkit-scrollbar-thumb:hover,
+  body::-webkit-scrollbar-thumb:hover,
+  div::-webkit-scrollbar-thumb:hover,
+  main::-webkit-scrollbar-thumb:hover,
+  section::-webkit-scrollbar-thumb:hover,
+  aside::-webkit-scrollbar-thumb:hover,
+  article::-webkit-scrollbar-thumb:hover,
+  nav::-webkit-scrollbar-thumb:hover,
+  header::-webkit-scrollbar-thumb:hover,
+  footer::-webkit-scrollbar-thumb:hover,
+  textarea::-webkit-scrollbar-thumb:hover,
+  pre::-webkit-scrollbar-thumb:hover {
     background-color: var(--scrollbar-thumb-hover);
   }
 
-  *::-webkit-scrollbar-corner {
+  html::-webkit-scrollbar-corner,
+  body::-webkit-scrollbar-corner,
+  div::-webkit-scrollbar-corner,
+  main::-webkit-scrollbar-corner,
+  section::-webkit-scrollbar-corner,
+  aside::-webkit-scrollbar-corner,
+  article::-webkit-scrollbar-corner,
+  nav::-webkit-scrollbar-corner,
+  header::-webkit-scrollbar-corner,
+  footer::-webkit-scrollbar-corner,
+  textarea::-webkit-scrollbar-corner,
+  pre::-webkit-scrollbar-corner {
     background: var(--scrollbar-track);
   }
 }
