@@ -1,4 +1,4 @@
-# VPS / full stack — postgres + api + pms + web + garage + Loki on cabin-net.
+# VPS / full stack — postgres + api + pms + web + garage + Loki + Gotenberg on cabin-net.
 # Host ports (no domain yet): pms 8080 · web 3050 · garage S3 3900 · archive GET 3910.
 # api/postgres/loki stay internal. Later HTTPS + domains: close app ports, edge proxy — see
 # deploy/garage/README.md § Domain HTTPS cutover and _docs/archive-storage.md.
@@ -54,6 +54,8 @@ services:
         condition: service_healthy
       loki:
         condition: service_started
+      gotenberg:
+        condition: service_started
     env_file:
       - .env
     environment:
@@ -61,6 +63,7 @@ services:
       PORT: ${PORT:-3000}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cabin_pms}?schema=public
       LOKI_URL: http://loki:3100
+      GOTENBERG_URL: http://gotenberg:3000
     expose:
       - '3000'
     healthcheck:
@@ -171,6 +174,17 @@ services:
       - loki_data:/loki
     expose:
       - '3100'
+    logging: *default-logging
+    networks:
+      - cabin
+
+  # Utility statement PDF — LibreOffice convert unpublished. Nest uses GOTENBERG_URL.
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: cabin-gotenberg
+    restart: unless-stopped
+    expose:
+      - '3000'
     logging: *default-logging
     networks:
       - cabin

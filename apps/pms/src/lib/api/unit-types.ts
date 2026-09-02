@@ -6,6 +6,8 @@ import type {
   StaffUnitType,
   StaffUnitTypeRack,
   UnitLayout,
+  UtilityAddonKind,
+  UtilityKind,
 } from "@cabin/api-contract";
 import { PAGE_SIZE_DEFAULT } from "@cabin/api-contract";
 import { api } from "./client";
@@ -15,6 +17,16 @@ export type ListUnitTypesParams = {
   pageSize?: number;
   q?: string;
   isActive?: boolean;
+};
+
+/** Write row for unit-type `utilityAddons` replace-set. */
+export type UnitTypeUtilityAddonWriteInput = {
+  utility: UtilityKind;
+  name: string;
+  kind: UtilityAddonKind;
+  value: number;
+  /** Omitted → API assigns 0,1,2… independently per utility in array order. */
+  sortOrder?: number;
 };
 
 export type UnitTypeWriteInput = {
@@ -30,6 +42,9 @@ export type UnitTypeWriteInput = {
   electricityRateIdrPerKwh?: number;
   waterRateIdrPerM3?: number;
   maintenanceFeeIdrPerMonth?: number;
+  electricityMinKwh?: number;
+  adminFeeIdrPerMonth?: number;
+  utilityAddons?: UnitTypeUtilityAddonWriteInput[];
   bedConfig?: BedConfigRoom[];
   amenities?: Amenities;
   media?: MediaItem[];

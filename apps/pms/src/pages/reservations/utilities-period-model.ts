@@ -1,11 +1,21 @@
 import {
   UtilityKind,
+  applyUtilityAddons,
+  cloneUtilitySchemeSnapshot,
+  computeMeterIntervalCharges,
+  computeUtilityKindTotal,
   defaultNextUtilityReadingDateYmd,
+  emptyUtilitySchemeSnapshot,
   yearMonthToChargeDateYmd,
   ymdYearMonth,
   type ArchiveItem,
+  type AdminChargeInput,
   type MaintenanceChargeInput,
+  type UtilityAddon,
+  type UtilityAddonLine,
+  type UtilityPeriodScheme,
   type UtilityReadingInput,
+  type UtilitySchemeSnapshot,
 } from "@cabin/api-contract";
 import { plainFromMeterValue } from "@/lib/decimal-input";
 
@@ -25,6 +35,9 @@ export type UtilityPeriod = {
   /** Calendar month `YYYY-MM` (desk); API stores as 1st of month. */
   chargeYearMonth: string;
   amountDigits: string;
+  /** Admin fee IDR for this billed month (same month as maintenance). */
+  adminDigits: string;
+  scheme: UtilitySchemeSnapshot;
 };
 
 export type SeedUtilityReading = {
@@ -45,13 +58,47 @@ export type SeedUtilitiesInput = {
   checkInDate: string;
   utilityReadings?: SeedUtilityReading[];
   maintenanceCharges?: SeedMaintenanceCharge[];
-  maintenanceFeeIdrPerMonth?: number;
+  adminCharges?: SeedMaintenanceCharge[];
+  fallbackScheme: UtilitySchemeSnapshot;
+  utilityPeriodSchemes?: UtilityPeriodScheme[];
 };
+
+/** Map reservation detail → period seed input (uses effective billing scheme). */
+export function utilitiesSeedInput(reservation: {
+  checkInDate: string;
+  utilityReadings?: SeedUtilityReading[];
+  maintenanceCharges?: SeedMaintenanceCharge[];
+  adminCharges?: SeedMaintenanceCharge[];
+  billingUtilityScheme: UtilitySchemeSnapshot;
+  utilityPeriodSchemes?: UtilityPeriodScheme[];
+}): SeedUtilitiesInput {
+  return {
+    checkInDate: reservation.checkInDate,
+    utilityReadings: reservation.utilityReadings,
+    maintenanceCharges: reservation.maintenanceCharges,
+    adminCharges: reservation.adminCharges,
+    fallbackScheme: cloneUtilitySchemeSnapshot(
+      reservation.billingUtilityScheme,
+    ),
+    utilityPeriodSchemes: reservation.utilityPeriodSchemes,
+  };
+}
 
 export type FlattenedUtilities = {
   electricityReadings: UtilityReadingInput[];
   waterReadings: UtilityReadingInput[];
   maintenanceCharges: MaintenanceChargeInput[];
+  adminCharges: AdminChargeInput[];
+  periodSchemes: UtilityPeriodScheme[];
+};
+
+export type PeriodKindPreview = {
+  usage: number | null;
+  billedUnits: number | null;
+  minApplied: boolean;
+  usageAmountIdr: number | null;
+  addonLines: UtilityAddonLine[];
+  kindTotalIdr: number | null;
 };
 
 export function emptyUtilityEnd(): UtilityEnd {
@@ -105,6 +152,34 @@ function defaultFeeDigits(fee: number | undefined): string {
   return String(Math.floor(fee));
 }
 
+function schemeForMonth(
+  input: SeedUtilitiesInput,
+  chargeYearMonth: string,
+): UtilitySchemeSnapshot {
+  const hit = (input.utilityPeriodSchemes ?? []).find(
+    (row) => row.chargeYearMonth === chargeYearMonth,
+  );
+  if (hit) {
+    return cloneUtilitySchemeSnapshot(hit);
+  }
+  return cloneUtilitySchemeSnapshot(
+    input.fallbackScheme ?? emptyUtilitySchemeSnapshot(),
+  );
+}
+
+export function applyPeriodScheme(
+  period: UtilityPeriod,
+  scheme: UtilitySchemeSnapshot,
+): UtilityPeriod {
+  const next = cloneUtilitySchemeSnapshot(scheme);
+  return {
+    ...period,
+    scheme: next,
+    amountDigits: defaultFeeDigits(next.maintenanceFeeIdrPerMonth),
+    adminDigits: defaultFeeDigits(next.adminFeeIdrPerMonth),
+  };
+}
+
 /**
  * Group GET readings + maintenance into billed periods.
  * Always returns at least one period (draft start+end for a new stay).
@@ -125,8 +200,10 @@ export function seedPeriods(
     ),
   );
   const maint = sortMaint(input.maintenanceCharges ?? []);
+  const admin = sortMaint(input.adminCharges ?? []);
 
-  const hasAnyData = elec.length > 0 || water.length > 0 || maint.length > 0;
+  const hasAnyData =
+    elec.length > 0 || water.length > 0 || maint.length > 0 || admin.length > 0;
   const openingElec = elec[0];
   const openingWater = water[0];
   const elecEnds = elec.slice(1);
@@ -141,6 +218,7 @@ export function seedPeriods(
     elecEnds.length,
     waterEnds.length,
     maint.length,
+    admin.length,
   );
   const n = Math.max(intervalCount, 1);
   const isDraftSeed = !hasAnyData;
@@ -152,6 +230,7 @@ export function seedPeriods(
     const e = elecEnds[i];
     const w = waterEnds[i];
     const m = maint[i];
+    const a = admin[i];
     const isFirst = i === 0;
     const endDate =
       e?.readingDate ??
@@ -159,16 +238,25 @@ export function seedPeriods(
       defaultNextUtilityReadingDateYmd(prevEndDate);
     const chargeYearMonth = m
       ? (ymdYearMonth(m.chargeDate) ?? m.chargeDate.slice(0, 7))
-      : yearMonthOf(endDate);
+      : a
+        ? (ymdYearMonth(a.chargeDate) ?? a.chargeDate.slice(0, 7))
+        : yearMonthOf(endDate);
+    const scheme = schemeForMonth(input, chargeYearMonth);
     const amountDigits = m
       ? String(m.amountIdr)
       : isDraftSeed
-        ? defaultFeeDigits(input.maintenanceFeeIdrPerMonth)
+        ? defaultFeeDigits(scheme.maintenanceFeeIdrPerMonth)
+        : "";
+    const adminDigits = a
+      ? String(a.amountIdr)
+      : isDraftSeed
+        ? defaultFeeDigits(scheme.adminFeeIdrPerMonth)
         : "";
     const key =
       e?.id ??
       w?.id ??
       m?.id ??
+      a?.id ??
       (isFirst ? (openingElec?.id ?? openingWater?.id) : undefined) ??
       createKey();
 
@@ -182,6 +270,8 @@ export function seedPeriods(
       waterEnd: readingToEnd(w),
       chargeYearMonth,
       amountDigits,
+      adminDigits,
+      scheme,
     });
 
     prevEndDate = endDate;
@@ -219,7 +309,10 @@ export function patchPeriod(
 
 export function addPeriod(
   periods: UtilityPeriod[],
-  options?: { maintenanceFeeIdrPerMonth?: number; createKey?: () => string },
+  options?: {
+    scheme?: UtilitySchemeSnapshot;
+    createKey?: () => string;
+  },
 ): UtilityPeriod[] {
   const createKey = options?.createKey ?? createPeriodKey;
   const last = periods[periods.length - 1];
@@ -227,6 +320,9 @@ export function addPeriod(
   const endDate = startDate ? defaultNextUtilityReadingDateYmd(startDate) : "";
   const lastElec = last?.elecEnd ?? emptyUtilityEnd();
   const lastWater = last?.waterEnd ?? emptyUtilityEnd();
+  const scheme = cloneUtilitySchemeSnapshot(
+    options?.scheme ?? last?.scheme ?? emptyUtilitySchemeSnapshot(),
+  );
   return [
     ...periods,
     {
@@ -238,7 +334,9 @@ export function addPeriod(
       elecEnd: copyUtilityEnd(lastElec, { proofs: false }),
       waterEnd: copyUtilityEnd(lastWater, { proofs: false }),
       chargeYearMonth: endDate ? yearMonthOf(endDate) : "",
-      amountDigits: defaultFeeDigits(options?.maintenanceFeeIdrPerMonth),
+      amountDigits: defaultFeeDigits(scheme.maintenanceFeeIdrPerMonth),
+      adminDigits: defaultFeeDigits(scheme.adminFeeIdrPerMonth),
+      scheme,
     },
   ];
 }
@@ -312,6 +410,8 @@ export function flattenPeriods(periods: UtilityPeriod[]): FlattenedUtilities {
   }
 
   const maintenanceCharges: MaintenanceChargeInput[] = [];
+  const adminCharges: AdminChargeInput[] = [];
+  const periodSchemes: UtilityPeriodScheme[] = [];
   for (const period of periods) {
     const elecEnd = toReading(
       UtilityKind.ELECTRICITY,
@@ -338,9 +438,30 @@ export function flattenPeriods(periods: UtilityPeriod[]): FlattenedUtilities {
         });
       }
     }
+    if (period.chargeYearMonth && period.adminDigits !== "") {
+      const amountIdr = Math.floor(Number(period.adminDigits));
+      if (Number.isFinite(amountIdr) && amountIdr >= 0) {
+        adminCharges.push({
+          chargeDate: yearMonthToChargeDateYmd(period.chargeYearMonth),
+          amountIdr,
+        });
+      }
+    }
+    if (period.chargeYearMonth) {
+      periodSchemes.push({
+        chargeYearMonth: period.chargeYearMonth,
+        ...cloneUtilitySchemeSnapshot(period.scheme),
+      });
+    }
   }
 
-  return { electricityReadings, waterReadings, maintenanceCharges };
+  return {
+    electricityReadings,
+    waterReadings,
+    maintenanceCharges,
+    adminCharges,
+    periodSchemes,
+  };
 }
 
 export function meterUsage(start: UtilityEnd, end: UtilityEnd): number | null {
@@ -355,40 +476,132 @@ export function meterUsage(start: UtilityEnd, end: UtilityEnd): number | null {
   return to - from;
 }
 
-export function meterAmountIdr(
-  usage: number | null,
-  rateIdrPerUnit: number,
-): number | null {
-  if (usage == null || usage < 0) {
-    return null;
+const EMPTY_KIND_PREVIEW: PeriodKindPreview = {
+  usage: null,
+  billedUnits: null,
+  minApplied: false,
+  usageAmountIdr: null,
+  addonLines: [],
+  kindTotalIdr: null,
+};
+
+/** One billed interval via contract helpers (min + add-ons). */
+export function periodKindPreview(
+  start: UtilityEnd,
+  end: UtilityEnd,
+  startDate: string,
+  endDate: string,
+  rate: number,
+  addons: ReadonlyArray<UtilityAddon>,
+  options?: { minBilledUnits?: number },
+): PeriodKindPreview {
+  const usage = meterUsage(start, end);
+  if (
+    !startDate ||
+    !endDate ||
+    start.meterDigits === "" ||
+    end.meterDigits === ""
+  ) {
+    return { ...EMPTY_KIND_PREVIEW, usage };
   }
-  const rate = Math.floor(rateIdrPerUnit);
-  if (!Number.isFinite(rate) || rate < 0) {
-    return null;
+  const startMeter = Number(start.meterDigits);
+  const endMeter = Number(end.meterDigits);
+  if (!Number.isFinite(startMeter) || !Number.isFinite(endMeter)) {
+    return { ...EMPTY_KIND_PREVIEW, usage };
   }
-  return Math.floor(usage * rate);
+  try {
+    const { intervals } = computeMeterIntervalCharges(
+      [
+        { readingDate: startDate, meterValue: startMeter },
+        { readingDate: endDate, meterValue: endMeter },
+      ],
+      rate,
+      options,
+    );
+    const interval = intervals[0];
+    if (!interval) {
+      return { ...EMPTY_KIND_PREVIEW, usage };
+    }
+    const applied = applyUtilityAddons(interval.amountIdr, addons);
+    const minRaw = options?.minBilledUnits;
+    const minBilled =
+      minRaw != null && Number.isFinite(minRaw) && minRaw > 0 ? minRaw : 0;
+    return {
+      usage: interval.usage,
+      billedUnits: interval.billedUnits,
+      minApplied: minBilled > 0 && interval.billedUnits > interval.usage,
+      usageAmountIdr: interval.amountIdr,
+      addonLines: applied.lines,
+      kindTotalIdr: computeUtilityKindTotal(interval.amountIdr, addons),
+    };
+  } catch {
+    return { ...EMPTY_KIND_PREVIEW, usage };
+  }
+}
+
+/** Sum of kind totals across all intervals (matches Nest PUT denorm). */
+export function utilitiesKindTotalIdr(
+  readings: ReadonlyArray<{ readingDate: string; meterValue: number }>,
+  rate: number,
+  addons: ReadonlyArray<UtilityAddon>,
+  options?: { minBilledUnits?: number },
+): number {
+  const { intervals } = computeMeterIntervalCharges(readings, rate, options);
+  let total = 0;
+  for (const interval of intervals) {
+    total += computeUtilityKindTotal(interval.amountIdr, addons);
+  }
+  return total;
 }
 
 export function periodMaintAmountIdr(period: UtilityPeriod): number {
-  if (period.amountDigits === "") {
+  return feeDigitsToIdr(period.amountDigits);
+}
+
+export function periodAdminAmountIdr(period: UtilityPeriod): number {
+  return feeDigitsToIdr(period.adminDigits);
+}
+
+function feeDigitsToIdr(digits: string): number {
+  if (digits === "") {
     return 0;
   }
-  const n = Number(period.amountDigits);
+  const n = Number(digits);
   if (!Number.isFinite(n) || n < 0) {
     return 0;
   }
   return Math.floor(n);
 }
 
-export function periodSubtotalIdr(
-  period: UtilityPeriod,
-  elecRate: number,
-  waterRate: number,
-): number {
-  const elec =
-    meterAmountIdr(meterUsage(period.elecStart, period.elecEnd), elecRate) ?? 0;
-  const water =
-    meterAmountIdr(meterUsage(period.waterStart, period.waterEnd), waterRate) ??
-    0;
-  return elec + water + periodMaintAmountIdr(period);
+export function periodSubtotalIdr(period: UtilityPeriod): number {
+  const scheme = period.scheme;
+  const electricityAddons = scheme.utilityAddons.filter(
+    (addon) => addon.utility === UtilityKind.ELECTRICITY,
+  );
+  const waterAddons = scheme.utilityAddons.filter(
+    (addon) => addon.utility === UtilityKind.WATER,
+  );
+  const elec = periodKindPreview(
+    period.elecStart,
+    period.elecEnd,
+    period.startDate,
+    period.endDate,
+    scheme.electricityRateIdrPerKwh,
+    electricityAddons,
+    { minBilledUnits: scheme.electricityMinKwh },
+  );
+  const water = periodKindPreview(
+    period.waterStart,
+    period.waterEnd,
+    period.startDate,
+    period.endDate,
+    scheme.waterRateIdrPerM3,
+    waterAddons,
+  );
+  return (
+    (elec.kindTotalIdr ?? 0) +
+    (water.kindTotalIdr ?? 0) +
+    periodMaintAmountIdr(period) +
+    periodAdminAmountIdr(period)
+  );
 }

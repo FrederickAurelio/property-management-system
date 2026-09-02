@@ -7,6 +7,7 @@
   "serverUnavailable": "Tidak dapat menjangkau server. Server mungkin sedang down — coba lagi sebentar lagi.",
   "serverUnavailableShort": "Tidak dapat menjangkau server",
   "logsUnavailable": "Log permintaan sedang offline. Jalankan Loki dengan pnpm logs:up, atau cek stack log di VPS.",
+  "pdfUnavailable": "Ekspor PDF sedang offline. Jalankan Gotenberg dengan pnpm gotenberg:up, atau cek stack di VPS.",
   "rateLimited": "Terlalu banyak percobaan. Coba lagi dalam beberapa menit.",
   "requestFailed": "Permintaan gagal",
   "invalidSuccessEnvelope": "Envelope sukses API tidak valid",
@@ -34,6 +35,7 @@
     "movementExceedsDue": "Jumlah melebihi Due atau Refund",
     "earlyConfirmRequired": "Konfirmasi tindakan early/late",
     "invalidStatusTransition": "Tindakan ini tidak diizinkan saat ini",
-    "sourceLockedWithExternalRef": "Source terkunci karena stay ini terhubung ke calendar UID OTA"
+    "sourceLockedWithExternalRef": "Source terkunci karena stay ini terhubung ke calendar UID OTA",
+    "utilityAddonLimit": "Maksimal 8 biaya tambahan untuk listrik atau air"
   }
 }

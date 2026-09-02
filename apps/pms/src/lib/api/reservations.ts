@@ -188,6 +188,48 @@ export async function putReservationUtilities(
   return data;
 }
 
+function filenameFromContentDisposition(
+  header: string | undefined,
+): string | null {
+  if (!header) {
+    return null;
+  }
+  const utf = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf?.[1]) {
+    try {
+      return decodeURIComponent(utf[1]);
+    } catch {
+      return utf[1];
+    }
+  }
+  const quoted = /filename="([^"]+)"/i.exec(header);
+  if (quoted?.[1]) {
+    return quoted[1];
+  }
+  const plain = /filename=([^;]+)/i.exec(header);
+  return plain?.[1]?.trim() ?? null;
+}
+
+/** Per-period statement PDF from the saved stay (`responseType: blob` bypasses JSON unwrap). */
+export async function downloadReservationUtilityStatement(
+  id: string,
+  chargeYearMonth: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await api.get<Blob>(
+    `/reservations/${id}/utility-statement`,
+    {
+      params: { chargeYearMonth },
+      responseType: "blob",
+      headers: { Accept: "application/pdf" },
+    },
+  );
+  const filename =
+    filenameFromContentDisposition(
+      response.headers["content-disposition"] as string | undefined,
+    ) ?? `utility-statement-${chargeYearMonth}.pdf`;
+  return { blob: response.data, filename };
+}
+
 export async function confirmReservation(
   id: string,
 ): Promise<StaffReservation> {

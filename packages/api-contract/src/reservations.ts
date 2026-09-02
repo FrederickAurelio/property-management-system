@@ -350,11 +350,174 @@ export type ReservationMaintenanceCharge = {
   createdByAdminId: string | null;
 };
 
+export type ReservationAdminCharge = ReservationMaintenanceCharge;
+
+/** Keep in sync with Prisma `UtilityAddonKind`. */
+export const UtilityAddonKind = {
+  CONSTANT: "CONSTANT",
+  PERCENT: "PERCENT",
+} as const;
+
+export type UtilityAddonKind =
+  (typeof UtilityAddonKind)[keyof typeof UtilityAddonKind];
+
+/**
+ * Scheme row on UnitType, or frozen snapshot on Reservation.
+ * `value`: CONSTANT = whole IDR; PERCENT = integer percent (3 = 3%, never 0.03).
+ */
+export type UtilityAddon = {
+  utility: UtilityKind;
+  name: string;
+  kind: UtilityAddonKind;
+  value: number;
+  sortOrder: number;
+};
+
+/** Frozen or resolved utility scheme used for billing math. */
+export type UtilitySchemeSnapshot = {
+  electricityRateIdrPerKwh: number;
+  waterRateIdrPerM3: number;
+  maintenanceFeeIdrPerMonth: number;
+  electricityMinKwh: number;
+  adminFeeIdrPerMonth: number;
+  utilityAddons: UtilityAddon[];
+};
+
+/** Frozen card for one billed month (`YYYY-MM`). */
+export type UtilityPeriodScheme = UtilitySchemeSnapshot & {
+  chargeYearMonth: string;
+};
+
+export type UtilitySchemeReservationInput = {
+  electricityRateIdrPerKwh?: number;
+  waterRateIdrPerM3?: number;
+  maintenanceFeeIdrPerMonth?: number;
+  electricityMinKwh: number;
+  adminFeeIdrPerMonth: number;
+  utilityAddons: ReadonlyArray<UtilityAddon>;
+};
+
+export type UtilitySchemeUnitTypeInput = {
+  electricityRateIdrPerKwh?: number;
+  waterRateIdrPerM3?: number;
+  maintenanceFeeIdrPerMonth?: number;
+  electricityMinKwh: number;
+  adminFeeIdrPerMonth: number;
+  utilityAddons: ReadonlyArray<UtilityAddon>;
+};
+
+export function emptyUtilitySchemeSnapshot(): UtilitySchemeSnapshot {
+  return {
+    electricityRateIdrPerKwh: 0,
+    waterRateIdrPerM3: 0,
+    maintenanceFeeIdrPerMonth: 0,
+    electricityMinKwh: 0,
+    adminFeeIdrPerMonth: 0,
+    utilityAddons: [],
+  };
+}
+
+export function cloneUtilitySchemeSnapshot(
+  scheme: UtilitySchemeSnapshot,
+): UtilitySchemeSnapshot {
+  return {
+    electricityRateIdrPerKwh: scheme.electricityRateIdrPerKwh,
+    waterRateIdrPerM3: scheme.waterRateIdrPerM3,
+    maintenanceFeeIdrPerMonth: scheme.maintenanceFeeIdrPerMonth,
+    electricityMinKwh: scheme.electricityMinKwh,
+    adminFeeIdrPerMonth: scheme.adminFeeIdrPerMonth,
+    utilityAddons: scheme.utilityAddons.map((addon) => ({ ...addon })),
+  };
+}
+
+function nonNegInt(value: number | undefined, fallback = 0): number {
+  if (value == null || !Number.isFinite(value) || value < 0) {
+    return fallback;
+  }
+  return Math.floor(value);
+}
+
+function withRates(
+  reservation: UtilitySchemeReservationInput,
+  rest: Pick<
+    UtilitySchemeSnapshot,
+    "electricityMinKwh" | "adminFeeIdrPerMonth" | "utilityAddons"
+  >,
+): UtilitySchemeSnapshot {
+  return {
+    electricityRateIdrPerKwh: nonNegInt(reservation.electricityRateIdrPerKwh),
+    waterRateIdrPerM3: nonNegInt(reservation.waterRateIdrPerM3),
+    maintenanceFeeIdrPerMonth: nonNegInt(
+      reservation.maintenanceFeeIdrPerMonth,
+    ),
+    electricityMinKwh: rest.electricityMinKwh,
+    adminFeeIdrPerMonth: rest.adminFeeIdrPerMonth,
+    utilityAddons: rest.utilityAddons,
+  };
+}
+
+/**
+ * Effective stay-level fallback. Non-empty reservation `utilityAddons`
+ * means frozen — use as-is. Empty snapshot falls back to unit-type template
+ * (iCal stub / pre-migration row) until first utilities save copies it.
+ * Rates stay on the reservation (copied at create); they are not re-pulled.
+ */
+export function resolveUtilitySchemeSnapshot(
+  reservation: UtilitySchemeReservationInput,
+  unitType?: UtilitySchemeUnitTypeInput | null,
+): UtilitySchemeSnapshot {
+  const utilityAddons = [...reservation.utilityAddons];
+  let electricityMinKwh = reservation.electricityMinKwh;
+  if (!Number.isFinite(electricityMinKwh) || electricityMinKwh < 0) {
+    electricityMinKwh = 0;
+  }
+  const adminFeeIdrPerMonth = reservation.adminFeeIdrPerMonth ?? 0;
+  if (utilityAddons.length > 0) {
+    return withRates(reservation, {
+      electricityMinKwh,
+      adminFeeIdrPerMonth,
+      utilityAddons,
+    });
+  }
+  if (!unitType) {
+    return withRates(reservation, {
+      electricityMinKwh,
+      adminFeeIdrPerMonth,
+      utilityAddons: [],
+    });
+  }
+  return withRates(reservation, {
+    electricityMinKwh:
+      electricityMinKwh === 0
+        ? Math.max(0, unitType.electricityMinKwh ?? 0)
+        : electricityMinKwh,
+    adminFeeIdrPerMonth:
+      adminFeeIdrPerMonth === 0
+        ? Math.max(0, unitType.adminFeeIdrPerMonth ?? 0)
+        : adminFeeIdrPerMonth,
+    utilityAddons: [...unitType.utilityAddons],
+  });
+}
+
+/** Period card for `chargeYearMonth`, or a clone of `fallback`. */
+export function lookupUtilityPeriodScheme(
+  schemes: ReadonlyArray<UtilityPeriodScheme>,
+  chargeYearMonth: string,
+  fallback: UtilitySchemeSnapshot,
+): UtilitySchemeSnapshot {
+  const hit = schemes.find((row) => row.chargeYearMonth === chargeYearMonth);
+  if (!hit) {
+    return cloneUtilitySchemeSnapshot(fallback);
+  }
+  return cloneUtilitySchemeSnapshot(hit);
+}
+
 export type StayQuoteBreakdown = {
   rentAmountIdr: number | null;
   electricityAmountIdr: number;
   waterAmountIdr: number;
   maintenanceAmountIdr: number;
+  adminAmountIdr: number;
   totalAmountIdr: number | null;
 };
 
@@ -373,13 +536,19 @@ export type MaintenanceChargeInput = {
   amountIdr: number;
 };
 
+export type AdminChargeInput = MaintenanceChargeInput;
+
 export type PutReservationUtilitiesInput = {
+  /** Optional stay-level denorm (ignored for billing when `periodSchemes` is sent). */
   electricityRateIdrPerKwh?: number;
   waterRateIdrPerM3?: number;
   maintenanceFeeIdrPerMonth?: number;
   electricityReadings: UtilityReadingInput[];
   waterReadings: UtilityReadingInput[];
   maintenanceCharges: MaintenanceChargeInput[];
+  adminCharges: AdminChargeInput[];
+  /** Replace-set frozen card per billed month. Omit → persist stay fallback on each reconstructed month. */
+  periodSchemes?: UtilityPeriodScheme[];
 };
 
 /**
@@ -440,22 +609,36 @@ export function normalizeMaintenanceChargeDateYmd(ymdOrYm: string): string {
 export type MeterIntervalCharge = {
   fromDate: string;
   toDate: string;
+  /** Actual end−start. Never rewrite stored meters. */
   usage: number;
+  /** max(usage, minBilledUnits) when min > 0; otherwise usage. */
+  billedUnits: number;
   amountIdr: number;
+};
+
+export type ComputeMeterIntervalChargesOptions = {
+  /** Electricity min kWh (or water min). 0 / omit = no minimum. */
+  minBilledUnits?: number;
 };
 
 /**
  * Sort readings by date; baseline (first) charges 0.
  * Throws if meter decreases or duplicate dates.
+ * Optional `minBilledUnits` bills at least that many units per interval
+ * without changing stored meter values (`usage` stays end−start).
  */
 export function computeMeterIntervalCharges(
   readings: ReadonlyArray<{ readingDate: string; meterValue: number }>,
   rateIdrPerUnit: number,
+  options?: ComputeMeterIntervalChargesOptions,
 ): { totalAmountIdr: number; intervals: MeterIntervalCharge[] } {
   const rate = Math.floor(rateIdrPerUnit);
   if (!Number.isFinite(rate) || rate < 0) {
     throw new Error("INVALID_RATE");
   }
+  const minRaw = options?.minBilledUnits;
+  const minBilledUnits =
+    minRaw != null && Number.isFinite(minRaw) && minRaw > 0 ? minRaw : 0;
   const sorted = [...readings].sort((a, b) =>
     a.readingDate < b.readingDate ? -1 : a.readingDate > b.readingDate ? 1 : 0,
   );
@@ -478,12 +661,15 @@ export function computeMeterIntervalCharges(
     if (usage < 0) {
       throw new Error("METER_DECREASED");
     }
-    const amountIdr = Math.floor(usage * rate);
+    const billedUnits =
+      minBilledUnits > 0 ? Math.max(usage, minBilledUnits) : usage;
+    const amountIdr = Math.floor(billedUnits * rate);
     total += amountIdr;
     intervals.push({
       fromDate: prev.readingDate,
       toDate: cur.readingDate,
       usage,
+      billedUnits,
       amountIdr,
     });
   }
@@ -503,8 +689,55 @@ export function sumMaintenanceChargesIdr(
   return sum;
 }
 
+/** Same rounding as maintenance charge rows. */
+export const sumAdminChargesIdr = sumMaintenanceChargesIdr;
+
+export type UtilityAddonLine = {
+  name: string;
+  kind: UtilityAddonKind;
+  value: number;
+  amountIdr: number;
+};
+
 /**
- * Cash-facing Total from rent + utility denorms.
+ * Line amounts for one utility's add-ons.
+ * CONSTANT → floor(value) IDR. PERCENT → floor(usageAmountIdr * value / 100)
+ * of **usage Rp only** (not of constants, not of other add-ons).
+ * Caller should pass an already-filtered ELECTRICITY or WATER list.
+ */
+export function applyUtilityAddons(
+  usageAmountIdr: number,
+  addons: ReadonlyArray<UtilityAddon>,
+): { lines: UtilityAddonLine[]; totalAddonIdr: number } {
+  const lines: UtilityAddonLine[] = [];
+  let totalAddonIdr = 0;
+  for (const addon of addons) {
+    const amountIdr =
+      addon.kind === UtilityAddonKind.PERCENT
+        ? Math.floor((usageAmountIdr * addon.value) / 100)
+        : Math.floor(addon.value);
+    lines.push({
+      name: addon.name,
+      kind: addon.kind,
+      value: addon.value,
+      amountIdr,
+    });
+    totalAddonIdr += amountIdr;
+  }
+  return { lines, totalAddonIdr };
+}
+
+/** usage Rp + add-on lines. Caller passes a filtered ELECTRICITY or WATER list. */
+export function computeUtilityKindTotal(
+  usageAmountIdr: number,
+  addons: ReadonlyArray<UtilityAddon>,
+): number {
+  const usage = Math.max(0, Math.floor(usageAmountIdr));
+  return usage + applyUtilityAddons(usageAmountIdr, addons).totalAddonIdr;
+}
+
+/**
+ * Cash-facing Total from rent + utility denorms + admin.
  * Null rent → null total (iCal stub). Otherwise sum floors.
  */
 export function recomputeStayQuoteTotal(input: {
@@ -512,6 +745,7 @@ export function recomputeStayQuoteTotal(input: {
   electricityAmountIdr: number;
   waterAmountIdr: number;
   maintenanceAmountIdr: number;
+  adminAmountIdr?: number;
 }): StayQuoteBreakdown {
   const electricityAmountIdr = Math.max(
     0,
@@ -522,12 +756,14 @@ export function recomputeStayQuoteTotal(input: {
     0,
     Math.floor(input.maintenanceAmountIdr),
   );
+  const adminAmountIdr = Math.max(0, Math.floor(input.adminAmountIdr ?? 0));
   if (input.rentAmountIdr == null) {
     return {
       rentAmountIdr: null,
       electricityAmountIdr,
       waterAmountIdr,
       maintenanceAmountIdr,
+      adminAmountIdr,
       totalAmountIdr: null,
     };
   }
@@ -537,11 +773,13 @@ export function recomputeStayQuoteTotal(input: {
     electricityAmountIdr,
     waterAmountIdr,
     maintenanceAmountIdr,
+    adminAmountIdr,
     totalAmountIdr:
       rentAmountIdr +
       electricityAmountIdr +
       waterAmountIdr +
-      maintenanceAmountIdr,
+      maintenanceAmountIdr +
+      adminAmountIdr,
   };
 }
 
@@ -1165,6 +1403,23 @@ export type StaffReservation = {
   electricityRateIdrPerKwh: number;
   waterRateIdrPerM3: number;
   maintenanceFeeIdrPerMonth: number;
+  electricityMinKwh: number;
+  adminFeeIdrPerMonth: number;
+  /** Frozen scheme snapshot from unit type at create (or last scheme copy). */
+  utilityAddons: UtilityAddon[];
+  /**
+   * Stay-level fallback (create-time + last-period denorm). Used when a billed
+   * month has no `utilityPeriodSchemes` row yet.
+   */
+  billingUtilityScheme: UtilitySchemeSnapshot;
+  /**
+   * Frozen card per billed month. Empty stored rows → synthesized from
+   * `billingUtilityScheme` for each reconstructed period.
+   */
+  utilityPeriodSchemes: UtilityPeriodScheme[];
+  /** Live unit-type template — Add period and “Use unit type defaults”. */
+  unitTypeUtilityDefaults: UtilitySchemeSnapshot;
+  adminAmountIdr: number;
   /** Denormalized cache = sum(PaymentMovement.signedAmount). */
   paidAmountIdr: number;
   paymentStatus: PaymentStatus;
@@ -1199,6 +1454,8 @@ export type StaffReservation = {
   utilityReadings?: ReservationUtilityReading[];
   /** Maintenance fee rows (detail GET / after utilities save). */
   maintenanceCharges?: ReservationMaintenanceCharge[];
+  /** Admin fee rows (detail GET / after utilities save). */
+  adminCharges?: ReservationAdminCharge[];
   /** Soft desk reminder — next month utilities not recorded. */
   utilitiesDueNotice?: boolean;
   utilitiesNextDueDate?: string | null;

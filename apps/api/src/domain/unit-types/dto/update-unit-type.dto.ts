@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -26,6 +27,9 @@ import {
   UNIT_TYPE_YEARLY_PRICE_IDR_MAX,
   UNIT_TYPE_UTILITY_RATE_IDR_MAX,
   UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX,
+  UTILITY_ADDON_MAX_PER_KIND,
+  UTILITY_METER_FRACTION_DIGITS,
+  UTILITY_METER_VALUE_MAX,
   UnitLayout,
 } from '@cabin/api-contract';
 import {
@@ -33,6 +37,7 @@ import {
   BedConfigRoomDto,
   MediaItemDto,
 } from '../../inventory/inventory-json.dto.js';
+import { UtilityAddonInputDto } from './utility-addon-input.dto.js';
 
 export class UpdateUnitTypeDto {
   @IsOptional()
@@ -122,6 +127,36 @@ export class UpdateUnitTypeDto {
   @Min(0)
   @Max(UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX)
   maintenanceFeeIdrPerMonth?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber(
+    { maxDecimalPlaces: UTILITY_METER_FRACTION_DIGITS },
+    {
+      message: `electricityMinKwh allows at most ${UTILITY_METER_FRACTION_DIGITS} decimal places`,
+    },
+  )
+  @Min(0)
+  @Max(UTILITY_METER_VALUE_MAX)
+  electricityMinKwh?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX)
+  adminFeeIdrPerMonth?: number;
+
+  /**
+   * Omit to leave existing rows. Provided (including `[]`) is a replace-set:
+   * delete all add-ons for this type, then create the payload.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(UTILITY_ADDON_MAX_PER_KIND * 2)
+  @ValidateNested({ each: true })
+  @Type(() => UtilityAddonInputDto)
+  utilityAddons?: UtilityAddonInputDto[];
 
   @IsOptional()
   @IsArray()

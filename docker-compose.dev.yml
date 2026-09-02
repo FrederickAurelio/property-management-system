@@ -2,6 +2,7 @@
 # Postgres: pnpm db:up / db:down
 # Garage archive: pnpm archive:up / archive:down (see deploy/garage/README.md)
 # Request logs: pnpm logs:up / logs:down (see deploy/loki/README.md)
+# PDF convert: pnpm gotenberg:up / gotenberg:down (127.0.0.1:3001 → container 3000)
 
 name: cabin
 
@@ -80,6 +81,15 @@ services:
       - loki_data:/loki
     ports:
       - '127.0.0.1:3100:3100'
+    networks:
+      - cabin
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: cabin-gotenberg
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3001:3000'
     networks:
       - cabin
 

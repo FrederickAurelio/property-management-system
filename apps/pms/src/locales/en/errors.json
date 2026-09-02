@@ -7,6 +7,7 @@
   "serverUnavailable": "Cannot reach the server. It may be down — try again shortly.",
   "serverUnavailableShort": "Cannot reach the server",
   "logsUnavailable": "Request logs are offline. Start Loki with pnpm logs:up, or check the VPS logs stack.",
+  "pdfUnavailable": "PDF export is offline. Start Gotenberg with pnpm gotenberg:up, or check the VPS stack.",
   "rateLimited": "Too many attempts. Try again in a few minutes.",
   "requestFailed": "Request failed",
   "invalidSuccessEnvelope": "Invalid API success envelope",
@@ -34,6 +35,7 @@
     "movementExceedsDue": "Amount exceeds Due or Refund",
     "earlyConfirmRequired": "Confirm early / late action",
     "invalidStatusTransition": "This action is not allowed now",
-    "sourceLockedWithExternalRef": "Source is locked while this stay is linked to an OTA calendar UID"
+    "sourceLockedWithExternalRef": "Source is locked while this stay is linked to an OTA calendar UID",
+    "utilityAddonLimit": "At most 8 add-on fees per electricity or water"
   }
 }

@@ -11,6 +11,11 @@
         "include": "generated/**/*",
         "watchAssets": true,
         "outDir": "dist"
+      },
+      {
+        "include": "../assets/utility-statement.xlsx",
+        "watchAssets": true,
+        "outDir": "dist/assets"
       }
     ]
   }

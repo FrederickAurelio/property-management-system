@@ -30,6 +30,7 @@ const FIELD_REASON_KEY: Partial<Record<ApiFieldReasonType, string>> = {
   [ApiFieldReason.INVALID_STATUS_TRANSITION]: "invalidStatusTransition",
   [ApiFieldReason.SOURCE_LOCKED_WITH_EXTERNAL_REF]:
     "sourceLockedWithExternalRef",
+  [ApiFieldReason.UTILITY_ADDON_LIMIT]: "utilityAddonLimit",
 };
 
 /** Looks up the i18n message for a mapped `ApiFieldReason`, if any. */

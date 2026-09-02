@@ -9,7 +9,11 @@ import {
   roomToFloor,
   unitCode,
 } from './sentraland-inventory';
-import { SEED_UTILITY_RATES } from './sentraland-inventory-templates';
+import {
+  SEED_ADMIN_FEE_IDR_PER_MONTH,
+  SEED_ELECTRICITY_MIN_KWH,
+  SEED_UTILITY_ADDONS,
+} from './sentraland-inventory-templates';
 
 export function newIcalExportToken(): string {
   return randomBytes(24).toString('hex');
@@ -129,6 +133,15 @@ export async function createSentralandInventory(
         bedConfig: row.bedConfig,
         amenities: row.amenities,
         media: row.media,
+        utilityAddons: {
+          create: SEED_UTILITY_ADDONS.map((addon) => ({
+            utility: addon.utility,
+            name: addon.name,
+            kind: addon.kind,
+            value: addon.value,
+            sortOrder: addon.sortOrder,
+          })),
+        },
       },
     });
     unitTypeIdByCode.set(created.code, created.id);
@@ -192,22 +205,94 @@ export async function applySentralandInventoryReplace(
   });
 }
 
-export async function patchSkybreezeUtilityRates(
+export type EnsureSkybreezeUtilityDefaultsResult = {
+  unitTypeCount: number;
+  addonSchemesCreated: number;
+  minKwhFilled: number;
+  adminFeeFilled: number;
+};
+
+/**
+ * Fill-if-empty Skybreeze utility scheme. Never writes live
+ * electricityRateIdrPerKwh / waterRateIdrPerM3 / maintenanceFeeIdrPerMonth.
+ * Add-ons are created only when a unit type has zero rows; min kWh and admin
+ * fee only when still 0.
+ */
+export async function ensureSkybreezeUtilityDefaults(
   prisma: PrismaClient,
-): Promise<number> {
+): Promise<EnsureSkybreezeUtilityDefaultsResult> {
   const property = await prisma.property.findUnique({
     where: { code: SENTRALAND_PROPERTY_CODE },
     select: { id: true },
   });
   if (!property) {
-    return 0;
+    return {
+      unitTypeCount: 0,
+      addonSchemesCreated: 0,
+      minKwhFilled: 0,
+      adminFeeFilled: 0,
+    };
   }
 
-  const result = await prisma.unitType.updateMany({
+  const types = await prisma.unitType.findMany({
     where: { propertyId: property.id },
-    data: { ...SEED_UTILITY_RATES },
+    select: {
+      id: true,
+      electricityMinKwh: true,
+      adminFeeIdrPerMonth: true,
+      _count: { select: { utilityAddons: true } },
+    },
   });
-  return result.count;
+
+  let addonSchemesCreated = 0;
+  let minKwhFilled = 0;
+  let adminFeeFilled = 0;
+
+  for (const row of types) {
+    const minKwh = Number(row.electricityMinKwh);
+    const shouldFillMinKwh = minKwh === 0;
+    const shouldFillAdminFee = row.adminFeeIdrPerMonth === 0;
+    if (shouldFillMinKwh || shouldFillAdminFee) {
+      await prisma.unitType.update({
+        where: { id: row.id },
+        data: {
+          ...(shouldFillMinKwh
+            ? { electricityMinKwh: SEED_ELECTRICITY_MIN_KWH }
+            : {}),
+          ...(shouldFillAdminFee
+            ? { adminFeeIdrPerMonth: SEED_ADMIN_FEE_IDR_PER_MONTH }
+            : {}),
+        },
+      });
+      if (shouldFillMinKwh) {
+        minKwhFilled += 1;
+      }
+      if (shouldFillAdminFee) {
+        adminFeeFilled += 1;
+      }
+    }
+
+    if (row._count.utilityAddons === 0) {
+      await prisma.unitTypeUtilityAddon.createMany({
+        data: SEED_UTILITY_ADDONS.map((addon) => ({
+          unitTypeId: row.id,
+          utility: addon.utility,
+          name: addon.name,
+          kind: addon.kind,
+          value: addon.value,
+          sortOrder: addon.sortOrder,
+        })),
+      });
+      addonSchemesCreated += 1;
+    }
+  }
+
+  return {
+    unitTypeCount: types.length,
+    addonSchemesCreated,
+    minKwhFilled,
+    adminFeeFilled,
+  };
 }
 
 export function formatImportSummary(

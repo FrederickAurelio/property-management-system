@@ -1,7 +1,11 @@
 import {
   ReservationStatus,
+  UtilityAddonKind,
+  UtilityKind,
+  applyUtilityAddons,
   computeMeterIntervalCharges,
   computeUtilitiesDueNotice,
+  computeUtilityKindTotal,
   defaultFirstMaintenanceChargeDateYmd,
   defaultFirstMaintenanceChargeYearMonth,
   defaultNextMaintenanceChargeYearMonth,
@@ -9,6 +13,7 @@ import {
   firstDayOfNextMonthYmd,
   normalizeMaintenanceChargeDateYmd,
   recomputeStayQuoteTotal,
+  sumAdminChargesIdr,
   sumMaintenanceChargesIdr,
   yearMonthToChargeDateYmd,
 } from '@cabin/api-contract';
@@ -50,6 +55,7 @@ describe('utility quote helpers', () => {
     );
     expect(result.intervals).toHaveLength(2);
     expect(result.intervals[0].usage).toBe(50.5);
+    expect(result.intervals[0].billedUnits).toBe(50.5);
     expect(result.intervals[0].amountIdr).toBe(Math.floor(50.5 * 2000));
     expect(result.totalAmountIdr).toBe(
       Math.floor(50.5 * 2000) + Math.floor(49.5 * 2000),
@@ -68,6 +74,74 @@ describe('utility quote helpers', () => {
     ).toThrow('METER_DECREASED');
   });
 
+  it('computeMeterIntervalCharges bills min kWh without rewriting meters', () => {
+    const result = computeMeterIntervalCharges(
+      [
+        { readingDate: '2026-05-10', meterValue: 1000 },
+        { readingDate: '2026-06-01', meterValue: 1023 },
+        { readingDate: '2026-07-01', meterValue: 1040 },
+      ],
+      1700,
+      { minBilledUnits: 52 },
+    );
+    expect(result.intervals).toHaveLength(2);
+    expect(result.intervals[0].usage).toBe(23);
+    expect(result.intervals[0].billedUnits).toBe(52);
+    expect(result.intervals[0].amountIdr).toBe(Math.floor(52 * 1700));
+    // Next interval starts from stored 1023 — meters are never rewritten.
+    expect(result.intervals[1].usage).toBe(17);
+    expect(result.intervals[1].billedUnits).toBe(52);
+    expect(result.intervals[1].amountIdr).toBe(Math.floor(52 * 1700));
+    expect(result.totalAmountIdr).toBe(Math.floor(52 * 1700) * 2);
+  });
+
+  it('applies add-ons per interval on min-billed usage Rp; meters stay actual', () => {
+    const readings = [
+      { readingDate: '2026-05-10', meterValue: 1000 },
+      { readingDate: '2026-06-01', meterValue: 1023 },
+    ];
+    const charged = computeMeterIntervalCharges(readings, 1700, {
+      minBilledUnits: 52,
+    });
+    expect(charged.intervals[0]?.usage).toBe(23);
+    expect(charged.intervals[0]?.billedUnits).toBe(52);
+    const usageRp = Math.floor(52 * 1700);
+    expect(charged.intervals[0]?.amountIdr).toBe(usageRp);
+    const addons = [
+      {
+        utility: UtilityKind.ELECTRICITY,
+        name: 'PJU',
+        kind: UtilityAddonKind.PERCENT,
+        value: 10,
+        sortOrder: 0,
+      },
+      {
+        utility: UtilityKind.ELECTRICITY,
+        name: 'Admin PLN',
+        kind: UtilityAddonKind.CONSTANT,
+        value: 5_000,
+        sortOrder: 1,
+      },
+    ];
+    expect(computeUtilityKindTotal(usageRp, addons)).toBe(
+      usageRp + Math.floor((usageRp * 10) / 100) + 5_000,
+    );
+    expect(readings[1]?.meterValue).toBe(1023);
+  });
+
+  it('computeMeterIntervalCharges 2-arg call is no minimum', () => {
+    const result = computeMeterIntervalCharges(
+      [
+        { readingDate: '2026-05-10', meterValue: 1000 },
+        { readingDate: '2026-06-01', meterValue: 1023 },
+      ],
+      1700,
+    );
+    expect(result.intervals[0].usage).toBe(23);
+    expect(result.intervals[0].billedUnits).toBe(23);
+    expect(result.intervals[0].amountIdr).toBe(Math.floor(23 * 1700));
+  });
+
   it('recomputeStayQuoteTotal sums rent + utilities', () => {
     expect(
       recomputeStayQuoteTotal({
@@ -81,7 +155,27 @@ describe('utility quote helpers', () => {
       electricityAmountIdr: 50_000,
       waterAmountIdr: 20_000,
       maintenanceAmountIdr: 30_000,
+      adminAmountIdr: 0,
       totalAmountIdr: 1_100_000,
+    });
+  });
+
+  it('recomputeStayQuoteTotal includes admin', () => {
+    expect(
+      recomputeStayQuoteTotal({
+        rentAmountIdr: 1_000_000,
+        electricityAmountIdr: 50_000,
+        waterAmountIdr: 20_000,
+        maintenanceAmountIdr: 30_000,
+        adminAmountIdr: 10_000,
+      }),
+    ).toEqual({
+      rentAmountIdr: 1_000_000,
+      electricityAmountIdr: 50_000,
+      waterAmountIdr: 20_000,
+      maintenanceAmountIdr: 30_000,
+      adminAmountIdr: 10_000,
+      totalAmountIdr: 1_110_000,
     });
   });
 
@@ -92,6 +186,64 @@ describe('utility quote helpers', () => {
         { amountIdr: 100_000 },
       ]),
     ).toBe(200_000);
+  });
+
+  it('sumAdminChargesIdr aliases maintenance sum', () => {
+    expect(
+      sumAdminChargesIdr([{ amountIdr: 6_500 }, { amountIdr: 6_500 }]),
+    ).toBe(13_000);
+  });
+
+  it('applyUtilityAddons percent is of usage Rp only, not of constants', () => {
+    const result = applyUtilityAddons(100_000, [
+      {
+        utility: UtilityKind.ELECTRICITY,
+        name: 'Admin PLN',
+        kind: UtilityAddonKind.CONSTANT,
+        value: 6_500,
+        sortOrder: 0,
+      },
+      {
+        utility: UtilityKind.ELECTRICITY,
+        name: 'PPN',
+        kind: UtilityAddonKind.PERCENT,
+        value: 10,
+        sortOrder: 1,
+      },
+    ]);
+    expect(result.lines).toEqual([
+      {
+        name: 'Admin PLN',
+        kind: UtilityAddonKind.CONSTANT,
+        value: 6_500,
+        amountIdr: 6_500,
+      },
+      {
+        name: 'PPN',
+        kind: UtilityAddonKind.PERCENT,
+        value: 10,
+        amountIdr: 10_000,
+      },
+    ]);
+    expect(result.totalAddonIdr).toBe(16_500);
+    expect(
+      computeUtilityKindTotal(100_000, [
+        {
+          utility: UtilityKind.ELECTRICITY,
+          name: 'Admin PLN',
+          kind: UtilityAddonKind.CONSTANT,
+          value: 6_500,
+          sortOrder: 0,
+        },
+        {
+          utility: UtilityKind.ELECTRICITY,
+          name: 'PPN',
+          kind: UtilityAddonKind.PERCENT,
+          value: 10,
+          sortOrder: 1,
+        },
+      ]),
+    ).toBe(116_500);
   });
 
   it('computeUtilitiesDueNotice flags missing next month on MONTHLY', () => {

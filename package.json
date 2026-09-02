@@ -27,6 +27,8 @@
     "logs:up": "docker compose -f docker-compose.dev.yml up -d loki",
     "logs:down": "docker compose -f docker-compose.dev.yml stop loki",
     "logs:logs": "docker compose -f docker-compose.dev.yml logs -f loki",
+    "gotenberg:up": "docker compose -f docker-compose.dev.yml up -d gotenberg",
+    "gotenberg:down": "docker compose -f docker-compose.dev.yml stop gotenberg",
     "prisma:generate": "pnpm --filter @cabin/api prisma:generate",
     "prisma:migrate": "pnpm --filter @cabin/api prisma:migrate",
     "prisma:seed": "pnpm --filter @cabin/api prisma:seed",

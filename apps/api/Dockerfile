@@ -66,6 +66,7 @@ WORKDIR /app
 ENV CI=true
 RUN set -eux; \
   pnpm deploy --filter=@cabin/api --prod --legacy /prod/api; \
+  # Keep utility-statement.xlsx under dist/assets; do not rely on src/.
   rm -rf /prod/api/src /prod/api/test
 
 # --- runtime ---

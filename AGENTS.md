@@ -27,8 +27,8 @@ apps/pms   → Staff PMS UI (Phase 1 prod)    @cabin/pms
 apps/web   → Public browse/book (Phase 2)   @cabin/web (Vite + prerender; stack locked)
 packages/  → Shared libs for 2+ apps        @cabin/*
 _docs/     → Product plan + locked design notes (inventory, reservations, …)
-docker-compose.yml     → VPS full stack (postgres + api + pms + web + garage + Loki; FE :8080 · web :3050 · archive S3 :3900 · archive GET :3910)
-docker-compose.dev.yml → local Postgres + Garage + optional logs (`pnpm db:up` / `archive:up` / `logs:up`)
+docker-compose.yml     → VPS full stack (postgres + api + pms + web + garage + Loki + Gotenberg; FE :8080 · web :3050 · archive S3 :3900 · archive GET :3910)
+docker-compose.dev.yml → local Postgres + Garage + optional logs (`pnpm db:up` / `archive:up` / `logs:up`) + optional Gotenberg (`pnpm gotenberg:up`)
 ```
 
 One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (never `npm i` inside an app).
@@ -65,6 +65,7 @@ From **repo root**:
 | Postgres up | `pnpm db:up` (`docker-compose.dev.yml`) |
 | Postgres down | `pnpm db:down` |
 | Local Loki | `pnpm logs:up` / `logs:down` (`127.0.0.1:3100`) |
+| Local Gotenberg | `pnpm gotenberg:up` / `gotenberg:down` (`127.0.0.1:3001`) |
 | Prisma generate | `pnpm prisma:generate` |
 | Prisma migrate | `pnpm prisma:migrate` |
 | VPS stack | `docker compose up -d --build` (default `docker-compose.yml`) |
@@ -73,7 +74,7 @@ From **repo root**:
 | Web dev | `pnpm --filter @cabin/web dev` (`:5174`) |
 | Add dep to one app | `pnpm --filter @cabin/api add <pkg>` |
 
-Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`). VPS (no domain): host ports **8080** (PMS) · **3050** (web) · **3900** (Garage S3) · **3910** (archive GET); api/postgres/loki stay on Docker network.
+Local DB: `localhost:${POSTGRES_PORT:-5432}` · db `cabin_pms` · **one** `.env` at repo root (see `.env.example`). VPS (no domain): host ports **8080** (PMS) · **3050** (web) · **3900** (Garage S3) · **3910** (archive GET); api/postgres/loki/gotenberg stay on Docker network.
 
 ## Product path
 

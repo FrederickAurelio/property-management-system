@@ -16,6 +16,8 @@ export const ApiErrorCode = {
   SERVER_UNAVAILABLE: 'SERVER_UNAVAILABLE',
   /** Nest 503: Loki down / timeout — request-log search unavailable. */
   LOGS_UNAVAILABLE: 'LOGS_UNAVAILABLE',
+  /** Nest 503: Gotenberg down / timeout — utility statement PDF unavailable. */
+  PDF_UNAVAILABLE: 'PDF_UNAVAILABLE',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

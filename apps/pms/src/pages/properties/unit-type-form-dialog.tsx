@@ -1,4 +1,4 @@
-/* anchor: Linear settings form, diverge: unit type + beds + amenities per _docs */
+/* anchor: Linear-dense / Stripe-data settings form, diverge: utility subsections + indented add-on rows */
 import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,8 +14,6 @@ import {
   UNIT_TYPE_DAILY_PRICE_IDR_MAX,
   UNIT_TYPE_MONTHLY_PRICE_IDR_MAX,
   UNIT_TYPE_YEARLY_PRICE_IDR_MAX,
-  UNIT_TYPE_UTILITY_RATE_IDR_MAX,
-  UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX,
   UnitLayout,
   type Amenities,
   type BedConfigRoom,
@@ -26,6 +24,15 @@ import type { TFunction } from "i18next";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
+import { IdrAmountInput } from "@/components/form/idr-amount-input";
+import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
+import { SortableMediaField } from "@/components/media/sortable-media-field";
+import { UtilitySchemeFields } from "@/components/utility-scheme-fields";
+import {
+  refineUtilitySchemeFormValues,
+  utilitySchemeSnapshotFromFormValues,
+  utilitySchemeZodFields,
+} from "@/components/utility-scheme-form";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -58,9 +65,6 @@ import {
 } from "@/lib/api";
 import { AmenitiesField } from "./amenities-field";
 import { BedConfigField } from "./bed-config-field";
-import { IdrAmountInput } from "@/components/form/idr-amount-input";
-import { ResponsiveFormShell } from "@/components/form/responsive-form-shell";
-import { SortableMediaField } from "@/components/media/sortable-media-field";
 
 const bedKindSchema = z.enum([
   BedKind.SINGLE,
@@ -101,9 +105,7 @@ function createUnitTypeSchema(t: TFunction) {
       defaultPriceIdr: z.string().trim(),
       monthlyPriceIdr: z.string().trim(),
       yearlyPriceIdr: z.string().trim(),
-      electricityRateIdrPerKwh: z.string().trim(),
-      waterRateIdrPerM3: z.string().trim(),
-      maintenanceFeeIdrPerMonth: z.string().trim(),
+      ...utilitySchemeZodFields(t),
       description: z.string().trim().max(4000),
       smokingAllowed: z.enum(["true", "false"]),
       isActive: z.enum(["true", "false"]),
@@ -221,48 +223,7 @@ function createUnitTypeSchema(t: TFunction) {
           message: t("inventory:unitTypes.form.zod.yearlyPriceRange"),
         });
       }
-      const elec = Number(values.electricityRateIdrPerKwh);
-      if (
-        values.electricityRateIdrPerKwh === "" ||
-        Number.isNaN(elec) ||
-        !Number.isInteger(elec) ||
-        elec < 0 ||
-        elec > UNIT_TYPE_UTILITY_RATE_IDR_MAX
-      ) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["electricityRateIdrPerKwh"],
-          message: t("inventory:unitTypes.form.zod.utilityRateRange"),
-        });
-      }
-      const water = Number(values.waterRateIdrPerM3);
-      if (
-        values.waterRateIdrPerM3 === "" ||
-        Number.isNaN(water) ||
-        !Number.isInteger(water) ||
-        water < 0 ||
-        water > UNIT_TYPE_UTILITY_RATE_IDR_MAX
-      ) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["waterRateIdrPerM3"],
-          message: t("inventory:unitTypes.form.zod.utilityRateRange"),
-        });
-      }
-      const maint = Number(values.maintenanceFeeIdrPerMonth);
-      if (
-        values.maintenanceFeeIdrPerMonth === "" ||
-        Number.isNaN(maint) ||
-        !Number.isInteger(maint) ||
-        maint < 0 ||
-        maint > UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX
-      ) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["maintenanceFeeIdrPerMonth"],
-          message: t("inventory:unitTypes.form.zod.maintenanceFeeRange"),
-        });
-      }
+      refineUtilitySchemeFormValues(values, ctx, t);
     });
 }
 
@@ -281,6 +242,9 @@ const emptyDefaults: FormValues = {
   electricityRateIdrPerKwh: "0",
   waterRateIdrPerM3: "0",
   maintenanceFeeIdrPerMonth: "0",
+  electricityMinKwh: "0",
+  adminFeeIdrPerMonth: "0",
+  utilityAddons: [],
   description: "",
   smokingAllowed: "false",
   isActive: "true",
@@ -308,6 +272,14 @@ function formValuesFromUnitType(
     electricityRateIdrPerKwh: String(unitType.electricityRateIdrPerKwh),
     waterRateIdrPerM3: String(unitType.waterRateIdrPerM3),
     maintenanceFeeIdrPerMonth: String(unitType.maintenanceFeeIdrPerMonth),
+    electricityMinKwh: String(unitType.electricityMinKwh ?? 0),
+    adminFeeIdrPerMonth: String(unitType.adminFeeIdrPerMonth ?? 0),
+    utilityAddons: (unitType.utilityAddons ?? []).map((addon) => ({
+      utility: addon.utility,
+      name: addon.name,
+      kind: addon.kind,
+      value: String(addon.value),
+    })),
     description: unitType.description ?? "",
     smokingAllowed: unitType.smokingAllowed ? "true" : "false",
     isActive: unitType.isActive ? "true" : "false",
@@ -348,6 +320,7 @@ export function UnitTypeFormDialog({
       if (values.media.some((item) => item.url.startsWith("blob:"))) {
         throw new Error(t("inventory:unitTypes.form.mediaUploadingError"));
       }
+      const scheme = utilitySchemeSnapshotFromFormValues(values);
       const payload = {
         code: values.code,
         name: values.name,
@@ -358,9 +331,12 @@ export function UnitTypeFormDialog({
         defaultPriceIdr: Number(values.defaultPriceIdr),
         monthlyPriceIdr: Number(values.monthlyPriceIdr),
         yearlyPriceIdr: Number(values.yearlyPriceIdr),
-        electricityRateIdrPerKwh: Number(values.electricityRateIdrPerKwh),
-        waterRateIdrPerM3: Number(values.waterRateIdrPerM3),
-        maintenanceFeeIdrPerMonth: Number(values.maintenanceFeeIdrPerMonth),
+        electricityRateIdrPerKwh: scheme.electricityRateIdrPerKwh,
+        waterRateIdrPerM3: scheme.waterRateIdrPerM3,
+        maintenanceFeeIdrPerMonth: scheme.maintenanceFeeIdrPerMonth,
+        electricityMinKwh: scheme.electricityMinKwh,
+        adminFeeIdrPerMonth: scheme.adminFeeIdrPerMonth,
+        utilityAddons: scheme.utilityAddons,
         description: values.description || null,
         smokingAllowed: values.smokingAllowed === "true",
         isActive: values.isActive === "true",
@@ -703,128 +679,12 @@ export function UnitTypeFormDialog({
                 />
               </div>
             </div>
-            <div className="flex flex-col gap-3">
-              <p className="text-sm font-medium text-foreground">
-                {t("inventory:unitTypes.form.fields.utilityRatesTitle")}
-              </p>
-              <p className="-mt-1 text-xs text-muted-foreground">
-                {t("inventory:unitTypes.form.fields.utilityRatesHint")}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Controller
-                  control={form.control}
-                  name="electricityRateIdrPerKwh"
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid || undefined}>
-                      <FieldLabel htmlFor="type-elec-rate">
-                        {t("inventory:unitTypes.form.fields.electricity")}
-                      </FieldLabel>
-                      <InputGroup>
-                        <InputGroupAddon>
-                          <InputGroupText>
-                            {t(
-                              "inventory:unitTypes.form.fields.currencyPrefix",
-                            )}
-                          </InputGroupText>
-                        </InputGroupAddon>
-                        <IdrAmountInput
-                          id="type-elec-rate"
-                          data-slot="input-group-control"
-                          placeholder="0"
-                          className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent"
-                          aria-invalid={fieldState.invalid || undefined}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
-                        />
-                        <InputGroupAddon align="inline-end">
-                          <InputGroupText>
-                            {t("inventory:unitTypes.form.fields.perKwh")}
-                          </InputGroupText>
-                        </InputGroupAddon>
-                      </InputGroup>
-                      <FieldError errors={[fieldState.error]} />
-                    </Field>
-                  )}
-                />
-                <Controller
-                  control={form.control}
-                  name="waterRateIdrPerM3"
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid || undefined}>
-                      <FieldLabel htmlFor="type-water-rate">
-                        {t("inventory:unitTypes.form.fields.water")}
-                      </FieldLabel>
-                      <InputGroup>
-                        <InputGroupAddon>
-                          <InputGroupText>
-                            {t(
-                              "inventory:unitTypes.form.fields.currencyPrefix",
-                            )}
-                          </InputGroupText>
-                        </InputGroupAddon>
-                        <IdrAmountInput
-                          id="type-water-rate"
-                          data-slot="input-group-control"
-                          placeholder="0"
-                          className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent"
-                          aria-invalid={fieldState.invalid || undefined}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
-                        />
-                        <InputGroupAddon align="inline-end">
-                          <InputGroupText>
-                            {t("inventory:unitTypes.form.fields.perM3")}
-                          </InputGroupText>
-                        </InputGroupAddon>
-                      </InputGroup>
-                      <FieldError errors={[fieldState.error]} />
-                    </Field>
-                  )}
-                />
-              </div>
-              <Controller
-                control={form.control}
-                name="maintenanceFeeIdrPerMonth"
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid || undefined}>
-                    <FieldLabel htmlFor="type-maint-fee">
-                      {t("inventory:unitTypes.form.fields.maintenance")}
-                    </FieldLabel>
-                    <InputGroup>
-                      <InputGroupAddon>
-                        <InputGroupText>
-                          {t("inventory:unitTypes.form.fields.currencyPrefix")}
-                        </InputGroupText>
-                      </InputGroupAddon>
-                      <IdrAmountInput
-                        id="type-maint-fee"
-                        data-slot="input-group-control"
-                        placeholder="0"
-                        className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent"
-                        aria-invalid={fieldState.invalid || undefined}
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
-                      <InputGroupAddon align="inline-end">
-                        <InputGroupText>
-                          {t("inventory:unitTypes.form.fields.perMonth")}
-                        </InputGroupText>
-                      </InputGroupAddon>
-                    </InputGroup>
-                    <FieldError errors={[fieldState.error]} />
-                  </Field>
-                )}
-              />
-            </div>
+            <UtilitySchemeFields
+              control={form.control as never}
+              setValue={form.setValue as never}
+              readOnly={readOnly}
+              idPrefix="type"
+            />
             <div className="grid grid-cols-2 gap-3">
               <Field>
                 <FieldLabel>

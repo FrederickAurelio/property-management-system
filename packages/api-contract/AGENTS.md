@@ -21,7 +21,7 @@ scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 - Archive wire types (`ArchiveItem`, `ArchiveProvider`, `StaffArchiveConfig`, `ArchiveUploadIntent`, `ARCHIVE_*` bounds) — staff proofs; parallel to inventory media, not `MediaItem`
 - iCal staff wire (`StaffIcalSyncAllResult`, `UnitIcalFeedSource`, feed inputs on unit write)
 - Reservation wire types (`StaffReservation` detail/mutations, `StaffReservationListItem` desk list, create/update/cancel/list filters, boards, `ReservationListSort`, `StayBillingPeriod`, `STAY_*_COUNT_MAX`, `INVENTORY_FAR_YMD`) + helpers (`recomputePaymentStatus`, `balanceDueIdr`, `refundDueIdr`, `openAmountIdr`, `suggestStayTotalIdr`, `checkoutFromPeriodCount`, `periodCountFromRange`, `stayPeriodCountMax`, `isValidStayPeriodRange`, `computeInventoryEndYmd`, `isPeriodOpenInventory` — Nest must reuse; do not fork). List filters include optional stay-touch `from`/`to` (`to` optional when `from` set) and optional `billingPeriod`.
-- Quote utilities (`UtilityKind`, readings/maintenance, `PutReservationUtilitiesInput`, `recomputeStayQuoteTotal`, `computeMeterIntervalCharges`, `computeUtilitiesDueNotice`) — Total = rent + utilities
+- Quote utilities (`UtilityKind`, `UtilityAddonKind`, readings/maintenance/admin, `PutReservationUtilitiesInput`, `recomputeStayQuoteTotal`, `computeMeterIntervalCharges`, `applyUtilityAddons`, `computeUtilitiesDueNotice`) — Total = rent + elec + water + maint + admin; electricity min kWh bills `max(usage, min)` without rewriting meters; % add-ons are of billed usage Rp only (not of constants)
 - Calendar wire types (`StaffPropertyCalendar`, `StaffCalendarStay`, `StaffCalendarBlock`, `CalendarBlockKind`, `CALENDAR_PAINT_RESERVATION_STATUSES`, create/update block inputs) — property aggregate for unit×days grid (paint = occupying + `CHECKED_OUT` history; overlap stays occupying-only)
 - Unit occupancy bounds (`UNIT_OCCUPANCY_RANGE_MAX_YEARS`, `STAY_YEAR_PICKER_BEFORE` / `AFTER`) — Nest occupancy range + PMS yearly picker grid
 - Reports wire types (`StaffReportsSummary`, cash / occupancy / source mix) + period helpers (`previousEqualPeriod`, `ymdInclusiveToUtcHalfOpen`) — Nest `GET /staff/reports/summary`. Open balances stay on Reservations boards.
@@ -30,7 +30,7 @@ scripts/      ← clean-src-artifacts.mjs (strips stray emit in src/)
 - Payment movement wire (`PaymentMovement`, direction/kind enums) + helpers (`signedAmountFor`, `sumPaidFromMovements`, `canUndoPaymentMovement`) — Paid on reservation is denormalized sum of movements; Nest must append movements, not overwrite Paid alone; `proofImages` is a replace-set via PATCH proofs; stamp `createdByAdminId` from session
 - Reservation staff wire includes `createdByAdminId` / `updatedByAdminId` (+ denormalized usernames) — light attribution, not a full audit log
 - Pagination: `Paginated<T>`, `PageInfo`, `buildPageInfo`, page size bounds
-- Structured field-error reasons (`ApiFieldReason`: staff + inventory + reservations — `OVERLAP_CONFLICT`, `UNIT_NOT_BOOKABLE`, `EARLY_CONFIRM_REQUIRED`, …)
+- Structured field-error reasons (`ApiFieldReason`: staff + inventory + reservations — `OVERLAP_CONFLICT`, `UNIT_NOT_BOOKABLE`, `EARLY_CONFIRM_REQUIRED`, `UTILITY_ADDON_LIMIT`, …)
 
 ## Out
 

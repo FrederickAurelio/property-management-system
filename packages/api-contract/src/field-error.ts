@@ -41,6 +41,11 @@ export const ApiFieldReason = {
   METER_DECREASED: 'METER_DECREASED',
   /** Duplicate reading date for same utility on a reservation. */
   DUPLICATE_READING_DATE: 'DUPLICATE_READING_DATE',
+  /**
+   * Unit-type `utilityAddons`: more than `UTILITY_ADDON_MAX_PER_KIND` rows
+   * for ELECTRICITY or WATER, or unknown `utility`.
+   */
+  UTILITY_ADDON_LIMIT: 'UTILITY_ADDON_LIMIT',
 } as const;
 
 /** Extra fields allowed on delete-conflict `error.details` alongside `field` / `reason`. */

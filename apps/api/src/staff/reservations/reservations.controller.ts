@@ -7,6 +7,7 @@ import {
   Post,
   Put,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import type {
@@ -23,6 +24,7 @@ import { PatchPaymentMovementProofsDto } from '../../domain/reservations/dto/pat
 import { PostPaymentMovementDto } from '../../domain/reservations/dto/post-payment-movement.dto.js';
 import { PutReservationUtilitiesDto } from '../../domain/reservations/dto/put-reservation-utilities.dto.js';
 import { UpdateReservationDto } from '../../domain/reservations/dto/update-reservation.dto.js';
+import { UtilityStatementQueryDto } from '../../domain/reservations/dto/utility-statement.query.dto.js';
 import { ReservationsService } from '../../domain/reservations/reservations.service.js';
 import { CurrentAdmin } from '../auth/decorators/current-admin.decorator.js';
 import { StaffRoles } from '../auth/decorators/staff-roles.decorator.js';
@@ -53,6 +55,22 @@ export class ReservationsController {
   @Get(':id')
   getById(@Param('id') id: string): Promise<StaffReservation> {
     return this.reservationsService.getById(id);
+  }
+
+  @Get(':id/utility-statement')
+  async getUtilityStatement(
+    @Param('id') id: string,
+    @Query() query: UtilityStatementQueryDto,
+  ): Promise<StreamableFile> {
+    const { pdf, filename } =
+      await this.reservationsService.getUtilityStatementPdf(
+        id,
+        query.chargeYearMonth,
+      );
+    return new StreamableFile(pdf, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${filename}"`,
+    });
   }
 
   @Patch(':id')

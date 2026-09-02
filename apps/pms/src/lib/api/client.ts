@@ -215,6 +215,14 @@ api.interceptors.response.use(
   (response: AxiosResponse) => {
     const payload = response.data as unknown;
 
+    // Raw PDF / file downloads skip the JSON `{ data }` envelope.
+    if (
+      response.config.responseType === "blob" ||
+      response.config.responseType === "arraybuffer"
+    ) {
+      return response;
+    }
+
     if (isApiSuccessEnvelope(payload)) {
       // Nest wraps success as `{ data, meta? }` — callers get unwrapped `data`.
       return { ...response, data: payload.data };
@@ -228,8 +236,20 @@ api.interceptors.response.use(
       }),
     );
   },
-  (error: unknown) => {
+  async (error: unknown) => {
     if (axios.isAxiosError(error)) {
+      if (
+        error.response &&
+        typeof Blob !== "undefined" &&
+        error.response.data instanceof Blob
+      ) {
+        try {
+          const parsed: unknown = JSON.parse(await error.response.data.text());
+          error.response.data = parsed as typeof error.response.data;
+        } catch {
+          // Keep the Blob; mapAxiosError falls back to status text.
+        }
+      }
       return Promise.reject(mapAxiosError(error));
     }
 

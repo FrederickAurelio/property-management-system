@@ -3,7 +3,7 @@ import * as bcrypt from 'bcrypt';
 import {
   SKYBREEZE_PROPERTY_CREATE_DATA,
   createSentralandInventory,
-  patchSkybreezeUtilityRates,
+  ensureSkybreezeUtilityDefaults,
 } from './apply-sentraland-inventory';
 import {
   SENTRALAND_UNIT_COUNT,
@@ -62,10 +62,10 @@ async function main() {
     console.log(
       `Property table not empty (${propertyCount}); skip inventory create`,
     );
-    const patchedCount = await patchSkybreezeUtilityRates(prisma);
-    if (patchedCount > 0) {
+    const ensured = await ensureSkybreezeUtilityDefaults(prisma);
+    if (ensured.unitTypeCount > 0) {
       console.log(
-        `Patched utility rates on ${patchedCount} Skybreeze unit type(s)`,
+        `Ensured Skybreeze utility defaults on ${ensured.unitTypeCount} unit type(s) (addon schemes created: ${ensured.addonSchemesCreated}, min kWh filled: ${ensured.minKwhFilled}, admin fee filled: ${ensured.adminFeeFilled})`,
       );
     }
   }

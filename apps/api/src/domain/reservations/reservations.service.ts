@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -30,10 +31,18 @@ import {
   isValidStayPeriodRange,
   computeInventoryEndYmd,
   computeMeterIntervalCharges,
+  lookupUtilityPeriodScheme,
   normalizeMaintenanceChargeDateYmd,
   recomputeStayQuoteTotal,
+  resolveUtilitySchemeSnapshot,
+  sumAdminChargesIdr,
   sumMaintenanceChargesIdr,
+  UTILITY_ADDON_MAX_PER_KIND,
   UtilityKind,
+  yearMonthToChargeDateYmd,
+  type UtilityAddon,
+  type UtilityPeriodScheme,
+  type UtilitySchemeSnapshot,
   ymdYearMonth,
   type Paginated,
   type StaffAdmin,
@@ -42,6 +51,8 @@ import {
   type StayBillingPeriod as StayBillingPeriodType,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
+import { PDF_CONVERT } from '../../integrations/pdf-convert/pdf-convert.port.js';
+import type { PdfConvertPort } from '../../integrations/pdf-convert/pdf-convert.port.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { IcalImportService } from '../ical/ical-import.service.js';
 import type { CancelReservationDto } from './dto/cancel-reservation.dto.js';
@@ -62,13 +73,171 @@ import {
   withOpenBalanceMoney,
 } from './reservation-board-where.js';
 import {
+  asUtilityAddons,
   parseYmd,
   toStaffReservation,
   toStaffReservationListItem,
 } from './reservations-mapper.js';
+import {
+  billUtilityPeriodMeters,
+  buildUtilityStatementFillInput,
+  utilityStatementFilename,
+} from './utility-statement-build.js';
+import { reconstructUtilityPeriods } from './utility-statement-period.js';
+import { fillUtilityStatementXlsx } from './utility-statement-fill.js';
 
 /** Fallback when boards list all properties (doc prefers property-scoped boards). */
 const DEFAULT_BOARD_TIMEZONE = 'Asia/Jakarta';
+
+function uniqueChargeMonthsOrThrow(
+  charges: ReadonlyArray<{ chargeDate: string }>,
+  message: string,
+): void {
+  const months = new Set<string>();
+  for (const c of charges) {
+    const ym = ymdYearMonth(c.chargeDate);
+    if (!ym || months.has(ym)) {
+      throw new BadRequestException({
+        message,
+        details: {
+          field: 'chargeDate',
+          reason: ApiFieldReason.DUPLICATE_READING_DATE,
+        },
+      });
+    }
+    months.add(ym);
+  }
+}
+
+function throwMeterError(error: unknown): never {
+  const code = error instanceof Error ? error.message : 'INVALID_METER';
+  if (code === 'METER_DECREASED') {
+    throw new BadRequestException({
+      message: 'Meter reading cannot be lower than the previous reading',
+      details: {
+        field: 'meterValue',
+        reason: ApiFieldReason.METER_DECREASED,
+      },
+    });
+  }
+  if (code === 'DUPLICATE_READING_DATE') {
+    throw new BadRequestException({
+      message: 'Duplicate reading date for the same utility',
+      details: {
+        field: 'readingDate',
+        reason: ApiFieldReason.DUPLICATE_READING_DATE,
+      },
+    });
+  }
+  throw new BadRequestException({
+    message: 'Invalid meter readings',
+    details: {
+      field: 'meterValue',
+      reason: ApiFieldReason.DATE_RANGE_INVALID,
+    },
+  });
+}
+
+function assertMeterChain(
+  readings: ReadonlyArray<{ readingDate: string; meterValue: number }>,
+): void {
+  if (readings.length < 2) {
+    return;
+  }
+  computeMeterIntervalCharges(readings, 1);
+}
+
+function uniqueSchemeMonthsOrThrow(
+  schemes: ReadonlyArray<{ chargeYearMonth: string }>,
+): void {
+  const months = new Set<string>();
+  for (const row of schemes) {
+    if (months.has(row.chargeYearMonth)) {
+      throw new BadRequestException({
+        message: 'Duplicate utility rules month',
+        details: {
+          field: 'chargeYearMonth',
+          reason: ApiFieldReason.DUPLICATE_READING_DATE,
+        },
+      });
+    }
+    months.add(row.chargeYearMonth);
+  }
+}
+
+function normalizePeriodSchemeAddons(
+  addons: ReadonlyArray<{
+    utility: UtilityAddon['utility'];
+    name: string;
+    kind: UtilityAddon['kind'];
+    value: number;
+    sortOrder?: number;
+  }>,
+): UtilityAddon[] {
+  const counts: Record<string, number> = {
+    [UtilityKind.ELECTRICITY]: 0,
+    [UtilityKind.WATER]: 0,
+  };
+  const nextIndex: Record<string, number> = {
+    [UtilityKind.ELECTRICITY]: 0,
+    [UtilityKind.WATER]: 0,
+  };
+  const out: UtilityAddon[] = [];
+  for (const addon of addons) {
+    const utility = addon.utility;
+    if (!(utility in counts)) {
+      throw new BadRequestException({
+        message: 'Unknown utility on add-on',
+        details: {
+          field: 'utilityAddons',
+          reason: ApiFieldReason.UTILITY_ADDON_LIMIT,
+        },
+      });
+    }
+    counts[utility] += 1;
+    let sortOrder = addon.sortOrder;
+    if (sortOrder === undefined) {
+      sortOrder = nextIndex[utility] ?? 0;
+      nextIndex[utility] = sortOrder + 1;
+    } else {
+      nextIndex[utility] = Math.max(nextIndex[utility] ?? 0, sortOrder + 1);
+    }
+    out.push({
+      utility,
+      name: addon.name.trim(),
+      kind: addon.kind,
+      value: addon.value,
+      sortOrder,
+    });
+  }
+  if (
+    (counts[UtilityKind.ELECTRICITY] ?? 0) > UTILITY_ADDON_MAX_PER_KIND ||
+    (counts[UtilityKind.WATER] ?? 0) > UTILITY_ADDON_MAX_PER_KIND
+  ) {
+    throw new BadRequestException({
+      message: `At most ${UTILITY_ADDON_MAX_PER_KIND} add-ons per utility`,
+      details: {
+        field: 'utilityAddons',
+        reason: ApiFieldReason.UTILITY_ADDON_LIMIT,
+      },
+    });
+  }
+  return out;
+}
+
+function toPersistedPeriodScheme(
+  row: UtilityPeriodScheme,
+): UtilityPeriodScheme {
+  return {
+    chargeYearMonth: row.chargeYearMonth,
+    electricityRateIdrPerKwh: Math.floor(row.electricityRateIdrPerKwh),
+    waterRateIdrPerM3: Math.floor(row.waterRateIdrPerM3),
+    maintenanceFeeIdrPerMonth: Math.floor(row.maintenanceFeeIdrPerMonth),
+    electricityMinKwh: row.electricityMinKwh,
+    adminFeeIdrPerMonth: Math.floor(row.adminFeeIdrPerMonth),
+    utilityAddons: normalizePeriodSchemeAddons(row.utilityAddons),
+  };
+}
 
 const reservationInclude = {
   property: { select: { name: true, timezone: true } },
@@ -80,6 +249,25 @@ const reservationInclude = {
 
 const reservationDetailInclude = {
   ...reservationInclude,
+  unitType: {
+    select: {
+      electricityRateIdrPerKwh: true,
+      waterRateIdrPerM3: true,
+      maintenanceFeeIdrPerMonth: true,
+      electricityMinKwh: true,
+      adminFeeIdrPerMonth: true,
+      utilityAddons: {
+        orderBy: [{ sortOrder: 'asc' as const }, { name: 'asc' as const }],
+        select: {
+          utility: true,
+          name: true,
+          kind: true,
+          value: true,
+          sortOrder: true,
+        },
+      },
+    },
+  },
   movements: {
     orderBy: { createdAt: 'asc' as const },
     include: { createdByAdmin: { select: { username: true } } },
@@ -90,6 +278,12 @@ const reservationDetailInclude = {
   maintenanceCharges: {
     orderBy: [{ chargeDate: 'asc' as const }, { createdAt: 'asc' as const }],
   },
+  adminCharges: {
+    orderBy: [{ chargeDate: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+  utilityPeriodSchemes: {
+    orderBy: { chargeDate: 'asc' as const },
+  },
 };
 
 type Actor = Pick<StaffAdmin, 'id'>;
@@ -99,6 +293,7 @@ export class ReservationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly icalImportService: IcalImportService,
+    @Inject(PDF_CONVERT) private readonly pdfConvert: PdfConvertPort,
   ) {}
 
   async list(
@@ -261,6 +456,20 @@ export class ReservationsService {
     });
   }
 
+  async getUtilityStatementPdf(
+    id: string,
+    chargeYearMonth: string,
+  ): Promise<{ pdf: Buffer; filename: string }> {
+    const reservation = await this.getById(id);
+    const input = buildUtilityStatementFillInput(reservation, chargeYearMonth);
+    const xlsx = await fillUtilityStatementXlsx(input);
+    const pdf = await this.pdfConvert.convertXlsxToPdf(xlsx);
+    return {
+      pdf,
+      filename: utilityStatementFilename(reservation.unitCode, chargeYearMonth),
+    };
+  }
+
   async create(
     dto: CreateReservationDto,
     actor: Actor,
@@ -326,6 +535,7 @@ export class ReservationsService {
       electricityAmountIdr: 0,
       waterAmountIdr: 0,
       maintenanceAmountIdr: 0,
+      adminAmountIdr: 0,
     });
     const now = new Date();
 
@@ -364,6 +574,10 @@ export class ReservationsService {
             electricityRateIdrPerKwh: unit.unitType.electricityRateIdrPerKwh,
             waterRateIdrPerM3: unit.unitType.waterRateIdrPerM3,
             maintenanceFeeIdrPerMonth: unit.unitType.maintenanceFeeIdrPerMonth,
+            electricityMinKwh: Number(unit.unitType.electricityMinKwh ?? 0),
+            adminFeeIdrPerMonth: unit.unitType.adminFeeIdrPerMonth ?? 0,
+            utilityAddons: asUtilityAddons(unit.unitType.utilityAddons),
+            adminAmountIdr: BigInt(0),
             totalAmountIdr: BigInt(quote.totalAmountIdr ?? 0),
             paidAmountIdr: BigInt(0),
             paymentStatus: PaymentStatus.UNPAID,
@@ -574,6 +788,7 @@ export class ReservationsService {
                     electricityAmountIdr: Number(existing.electricityAmountIdr),
                     waterAmountIdr: Number(existing.waterAmountIdr),
                     maintenanceAmountIdr: Number(existing.maintenanceAmountIdr),
+                    adminAmountIdr: Number(existing.adminAmountIdr ?? 0),
                   });
                   return {
                     rentAmountIdr:
@@ -1412,77 +1627,112 @@ export class ReservationsService {
     const maintenanceFeeIdrPerMonth =
       dto.maintenanceFeeIdrPerMonth ?? existing.maintenanceFeeIdrPerMonth;
 
-    let electricityAmountIdr = 0;
-    let waterAmountIdr = 0;
+    const snapshot = await this.resolveUtilitySnapshot({
+      ...existing,
+      electricityRateIdrPerKwh,
+      waterRateIdrPerM3,
+      maintenanceFeeIdrPerMonth,
+    });
+
+    const elecReadings = dto.electricityReadings.map((r) => ({
+      readingDate: r.readingDate,
+      meterValue: r.meterValue,
+    }));
+    const waterReadings = dto.waterReadings.map((r) => ({
+      readingDate: r.readingDate,
+      meterValue: r.meterValue,
+    }));
     try {
-      electricityAmountIdr = computeMeterIntervalCharges(
-        dto.electricityReadings.map((r) => ({
-          readingDate: r.readingDate,
-          meterValue: r.meterValue,
-        })),
-        electricityRateIdrPerKwh,
-      ).totalAmountIdr;
-      waterAmountIdr = computeMeterIntervalCharges(
-        dto.waterReadings.map((r) => ({
-          readingDate: r.readingDate,
-          meterValue: r.meterValue,
-        })),
-        waterRateIdrPerM3,
-      ).totalAmountIdr;
+      assertMeterChain(elecReadings);
+      assertMeterChain(waterReadings);
     } catch (error: unknown) {
-      const code = error instanceof Error ? error.message : 'INVALID_METER';
-      if (code === 'METER_DECREASED') {
-        throw new BadRequestException({
-          message: 'Meter reading cannot be lower than the previous reading',
-          details: {
-            field: 'meterValue',
-            reason: ApiFieldReason.METER_DECREASED,
-          },
-        });
-      }
-      if (code === 'DUPLICATE_READING_DATE') {
-        throw new BadRequestException({
-          message: 'Duplicate reading date for the same utility',
-          details: {
-            field: 'readingDate',
-            reason: ApiFieldReason.DUPLICATE_READING_DATE,
-          },
-        });
-      }
-      throw new BadRequestException({
-        message: 'Invalid meter readings',
-        details: {
-          field: 'meterValue',
-          reason: ApiFieldReason.DATE_RANGE_INVALID,
-        },
-      });
+      throwMeterError(error);
     }
 
     const normalizedMaint = dto.maintenanceCharges.map((c) => ({
       ...c,
       chargeDate: normalizeMaintenanceChargeDateYmd(c.chargeDate),
     }));
-    const maintMonths = new Set<string>();
-    for (const c of normalizedMaint) {
-      const ym = ymdYearMonth(c.chargeDate);
-      if (!ym || maintMonths.has(ym)) {
-        throw new BadRequestException({
-          message: 'Duplicate maintenance month',
-          details: {
-            field: 'chargeDate',
-            reason: ApiFieldReason.DUPLICATE_READING_DATE,
-          },
-        });
+    uniqueChargeMonthsOrThrow(normalizedMaint, 'Duplicate maintenance month');
+
+    const normalizedAdmin = dto.adminCharges.map((c) => ({
+      ...c,
+      chargeDate: normalizeMaintenanceChargeDateYmd(c.chargeDate),
+    }));
+    uniqueChargeMonthsOrThrow(normalizedAdmin, 'Duplicate admin month');
+
+    const reconstructed = reconstructUtilityPeriods({
+      checkInDate: existing.checkInDate.toISOString().slice(0, 10),
+      utilityReadings: [
+        ...dto.electricityReadings.map((r) => ({
+          utility: UtilityKind.ELECTRICITY,
+          readingDate: r.readingDate,
+          meterValue: r.meterValue,
+        })),
+        ...dto.waterReadings.map((r) => ({
+          utility: UtilityKind.WATER,
+          readingDate: r.readingDate,
+          meterValue: r.meterValue,
+        })),
+      ],
+      maintenanceCharges: normalizedMaint,
+      adminCharges: normalizedAdmin,
+    });
+
+    let persistable: UtilityPeriodScheme[];
+    if (dto.periodSchemes != null) {
+      uniqueSchemeMonthsOrThrow(dto.periodSchemes);
+      persistable = dto.periodSchemes.map((row) =>
+        toPersistedPeriodScheme({
+          chargeYearMonth: row.chargeYearMonth,
+          electricityRateIdrPerKwh: row.electricityRateIdrPerKwh,
+          waterRateIdrPerM3: row.waterRateIdrPerM3,
+          maintenanceFeeIdrPerMonth: row.maintenanceFeeIdrPerMonth,
+          electricityMinKwh: row.electricityMinKwh,
+          adminFeeIdrPerMonth: row.adminFeeIdrPerMonth,
+          utilityAddons: row.utilityAddons.map((addon) => ({
+            utility: addon.utility,
+            name: addon.name,
+            kind: addon.kind,
+            value: addon.value,
+            sortOrder: addon.sortOrder ?? 0,
+          })),
+        }),
+      );
+    } else {
+      persistable = reconstructed
+        .filter((period) => period.chargeYearMonth.length > 0)
+        .map((period) => ({
+          chargeYearMonth: period.chargeYearMonth,
+          ...snapshot,
+        }));
+    }
+
+    let electricityAmountIdr = 0;
+    let waterAmountIdr = 0;
+    try {
+      for (const period of reconstructed) {
+        const scheme = lookupUtilityPeriodScheme(
+          persistable,
+          period.chargeYearMonth,
+          snapshot,
+        );
+        const billed = billUtilityPeriodMeters(period, scheme);
+        electricityAmountIdr += billed.electricityAmountIdr;
+        waterAmountIdr += billed.waterAmountIdr;
       }
-      maintMonths.add(ym);
+    } catch (error: unknown) {
+      throwMeterError(error);
     }
 
     let maintenanceAmountIdr = 0;
+    let adminAmountIdr = 0;
     try {
       maintenanceAmountIdr = sumMaintenanceChargesIdr(normalizedMaint);
+      adminAmountIdr = sumAdminChargesIdr(normalizedAdmin);
     } catch {
       throw new BadRequestException({
-        message: 'Invalid maintenance amount',
+        message: 'Invalid fee amount',
         details: {
           field: 'amountIdr',
           reason: ApiFieldReason.REFUND_AMOUNT_INVALID,
@@ -1497,6 +1747,7 @@ export class ReservationsService {
       electricityAmountIdr,
       waterAmountIdr,
       maintenanceAmountIdr,
+      adminAmountIdr,
     });
 
     const elecRows = dto.electricityReadings.map((r) => ({
@@ -1521,12 +1772,40 @@ export class ReservationsService {
       amountIdr: BigInt(Math.floor(c.amountIdr)),
       createdByAdminId: actor.id,
     }));
+    const adminRows = normalizedAdmin.map((c) => ({
+      reservationId: id,
+      chargeDate: parseYmd(c.chargeDate),
+      amountIdr: BigInt(Math.floor(c.amountIdr)),
+      createdByAdminId: actor.id,
+    }));
+    const schemeRows = persistable.map((scheme) => ({
+      reservationId: id,
+      chargeDate: parseYmd(yearMonthToChargeDateYmd(scheme.chargeYearMonth)),
+      electricityRateIdrPerKwh: scheme.electricityRateIdrPerKwh,
+      waterRateIdrPerM3: scheme.waterRateIdrPerM3,
+      maintenanceFeeIdrPerMonth: scheme.maintenanceFeeIdrPerMonth,
+      electricityMinKwh: scheme.electricityMinKwh,
+      adminFeeIdrPerMonth: scheme.adminFeeIdrPerMonth,
+      utilityAddons: scheme.utilityAddons as Prisma.InputJsonValue,
+    }));
+    const denorm =
+      persistable.length > 0
+        ? [...persistable].sort((a, b) =>
+            a.chargeYearMonth.localeCompare(b.chargeYearMonth),
+          )[persistable.length - 1]!
+        : snapshot;
 
     await this.prisma.$transaction(async (tx) => {
       await tx.reservationUtilityReading.deleteMany({
         where: { reservationId: id },
       });
       await tx.reservationMaintenanceCharge.deleteMany({
+        where: { reservationId: id },
+      });
+      await tx.reservationAdminCharge.deleteMany({
+        where: { reservationId: id },
+      });
+      await tx.reservationUtilityPeriodScheme.deleteMany({
         where: { reservationId: id },
       });
       if (elecRows.length > 0) {
@@ -1538,15 +1817,27 @@ export class ReservationsService {
       if (maintRows.length > 0) {
         await tx.reservationMaintenanceCharge.createMany({ data: maintRows });
       }
+      if (adminRows.length > 0) {
+        await tx.reservationAdminCharge.createMany({ data: adminRows });
+      }
+      if (schemeRows.length > 0) {
+        await tx.reservationUtilityPeriodScheme.createMany({
+          data: schemeRows,
+        });
+      }
       await tx.reservation.update({
         where: { id },
         data: {
-          electricityRateIdrPerKwh,
-          waterRateIdrPerM3,
-          maintenanceFeeIdrPerMonth,
+          electricityRateIdrPerKwh: denorm.electricityRateIdrPerKwh,
+          waterRateIdrPerM3: denorm.waterRateIdrPerM3,
+          maintenanceFeeIdrPerMonth: denorm.maintenanceFeeIdrPerMonth,
+          electricityMinKwh: denorm.electricityMinKwh,
+          adminFeeIdrPerMonth: denorm.adminFeeIdrPerMonth,
+          utilityAddons: denorm.utilityAddons,
           electricityAmountIdr: BigInt(electricityAmountIdr),
           waterAmountIdr: BigInt(waterAmountIdr),
           maintenanceAmountIdr: BigInt(maintenanceAmountIdr),
+          adminAmountIdr: BigInt(adminAmountIdr),
           totalAmountIdr:
             quote.totalAmountIdr == null ? null : BigInt(quote.totalAmountIdr),
           updatedByAdminId: actor.id,
@@ -1627,6 +1918,67 @@ export class ReservationsService {
     });
   }
 
+  /**
+   * Stay-level fallback. Empty `utilityAddons` means not yet copied
+   * (iCal stub / pre-wave row) — take current unit-type add-ons, plus min kWh
+   * and admin default when those are still 0. Later unit-type edits do not
+   * change a non-empty snapshot. Rates stay on the reservation.
+   */
+  private async resolveUtilitySnapshot(existing: {
+    unitTypeId: string;
+    electricityRateIdrPerKwh: number;
+    waterRateIdrPerM3: number;
+    maintenanceFeeIdrPerMonth: number;
+    electricityMinKwh: unknown;
+    adminFeeIdrPerMonth: number;
+    utilityAddons: unknown;
+  }): Promise<UtilitySchemeSnapshot> {
+    const reservationInput = {
+      electricityRateIdrPerKwh: existing.electricityRateIdrPerKwh,
+      waterRateIdrPerM3: existing.waterRateIdrPerM3,
+      maintenanceFeeIdrPerMonth: existing.maintenanceFeeIdrPerMonth,
+      electricityMinKwh: Number(existing.electricityMinKwh ?? 0),
+      adminFeeIdrPerMonth: existing.adminFeeIdrPerMonth ?? 0,
+      utilityAddons: asUtilityAddons(existing.utilityAddons),
+    };
+    if (reservationInput.utilityAddons.length > 0) {
+      return resolveUtilitySchemeSnapshot(reservationInput);
+    }
+
+    const unitType = await this.prisma.unitType.findUnique({
+      where: { id: existing.unitTypeId },
+      select: {
+        electricityRateIdrPerKwh: true,
+        waterRateIdrPerM3: true,
+        maintenanceFeeIdrPerMonth: true,
+        electricityMinKwh: true,
+        adminFeeIdrPerMonth: true,
+        utilityAddons: {
+          orderBy: [{ sortOrder: 'asc' as const }, { name: 'asc' as const }],
+          select: {
+            utility: true,
+            name: true,
+            kind: true,
+            value: true,
+            sortOrder: true,
+          },
+        },
+      },
+    });
+    if (!unitType) {
+      return resolveUtilitySchemeSnapshot(reservationInput);
+    }
+
+    return resolveUtilitySchemeSnapshot(reservationInput, {
+      electricityRateIdrPerKwh: unitType.electricityRateIdrPerKwh,
+      waterRateIdrPerM3: unitType.waterRateIdrPerM3,
+      maintenanceFeeIdrPerMonth: unitType.maintenanceFeeIdrPerMonth,
+      electricityMinKwh: Number(unitType.electricityMinKwh ?? 0),
+      adminFeeIdrPerMonth: unitType.adminFeeIdrPerMonth ?? 0,
+      utilityAddons: asUtilityAddons(unitType.utilityAddons),
+    });
+  }
+
   private async loadBookableUnit(input: {
     propertyId: string;
     unitId: string;
@@ -1645,6 +1997,21 @@ export class ReservationsService {
             electricityRateIdrPerKwh: true,
             waterRateIdrPerM3: true,
             maintenanceFeeIdrPerMonth: true,
+            electricityMinKwh: true,
+            adminFeeIdrPerMonth: true,
+            utilityAddons: {
+              orderBy: [
+                { sortOrder: 'asc' as const },
+                { name: 'asc' as const },
+              ],
+              select: {
+                utility: true,
+                name: true,
+                kind: true,
+                value: true,
+                sortOrder: true,
+              },
+            },
           },
         },
       },

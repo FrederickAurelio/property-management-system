@@ -74,6 +74,7 @@ export {
   patchPaymentMovementProofs,
   undoPaymentMovement,
   putReservationUtilities,
+  downloadReservationUtilityStatement,
   updateReservation,
   type CancelDisposition,
   type CancelReservationInput,
@@ -115,6 +116,7 @@ export {
   listUnitTypes,
   updateUnitType,
   type ListUnitTypesParams,
+  type UnitTypeUtilityAddonWriteInput,
   type UnitTypeWriteInput,
 } from "./unit-types";
 export {

@@ -1,8 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { ApiFieldReason, UnitLayout } from '@cabin/api-contract';
+import {
+  ApiFieldReason,
+  UnitLayout,
+  UtilityAddonKind,
+  UtilityKind,
+} from '@cabin/api-contract';
 import { UnitTypesService } from './unit-types.service';
 import { PrismaService } from '../../prisma/prisma.service';
+
+const studioCreateDto = {
+  code: 'DLX',
+  name: 'Studio',
+  layout: UnitLayout.STUDIO,
+  bathroomCount: 1,
+  maxGuests: 2,
+  defaultPriceIdr: 400_000,
+  monthlyPriceIdr: 10_400_000,
+  yearlyPriceIdr: 120_000_000,
+  bedConfig: [
+    { room: 'Studio', beds: [{ type: 'LARGE_DOUBLE' as const, count: 1 }] },
+  ],
+};
 
 describe('UnitTypesService', () => {
   let service: UnitTypesService;
@@ -10,12 +29,17 @@ describe('UnitTypesService', () => {
     property: { findUnique: jest.Mock };
     unitType: {
       findUnique: jest.Mock;
+      findUniqueOrThrow: jest.Mock;
       findMany: jest.Mock;
       count: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
       delete: jest.Mock;
       aggregate: jest.Mock;
+    };
+    unitTypeUtilityAddon: {
+      deleteMany: jest.Mock;
+      createMany: jest.Mock;
     };
     unit: { count: jest.Mock };
     $transaction: jest.Mock;
@@ -34,6 +58,12 @@ describe('UnitTypesService', () => {
     defaultPriceIdr: 400_000,
     monthlyPriceIdr: 10_400_000,
     yearlyPriceIdr: 120_000_000,
+    electricityRateIdrPerKwh: 0,
+    waterRateIdrPerM3: 0,
+    maintenanceFeeIdrPerMonth: 0,
+    electricityMinKwh: 0,
+    adminFeeIdrPerMonth: 0,
+    utilityAddons: [],
     bedConfig: [],
     amenities: {},
     media: [],
@@ -50,12 +80,17 @@ describe('UnitTypesService', () => {
       property: { findUnique: jest.fn() },
       unitType: {
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
         aggregate: jest.fn(),
+      },
+      unitTypeUtilityAddon: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
       },
       unit: { count: jest.fn() },
       $transaction: jest.fn(async (arg: unknown) => {
@@ -88,25 +123,219 @@ describe('UnitTypesService', () => {
           }),
       );
 
-      const created = await service.create('prop_1', {
-        code: 'DLX',
-        name: 'Studio',
-        layout: UnitLayout.STUDIO,
-        bathroomCount: 1,
-        maxGuests: 2,
-        defaultPriceIdr: 400_000,
-        monthlyPriceIdr: 10_400_000,
-        yearlyPriceIdr: 120_000_000,
-        bedConfig: [
-          { room: 'Studio', beds: [{ type: 'LARGE_DOUBLE', count: 1 }] },
-        ],
-      });
+      const created = await service.create('prop_1', studioCreateDto);
 
       const createCalls = prisma.unitType.create.mock.calls as Array<
         [{ data: { bedroomCount: number } }]
       >;
       expect(createCalls[0]?.[0].data.bedroomCount).toBe(0);
       expect(created.bedroomCount).toBe(0);
+    });
+
+    it('persists min kWh, admin fee, and nested add-ons', async () => {
+      type AddonCreateRow = {
+        utility: string;
+        name: string;
+        kind: string;
+        value: number;
+        sortOrder: number;
+      };
+      type CreateWithAddonsArg = {
+        data: {
+          electricityMinKwh: number;
+          adminFeeIdrPerMonth: number;
+          utilityAddons?: { create: AddonCreateRow[] };
+        };
+      };
+
+      prisma.property.findUnique.mockResolvedValue({ id: 'prop_1' });
+      prisma.unitType.aggregate.mockResolvedValue({ _max: { sortOrder: 0 } });
+      prisma.unitType.create.mockImplementation((args: CreateWithAddonsArg) =>
+        Promise.resolve({
+          ...typeRow,
+          electricityMinKwh: args.data.electricityMinKwh,
+          adminFeeIdrPerMonth: args.data.adminFeeIdrPerMonth,
+          utilityAddons: args.data.utilityAddons?.create ?? [],
+        }),
+      );
+
+      const created = await service.create('prop_1', {
+        ...studioCreateDto,
+        electricityMinKwh: 52,
+        adminFeeIdrPerMonth: 3_000,
+        utilityAddons: [
+          {
+            utility: UtilityKind.ELECTRICITY,
+            name: 'Pemeliharaan Meteran',
+            kind: UtilityAddonKind.CONSTANT,
+            value: 5_000,
+          },
+          {
+            utility: UtilityKind.WATER,
+            name: 'Abodemen',
+            kind: UtilityAddonKind.CONSTANT,
+            value: 10_000,
+          },
+        ],
+      });
+
+      const createCalls = prisma.unitType.create.mock.calls as Array<
+        [CreateWithAddonsArg]
+      >;
+      const createArg = createCalls[0]?.[0];
+      expect(createArg?.data.electricityMinKwh).toBe(52);
+      expect(createArg?.data.adminFeeIdrPerMonth).toBe(3_000);
+      expect(createArg?.data.utilityAddons?.create).toEqual([
+        {
+          utility: UtilityKind.ELECTRICITY,
+          name: 'Pemeliharaan Meteran',
+          kind: UtilityAddonKind.CONSTANT,
+          value: 5_000,
+          sortOrder: 0,
+        },
+        {
+          utility: UtilityKind.WATER,
+          name: 'Abodemen',
+          kind: UtilityAddonKind.CONSTANT,
+          value: 10_000,
+          sortOrder: 0,
+        },
+      ]);
+      expect(created.utilityAddons).toHaveLength(2);
+    });
+
+    it('rejects more than 8 electricity add-ons', async () => {
+      prisma.property.findUnique.mockResolvedValue({ id: 'prop_1' });
+      prisma.unitType.aggregate.mockResolvedValue({ _max: { sortOrder: 0 } });
+
+      await expect(
+        service.create('prop_1', {
+          ...studioCreateDto,
+          utilityAddons: Array.from({ length: 9 }, (_, i) => ({
+            utility: UtilityKind.ELECTRICITY,
+            name: `Elec ${i}`,
+            kind: UtilityAddonKind.CONSTANT,
+            value: 1_000,
+          })),
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          details: {
+            field: 'utilityAddons',
+            reason: ApiFieldReason.UTILITY_ADDON_LIMIT,
+          },
+        },
+      });
+      expect(prisma.unitType.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('update', () => {
+    it('replace-set deletes then creates add-ons when utilityAddons is provided', async () => {
+      prisma.unitType.findUnique.mockResolvedValue(typeRow);
+      prisma.unitType.update.mockResolvedValue(typeRow);
+      prisma.unitTypeUtilityAddon.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.unitTypeUtilityAddon.createMany.mockResolvedValue({ count: 2 });
+      prisma.unitType.findUniqueOrThrow.mockResolvedValue({
+        ...typeRow,
+        _count: { units: 0 },
+        adminFeeIdrPerMonth: 3_000,
+        utilityAddons: [
+          {
+            utility: UtilityKind.ELECTRICITY,
+            name: 'Handling Charge',
+            kind: UtilityAddonKind.PERCENT,
+            value: 3,
+            sortOrder: 0,
+          },
+          {
+            utility: UtilityKind.WATER,
+            name: 'Abodemen',
+            kind: UtilityAddonKind.CONSTANT,
+            value: 10_000,
+            sortOrder: 0,
+          },
+        ],
+      });
+
+      const updated = await service.update('type_1', {
+        adminFeeIdrPerMonth: 3_000,
+        utilityAddons: [
+          {
+            utility: UtilityKind.ELECTRICITY,
+            name: 'Handling Charge',
+            kind: UtilityAddonKind.PERCENT,
+            value: 3,
+          },
+          {
+            utility: UtilityKind.WATER,
+            name: 'Abodemen',
+            kind: UtilityAddonKind.CONSTANT,
+            value: 10_000,
+          },
+        ],
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(prisma.unitTypeUtilityAddon.deleteMany).toHaveBeenCalledWith({
+        where: { unitTypeId: 'type_1' },
+      });
+      expect(prisma.unitTypeUtilityAddon.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            unitTypeId: 'type_1',
+            utility: UtilityKind.ELECTRICITY,
+            name: 'Handling Charge',
+            kind: UtilityAddonKind.PERCENT,
+            value: 3,
+            sortOrder: 0,
+          },
+          {
+            unitTypeId: 'type_1',
+            utility: UtilityKind.WATER,
+            name: 'Abodemen',
+            kind: UtilityAddonKind.CONSTANT,
+            value: 10_000,
+            sortOrder: 0,
+          },
+        ],
+      });
+      expect(updated.adminFeeIdrPerMonth).toBe(3_000);
+      expect(updated.utilityAddons).toHaveLength(2);
+    });
+
+    it('leaves add-ons unchanged when utilityAddons is omitted', async () => {
+      prisma.unitType.findUnique.mockResolvedValue(typeRow);
+      prisma.unitType.update.mockResolvedValue({
+        ...typeRow,
+        name: 'Renamed',
+        _count: { units: 2 },
+        utilityAddons: [
+          {
+            utility: UtilityKind.ELECTRICITY,
+            name: 'Existing',
+            kind: UtilityAddonKind.CONSTANT,
+            value: 5_000,
+            sortOrder: 0,
+          },
+        ],
+      });
+
+      const updated = await service.update('type_1', { name: 'Renamed' });
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.unitTypeUtilityAddon.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.unitTypeUtilityAddon.createMany).not.toHaveBeenCalled();
+      expect(updated.name).toBe('Renamed');
+      expect(updated.utilityAddons).toEqual([
+        {
+          utility: UtilityKind.ELECTRICITY,
+          name: 'Existing',
+          kind: UtilityAddonKind.CONSTANT,
+          value: 5_000,
+          sortOrder: 0,
+        },
+      ]);
     });
   });
 
@@ -148,12 +377,22 @@ describe('UnitTypesService', () => {
         defaultPriceIdr: 400_000,
         monthlyPriceIdr: 10_400_000,
         yearlyPriceIdr: 120_000_000,
+        electricityRateIdrPerKwh: 0,
+        waterRateIdrPerM3: 0,
+        maintenanceFeeIdrPerMonth: 0,
+        electricityMinKwh: 0,
+        adminFeeIdrPerMonth: 0,
       });
       await expect(service.getRackById('type_1')).resolves.toEqual({
         id: 'type_1',
         defaultPriceIdr: 400_000,
         monthlyPriceIdr: 10_400_000,
         yearlyPriceIdr: 120_000_000,
+        electricityRateIdrPerKwh: 0,
+        waterRateIdrPerM3: 0,
+        maintenanceFeeIdrPerMonth: 0,
+        electricityMinKwh: 0,
+        adminFeeIdrPerMonth: 0,
       });
       expect(prisma.unitType.findUnique).toHaveBeenCalledWith({
         where: { id: 'type_1' },
@@ -162,6 +401,11 @@ describe('UnitTypesService', () => {
           defaultPriceIdr: true,
           monthlyPriceIdr: true,
           yearlyPriceIdr: true,
+          electricityRateIdrPerKwh: true,
+          waterRateIdrPerM3: true,
+          maintenanceFeeIdrPerMonth: true,
+          electricityMinKwh: true,
+          adminFeeIdrPerMonth: true,
         },
       });
     });

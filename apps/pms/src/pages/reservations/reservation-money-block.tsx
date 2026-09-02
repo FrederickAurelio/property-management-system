@@ -30,7 +30,8 @@ function showQuoteBreakdown(reservation: StaffReservation): boolean {
   return (
     reservation.electricityAmountIdr > 0 ||
     reservation.waterAmountIdr > 0 ||
-    reservation.maintenanceAmountIdr > 0
+    reservation.maintenanceAmountIdr > 0 ||
+    reservation.adminAmountIdr > 0
   );
 }
 
@@ -81,6 +82,9 @@ export function ReservationMoneyBlock({
               tabular
             >
               {formatMoneyOrDash(reservation.maintenanceAmountIdr)}
+            </DetailDlRow>
+            <DetailDlRow label={t("reservations:moneyBlock.admin")} tabular>
+              {formatMoneyOrDash(reservation.adminAmountIdr)}
             </DetailDlRow>
           </>
         )}

@@ -123,6 +123,8 @@ export function findStaffUnitTypeRack(
       electricityRateIdrPerKwh: detail.electricityRateIdrPerKwh,
       waterRateIdrPerM3: detail.waterRateIdrPerM3,
       maintenanceFeeIdrPerMonth: detail.maintenanceFeeIdrPerMonth,
+      electricityMinKwh: detail.electricityMinKwh,
+      adminFeeIdrPerMonth: detail.adminFeeIdrPerMonth,
     };
   }
 
@@ -146,6 +148,8 @@ export function findStaffUnitTypeRack(
         electricityRateIdrPerKwh: hit.electricityRateIdrPerKwh,
         waterRateIdrPerM3: hit.waterRateIdrPerM3,
         maintenanceFeeIdrPerMonth: hit.maintenanceFeeIdrPerMonth,
+        electricityMinKwh: hit.electricityMinKwh,
+        adminFeeIdrPerMonth: hit.adminFeeIdrPerMonth,
       };
     }
   }

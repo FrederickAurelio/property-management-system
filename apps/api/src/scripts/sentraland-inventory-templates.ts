@@ -1,4 +1,9 @@
-import { Prisma, UnitLayout } from '../generated/prisma/index.js';
+import {
+  Prisma,
+  UnitLayout,
+  UtilityAddonKind,
+  UtilityKind,
+} from '../generated/prisma/index.js';
 
 export const amenitiesStudio = {
   highlights: [
@@ -39,12 +44,65 @@ export const amenitiesApartment = {
   ),
 };
 
-/** Placeholder utility rates — not live client tariffs. */
+/** Placeholder utility rates — not live client tariffs. Fresh create only. */
 export const SEED_UTILITY_RATES = {
   electricityRateIdrPerKwh: 1_700,
   waterRateIdrPerM3: 12_000,
   maintenanceFeeIdrPerMonth: 100_000,
 } as const;
+
+/** Fill-if-zero on existing Skybreeze types; always set on fresh create. */
+export const SEED_ELECTRICITY_MIN_KWH = 52;
+export const SEED_ADMIN_FEE_IDR_PER_MONTH = 3_000;
+
+/**
+ * Default add-on scheme for Skybreeze unit types.
+ * `sortOrder` is 0..2 independently per utility.
+ */
+export const SEED_UTILITY_ADDONS = [
+  {
+    utility: UtilityKind.ELECTRICITY,
+    name: 'Pemeliharaan Meteran',
+    kind: UtilityAddonKind.CONSTANT,
+    value: 5_000,
+    sortOrder: 0,
+  },
+  {
+    utility: UtilityKind.ELECTRICITY,
+    name: 'Area Publik (PJU)',
+    kind: UtilityAddonKind.PERCENT,
+    value: 10,
+    sortOrder: 1,
+  },
+  {
+    utility: UtilityKind.ELECTRICITY,
+    name: 'Handling Charge',
+    kind: UtilityAddonKind.PERCENT,
+    value: 3,
+    sortOrder: 2,
+  },
+  {
+    utility: UtilityKind.WATER,
+    name: 'Abodemen',
+    kind: UtilityAddonKind.CONSTANT,
+    value: 10_000,
+    sortOrder: 0,
+  },
+  {
+    utility: UtilityKind.WATER,
+    name: 'Pemeliharaan Meteran',
+    kind: UtilityAddonKind.CONSTANT,
+    value: 5_000,
+    sortOrder: 1,
+  },
+  {
+    utility: UtilityKind.WATER,
+    name: 'Handling Charge',
+    kind: UtilityAddonKind.PERCENT,
+    value: 3,
+    sortOrder: 2,
+  },
+] as const;
 
 const DELUXE_PRICE_MULTIPLIER = 1.15;
 
@@ -276,6 +334,8 @@ export type SentralandUnitTypeCreateData = {
   electricityRateIdrPerKwh: number;
   waterRateIdrPerM3: number;
   maintenanceFeeIdrPerMonth: number;
+  electricityMinKwh: number;
+  adminFeeIdrPerMonth: number;
   bedConfig: Prisma.InputJsonValue;
   amenities: Prisma.InputJsonValue;
   media: Prisma.InputJsonValue;
@@ -314,6 +374,8 @@ export function buildUnitTypeData(
     maxGuests: fieldOverrides.maxGuests ?? template.maxGuests,
     ...prices,
     ...SEED_UTILITY_RATES,
+    electricityMinKwh: SEED_ELECTRICITY_MIN_KWH,
+    adminFeeIdrPerMonth: SEED_ADMIN_FEE_IDR_PER_MONTH,
     bedConfig: fieldOverrides.bedConfig ?? template.bedConfig,
     amenities: fieldOverrides.amenities ?? template.amenities,
     media: cloneMediaWithPrefix(template.media, mediaPrefix),

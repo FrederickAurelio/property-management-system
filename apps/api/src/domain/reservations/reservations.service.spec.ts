@@ -3,8 +3,10 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
+  ApiErrorCode,
   ApiFieldReason,
   ArchiveKind,
   CancelDisposition,
@@ -19,6 +21,8 @@ import {
   ReservationStatus,
   StayBillingPeriod,
   UnitStatus,
+  UtilityAddonKind,
+  UtilityKind,
   canUndoPaymentMovement,
   latestPaymentMovementId,
   paymentMovementUndoRemainingMs,
@@ -30,6 +34,7 @@ import {
 import { ReservationsService } from './reservations.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IcalImportService } from '../ical/ical-import.service';
+import { PDF_CONVERT } from '../../integrations/pdf-convert/pdf-convert.port';
 
 describe('ReservationsService helpers (contract)', () => {
   it('sums paid from movements', () => {
@@ -150,6 +155,10 @@ function staffDetailRow(overrides: Record<string, unknown> = {}) {
     electricityRateIdrPerKwh: 0,
     waterRateIdrPerM3: 0,
     maintenanceFeeIdrPerMonth: 0,
+    electricityMinKwh: 0,
+    adminFeeIdrPerMonth: 0,
+    utilityAddons: [],
+    adminAmountIdr: BigInt(0),
     paidAmountIdr: BigInt(0),
     paymentStatus: PaymentStatus.UNPAID,
     collectedVia: null,
@@ -173,9 +182,19 @@ function staffDetailRow(overrides: Record<string, unknown> = {}) {
     updatedByAdmin: { username: 'didik' },
     property: { name: 'Skybreeze', timezone: 'Asia/Jakarta' },
     unit: { code: 'A1' },
+    unitType: {
+      electricityRateIdrPerKwh: 0,
+      waterRateIdrPerM3: 0,
+      maintenanceFeeIdrPerMonth: 0,
+      electricityMinKwh: 0,
+      adminFeeIdrPerMonth: 0,
+      utilityAddons: [],
+    },
     movements: [],
     utilityReadings: [],
     maintenanceCharges: [],
+    adminCharges: [],
+    utilityPeriodSchemes: [],
     ...overrides,
   };
 }
@@ -185,6 +204,9 @@ describe('ReservationsService', () => {
   let icalImport: {
     fetchEventDatesForUid: jest.Mock;
     syncAll: jest.Mock;
+  };
+  let pdfConvert: {
+    convertXlsxToPdf: jest.Mock;
   };
   let prisma: {
     reservation: {
@@ -207,6 +229,22 @@ describe('ReservationsService', () => {
     unit: { findUnique: jest.Mock };
     unitType: { findUnique: jest.Mock };
     property: { findUnique: jest.Mock };
+    reservationUtilityReading: {
+      deleteMany: jest.Mock;
+      createMany: jest.Mock;
+    };
+    reservationMaintenanceCharge: {
+      deleteMany: jest.Mock;
+      createMany: jest.Mock;
+    };
+    reservationAdminCharge: {
+      deleteMany: jest.Mock;
+      createMany: jest.Mock;
+    };
+    reservationUtilityPeriodScheme: {
+      deleteMany: jest.Mock;
+      createMany: jest.Mock;
+    };
     $transaction: jest.Mock;
     $queryRaw: jest.Mock;
   };
@@ -224,6 +262,12 @@ describe('ReservationsService', () => {
       propertyId: 'prop_1',
       isActive: true,
       maxGuests: 4,
+      electricityRateIdrPerKwh: 0,
+      waterRateIdrPerM3: 0,
+      maintenanceFeeIdrPerMonth: 0,
+      electricityMinKwh: 0,
+      adminFeeIdrPerMonth: 0,
+      utilityAddons: [],
     },
   };
 
@@ -249,6 +293,22 @@ describe('ReservationsService', () => {
       unit: { findUnique: jest.fn() },
       unitType: { findUnique: jest.fn() },
       property: { findUnique: jest.fn() },
+      reservationUtilityReading: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      reservationMaintenanceCharge: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      reservationAdminCharge: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      reservationUtilityPeriodScheme: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
       $transaction: jest.fn(async (arg: unknown) => {
         if (Array.isArray(arg)) {
           return Promise.all(arg);
@@ -262,6 +322,9 @@ describe('ReservationsService', () => {
       fetchEventDatesForUid: jest.fn(),
       syncAll: jest.fn(),
     };
+    pdfConvert = {
+      convertXlsxToPdf: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -271,6 +334,7 @@ describe('ReservationsService', () => {
           provide: IcalImportService,
           useValue: icalImport,
         },
+        { provide: PDF_CONVERT, useValue: pdfConvert },
       ],
     }).compile();
 
@@ -400,6 +464,71 @@ describe('ReservationsService', () => {
         },
       });
     });
+
+    it('snapshots unit-type min kWh, admin fee, and add-ons on create', async () => {
+      const addons = [
+        {
+          utility: UtilityKind.ELECTRICITY,
+          name: 'PJU',
+          kind: UtilityAddonKind.PERCENT,
+          value: 10,
+          sortOrder: 0,
+        },
+        {
+          utility: UtilityKind.ELECTRICITY,
+          name: 'Admin PLN',
+          kind: UtilityAddonKind.CONSTANT,
+          value: 5_000,
+          sortOrder: 1,
+        },
+      ];
+      prisma.unit.findUnique.mockResolvedValue({
+        ...unitBookable,
+        unitType: {
+          ...unitBookable.unitType,
+          electricityRateIdrPerKwh: 1700,
+          electricityMinKwh: 52,
+          adminFeeIdrPerMonth: 6_500,
+          utilityAddons: addons,
+        },
+      });
+      prisma.reservation.create.mockResolvedValue({ id: 'res_new' });
+      prisma.reservation.findUnique.mockResolvedValue(
+        staffDetailRow({ id: 'res_new' }),
+      );
+      prisma.reservation.findUniqueOrThrow.mockResolvedValue({
+        totalAmountIdr: BigInt(1_000_000),
+      });
+
+      await service.create(
+        {
+          propertyId: 'prop_1',
+          unitId: 'unit_1',
+          unitTypeId: 'type_1',
+          source: ReservationSource.MANUAL,
+          billingPeriod: StayBillingPeriod.DAILY,
+          checkInDate: '2026-08-01',
+          checkOutDate: '2026-08-03',
+          guestName: 'Walk In',
+          guestEmail: 'a@b.com',
+          guestPhone: null,
+          guestCount: 2,
+          rentAmountIdr: 1_000_000,
+          depositAmountIdr: 0,
+        },
+        actor,
+      );
+
+      expect(prisma.reservation.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          electricityRateIdrPerKwh: 1700,
+          electricityMinKwh: 52,
+          adminFeeIdrPerMonth: 6_500,
+          utilityAddons: addons,
+          adminAmountIdr: BigInt(0),
+        }) as Record<string, unknown>,
+      });
+    });
   });
 
   describe('update', () => {
@@ -480,6 +609,10 @@ describe('ReservationsService', () => {
         electricityRateIdrPerKwh: 0,
         waterRateIdrPerM3: 0,
         maintenanceFeeIdrPerMonth: 0,
+        electricityMinKwh: 0,
+        adminFeeIdrPerMonth: 0,
+        utilityAddons: [],
+        adminAmountIdr: BigInt(0),
         paidAmountIdr: BigInt(0),
         paymentStatus: PaymentStatus.UNPAID,
         collectedVia: null,
@@ -1457,6 +1590,306 @@ describe('ReservationsService', () => {
       expect(prisma.$queryRaw).not.toHaveBeenCalled();
       expect(result.items).toEqual([]);
       expect(result.pageInfo.total).toBe(0);
+    });
+  });
+
+  describe('putUtilities', () => {
+    const elecAddons = [
+      {
+        utility: UtilityKind.ELECTRICITY,
+        name: 'PJU',
+        kind: UtilityAddonKind.PERCENT,
+        value: 10,
+        sortOrder: 0,
+      },
+      {
+        utility: UtilityKind.ELECTRICITY,
+        name: 'Admin PLN',
+        kind: UtilityAddonKind.CONSTANT,
+        value: 5_000,
+        sortOrder: 1,
+      },
+    ];
+
+    function mockPutRoundTrip(existing: Record<string, unknown>) {
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce(existing)
+        .mockResolvedValueOnce(staffDetailRow(existing));
+      prisma.reservation.findUniqueOrThrow.mockResolvedValue({
+        totalAmountIdr: BigInt(1_000_000),
+      });
+    }
+
+    it('bills min kWh + add-ons per interval without rewriting meters', async () => {
+      mockPutRoundTrip(
+        staffDetailRow({
+          electricityRateIdrPerKwh: 1700,
+          electricityMinKwh: 52,
+          utilityAddons: elecAddons,
+          rentAmountIdr: BigInt(1_000_000),
+          totalAmountIdr: BigInt(1_000_000),
+        }),
+      );
+
+      await service.putUtilities(
+        'res_1',
+        {
+          electricityReadings: [
+            {
+              utility: UtilityKind.ELECTRICITY,
+              readingDate: '2026-05-10',
+              meterValue: 1000,
+            },
+            {
+              utility: UtilityKind.ELECTRICITY,
+              readingDate: '2026-06-01',
+              meterValue: 1023,
+            },
+          ],
+          waterReadings: [],
+          maintenanceCharges: [],
+          adminCharges: [],
+        },
+        actor,
+      );
+
+      const usageRp = Math.floor(52 * 1700);
+      const kindTotal = usageRp + Math.floor((usageRp * 10) / 100) + 5_000;
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'res_1' },
+          data: expect.objectContaining({
+            electricityAmountIdr: BigInt(kindTotal),
+            adminAmountIdr: BigInt(0),
+            totalAmountIdr: BigInt(1_000_000 + kindTotal),
+            utilityAddons: elecAddons,
+          }) as Record<string, unknown>,
+        }),
+      );
+      expect(prisma.reservationUtilityReading.createMany).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({ meterValue: 1000 }),
+          expect.objectContaining({ meterValue: 1023 }),
+        ]) as unknown[],
+      });
+    });
+
+    it('copies unit-type scheme on first PUT when snapshot add-ons are empty', async () => {
+      mockPutRoundTrip(
+        staffDetailRow({
+          electricityRateIdrPerKwh: 1700,
+          electricityMinKwh: 0,
+          adminFeeIdrPerMonth: 0,
+          utilityAddons: [],
+        }),
+      );
+      prisma.unitType.findUnique.mockResolvedValue({
+        electricityMinKwh: 52,
+        adminFeeIdrPerMonth: 6_500,
+        utilityAddons: elecAddons,
+      });
+
+      await service.putUtilities(
+        'res_1',
+        {
+          electricityReadings: [],
+          waterReadings: [],
+          maintenanceCharges: [],
+          adminCharges: [{ chargeDate: '2026-06-01', amountIdr: 6_500 }],
+        },
+        actor,
+      );
+
+      expect(prisma.unitType.findUnique).toHaveBeenCalled();
+      expect(prisma.reservationAdminCharge.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            amountIdr: BigInt(6_500),
+          }),
+        ],
+      });
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            electricityMinKwh: 52,
+            adminFeeIdrPerMonth: 6_500,
+            utilityAddons: elecAddons,
+            adminAmountIdr: BigInt(6_500),
+            totalAmountIdr: BigInt(1_000_000 + 6_500),
+          }) as Record<string, unknown>,
+        }),
+      );
+    });
+
+    it('bills each month with its own frozen kWh rate', async () => {
+      mockPutRoundTrip(
+        staffDetailRow({
+          electricityRateIdrPerKwh: 1750,
+          electricityMinKwh: 0,
+          utilityAddons: [],
+          rentAmountIdr: BigInt(1_000_000),
+          totalAmountIdr: BigInt(1_000_000),
+        }),
+      );
+
+      await service.putUtilities(
+        'res_1',
+        {
+          electricityReadings: [
+            {
+              utility: UtilityKind.ELECTRICITY,
+              readingDate: '2026-05-10',
+              meterValue: 1000,
+            },
+            {
+              utility: UtilityKind.ELECTRICITY,
+              readingDate: '2026-06-01',
+              meterValue: 1100,
+            },
+            {
+              utility: UtilityKind.ELECTRICITY,
+              readingDate: '2026-07-01',
+              meterValue: 1200,
+            },
+          ],
+          waterReadings: [],
+          maintenanceCharges: [],
+          adminCharges: [],
+          periodSchemes: [
+            {
+              chargeYearMonth: '2026-06',
+              electricityRateIdrPerKwh: 1750,
+              waterRateIdrPerM3: 0,
+              maintenanceFeeIdrPerMonth: 0,
+              electricityMinKwh: 0,
+              adminFeeIdrPerMonth: 0,
+              utilityAddons: [],
+            },
+            {
+              chargeYearMonth: '2026-07',
+              electricityRateIdrPerKwh: 1850,
+              waterRateIdrPerM3: 0,
+              maintenanceFeeIdrPerMonth: 0,
+              electricityMinKwh: 0,
+              adminFeeIdrPerMonth: 0,
+              utilityAddons: [],
+            },
+          ],
+        },
+        actor,
+      );
+
+      const mayRp = Math.floor(100 * 1750);
+      const juneRp = Math.floor(100 * 1850);
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            electricityAmountIdr: BigInt(mayRp + juneRp),
+            electricityRateIdrPerKwh: 1850,
+          }) as Record<string, unknown>,
+        }),
+      );
+      expect(
+        prisma.reservationUtilityPeriodScheme.createMany,
+      ).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({ electricityRateIdrPerKwh: 1750 }),
+          expect.objectContaining({ electricityRateIdrPerKwh: 1850 }),
+        ]) as unknown[],
+      });
+    });
+  });
+
+  describe('getUtilityStatementPdf', () => {
+    const elecAddons = [
+      {
+        utility: UtilityKind.ELECTRICITY,
+        name: 'PJU',
+        kind: UtilityAddonKind.PERCENT,
+        value: 10,
+        sortOrder: 0,
+      },
+      {
+        utility: UtilityKind.ELECTRICITY,
+        name: 'Admin PLN',
+        kind: UtilityAddonKind.CONSTANT,
+        value: 5_000,
+        sortOrder: 1,
+      },
+    ];
+
+    function readingRow(id: string, readingDate: string, meterValue: number) {
+      return {
+        id,
+        reservationId: 'res_1',
+        utility: UtilityKind.ELECTRICITY,
+        readingDate: new Date(`${readingDate}T00:00:00.000Z`),
+        meterValue,
+        proofImages: [],
+        createdAt: new Date('2026-08-17T10:00:00.000Z'),
+        createdByAdminId: 'admin_1',
+      };
+    }
+
+    it('converts a filled statement and returns PDF bytes', async () => {
+      prisma.reservation.findUnique.mockResolvedValue(
+        staffDetailRow({
+          electricityRateIdrPerKwh: 1700,
+          electricityMinKwh: 52,
+          utilityAddons: elecAddons,
+          paidAmountIdr: BigInt(200_000),
+          totalAmountIdr: BigInt(1_000_000),
+          utilityReadings: [
+            readingRow('e0', '2026-05-10', 1000),
+            readingRow('e1', '2026-06-01', 1023),
+          ],
+        }),
+      );
+      const pdf = Buffer.from('%PDF-1.4 test');
+      pdfConvert.convertXlsxToPdf.mockResolvedValue(pdf);
+
+      const result = await service.getUtilityStatementPdf('res_1', '2026-06');
+
+      expect(result.filename).toBe('utility-statement-A1-2026-06.pdf');
+      expect(result.pdf.equals(pdf)).toBe(true);
+      expect(pdfConvert.convertXlsxToPdf).toHaveBeenCalledWith(
+        expect.any(Buffer),
+      );
+    });
+
+    it('returns 400 when the month has no billed interval', async () => {
+      prisma.reservation.findUnique.mockResolvedValue(staffDetailRow());
+
+      await expect(
+        service.getUtilityStatementPdf('res_1', '2026-06'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(pdfConvert.convertXlsxToPdf).not.toHaveBeenCalled();
+    });
+
+    it('surfaces Gotenberg failure as 503 PDF_UNAVAILABLE', async () => {
+      prisma.reservation.findUnique.mockResolvedValue(
+        staffDetailRow({
+          electricityRateIdrPerKwh: 1700,
+          electricityMinKwh: 52,
+          utilityAddons: elecAddons,
+          utilityReadings: [
+            readingRow('e0', '2026-05-10', 1000),
+            readingRow('e1', '2026-06-01', 1023),
+          ],
+        }),
+      );
+      pdfConvert.convertXlsxToPdf.mockRejectedValue(
+        new ServiceUnavailableException({
+          message: 'PDF export is unavailable.',
+          code: ApiErrorCode.PDF_UNAVAILABLE,
+        }),
+      );
+
+      await expect(
+        service.getUtilityStatementPdf('res_1', '2026-06'),
+      ).rejects.toMatchObject({
+        response: { code: ApiErrorCode.PDF_UNAVAILABLE },
+      });
     });
   });
 });

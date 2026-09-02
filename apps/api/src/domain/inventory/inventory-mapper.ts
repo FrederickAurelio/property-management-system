@@ -4,9 +4,14 @@ import type {
   MediaItem,
   StaffProperty,
   StaffUnitType,
+  UtilityAddon,
 } from '@cabin/api-contract';
 import { EMPTY_AMENITIES } from '@cabin/api-contract';
-import type { Property, UnitType } from '../../generated/prisma/index.js';
+import type {
+  Property,
+  UnitType,
+  UnitTypeUtilityAddon,
+} from '../../generated/prisma/index.js';
 export {
   buildIcalExportUrl,
   newIcalExportToken,
@@ -19,6 +24,28 @@ function decimalToNumber(value: { toNumber(): number } | null): number | null {
     return null;
   }
   return value.toNumber();
+}
+
+function decimalToNumberOrZero(
+  value: { toNumber(): number } | number | null | undefined,
+): number {
+  if (value == null) {
+    return 0;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
+  return value.toNumber();
+}
+
+function toUtilityAddon(row: UnitTypeUtilityAddon): UtilityAddon {
+  return {
+    utility: row.utility,
+    name: row.name,
+    kind: row.kind,
+    value: row.value,
+    sortOrder: row.sortOrder,
+  };
 }
 
 function asMediaItem(value: unknown): MediaItem | null {
@@ -112,9 +139,15 @@ export function toStaffProperty(
 }
 
 export function toStaffUnitType(
-  row: UnitType,
+  row: UnitType & { utilityAddons?: UnitTypeUtilityAddon[] },
   unitCount: number,
 ): StaffUnitType {
+  const addons = [...(row.utilityAddons ?? [])].sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) {
+      return a.sortOrder - b.sortOrder;
+    }
+    return a.name.localeCompare(b.name);
+  });
   return {
     id: row.id,
     propertyId: row.propertyId,
@@ -131,6 +164,9 @@ export function toStaffUnitType(
     electricityRateIdrPerKwh: row.electricityRateIdrPerKwh,
     waterRateIdrPerM3: row.waterRateIdrPerM3,
     maintenanceFeeIdrPerMonth: row.maintenanceFeeIdrPerMonth,
+    electricityMinKwh: decimalToNumberOrZero(row.electricityMinKwh),
+    adminFeeIdrPerMonth: row.adminFeeIdrPerMonth ?? 0,
+    utilityAddons: addons.map(toUtilityAddon),
     bedConfig: asBedConfig(row.bedConfig),
     amenities: asAmenities(row.amenities),
     media: asMediaList(row.media),

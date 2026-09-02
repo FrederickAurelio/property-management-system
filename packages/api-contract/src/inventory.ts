@@ -1,3 +1,5 @@
+import type { UtilityAddon } from './reservations.js';
+
 /** Keep in sync with Prisma `UnitStatus`. */
 export const UnitStatus = {
   ACTIVE: 'ACTIVE',
@@ -164,6 +166,14 @@ export const UNIT_TYPE_YEARLY_PRICE_IDR_MAX = 2_000_000_000;
 /** Utility rate defaults on UnitType / reservation snapshot. */
 export const UNIT_TYPE_UTILITY_RATE_IDR_MAX = 10_000_000;
 export const UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX = 50_000_000;
+/** Matches Prisma `UnitTypeUtilityAddon.name` VarChar(128). */
+export const UTILITY_ADDON_NAME_MAX = 128;
+/** Max add-ons per utility kind (ELECTRICITY / WATER) on a unit type. */
+export const UTILITY_ADDON_MAX_PER_KIND = 8;
+export const UTILITY_ADDON_PERCENT_MIN = 0;
+export const UTILITY_ADDON_PERCENT_MAX = 100;
+/** CONSTANT add-on IDR cap — same as monthly maintenance fee. */
+export const UTILITY_ADDON_CONSTANT_IDR_MAX = UNIT_TYPE_MAINTENANCE_FEE_IDR_MAX;
 /** Meter reading — matches Prisma `Decimal(12, 3)` on ReservationUtilityReading.meterValue. */
 export const UTILITY_METER_FRACTION_DIGITS = 3;
 export const UTILITY_METER_VALUE_MAX = 999_999_999.999;
@@ -210,6 +220,8 @@ export type StaffUnitTypeRack = {
   electricityRateIdrPerKwh: number;
   waterRateIdrPerM3: number;
   maintenanceFeeIdrPerMonth: number;
+  electricityMinKwh: number;
+  adminFeeIdrPerMonth: number;
 };
 
 export type StaffUnitType = {
@@ -228,6 +240,9 @@ export type StaffUnitType = {
   electricityRateIdrPerKwh: number;
   waterRateIdrPerM3: number;
   maintenanceFeeIdrPerMonth: number;
+  electricityMinKwh: number;
+  adminFeeIdrPerMonth: number;
+  utilityAddons: UtilityAddon[];
   bedConfig: BedConfigRoom[];
   amenities: Amenities;
   media: MediaItem[];

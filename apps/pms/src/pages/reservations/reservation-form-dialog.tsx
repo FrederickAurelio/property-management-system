@@ -438,7 +438,8 @@ export function ReservationFormDialog({
         ? rentAmount +
           reservation.electricityAmountIdr +
           reservation.waterAmountIdr +
-          reservation.maintenanceAmountIdr
+          reservation.maintenanceAmountIdr +
+          reservation.adminAmountIdr
         : rentAmount;
   const paidAmount = Number(paidDigits || "0");
   const refundAmount =

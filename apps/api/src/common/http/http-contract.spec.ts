@@ -1,14 +1,16 @@
-import { CallHandler, ExecutionContext } from '@nestjs/common';
+import {
+  CallHandler,
+  ConflictException,
+  ExecutionContext,
+  ServiceUnavailableException,
+  StreamableFile,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { of } from 'rxjs';
 import { lastValueFrom } from 'rxjs';
 import { TransformInterceptor } from './transform.interceptor';
 import { ApiErrorCode, ApiFieldReason } from '@cabin/api-contract';
 import { HttpExceptionFilter } from './http-exception.filter';
-import {
-  ConflictException,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
 import { ThrottlerException } from '@nestjs/throttler';
 
 describe('TransformInterceptor', () => {
@@ -30,6 +32,28 @@ describe('TransformInterceptor', () => {
       data: { status: 'ok' },
       meta: { requestId: 'req_test' },
     });
+  });
+
+  it('does not wrap StreamableFile PDF payloads', async () => {
+    const interceptor = new TransformInterceptor();
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          requestId: 'req_pdf',
+          path: '/staff/reservations/res_1/utility-statement',
+        }),
+        getResponse: () => ({ headersSent: false }),
+      }),
+    } as ExecutionContext;
+    const file = new StreamableFile(Buffer.from('%PDF'), {
+      type: 'application/pdf',
+    });
+    const next: CallHandler = {
+      handle: () => of(file),
+    };
+
+    const result = await lastValueFrom(interceptor.intercept(context, next));
+    expect(result).toBe(file);
   });
 });
 

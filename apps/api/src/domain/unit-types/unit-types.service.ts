@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -8,10 +9,13 @@ import {
   buildPageInfo,
   deriveBedroomCount,
   EMPTY_AMENITIES,
+  UTILITY_ADDON_MAX_PER_KIND,
+  UtilityKind,
   type BedConfigRoom,
   type Paginated,
   type StaffUnitType,
   type StaffUnitTypeRack,
+  type UtilityAddonKind,
 } from '@cabin/api-contract';
 import { Prisma } from '../../generated/prisma/index.js';
 import { toStaffUnitType } from '../inventory/inventory-mapper.js';
@@ -19,6 +23,22 @@ import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateUnitTypeDto } from './dto/create-unit-type.dto.js';
 import type { ListUnitTypesQueryDto } from './dto/list-unit-types.query.dto.js';
 import type { UpdateUnitTypeDto } from './dto/update-unit-type.dto.js';
+import type { UtilityAddonInputDto } from './dto/utility-addon-input.dto.js';
+
+type UtilityAddonWriteRow = {
+  utility: UtilityKind;
+  name: string;
+  kind: UtilityAddonKind;
+  value: number;
+  sortOrder: number;
+};
+
+const unitTypeStaffInclude = {
+  _count: { select: { units: true } },
+  utilityAddons: {
+    orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+};
 
 @Injectable()
 export class UnitTypesService {
@@ -49,7 +69,7 @@ export class UnitTypesService {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
-        include: { _count: { select: { units: true } } },
+        include: unitTypeStaffInclude,
       }),
     ]);
 
@@ -62,7 +82,7 @@ export class UnitTypesService {
   async getById(id: string): Promise<StaffUnitType> {
     const row = await this.prisma.unitType.findUnique({
       where: { id },
-      include: { _count: { select: { units: true } } },
+      include: unitTypeStaffInclude,
     });
     if (!row) {
       throw new NotFoundException('Unit type not found');
@@ -81,6 +101,8 @@ export class UnitTypesService {
         electricityRateIdrPerKwh: true,
         waterRateIdrPerM3: true,
         maintenanceFeeIdrPerMonth: true,
+        electricityMinKwh: true,
+        adminFeeIdrPerMonth: true,
       },
     });
     if (!row) {
@@ -94,6 +116,8 @@ export class UnitTypesService {
       electricityRateIdrPerKwh: row.electricityRateIdrPerKwh,
       waterRateIdrPerM3: row.waterRateIdrPerM3,
       maintenanceFeeIdrPerMonth: row.maintenanceFeeIdrPerMonth,
+      electricityMinKwh: Number(row.electricityMinKwh),
+      adminFeeIdrPerMonth: row.adminFeeIdrPerMonth,
     };
   }
 
@@ -107,6 +131,10 @@ export class UnitTypesService {
     const bedConfig = (dto.bedConfig ?? []) as BedConfigRoom[];
     const bedroomCount = deriveBedroomCount(dto.layout, bedConfig);
     const sortOrder = await this.nextSortOrder(propertyId);
+    const addonRows =
+      dto.utilityAddons !== undefined
+        ? this.normalizeUtilityAddonWrites(dto.utilityAddons)
+        : undefined;
 
     try {
       const created = await this.prisma.unitType.create({
@@ -125,6 +153,11 @@ export class UnitTypesService {
           electricityRateIdrPerKwh: dto.electricityRateIdrPerKwh ?? 0,
           waterRateIdrPerM3: dto.waterRateIdrPerM3 ?? 0,
           maintenanceFeeIdrPerMonth: dto.maintenanceFeeIdrPerMonth ?? 0,
+          electricityMinKwh: dto.electricityMinKwh ?? 0,
+          adminFeeIdrPerMonth: dto.adminFeeIdrPerMonth ?? 0,
+          ...(addonRows !== undefined
+            ? { utilityAddons: { create: addonRows } }
+            : {}),
           bedConfig: bedConfig,
           amenities: (dto.amenities ??
             EMPTY_AMENITIES) as unknown as Prisma.InputJsonValue,
@@ -133,6 +166,14 @@ export class UnitTypesService {
           smokingAllowed: dto.smokingAllowed ?? false,
           sortOrder,
           isActive: dto.isActive ?? true,
+        },
+        include: {
+          utilityAddons: {
+            orderBy: [
+              { sortOrder: 'asc' as const },
+              { createdAt: 'asc' as const },
+            ],
+          },
         },
       });
       return toStaffUnitType(created, 0);
@@ -157,55 +198,86 @@ export class UnitTypesService {
     const code =
       dto.code !== undefined ? dto.code.trim().toUpperCase() : existing.code;
 
+    const scalarData: Prisma.UnitTypeUpdateInput = {
+      code,
+      bedroomCount,
+      layout,
+      bedConfig: bedConfig,
+      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+      ...(dto.sizeSqm !== undefined ? { sizeSqm: dto.sizeSqm } : {}),
+      ...(dto.bathroomCount !== undefined
+        ? { bathroomCount: dto.bathroomCount }
+        : {}),
+      ...(dto.maxGuests !== undefined ? { maxGuests: dto.maxGuests } : {}),
+      ...(dto.defaultPriceIdr !== undefined
+        ? { defaultPriceIdr: dto.defaultPriceIdr }
+        : {}),
+      ...(dto.monthlyPriceIdr !== undefined
+        ? { monthlyPriceIdr: dto.monthlyPriceIdr }
+        : {}),
+      ...(dto.yearlyPriceIdr !== undefined
+        ? { yearlyPriceIdr: dto.yearlyPriceIdr }
+        : {}),
+      ...(dto.electricityRateIdrPerKwh !== undefined
+        ? { electricityRateIdrPerKwh: dto.electricityRateIdrPerKwh }
+        : {}),
+      ...(dto.waterRateIdrPerM3 !== undefined
+        ? { waterRateIdrPerM3: dto.waterRateIdrPerM3 }
+        : {}),
+      ...(dto.maintenanceFeeIdrPerMonth !== undefined
+        ? { maintenanceFeeIdrPerMonth: dto.maintenanceFeeIdrPerMonth }
+        : {}),
+      ...(dto.electricityMinKwh !== undefined
+        ? { electricityMinKwh: dto.electricityMinKwh }
+        : {}),
+      ...(dto.adminFeeIdrPerMonth !== undefined
+        ? { adminFeeIdrPerMonth: dto.adminFeeIdrPerMonth }
+        : {}),
+      ...(dto.amenities !== undefined
+        ? {
+            amenities: dto.amenities as unknown as Prisma.InputJsonValue,
+          }
+        : {}),
+      ...(dto.media !== undefined
+        ? { media: dto.media as unknown as Prisma.InputJsonValue }
+        : {}),
+      ...(dto.description !== undefined
+        ? { description: dto.description?.trim() || null }
+        : {}),
+      ...(dto.smokingAllowed !== undefined
+        ? { smokingAllowed: dto.smokingAllowed }
+        : {}),
+      ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+    };
+
     try {
-      const updated = await this.prisma.unitType.update({
-        where: { id },
-        data: {
-          code,
-          bedroomCount,
-          layout,
-          bedConfig: bedConfig,
-          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-          ...(dto.sizeSqm !== undefined ? { sizeSqm: dto.sizeSqm } : {}),
-          ...(dto.bathroomCount !== undefined
-            ? { bathroomCount: dto.bathroomCount }
-            : {}),
-          ...(dto.maxGuests !== undefined ? { maxGuests: dto.maxGuests } : {}),
-          ...(dto.defaultPriceIdr !== undefined
-            ? { defaultPriceIdr: dto.defaultPriceIdr }
-            : {}),
-          ...(dto.monthlyPriceIdr !== undefined
-            ? { monthlyPriceIdr: dto.monthlyPriceIdr }
-            : {}),
-          ...(dto.yearlyPriceIdr !== undefined
-            ? { yearlyPriceIdr: dto.yearlyPriceIdr }
-            : {}),
-          ...(dto.electricityRateIdrPerKwh !== undefined
-            ? { electricityRateIdrPerKwh: dto.electricityRateIdrPerKwh }
-            : {}),
-          ...(dto.waterRateIdrPerM3 !== undefined
-            ? { waterRateIdrPerM3: dto.waterRateIdrPerM3 }
-            : {}),
-          ...(dto.maintenanceFeeIdrPerMonth !== undefined
-            ? { maintenanceFeeIdrPerMonth: dto.maintenanceFeeIdrPerMonth }
-            : {}),
-          ...(dto.amenities !== undefined
-            ? {
-                amenities: dto.amenities as unknown as Prisma.InputJsonValue,
-              }
-            : {}),
-          ...(dto.media !== undefined
-            ? { media: dto.media as unknown as Prisma.InputJsonValue }
-            : {}),
-          ...(dto.description !== undefined
-            ? { description: dto.description?.trim() || null }
-            : {}),
-          ...(dto.smokingAllowed !== undefined
-            ? { smokingAllowed: dto.smokingAllowed }
-            : {}),
-          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-        },
-        include: { _count: { select: { units: true } } },
+      if (dto.utilityAddons === undefined) {
+        const updated = await this.prisma.unitType.update({
+          where: { id },
+          data: scalarData,
+          include: unitTypeStaffInclude,
+        });
+        return toStaffUnitType(updated, updated._count.units);
+      }
+
+      const addonRows = this.normalizeUtilityAddonWrites(dto.utilityAddons);
+      const updated = await this.prisma.$transaction(async (tx) => {
+        await tx.unitType.update({
+          where: { id },
+          data: scalarData,
+        });
+        await tx.unitTypeUtilityAddon.deleteMany({
+          where: { unitTypeId: id },
+        });
+        if (addonRows.length > 0) {
+          await tx.unitTypeUtilityAddon.createMany({
+            data: addonRows.map((row) => ({ ...row, unitTypeId: id })),
+          });
+        }
+        return tx.unitType.findUniqueOrThrow({
+          where: { id },
+          include: unitTypeStaffInclude,
+        });
       });
       return toStaffUnitType(updated, updated._count.units);
     } catch (error: unknown) {
@@ -268,6 +340,73 @@ export class UnitTypesService {
       _max: { sortOrder: true },
     });
     return (agg._max.sortOrder ?? 0) + 1;
+  }
+
+  /**
+   * `sortOrder` is assigned independently per utility. Missing values get
+   * 0,1,2… in array appearance order among that utility (ELECTRICITY 0..n
+   * and WATER 0..n, not a single mixed sequence).
+   */
+  private normalizeUtilityAddonWrites(
+    addons: UtilityAddonInputDto[],
+  ): UtilityAddonWriteRow[] {
+    this.assertUtilityAddonScheme(addons);
+
+    const nextIndex: Record<UtilityKind, number> = {
+      [UtilityKind.ELECTRICITY]: 0,
+      [UtilityKind.WATER]: 0,
+    };
+
+    return addons.map((addon) => {
+      const utility = addon.utility;
+      let sortOrder: number;
+      if (addon.sortOrder !== undefined) {
+        sortOrder = addon.sortOrder;
+        nextIndex[utility] = Math.max(nextIndex[utility], addon.sortOrder + 1);
+      } else {
+        sortOrder = nextIndex[utility];
+        nextIndex[utility] += 1;
+      }
+      return {
+        utility,
+        name: addon.name.trim(),
+        kind: addon.kind,
+        value: addon.value,
+        sortOrder,
+      };
+    });
+  }
+
+  private assertUtilityAddonScheme(addons: UtilityAddonInputDto[]): void {
+    const counts: Record<string, number> = {
+      [UtilityKind.ELECTRICITY]: 0,
+      [UtilityKind.WATER]: 0,
+    };
+    for (const addon of addons) {
+      const utility: string = addon.utility;
+      if (!(utility in counts)) {
+        throw new BadRequestException({
+          message: 'Unknown utility on add-on',
+          details: {
+            field: 'utilityAddons',
+            reason: ApiFieldReason.UTILITY_ADDON_LIMIT,
+          },
+        });
+      }
+      counts[utility] += 1;
+    }
+    if (
+      counts[UtilityKind.ELECTRICITY] > UTILITY_ADDON_MAX_PER_KIND ||
+      counts[UtilityKind.WATER] > UTILITY_ADDON_MAX_PER_KIND
+    ) {
+      throw new BadRequestException({
+        message: `At most ${UTILITY_ADDON_MAX_PER_KIND} add-ons per utility`,
+        details: {
+          field: 'utilityAddons',
+          reason: ApiFieldReason.UTILITY_ADDON_LIMIT,
+        },
+      });
+    }
   }
 
   private rethrowCodeConflict(error: unknown): void {
