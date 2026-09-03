@@ -167,6 +167,55 @@ function schemeForMonth(
   );
 }
 
+function sortSchemesByMonth(
+  schemes: UtilityPeriodScheme[],
+): UtilityPeriodScheme[] {
+  return [...schemes].sort((a, b) =>
+    a.chargeYearMonth.localeCompare(b.chargeYearMonth),
+  );
+}
+
+/** Rebuild UI rows when only per-month rules were saved (no meters or fee rows yet). */
+function seedPeriodsFromSchemesOnly(
+  input: SeedUtilitiesInput,
+  schemes: UtilityPeriodScheme[],
+  createKey: () => string,
+): UtilityPeriod[] {
+  const sorted = sortSchemesByMonth(schemes);
+  const periods: UtilityPeriod[] = [];
+  let prevEndDate = input.checkInDate;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const schemeRow = sorted[i]!;
+    const chargeYearMonth = schemeRow.chargeYearMonth;
+    const startDate = i === 0 ? input.checkInDate : prevEndDate;
+    const endDateRaw = yearMonthToChargeDateYmd(chargeYearMonth);
+    const endDate =
+      endDateRaw > startDate
+        ? endDateRaw
+        : defaultNextUtilityReadingDateYmd(startDate);
+    const scheme = cloneUtilitySchemeSnapshot(schemeRow);
+
+    periods.push({
+      key: createKey(),
+      startDate,
+      endDate,
+      elecStart: emptyUtilityEnd(),
+      waterStart: emptyUtilityEnd(),
+      elecEnd: emptyUtilityEnd(),
+      waterEnd: emptyUtilityEnd(),
+      chargeYearMonth,
+      amountDigits: "",
+      adminDigits: "",
+      scheme,
+    });
+
+    prevEndDate = endDate;
+  }
+
+  return rechainStarts(periods);
+}
+
 export function applyPeriodScheme(
   period: UtilityPeriod,
   scheme: UtilitySchemeSnapshot,
@@ -180,9 +229,35 @@ export function applyPeriodScheme(
   };
 }
 
+/** First unsaved period template (check-in → next month, prefilled monthly fees). */
+export function createDraftPeriod(
+  checkInDate: string,
+  scheme: UtilitySchemeSnapshot,
+  options?: { createKey?: () => string },
+): UtilityPeriod {
+  const createKey = options?.createKey ?? createPeriodKey;
+  const startDate = checkInDate;
+  const endDate = defaultNextUtilityReadingDateYmd(startDate);
+  const chargeYearMonth = yearMonthOf(endDate);
+  const snap = cloneUtilitySchemeSnapshot(scheme);
+  return {
+    key: createKey(),
+    startDate,
+    endDate,
+    elecStart: emptyUtilityEnd(),
+    waterStart: emptyUtilityEnd(),
+    elecEnd: emptyUtilityEnd(),
+    waterEnd: emptyUtilityEnd(),
+    chargeYearMonth,
+    amountDigits: defaultFeeDigits(snap.maintenanceFeeIdrPerMonth),
+    adminDigits: defaultFeeDigits(snap.adminFeeIdrPerMonth),
+    scheme: snap,
+  };
+}
+
 /**
  * Group GET readings + maintenance into billed periods.
- * Always returns at least one period (draft start+end for a new stay).
+ * Returns [] when the stay has no saved utility data.
  */
 export function seedPeriods(
   input: SeedUtilitiesInput,
@@ -201,9 +276,27 @@ export function seedPeriods(
   );
   const maint = sortMaint(input.maintenanceCharges ?? []);
   const admin = sortMaint(input.adminCharges ?? []);
+  const storedSchemes = input.utilityPeriodSchemes ?? [];
 
   const hasAnyData =
-    elec.length > 0 || water.length > 0 || maint.length > 0 || admin.length > 0;
+    elec.length > 0 ||
+    water.length > 0 ||
+    maint.length > 0 ||
+    admin.length > 0 ||
+    storedSchemes.length > 0;
+  if (!hasAnyData) {
+    return [];
+  }
+
+  const hasMeterOrFeeData =
+    elec.length > 0 ||
+    water.length > 0 ||
+    maint.length > 0 ||
+    admin.length > 0;
+  if (!hasMeterOrFeeData) {
+    return seedPeriodsFromSchemesOnly(input, storedSchemes, createKey);
+  }
+
   const openingElec = elec[0];
   const openingWater = water[0];
   const elecEnds = elec.slice(1);
@@ -221,7 +314,6 @@ export function seedPeriods(
     admin.length,
   );
   const n = Math.max(intervalCount, 1);
-  const isDraftSeed = !hasAnyData;
 
   const periods: UtilityPeriod[] = [];
   let prevEndDate = startDate;
@@ -242,16 +334,8 @@ export function seedPeriods(
         ? (ymdYearMonth(a.chargeDate) ?? a.chargeDate.slice(0, 7))
         : yearMonthOf(endDate);
     const scheme = schemeForMonth(input, chargeYearMonth);
-    const amountDigits = m
-      ? String(m.amountIdr)
-      : isDraftSeed
-        ? defaultFeeDigits(scheme.maintenanceFeeIdrPerMonth)
-        : "";
-    const adminDigits = a
-      ? String(a.amountIdr)
-      : isDraftSeed
-        ? defaultFeeDigits(scheme.adminFeeIdrPerMonth)
-        : "";
+    const amountDigits = m ? String(m.amountIdr) : "";
+    const adminDigits = a ? String(a.amountIdr) : "";
     const key =
       e?.id ??
       w?.id ??
@@ -311,10 +395,18 @@ export function addPeriod(
   periods: UtilityPeriod[],
   options?: {
     scheme?: UtilitySchemeSnapshot;
+    checkInDate?: string;
     createKey?: () => string;
   },
 ): UtilityPeriod[] {
   const createKey = options?.createKey ?? createPeriodKey;
+  if (periods.length === 0) {
+    const checkInDate = options?.checkInDate ?? "";
+    const scheme = cloneUtilitySchemeSnapshot(
+      options?.scheme ?? emptyUtilitySchemeSnapshot(),
+    );
+    return [createDraftPeriod(checkInDate, scheme, { createKey })];
+  }
   const last = periods[periods.length - 1];
   const startDate = last?.endDate ?? "";
   const endDate = startDate ? defaultNextUtilityReadingDateYmd(startDate) : "";
@@ -345,10 +437,10 @@ export function deletePeriod(
   periods: UtilityPeriod[],
   index: number,
 ): UtilityPeriod[] {
-  if (periods.length <= 1) {
+  const removed = periods[index];
+  if (!removed) {
     return periods;
   }
-  const removed = periods[index];
   const next = periods.filter((_, i) => i !== index);
   if (index === 0 && removed && next[0]) {
     next[0] = {

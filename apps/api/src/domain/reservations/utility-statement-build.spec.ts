@@ -134,4 +134,79 @@ describe('buildUtilityStatementFillInput', () => {
     expect(june.elecRate).toBe(1850);
     expect(june.elecUsageAmountIdr).toBe(Math.floor(100 * 1850));
   });
+
+  it('keeps stored period schemes on wire when readings and fees are empty', () => {
+    const reservation = toStaffReservation(
+      {
+        id: 'res_1',
+        propertyId: 'prop_1',
+        unitId: 'unit_1',
+        unitTypeId: 'type_1',
+        source: ReservationSource.MANUAL,
+        status: ReservationStatus.CONFIRMED,
+        billingPeriod: StayBillingPeriod.MONTHLY,
+        checkInDate: new Date('2026-05-10T00:00:00.000Z'),
+        checkOutDate: new Date('2026-08-10T00:00:00.000Z'),
+        inventoryEndDate: new Date('2026-08-10T00:00:00.000Z'),
+        guestName: 'Guest',
+        guestEmail: null,
+        guestPhone: null,
+        guestCount: 2,
+        notes: null,
+        totalAmountIdr: BigInt(1_000_000),
+        rentAmountIdr: BigInt(1_000_000),
+        electricityAmountIdr: BigInt(0),
+        waterAmountIdr: BigInt(0),
+        maintenanceAmountIdr: BigInt(0),
+        electricityRateIdrPerKwh: 1750,
+        waterRateIdrPerM3: 0,
+        maintenanceFeeIdrPerMonth: 0,
+        electricityMinKwh: 0,
+        adminFeeIdrPerMonth: 0,
+        utilityAddons: [],
+        adminAmountIdr: BigInt(0),
+        paidAmountIdr: BigInt(0),
+        paymentStatus: PaymentStatus.UNPAID,
+        collectedVia: null,
+        externalRef: null,
+        icalSyncWarning: null,
+        icalSyncWarnedAt: null,
+        icalObservedUnitId: null,
+        icalObservedCheckInDate: null,
+        icalObservedCheckOutDate: null,
+        icalOverlapHold: false,
+        confirmedAt: null,
+        checkedInAt: null,
+        checkedOutAt: null,
+        cancelledAt: null,
+        createdAt: new Date('2026-08-17T10:00:00.000Z'),
+        updatedAt: new Date('2026-08-17T10:00:00.000Z'),
+        createdByAdminId: 'admin_1',
+        updatedByAdminId: 'admin_1',
+        createdByAdmin: { username: 'didik' },
+        updatedByAdmin: { username: 'didik' },
+        property: { name: 'Skybreeze', timezone: 'Asia/Jakarta' },
+        unit: { code: 'A1' },
+        unitType: {
+          electricityRateIdrPerKwh: 1750,
+          waterRateIdrPerM3: 0,
+          maintenanceFeeIdrPerMonth: 0,
+          electricityMinKwh: 0,
+          adminFeeIdrPerMonth: 0,
+          utilityAddons: [],
+        },
+        movements: [],
+        utilityReadings: [],
+        maintenanceCharges: [],
+        adminCharges: [],
+        utilityPeriodSchemes: [schemeRow('2026-06-01', 2000)],
+      } as never,
+    );
+
+    expect(reservation.utilityPeriodSchemes).toHaveLength(1);
+    expect(reservation.utilityPeriodSchemes[0]?.chargeYearMonth).toBe('2026-06');
+    expect(reservation.utilityPeriodSchemes[0]?.electricityRateIdrPerKwh).toBe(
+      2000,
+    );
+  });
 });

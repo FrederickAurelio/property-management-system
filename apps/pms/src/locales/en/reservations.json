@@ -412,7 +412,7 @@
   },
   "utilitiesSheet": {
     "title": "Utilities & fees",
-    "description": "One period is electricity, water, maintenance, and admin. Save recalculates Total = rent + utilities + admin.",
+    "description": "Add periods when needed. Save recalculates Total = rent + utilities + admin.",
     "confirm": "Save utilities",
     "toastSaved": "Utilities saved — Total updated",
     "elecRate": "Electricity rate",
@@ -423,6 +423,7 @@
     "maintenance": "Maintenance fee",
     "admin": "Admin",
     "addPeriod": "Add period",
+    "emptyPeriodsHint": "No utility periods yet. Add one when you need to bill electricity, water, or monthly fees.",
     "periodRules": "Rules",
     "periodRulesTitle": "Utility rules · {{month}}",
     "periodRulesDescription": "Rates, extra charges, and monthly fees for this period only. Other months stay as they are.",

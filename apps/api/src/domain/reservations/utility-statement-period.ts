@@ -62,6 +62,12 @@ export function reconstructUtilityPeriods(input: {
   const maint = sortByChargeDate([...input.maintenanceCharges]);
   const admin = sortByChargeDate([...input.adminCharges]);
 
+  const hasAnyData =
+    elec.length > 0 || water.length > 0 || maint.length > 0 || admin.length > 0;
+  if (!hasAnyData) {
+    return [];
+  }
+
   const openingElec = elec[0];
   const openingWater = water[0];
   const elecEnds = elec.slice(1);

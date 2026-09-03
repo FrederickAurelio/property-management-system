@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   addPeriod,
   applyPeriodScheme,
+  createDraftPeriod,
   deletePeriod,
   flattenPeriods,
   patchPeriod,
@@ -49,10 +50,37 @@ function seed(
 }
 
 describe("seedPeriods", () => {
-  it("seeds one draft period for a new stay", () => {
-    const periods = seed();
+  it("returns empty for a new stay with no saved utility data", () => {
+    expect(seed()).toEqual([]);
+  });
+
+  it("rebuilds periods from stored month rules when meters and fees are empty", () => {
+    const periods = seed({
+      utilityPeriodSchemes: [
+        {
+          chargeYearMonth: "2026-06",
+          ...fallbackScheme({ electricityRateIdrPerKwh: 2000 }),
+        },
+      ],
+    });
     expect(periods).toHaveLength(1);
     expect(periods[0]).toMatchObject({
+      startDate: "2026-05-10",
+      endDate: "2026-06-01",
+      chargeYearMonth: "2026-06",
+      amountDigits: "",
+      adminDigits: "",
+      scheme: expect.objectContaining({
+        electricityRateIdrPerKwh: 2000,
+      }),
+    });
+  });
+
+  it("createDraftPeriod matches the former auto-seeded first period", () => {
+    const period = createDraftPeriod("2026-05-10", fallbackScheme(), {
+      createKey: keys(),
+    });
+    expect(period).toMatchObject({
       startDate: "2026-05-10",
       endDate: "2026-06-01",
       chargeYearMonth: "2026-06",
@@ -63,12 +91,14 @@ describe("seedPeriods", () => {
     });
   });
 
-  it("seeds the first draft from the stay fallback, not a later type edit", () => {
-    const periods = seed({
-      fallbackScheme: fallbackScheme({ electricityRateIdrPerKwh: 1750 }),
-    });
-    expect(periods[0]?.scheme.electricityRateIdrPerKwh).toBe(1750);
-    expect(periods[0]?.amountDigits).toBe("50000");
+  it("createDraftPeriod uses the supplied scheme snapshot", () => {
+    const period = createDraftPeriod(
+      "2026-05-10",
+      fallbackScheme({ electricityRateIdrPerKwh: 1750 }),
+      { createKey: keys() },
+    );
+    expect(period.scheme.electricityRateIdrPerKwh).toBe(1750);
+    expect(period.amountDigits).toBe("50000");
   });
 
   it("matches stored period schemes by billed month", () => {
@@ -254,6 +284,16 @@ describe("seedPeriods", () => {
 });
 
 describe("flattenPeriods", () => {
+  it("returns all empty arrays when there are no periods", () => {
+    expect(flattenPeriods([])).toEqual({
+      electricityReadings: [],
+      waterReadings: [],
+      maintenanceCharges: [],
+      adminCharges: [],
+      periodSchemes: [],
+    });
+  });
+
   it("emits opening + each end and skips empty meters", () => {
     const periods = seed({
       utilityReadings: [
@@ -296,7 +336,11 @@ describe("flattenPeriods", () => {
   });
 
   it("writes the same end date onto both meter kinds", () => {
-    const periods = seed();
+    const periods = addPeriod([], {
+      checkInDate: "2026-05-10",
+      scheme: fallbackScheme(),
+      createKey: () => "p1",
+    });
     const patched = patchPeriod(periods, 0, {
       elecStart: { meterDigits: "10", proofImages: [] },
       waterStart: { meterDigits: "1", proofImages: [] },
@@ -355,8 +399,10 @@ describe("addPeriod / deletePeriod / patchPeriod", () => {
   });
 
   it("copies the live unit-type scheme onto a new period only", () => {
-    const first = seed({
-      fallbackScheme: fallbackScheme({ electricityRateIdrPerKwh: 1750 }),
+    const first = addPeriod([], {
+      checkInDate: "2026-05-10",
+      scheme: fallbackScheme({ electricityRateIdrPerKwh: 1750 }),
+      createKey: () => "p1",
     });
     const next = addPeriod(first, {
       scheme: fallbackScheme({
@@ -368,6 +414,23 @@ describe("addPeriod / deletePeriod / patchPeriod", () => {
     expect(next[0]?.scheme.electricityRateIdrPerKwh).toBe(1750);
     expect(next[1]?.scheme.electricityRateIdrPerKwh).toBe(1850);
     expect(next[1]?.amountDigits).toBe("60000");
+  });
+
+  it("addPeriod on empty list creates the first draft period", () => {
+    const next = addPeriod([], {
+      checkInDate: "2026-05-10",
+      scheme: fallbackScheme(),
+      createKey: () => "p1",
+    });
+    expect(next).toHaveLength(1);
+    expect(next[0]).toMatchObject({
+      key: "p1",
+      startDate: "2026-05-10",
+      endDate: "2026-06-01",
+      chargeYearMonth: "2026-06",
+      amountDigits: "50000",
+      adminDigits: "6500",
+    });
   });
 
   it("keeps opening meters when deleting the first period", () => {
@@ -466,13 +529,24 @@ describe("addPeriod / deletePeriod / patchPeriod", () => {
     expect(next[1]?.elecEnd.meterDigits).toBe("250");
   });
 
-  it("keeps at least one period", () => {
-    const periods = seed();
-    expect(deletePeriod(periods, 0)).toEqual(periods);
+  it("allows deleting the last period", () => {
+    const periods = addPeriod([], {
+      checkInDate: "2026-05-10",
+      scheme: fallbackScheme(),
+      createKey: () => "p1",
+    });
+    expect(deletePeriod(periods, 0)).toEqual([]);
   });
 
   it("updates the next period start when an end meter changes", () => {
-    const periods = addPeriod(seed(), { createKey: () => "p2" });
+    const periods = addPeriod(
+      addPeriod([], {
+        checkInDate: "2026-05-10",
+        scheme: fallbackScheme(),
+        createKey: () => "p1",
+      }),
+      { createKey: () => "p2" },
+    );
     const next = patchPeriod(periods, 0, {
       elecEnd: { meterDigits: "333", proofImages: [] },
       endDate: "2026-06-15",

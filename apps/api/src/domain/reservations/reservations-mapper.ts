@@ -268,6 +268,9 @@ function periodSchemesForWire(
       amountIdr: Number(charge.amountIdr),
     })),
   });
+  if (reconstructed.length === 0) {
+    return stored;
+  }
   return reconstructed.map((period) => {
     const hit = byMonth.get(period.chargeYearMonth);
     if (hit) {

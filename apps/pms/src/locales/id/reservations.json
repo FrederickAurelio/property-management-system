@@ -412,7 +412,7 @@
   },
   "utilitiesSheet": {
     "title": "Utilitas & biaya",
-    "description": "Satu periode = listrik, air, maintenance, dan admin. Simpan menghitung ulang Total = sewa + utilitas + admin.",
+    "description": "Tambahkan periode bila perlu. Simpan menghitung ulang Total = sewa + utilitas + admin.",
     "confirm": "Simpan utilitas",
     "toastSaved": "Utilitas disimpan — Total diperbarui",
     "elecRate": "Tarif listrik",
@@ -423,6 +423,7 @@
     "maintenance": "Biaya maintenance",
     "admin": "Admin",
     "addPeriod": "Tambah periode",
+    "emptyPeriodsHint": "Belum ada periode utilitas. Tambahkan saat perlu menagih listrik, air, atau biaya bulanan.",
     "periodRules": "Aturan",
     "periodRulesTitle": "Aturan utilitas · {{month}}",
     "periodRulesDescription": "Tarif, biaya tambahan, dan biaya bulanan hanya untuk periode ini. Periode lain tidak berubah.",

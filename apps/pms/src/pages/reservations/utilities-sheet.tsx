@@ -379,7 +379,7 @@ export function UtilitiesSheet({
                 key={period.key}
                 period={period}
                 index={index}
-                canDelete={periods.length > 1}
+                canDelete
                 currencyPrefix={currencyPrefix}
                 propertyTimezone={reservation.propertyTimezone}
                 onPhotoUploadingChange={setPhotoUploading}
@@ -407,6 +407,11 @@ export function UtilitiesSheet({
                 }}
               />
             ))}
+            {periods.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                {t("reservations:utilitiesSheet.emptyPeriodsHint")}
+              </p>
+            )}
             <div>
               <Button
                 type="button"
@@ -414,7 +419,10 @@ export function UtilitiesSheet({
                 size="sm"
                 onClick={() => {
                   setPeriods((prev) =>
-                    addPeriod(prev, { scheme: unitTypeDefaults }),
+                    addPeriod(prev, {
+                      scheme: unitTypeDefaults,
+                      checkInDate: reservation.checkInDate,
+                    }),
                   );
                 }}
               >

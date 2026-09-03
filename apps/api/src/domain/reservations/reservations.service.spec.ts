@@ -1905,6 +1905,62 @@ describe('ReservationsService', () => {
         ]) as unknown[],
       });
     });
+
+    it('clears all utility rows and zeros quote amounts when arrays are empty', async () => {
+      mockPutRoundTrip(
+        staffDetailRow({
+          rentAmountIdr: BigInt(1_000_000),
+          totalAmountIdr: BigInt(1_050_000),
+          electricityAmountIdr: BigInt(30_000),
+          waterAmountIdr: BigInt(10_000),
+          maintenanceAmountIdr: BigInt(5_000),
+          adminAmountIdr: BigInt(5_000),
+          utilityReadings: [
+            {
+              id: 'e0',
+              reservationId: 'res_1',
+              utility: UtilityKind.ELECTRICITY,
+              readingDate: new Date('2026-05-10T00:00:00.000Z'),
+              meterValue: 1000,
+              proofImages: [],
+              createdAt: new Date('2026-08-17T10:00:00.000Z'),
+              createdByAdminId: 'admin_1',
+            },
+          ],
+        }),
+      );
+
+      await service.putUtilities(
+        'res_1',
+        {
+          electricityReadings: [],
+          waterReadings: [],
+          maintenanceCharges: [],
+          adminCharges: [],
+          periodSchemes: [],
+        },
+        actor,
+      );
+
+      expect(prisma.reservationUtilityReading.createMany).not.toHaveBeenCalled();
+      expect(prisma.reservationMaintenanceCharge.createMany).not.toHaveBeenCalled();
+      expect(prisma.reservationAdminCharge.createMany).not.toHaveBeenCalled();
+      expect(
+        prisma.reservationUtilityPeriodScheme.createMany,
+      ).not.toHaveBeenCalled();
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'res_1' },
+          data: expect.objectContaining({
+            electricityAmountIdr: BigInt(0),
+            waterAmountIdr: BigInt(0),
+            maintenanceAmountIdr: BigInt(0),
+            adminAmountIdr: BigInt(0),
+            totalAmountIdr: BigInt(1_000_000),
+          }) as Record<string, unknown>,
+        }),
+      );
+    });
   });
 
   describe('getUtilityStatementPdf', () => {
