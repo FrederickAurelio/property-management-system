@@ -93,7 +93,7 @@ Only **one primary button** (filled). Everything else secondary. Money block alw
 | `UNCONFIRMED` | **Confirm** (opens enrich form if incomplete)              | Cancel · Edit dates/unit · Collect if Total set                                             |
 | `CONFIRMED`   | **Check in** (if `checkInDate <= today`)                   | Collect (always if Total set) · Refund if excess · Edit · Cancel                |
 | `CHECKED_IN`  | **Check out** (if `checkOutDate <= today` **or** early OK) | Collect · Refund if excess · Edit dates · Cancel (confirm)                      |
-| `CHECKED_OUT` | **Refund** filled if excess; else —                        | **Collect** (always if Total set) · no Edit / reopen                            |
+| `CHECKED_OUT` | **Refund** filled if excess; else —                        | **Collect** (always if Total set) · **Edit** (guest/dates/unit/money; status stays `CHECKED_OUT`) |
 | `CANCELLED`   | —                                                          | Money closed at Cancel sheet · no Collect · no Edit / reopen                                       |
 
 **Predictability rules**

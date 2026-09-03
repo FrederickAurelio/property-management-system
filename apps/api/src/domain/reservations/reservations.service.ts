@@ -700,10 +700,7 @@ export class ReservationsService {
     if (!existing) {
       throw new NotFoundException('Reservation not found');
     }
-    if (
-      existing.status === ReservationStatus.CANCELLED ||
-      existing.status === ReservationStatus.CHECKED_OUT
-    ) {
+    if (existing.status === ReservationStatus.CANCELLED) {
       throw new BadRequestException({
         message: 'Terminal reservation cannot be edited',
         details: {
@@ -738,7 +735,10 @@ export class ReservationsService {
     const unitId = dto.unitId ?? existing.unitId;
     const unitTypeId = dto.unitTypeId ?? existing.unitTypeId;
 
-    const inventoryEndYmd = computeInventoryEndYmd(billingPeriod, checkOutDate);
+    const inventoryEndYmd =
+      existing.status === ReservationStatus.CHECKED_OUT
+        ? checkOutDate
+        : computeInventoryEndYmd(billingPeriod, checkOutDate);
     const inventoryTouched = Boolean(
       dto.unitId ||
       dto.checkInDate ||

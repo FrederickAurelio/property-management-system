@@ -1,5 +1,24 @@
+import { ReservationStatus } from "@cabin/api-contract";
 import { describe, expect, it } from "vitest";
-import { formatMovementCreatedAt } from "./reservation-format";
+import {
+  canCancelStay,
+  canEditStay,
+  formatMovementCreatedAt,
+} from "./reservation-format";
+
+describe("canEditStay / canCancelStay", () => {
+  it("allows edit on CHECKED_OUT", () => {
+    expect(canEditStay(ReservationStatus.CHECKED_OUT)).toBe(true);
+  });
+
+  it("blocks edit on CANCELLED", () => {
+    expect(canEditStay(ReservationStatus.CANCELLED)).toBe(false);
+  });
+
+  it("blocks cancel on CHECKED_OUT", () => {
+    expect(canCancelStay(ReservationStatus.CHECKED_OUT)).toBe(false);
+  });
+});
 
 describe("formatMovementCreatedAt", () => {
   const iso = "2026-08-10T14:30:00.000Z";

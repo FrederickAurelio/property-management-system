@@ -811,6 +811,90 @@ describe('ReservationsService', () => {
         },
       });
     });
+
+    it('allows guest patch when CHECKED_OUT', async () => {
+      const existing = detailRow({
+        status: ReservationStatus.CHECKED_OUT,
+        checkedOutAt: new Date('2026-08-18T00:00:00.000Z'),
+      });
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce({
+          ...existing,
+          property: { timezone: 'Asia/Jakarta' },
+        })
+        .mockResolvedValueOnce({
+          ...existing,
+          guestName: 'Updated Guest',
+        });
+
+      await service.update('res_1', { guestName: 'Updated Guest' }, actor);
+
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            guestName: 'Updated Guest',
+          }) as Record<string, unknown>,
+        }),
+      );
+    });
+
+    it('rejects patch when CANCELLED', async () => {
+      prisma.reservation.findUnique.mockResolvedValue({
+        ...detailRow({ status: ReservationStatus.CANCELLED }),
+        property: { timezone: 'Asia/Jakarta' },
+      });
+
+      await expect(
+        service.update('res_1', { guestName: 'Updated Guest' }, actor),
+      ).rejects.toMatchObject({
+        response: {
+          details: {
+            field: 'status',
+            reason: ApiFieldReason.INVALID_STATUS_TRANSITION,
+          },
+        },
+      });
+    });
+
+    it('snaps inventoryEndDate to checkOutDate on CHECKED_OUT monthly date patch', async () => {
+      const existing = detailRow({
+        status: ReservationStatus.CHECKED_OUT,
+        billingPeriod: StayBillingPeriod.MONTHLY,
+        checkInDate: new Date('2026-06-26T00:00:00.000Z'),
+        checkOutDate: new Date('2026-07-26T00:00:00.000Z'),
+        checkedOutAt: new Date('2026-07-26T00:00:00.000Z'),
+      });
+      prisma.reservation.findUnique
+        .mockResolvedValueOnce({
+          ...existing,
+          property: { timezone: 'Asia/Jakarta' },
+        })
+        .mockResolvedValueOnce({
+          ...existing,
+          checkOutDate: new Date('2026-08-26T00:00:00.000Z'),
+        });
+      prisma.unit.findUnique.mockResolvedValue(unitBookable);
+
+      await service.update(
+        'res_1',
+        { checkOutDate: '2026-08-26' },
+        actor,
+      );
+
+      expect(prisma.reservation.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            inventoryEndDate: new Date('2026-08-26T00:00:00.000Z'),
+          }) as Record<string, unknown>,
+        }),
+      );
+      const updateCalls = prisma.reservation.update.mock.calls as Array<
+        [{ data?: Record<string, unknown> }]
+      >;
+      expect(updateCalls[0]?.[0]?.data?.inventoryEndDate).not.toEqual(
+        new Date('9999-12-31T00:00:00.000Z'),
+      );
+    });
   });
 
   describe('cancel', () => {

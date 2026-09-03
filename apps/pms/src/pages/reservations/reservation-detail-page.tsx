@@ -55,6 +55,7 @@ import {
   formatReservationSource,
   formatReservationStatus,
   canCollectPayment,
+  canCancelStay,
   canEditStay,
   canRefundPayment,
   isCheckInWindow,
@@ -315,6 +316,7 @@ export function ReservationDetailPage() {
   const primary = primaryActionFor(row);
   const due = reservationDue(row);
   const editable = canEditStay(row.status);
+  const cancellable = canCancelStay(row.status);
   const showCollect = canCollectPayment(row);
   const showRefundCta = canRefundPayment(row);
   const showUtilities = row.status !== ReservationStatus.CANCELLED;
@@ -628,7 +630,7 @@ export function ReservationDetailPage() {
               {t("detailPage.buttons.edit")}
             </Button>
           )}
-          {editable && (
+          {cancellable && (
             <Button
               type="button"
               variant="ghost"

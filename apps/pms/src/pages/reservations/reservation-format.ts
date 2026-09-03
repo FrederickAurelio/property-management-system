@@ -418,8 +418,13 @@ export function isTerminalStatus(status: ReservationStatus): boolean {
   );
 }
 
-/** Dates / unit / guest edits — locked once the stay is closed. */
+/** Dates / unit / guest edits — locked once cancelled. */
 export function canEditStay(status: ReservationStatus): boolean {
+  return status !== ReservationStatus.CANCELLED;
+}
+
+/** Cancel sheet — not available on terminal stays. */
+export function canCancelStay(status: ReservationStatus): boolean {
   return !isTerminalStatus(status);
 }
 
