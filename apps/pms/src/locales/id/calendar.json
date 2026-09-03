@@ -22,6 +22,7 @@
   "stayBar": {
     "needsDetails": "Perlu detail ({{source}})",
     "due": "Sisa {{amount}}",
+    "credit": "Kredit {{amount}}",
     "refund": "Refund {{amount}}",
     "late": "Telat",
     "ota": "OTA",

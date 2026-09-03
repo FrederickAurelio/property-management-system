@@ -2,6 +2,7 @@
 import type { CSSProperties } from "react";
 import {
   balanceDueIdr,
+  moneyGapKind,
   refundDueIdr,
   type ReservationSource,
   type StaffCalendarStay,
@@ -36,13 +37,19 @@ const inventoryHoldBarClass =
   "border-inventory-hold-foreground/25 bg-inventory-hold text-inventory-hold-foreground";
 
 function moneyCue(stay: StaffCalendarStay, t: TFunction): string | null {
-  const due = balanceDueIdr(stay.totalAmountIdr, stay.paidAmountIdr);
-  if (due != null && due > 0) {
-    return t("calendar:stayBar.due", { amount: formatIdr(due) });
+  const gap = moneyGapKind(stay);
+  if (gap === "due") {
+    const due = balanceDueIdr(stay.totalAmountIdr, stay.paidAmountIdr) ?? 0;
+    return due > 0
+      ? t("calendar:stayBar.due", { amount: formatIdr(due) })
+      : null;
   }
-  const refund = refundDueIdr(stay.totalAmountIdr, stay.paidAmountIdr);
-  if (refund != null && refund > 0) {
-    return t("calendar:stayBar.refund", { amount: formatIdr(refund) });
+  const excess = refundDueIdr(stay.totalAmountIdr, stay.paidAmountIdr) ?? 0;
+  if (gap === "refund" && excess > 0) {
+    return t("calendar:stayBar.refund", { amount: formatIdr(excess) });
+  }
+  if (gap === "credit" && excess > 0) {
+    return t("calendar:stayBar.credit", { amount: formatIdr(excess) });
   }
   return null;
 }

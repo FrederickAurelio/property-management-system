@@ -35,7 +35,7 @@ Every reservation row answers five questions, always visible on list + detail:
 | Which unit / nights? | Unit code + date range                 |
 | Ops where?           | Status badge                           |
 | From where?          | Source badge                           |
-| Money?               | **Total · Paid · Due** (never hide)    |
+| Money?               | **Total · Paid · Due / Credit / Refund** (never hide) |
 | Needs human?         | `UNCONFIRMED` and/or `icalSyncWarning` |
 
 **Invariant:** reservation always has `unitId`. Type-then-assign is UX only; write path always stores a unit.
@@ -71,7 +71,7 @@ Phase 1 desk boards live on **Reservations** (`/reservations`) only — **no** s
 | ----------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | **Arrivals**      | `status = CONFIRMED` and `checkInDate ≤ today < checkOutDate` (includes overdue) | Collect due → Check in                                                          |
 | **In-house**      | `status = CHECKED_IN`                                                            | Extend / collect / Check out                                                    |
-| **Balance due**   | Due > 0 **or** Refund > 0 (overpay), status occupying **or** `CHECKED_OUT`       | Collect / Refund                                                                |
+| **Balance due**   | Due > 0 (any occupying / `CHECKED_OUT`), **or** Refund after `CHECKED_OUT` (excess). Live overpay is **Credit**, not a chase. | Collect / Refund                                                                |
 | **Departures**    | `status = CHECKED_IN` and `checkOutDate ≤ today` (includes overdue)              | Check out                                                                       |
 | **Needs details** | `status = UNCONFIRMED`                                                           | Enrich → Confirm                                                                |
 | **OTA issues**    | `icalSyncWarning IS NOT NULL` (board id `ical-alerts`)                           | Playbook on detail: verify on OTA → primary Cabin action → OTA step if required |
@@ -90,17 +90,17 @@ Only **one primary button** (filled). Everything else secondary. Money block alw
 
 | Status        | Primary                                                    | Secondary                                                                                          |
 | ------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `UNCONFIRMED` | **Confirm** (opens enrich form if incomplete)              | Cancel · Edit dates/unit                                                                           |
-| `CONFIRMED`   | **Check in** (if `checkInDate <= today`)                   | Collect / Refund · Edit · Cancel                                                                   |
-| `CHECKED_IN`  | **Check out** (if `checkOutDate <= today` **or** early OK) | Collect · Edit dates · Cancel (confirm)                                                            |
-| `CHECKED_OUT` | —                                                          | **Collect** only if Due > 0 · **Refund** only if overpaid · hidden when settled · no Edit / reopen |
+| `UNCONFIRMED` | **Confirm** (opens enrich form if incomplete)              | Cancel · Edit dates/unit · Collect if Total set                                             |
+| `CONFIRMED`   | **Check in** (if `checkInDate <= today`)                   | Collect (always if Total set) · Refund if excess · Edit · Cancel                |
+| `CHECKED_IN`  | **Check out** (if `checkOutDate <= today` **or** early OK) | Collect · Refund if excess · Edit dates · Cancel (confirm)                      |
+| `CHECKED_OUT` | **Refund** filled if excess; else —                        | **Collect** (always if Total set) · no Edit / reopen                            |
 | `CANCELLED`   | —                                                          | Money closed at Cancel sheet · no Collect · no Edit / reopen                                       |
 
 **Predictability rules**
 
 1. Same action names on calendar popover, list row, and detail.
 2. Illegal actions are **hidden**, not error-after-click (BE still enforces).
-3. Any cash action uses the **same Collect sheet** (amount → posts `PaymentMovement`; Paid = sum).
+3. Collect uses the **same Collect sheet** (IN, uncapped). Refund uses that sheet with intent OUT (capped at excess). Paid = sum.
 4. Cancel always uses the **same Cancel sheet**: reason/notes optional + money disposition if `paid > 0`.
 5. Warnings (`icalSyncWarning`, balance due) use one banner pattern — never a different modal language per screen. OTA sync warnings use a **playbook card** on detail: title (plain language + channel) → what happened → (1) check on OTA (2) primary Cabin CTA (3) OTA step when required → Dismiss with sticky vs reappears hint. List/boards show the playbook title, not a bare icon. Desk UI says **OTA** / channel name (Booking.com, Airbnb, Agoda); keep `ical-*` ids in code/URL.
 
@@ -218,7 +218,7 @@ totalAmountIdr = rentAmountIdr
 ```text
 UNPAID    paid = 0
 DEPOSIT   0 < paid < total   (total required)
-PAID      paid >= total      (total required; includes overpay → Due = 0, Refund > 0)
+PAID      paid >= total      (total required; includes overpay → Due = 0, excess = credit while live / Refund after CHECKED_OUT)
 REFUNDED  explicit after cancel full-refund (or paid driven to 0 on cancel path)
 ```
 
@@ -250,11 +250,11 @@ REFUNDED  explicit after cancel full-refund (or paid driven to 0 on cancel path)
 | `proofImages`                    | optional Garage `ArchiveItem[]` (max 5). Create on Collect; replace-set via `PATCH .../movements/:id/proofs`. Does not change Paid. |
 | `createdAt` / `createdByAdminId` | audit — who posted cash; no full edit history table in Phase 1            |
 
-Helpers in `@cabin/api-contract`: `signedAmountFor`, `sumPaidFromMovements`, `balanceDueIdr`, `refundDueIdr`, `canUndoPaymentMovement`.
+Helpers in `@cabin/api-contract`: `signedAmountFor`, `sumPaidFromMovements`, `balanceDueIdr`, `refundDueIdr`, `moneyGapKind`, `isOpenBalanceChase`, `canUndoPaymentMovement`.
 
 **Grace undo:** `FRONT_DESK+` may delete the **latest** movement if `now − createdAt ≤ 5 minutes` and the stay is not `CANCELLED` (`POST .../movements/:id/undo`). After that, amounts stay frozen; proofs can still PATCH.
 
-**Not movements:** Total edits, guest/date/unit patches. Shrink after full pay → Refund due until staff posts an OUT.
+**Not movements:** Total edits, guest/date/unit patches. Shrink after full pay → excess held as credit until checkout (Refund CTA on detail anytime).
 
 ```text
 recompute paymentStatus:
@@ -271,10 +271,10 @@ Cash-first — posts **one** movement per save. Total quote stays on Edit stay.
 
 | Intent              | Input                      | Result                                                   |
 | ------------------- | -------------------------- | -------------------------------------------------------- |
-| Collect DP / top-up | amount ≤ Due, method, note, optional proofs | Movement `IN` (`DEPOSIT` / `TOP_UP` / `CHANNEL_SETTLED`) |
-| Collect full Due    | shortcut amount = Due                       | Same IN                                                  |
-| Refund excess       | amount ≤ Refund, optional proofs            | Movement `OUT` (`REFUND`)                                |
-| Refund full excess  | shortcut amount = Refund                    | Same OUT                                                 |
+| Collect DP / top-up | amount `> 0` (no Due cap), method, note, optional proofs | Movement `IN` (`DEPOSIT` / `TOP_UP` / `CHANNEL_SETTLED`); extra = credit until checkout |
+| Collect full Due    | shortcut amount = Due when Due `> 0`                    | Same IN                                                  |
+| Refund excess       | amount ≤ excess, optional proofs                        | Movement `OUT` (`REFUND`); CTA whenever excess `> 0`     |
+| Refund full excess  | shortcut amount = excess                                | Same OUT                                                 |
 | Attach / change bukti | `proofImages` array only                  | `PATCH .../proofs` replace-set; Paid unchanged           |
 | Undo fat-finger     | latest line, within 5 min                   | Delete row; re-sum Paid                                  |
 
@@ -323,16 +323,18 @@ suggestedTotal =
 | Create with unit + dates                  | Fill suggested **rent**; Total = rent + utilities | Opening `depositAmountIdr` > 0 → first IN `DEPOSIT`          |
 | Unit type, period, or period-count change | Set **rent** to suggested; recompute Total        | **Never change Paid / movements**; utilities rows kept       |
 | Open edit (no period/type change)         | Keep saved rent                                   | Keep Paid                                                    |
-| Staff edits rent by hand                  | Keep override; recompute Total                    | Paid stays; if `paid > total` → **Refund** until Collect OUT |
+| Staff edits rent by hand                  | Keep override; recompute Total                    | Paid stays; if `paid > total` → **credit** until checkout (Refund chase after `CHECKED_OUT`) |
 | Utilities sheet save                      | Recompute utility sums + Total                    | Paid unchanged until Collect                                 |
 
 ```text
-Due     = max(total − paid, 0)
-Refund  = max(paid − total, 0)   # settle via Collect OUT — never silent clamp
+Due     = max(total − paid, 0)                          # always a chase
+excess  = max(paid − total, 0)                          # never silent clamp
+          live statuses → Credit (quiet; not Balance due)
+          CHECKED_OUT   → Refund chase (Collect OUT)
 ```
 
 Extend after full pay → Total rises, Paid stays → Due → Collect IN.  
-Shrink after full pay → Total falls, Paid stays → Refund → Collect OUT. Do **not** auto-post a refund when Total shrinks.
+Shrink after full pay → Total falls, Paid stays → credit until checkout (or Refund CTA on detail). Do **not** auto-post a refund when Total shrinks.
 
 iCal date change on `UNCONFIRMED`: auto-apply. On `CONFIRMED+`: **warn only** (`DATES_DIFFER`) — staff Accept or Keep.
 
@@ -353,7 +355,7 @@ Nest persists `PaymentMovement` with `/staff/reservations`; PMS uses the live AP
 
 Confirm and manual-create-as-`CONFIRMED` use the same matrix.  
 Check-in: **warn** if Due > 0 — do not hard-block.  
-Check-out: same — allow with Due > 0; **Collect** remains available after `CHECKED_OUT`.  
+Check-out: same for Due; if excess > 0, remind that credit becomes Refund after checkout. **Collect** stays available after `CHECKED_OUT` whenever Total is set. Refund CTA whenever excess > 0 (filled after checkout).  
 Early/late check-out: dates unchanged unless staff **Edit** first; iCal busy follows occupying status (not a manual calendar open).
 
 ---
@@ -593,9 +595,9 @@ Extranet labels: Booking.com **Import now** · Airbnb **Refresh** · Agoda **Ref
 | 4   | Walk-in while export not yet pulled by OTA                     | Known delay window; SOP refresh OTA if last-minute                                                                                                                                                                                                                                                                                                                                                                        |
 | 5   | Guest paid Airbnb; Due would confuse check-in                  | Mark paid (+ optional CHANNEL) so Due = 0                                                                                                                                                                                                                                                                                                                                                                                 |
 | 6   | Complimentary / owner friend                                   | `total = 0`, Mark paid or leave `PAID` with paid 0→ treat `total=0` and `paid=0` as `PAID` (due 0)                                                                                                                                                                                                                                                                                                                        |
-| 7   | Overpay `paid > total`                                         | `PAID`, Due = 0                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 7   | Overpay `paid > total`                                         | `PAID`, Due = 0; excess = credit while live, Refund chase after `CHECKED_OUT`                                                                                                                                                                                                                                                                                                                                              |
 | 8   | Extend after full pay                                          | Raise total → Due appears; Collect IN top-up                                                                                                                                                                                                                                                                                                                                                                              |
-| 9   | Shrink after full pay                                          | Lower total; Paid stays; Refund = paid − total; Collect OUT                                                                                                                                                                                                                                                                                                                                                               |
+| 9   | Shrink after full pay                                          | Lower total; Paid stays; excess = credit until checkout (Refund CTA on detail)                                                                                                                                                                                                                                                                                                                                             |
 | 10  | Move to another unit                                           | PATCH `unitId` if free for range; keep money/guest. If OTA moves the listing (UID on sibling feed) → `UNIT_DIFFER` + observed unit/dates — staff **Accept OTA unit** (overlap-checked) or Dismiss for now. Accept unit may raise `DATES_DIFFER` immediately if dates also drifted. No false `MISSING_FROM_FEED` while the UID still appears on any same-source feed (or while sibling lookup is incomplete after retries) |
 | 11  | Unit set `MAINTENANCE` with future stays                       | Allow unit status change with **warning** listing future occupying rows — do not auto-cancel                                                                                                                                                                                                                                                                                                                              |
 | 12  | Early check-in / early check-out                               | Allowed with confirm; dates unchanged unless staff edits                                                                                                                                                                                                                                                                                                                                                                  |
@@ -687,12 +689,12 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservati
 | `UNCONFIRMED` + missing feed | Warn only (same as confirmed)                                                                                                                                                                                                                                                |
 | `collectedVia`               | Optional                                                                                                                                                                                                                                                                     |
 | Unit vs type-first UX        | **Unit required** on write; Choose picker drills Property → Type → Unit                                                                                                                                                                                                      |
-| Stay Total suggestion        | Rent = `periodCount ×` matching rack; Total = rent + utilities; Paid = sum(movements), never auto-changed on date/unit/period change; if Paid > Total → Refund (`refundDueIdr`), settle via Collect OUT |
+| Stay Total suggestion        | Rent = `periodCount ×` matching rack; Total = rent + utilities; Paid = sum(movements), never auto-changed on date/unit/period change; if Paid > Total → excess (`refundDueIdr`); credit while live, Refund chase after `CHECKED_OUT` |
 | Quote utilities              | Monthly elec/water meter readings + maintenance rows; UnitType = template; each billed month freezes its own card; button on all periods; `utilitiesDueNotice` for MONTHLY/YEARLY only when next month missing |
 | Cash ledger                  | `PaymentMovement` amounts append-only except latest undo within 5 min; optional `proofImages` replace-set; Nest `/staff/reservations`; PMS live |
 | Cancel money body            | `refundAmountIdr` (OUT amount) for partial — never “remaining Paid”                                                                                                                                                                                                          |
 | Check-in if Due > 0          | Warn, allow                                                                                                                                                                                                                                                                  |
-| Collect after checkout       | Only while Due > 0 (IN) or Refund > 0 (OUT); hidden when settled                                                                                                                                                                                                             |
+| Collect after checkout       | Collect always (Total set); Refund CTA if excess; filled Refund when excess is a chase                                                                                                                                               |
 | Collect after cancel         | **No** — disposition is chosen on the Cancel sheet                                                                                                                                                                                                                           |
 | `total = 0`                  | Allowed; due 0 counts as settled (`PAID`)                                                                                                                                                                                                                                    |
 
@@ -701,7 +703,7 @@ Cash **ledger** (`PaymentMovement`) is **in** — Nest table + `/staff/reservati
 ## 16. One-screen summary
 
 ```text
-Desk always sees: Status · Source · Total/Paid/Balance (Due|Refund) · warnings · cash timeline
+Desk always sees: Status · Source · Total/Paid/Balance (Due|Credit|Refund) · warnings · cash timeline
 Boards on /reservations only (no Check-in page): Arrivals (incl. late-in-window) · In-house · Departures (incl. overdue checkout) · Needs details · OTA issues · Balance due
 One primary action per status; Collect sheet (IN/OUT movements) + Cancel sheet everywhere
 Unit via Choose (Property → Type → Unit), not a mega Select
@@ -712,7 +714,7 @@ Paid    = sum(PaymentMovement.signedAmount) — never absolute overwrite as desk
          amounts append-only except latest undo within 5 min; proofs PATCH replace-set
 Rent    = periodCount × matching rack on unit/period/count change (override OK)
 Total   = rent + electricity + water + maintenance (utilities sheet; monthly cadence)
-         if Paid > Total → Refund = paid − total (Collect OUT; never silent clamp)
+         if Paid > Total → excess = paid − total (credit while live; Refund after CHECKED_OUT; never silent clamp)
 iCal in = UNCONFIRMED; missing/dates on CONFIRMED = warn, human decides
 iCal out = Phase 1 export so walk-ins block OTAs
 

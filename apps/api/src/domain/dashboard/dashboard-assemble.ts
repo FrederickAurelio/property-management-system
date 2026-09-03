@@ -1,4 +1,5 @@
 import {
+  isOpenBalanceChase,
   openAmountIdr,
   PaymentStatus,
   ReservationStatus,
@@ -16,18 +17,14 @@ function rowOpenAmountIdr(
   return openAmountIdr(row.totalAmountIdr, row.paidAmountIdr);
 }
 
-function hasOpenMoney(
-  row: Pick<StaffReservationListItem, 'totalAmountIdr' | 'paidAmountIdr'>,
-): boolean {
-  return rowOpenAmountIdr(row) > 0;
-}
-
 /**
  * Same semantics as `openBalanceMoneyClause` (balance-due board money OR),
  * expressed on list-item fields so Why chips never disagree with the filter.
+ * Live excess is credit — not OPEN_BALANCE. Stale DEPOSIT badge still matches
+ * the board money OR even when amounts look settled.
  */
 function matchesOpenBalanceMoney(row: StaffReservationListItem): boolean {
-  if (hasOpenMoney(row)) return true;
+  if (isOpenBalanceChase(row)) return true;
   if (row.paymentStatus === PaymentStatus.DEPOSIT) return true;
   if (
     row.paymentStatus === PaymentStatus.UNPAID &&
@@ -101,8 +98,8 @@ export function sortArrivals(
     const bLate = b.checkInDate < today ? 0 : 1;
     if (aLate !== bLate) return aLate - bLate;
 
-    const aOpen = hasOpenMoney(a) ? 0 : 1;
-    const bOpen = hasOpenMoney(b) ? 0 : 1;
+    const aOpen = isOpenBalanceChase(a) ? 0 : 1;
+    const bOpen = isOpenBalanceChase(b) ? 0 : 1;
     if (aOpen !== bOpen) return aOpen - bOpen;
 
     if (a.checkInDate !== b.checkInDate) {
@@ -122,8 +119,8 @@ export function sortDepartures(
     const bLate = b.checkOutDate < today ? 0 : 1;
     if (aLate !== bLate) return aLate - bLate;
 
-    const aOpen = hasOpenMoney(a) ? 0 : 1;
-    const bOpen = hasOpenMoney(b) ? 0 : 1;
+    const aOpen = isOpenBalanceChase(a) ? 0 : 1;
+    const bOpen = isOpenBalanceChase(b) ? 0 : 1;
     if (aOpen !== bOpen) return aOpen - bOpen;
 
     if (a.checkOutDate !== b.checkOutDate) {

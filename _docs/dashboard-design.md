@@ -15,7 +15,7 @@ Dashboard does **not** replace boards, Calendar, or Reports. Collect / Check-in 
 | Mental model     | Today + exceptions                                   | Full task boards                   | Floor plan over time             | Period performance   |
 | Default question | Who’s in/out today, and what’s open-balance / incomplete? | Do Collect / Check-in / enrich     | What’s free?                     | How did we do?       |
 | Shape            | Short lists + exception strip                        | Filterable boards                  | Unit × days grid                 | Filters + sections   |
-| Money            | Due / Refund **on exception rows only**              | Due column · Balance due board     | Optional Due hint on bar         | Cash in period       |
+| Money            | Due / Credit / Refund on rows (Refund warn only after checkout) | Due column · Balance due board     | Optional Due / Credit / Refund cue | Cash in period       |
 | Audience         | Front desk (every shift)                             | Front desk                         | Front desk                       | ADMIN+               |
 
 ---
@@ -85,7 +85,7 @@ Reuse board semantics from [`reservations-design.md`](reservations-design.md) §
 | ----------- | ---------------------------------------------------------------------------------------------- |
 | Filter      | `status = CONFIRMED` and `checkInDate ≤ today < checkOutDate` (includes overdue / late arrival) |
 | Sort        | Late first · then Due > 0 · then `checkInDate` asc · then guest                                |
-| Row signals | Late arrival badge · Due / Refund when open money ≠ settled                                    |
+| Row signals | Late arrival badge · Due when guest owes · Credit (quiet) if excess |
 | Cap         | Show up to **8** rows; else truncate + View all → Arrivals board                               |
 
 ### 4.2 Departures
@@ -94,7 +94,7 @@ Reuse board semantics from [`reservations-design.md`](reservations-design.md) §
 | ----------- | ---------------------------------------------------------------------------------------- |
 | Filter      | `status = CHECKED_IN` and `checkOutDate ≤ today` (includes overdue / late departure)     |
 | Sort        | Late first · then Due > 0 · then `checkOutDate` asc · then guest                         |
-| Row signals | Late departure badge · Due / Refund when open money ≠ settled                            |
+| Row signals | Late departure badge · Due when guest owes · Credit (quiet) if excess |
 | Cap         | Show up to **8** rows; else truncate + View all → Departures board                       |
 
 Do **not** list full In-house on Dashboard. Guests staying past today with nothing to chase are not shift triage.
@@ -103,17 +103,17 @@ Do **not** list full In-house on Dashboard. Guests staying past today with nothi
 
 One strip for exceptions that are **not** “expected in/out today” or that need money/enrich/sync handling ASAP. Hide the whole section when count = 0.
 
-**Open balance (locked — same rule as Reservations Balance due board):** Due > 0 **or** Refund > 0 (overpay). Not “unpaid only” — Refund is the same chase.
+**Open balance (locked — same rule as Reservations Balance due board):** Due > 0, **or** Refund after `CHECKED_OUT`. Live excess is Credit — not a chase. Not “unpaid only”.
 
 | Kind                           | Filter                                                                                         | Why it’s here                                                                 | View all board   |
 | ------------------------------ | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------- |
-| **Open balance · in-house**    | `status = CHECKED_IN` and `checkOutDate > today` and open balance                              | Mid-stay Due **or** Refund — not a full house list                            | Balance due      |
-| **Open balance · checked out** | `status = CHECKED_OUT` and open balance                                                        | Same money rule after checkout                                                | Balance due      |
+| **Open balance · in-house**    | `status = CHECKED_IN` and `checkOutDate > today` and Due > 0                                   | Mid-stay Due — not a full house list; occupying credit stays off this strip   | Balance due      |
+| **Open balance · checked out** | `status = CHECKED_OUT` and (Due > 0 or Refund > 0)                                             | Chase leftover Due **or** return credit as Refund                             | Balance due      |
 | **Stranded CONFIRMED**         | `status = CONFIRMED` and `checkOutDate ≤ today`                                                | Never checked in; fell off Arrivals; still occupies calendar → Cancel / no-show | All (no board) |
 | **Needs details (soon)**       | `status = UNCONFIRMED` and `checkInDate ≤ today + 1 day` (today or tomorrow, property-local) | Stub about to arrive — enrich before they show                                | Needs details    |
 | **OTA issues**                 | `icalSyncWarning IS NOT NULL`                                                                  | Feed cancel / date drift / OTA still listed after local cancel — urgent if in-house | OTA issues (`ical-alerts`) |
 
-In-house and post-checkout money rows get **identical** open-balance treatment (Due chip and/or Refund chip). Only status differs.
+In-house open-balance is **Due only**. Post-checkout open-balance is Due **or** Refund. Occupying credit is quiet on Arrivals/Departures/list — not Needs attention.
 
 **Stranded CONFIRMED:** same rule as reservations-design (“past `checkOutDate` without ever checking in → Cancel”). No separate `NO_SHOW` status — chip **Cancel / no-show**; row → detail → Cancel sheet. These are **not** on Arrivals once `today >= checkOutDate`, so Dashboard is the place they stay visible. For **MONTHLY/YEARLY**, inventory remains blocked (`inventoryEndDate` = FAR) until Cancel — Cancel is required to free the unit.
 
@@ -125,8 +125,8 @@ In-house and post-checkout money rows get **identical** open-balance treatment (
 
 **Not in Needs attention:**
 
-- Full In-house with settled money (Due = 0 and Refund = 0) — no job
-- Today’s arrivals/departures already listed above (even with open balance — Due/Refund badge lives on those rows; do not duplicate into Needs attention)
+- Full In-house with no Due (settled or credit held) — no job
+- Today’s arrivals/departures already listed above (even with Due — badge lives on those rows; do not duplicate into Needs attention)
 - Period cash / “collected today”
 
 ---

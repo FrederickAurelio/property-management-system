@@ -76,7 +76,8 @@ export function departuresWhere(
 
 /**
  * Balance-due / open-balance money OR (doc §3.1):
- * Due > 0 (UNPAID with total, or DEPOSIT) · or Refund > 0 (overpaid ids).
+ * Due > 0 (UNPAID with total, or DEPOSIT) · or Refund after CHECKED_OUT
+ * (overpaid ids — occupying excess is credit, not a chase).
  */
 export function openBalanceMoneyClause(
   overpaidIds: string[],
@@ -114,7 +115,7 @@ export type OverpaidReservationFilters = {
   q?: string;
 };
 
-/** Refund > 0 rows — `paidAmountIdr > totalAmountIdr` in SQL. */
+/** Refund chase rows — overpaid and CHECKED_OUT (`paidAmountIdr > totalAmountIdr`). */
 export async function findOverpaidReservationIds(
   prisma: PrismaService,
   filters: OverpaidReservationFilters = {},
@@ -122,12 +123,7 @@ export async function findOverpaidReservationIds(
   const parts: Prisma.Sql[] = [
     Prisma.sql`r."totalAmountIdr" IS NOT NULL`,
     Prisma.sql`r."paidAmountIdr" > r."totalAmountIdr"`,
-    Prisma.sql`r.status IN (
-      'UNCONFIRMED'::"ReservationStatus",
-      'CONFIRMED'::"ReservationStatus",
-      'CHECKED_IN'::"ReservationStatus",
-      'CHECKED_OUT'::"ReservationStatus"
-    )`,
+    Prisma.sql`r.status = 'CHECKED_OUT'::"ReservationStatus"`,
   ];
 
   if (filters.propertyId) {

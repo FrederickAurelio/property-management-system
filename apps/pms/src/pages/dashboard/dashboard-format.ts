@@ -5,7 +5,7 @@ import i18n from "@/i18n";
 /** Primary why label for Needs — one chip max (no badge soup). */
 export function primaryAttentionLabel(
   kinds: StaffDashboardAttentionKind[] | undefined,
-  moneyKind: "due" | "refund" | "settled" | "closed",
+  moneyKind: "due" | "credit" | "refund" | "settled" | "closed",
 ): { label: string; tone: "default" | "muted" | "warn" | "danger" } | null {
   if (!kinds?.length) return null;
 

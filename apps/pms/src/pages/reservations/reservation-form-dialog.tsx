@@ -177,7 +177,7 @@ function createReservationSchema(t: TFunction) {
           message: t("reservations:formDialog.zod.invalidPaid"),
         });
       }
-      // paid > total is allowed (overpay / pending refund after shrink).
+      // paid > total is allowed (credit / utilities deposit until checkout).
     });
 }
 
@@ -377,12 +377,7 @@ export function ReservationFormDialog({
       return undefined;
     }
     return resolvePropertyTimezone(propertyOptionsQuery.data ?? [], pid);
-  }, [
-    reservation,
-    chosen,
-    initialPropertyId,
-    propertyOptionsQuery.data,
-  ]);
+  }, [reservation, chosen, initialPropertyId, propertyOptionsQuery.data]);
 
   const opsToday = useMemo(
     () => opsTodayYmd(propertyTimezone),
@@ -571,7 +566,12 @@ export function ReservationFormDialog({
       : null;
 
   useEffect(() => {
-    if (!open || stayDatesOpen || suggestKey == null || suggestedTotal == null) {
+    if (
+      !open ||
+      stayDatesOpen ||
+      suggestKey == null ||
+      suggestedTotal == null
+    ) {
       return;
     }
 
@@ -1192,13 +1192,13 @@ export function ReservationFormDialog({
                         {t("reservations:formDialog.paidCreateHint")}
                       </p>
                     )}
-                    {refundAmount > 0 ? (
-                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                    {refundAmount > 0 && (
+                      <p className="text-xs text-muted-foreground">
                         {t("reservations:formDialog.refundAbovePaidHint", {
                           amount: formatIdr(refundAmount),
                         })}
                       </p>
-                    ) : null}
+                    )}
                     <FieldError errors={[fieldState.error]} />
                   </Field>
                 )}

@@ -2,6 +2,7 @@
 import {
   ReservationStatus,
   StayBillingPeriod,
+  moneyGapKind,
   type StaffReservation,
 } from "@cabin/api-contract";
 import { useTranslation } from "react-i18next";
@@ -45,7 +46,9 @@ export function ReservationMoneyBlock({
   const { t } = useTranslation(["reservations", "common"]);
   const due = reservationDue(reservation);
   const refund = reservationRefund(reservation);
-  const showRefund = refund != null && refund > 0;
+  const gap = moneyGapKind(reservation);
+  const showRefund = gap === "refund";
+  const showCredit = gap === "credit";
   const moneyClosed = reservation.status === ReservationStatus.CANCELLED;
   const breakdown = showQuoteBreakdown(reservation);
 
@@ -113,19 +116,22 @@ export function ReservationMoneyBlock({
               ? t("reservations:moneyBlock.propertyKept")
               : showRefund
                 ? t("reservations:moneyBlock.refund")
-                : t("reservations:moneyBlock.due")
+                : showCredit
+                  ? t("reservations:moneyBlock.credit")
+                  : t("reservations:moneyBlock.due")
           }
           labelClassName="font-medium text-foreground"
           valueClassName={cn(
             "font-semibold tracking-tight",
             showRefund && !moneyClosed && "text-amber-800 dark:text-amber-200",
+            showCredit && !moneyClosed && "text-muted-foreground",
           )}
           tabular
         >
           {formatMoneyOrDash(
             moneyClosed
               ? reservation.paidAmountIdr
-              : showRefund
+              : showRefund || showCredit
                 ? refund
                 : due,
           )}
@@ -139,6 +145,11 @@ export function ReservationMoneyBlock({
       {!moneyClosed && showRefund && (
         <p className="text-xs text-amber-800 dark:text-amber-200">
           {t("reservations:moneyBlock.overpaidHint")}
+        </p>
+      )}
+      {!moneyClosed && showCredit && (
+        <p className="text-xs text-muted-foreground">
+          {t("reservations:moneyBlock.creditHint")}
         </p>
       )}
     </ReservationDetailSection>

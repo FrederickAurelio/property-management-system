@@ -45,7 +45,11 @@ import {
 import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
 import { cn } from "@/lib/utils";
 import { ReservationBadge, SourceBadge } from "./reservation-badges";
-import { parseBoard, boardFilterLocks, parseReservationListSort } from "./reservation-boards";
+import {
+  parseBoard,
+  boardFilterLocks,
+  parseReservationListSort,
+} from "./reservation-boards";
 import { ReservationFiltersBar } from "./reservation-filters-bar";
 import { ReservationFormDialog } from "./reservation-form-dialog";
 import { reservationListStateFromSearch } from "./reservation-nav";
@@ -117,6 +121,7 @@ const ReservationRowCells = memo(function ReservationRowCells({
         className={cn(
           "tabular-nums",
           openMoney.kind === "refund" && "text-amber-800 dark:text-amber-200",
+          openMoney.kind === "credit" && "text-muted-foreground",
           (openMoney.kind === "settled" || openMoney.kind === "closed") &&
             "text-muted-foreground",
         )}
@@ -213,6 +218,7 @@ const ReservationMobileCard = memo(function ReservationMobileCard({
           className={cn(
             "shrink-0 text-xs tabular-nums",
             openMoney.kind === "refund" && "text-amber-800 dark:text-amber-200",
+            openMoney.kind === "credit" && "text-muted-foreground",
             (openMoney.kind === "settled" || openMoney.kind === "closed") &&
               "text-muted-foreground",
             openMoney.kind === "due" && "text-foreground",
@@ -260,8 +266,7 @@ export function ReservationsPage() {
   // Needed so locked params cannot "wake up" after switching to a board that allows them
   // (e.g. ?board=arrivals&status=CONFIRMED → All would otherwise keep status).
   useEffect(() => {
-    const staleStatus =
-      filterLocks.locksStatus && searchParams.has("status");
+    const staleStatus = filterLocks.locksStatus && searchParams.has("status");
     const staleDates =
       !filterLocks.showDateRangeFilter &&
       (searchParams.has("from") || searchParams.has("to"));
@@ -372,9 +377,7 @@ export function ReservationsPage() {
       ...(propertyId ? { propertyId } : {}),
       ...(q ? { q } : {}),
       ...(sort !== ReservationListSort.checkIn ? { sort } : {}),
-      ...(from
-        ? { from, ...(to ? { to } : {}) }
-        : {}),
+      ...(from ? { from, ...(to ? { to } : {}) } : {}),
       ...(billingPeriodFilter !== "all"
         ? { billingPeriod: billingPeriodFilter as StayBillingPeriodType }
         : {}),

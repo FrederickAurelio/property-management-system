@@ -66,7 +66,7 @@ Show occupying statuses as **live** bars (full height; they occupy):
 | Primary label | Guest name (or “Needs details” / source stub label for thin `UNCONFIRMED`) |
 | Secondary | Source cue (tint or small source badge — same language as list) |
 | Status | Ops status readable (color and/or tiny badge) — same tones as Reservations |
-| Money | Optional compact Due / Refund cue when open money ≠ settled; **no** Total/Paid columns on the grid |
+| Money | Optional compact Due / Credit / Refund cue (`moneyGapKind`); **no** Total/Paid columns on the grid |
 | Late | Late arrival / Late departure badges when applicable (same rules as list) |
 | iCal warning | OTA issue affordance when `icalSyncWarning` set (plain-language title on hover) |
 

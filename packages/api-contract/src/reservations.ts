@@ -273,8 +273,10 @@ export function balanceDueIdr(
 }
 
 /**
- * Excess already collected above Total (shrink / overpay).
- * `null` when total unknown; else max(paid − total, 0). Desk refunds via Collect.
+ * Excess already collected above Total (utilities deposit / overpay / shrink).
+ * `null` when total unknown; else max(paid − total, 0).
+ * Live stays treat this as credit; Refund chase only after CHECKED_OUT
+ * (`moneyGapKind`).
  */
 export function refundDueIdr(
   totalAmountIdr: number | null,
@@ -286,9 +288,56 @@ export function refundDueIdr(
   return Math.max(paidAmountIdr - totalAmountIdr, 0);
 }
 
+export const MoneyGapKind = {
+  due: "due",
+  credit: "credit",
+  refund: "refund",
+  settled: "settled",
+  closed: "closed",
+} as const;
+
+export type MoneyGapKind = (typeof MoneyGapKind)[keyof typeof MoneyGapKind];
+
+/**
+ * Desk money gap. Due is always a chase. Excess is Credit while the stay is
+ * live and Refund only after CHECKED_OUT. Cancelled is closed.
+ */
+export function moneyGapKind(input: {
+  status: ReservationStatus;
+  totalAmountIdr: number | null;
+  paidAmountIdr: number;
+}): MoneyGapKind {
+  if (input.status === ReservationStatus.CANCELLED) {
+    return MoneyGapKind.closed;
+  }
+  const due = balanceDueIdr(input.totalAmountIdr, input.paidAmountIdr);
+  if (due != null && due > 0) {
+    return MoneyGapKind.due;
+  }
+  const excess = refundDueIdr(input.totalAmountIdr, input.paidAmountIdr);
+  if (excess != null && excess > 0) {
+    return input.status === ReservationStatus.CHECKED_OUT
+      ? MoneyGapKind.refund
+      : MoneyGapKind.credit;
+  }
+  return MoneyGapKind.settled;
+}
+
+/** Balance due board / dashboard OPEN_BALANCE — Due, or Refund after checkout. */
+export function isOpenBalanceChase(input: {
+  status: ReservationStatus;
+  totalAmountIdr: number | null;
+  paidAmountIdr: number;
+}): boolean {
+  const kind = moneyGapKind(input);
+  return kind === MoneyGapKind.due || kind === MoneyGapKind.refund;
+}
+
 /**
  * Open chase amount for desk sort / dashboard Needs attention.
  * `max(Due, Refund)`; `0` when Total unknown (same as treating both as null).
+ * Occupying credit is not a chase (`moneyGapKind`); those rows stay off
+ * Balance due / OPEN_BALANCE.
  */
 export function openAmountIdr(
   totalAmountIdr: number | null,

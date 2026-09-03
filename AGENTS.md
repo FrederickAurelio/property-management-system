@@ -41,7 +41,7 @@ One backend. Both frontends call `apps/api`. Package manager: **pnpm** only (nev
 
 **External paid services** (media CDN, future payment gateway, email, …): Nest **capability port + vendor adapters** under `apps/api/src/integrations/` — see [`_docs/integrations-pattern.md`](_docs/integrations-pattern.md). Do not hard-wire vendor SDKs into controllers.
 
-**IDE:** open [`cabin.code-workspace`](cabin.code-workspace). If IDE shows `no-unsafe-*` but `pnpm --filter @cabin/api lint` is clean → fix workspace, **do not change code** ([`.cursor/rules/monorepo-eslint-types.mdc`](.cursor/rules/monorepo-eslint-types.mdc)).
+**IDE:** open [`cabin.code-workspace`](cabin.code-workspace) (one folder). Do not add `apps/*` or `packages/*` as extra workspace roots — Cursor indexes and greps each root separately. If IDE shows `no-unsafe-*` but `pnpm --filter @cabin/api lint` is clean → fix workspace, **do not change code** ([`.cursor/rules/monorepo-eslint-types.mdc`](.cursor/rules/monorepo-eslint-types.mdc)).
 
 ## Locked stack (Phase 1)
 
@@ -98,7 +98,7 @@ iCal stubs → `UNCONFIRMED` until staff enrich guest + money.
 6. Customer website booking + iCal export (`web`) — Phase 2
 7. Evaluate CM — Phase 3
 
-Money quote (locked): stay Total suggests `periodCount ×` matching rack (`billingPeriod` + daily/monthly/yearly prices); cash = `PaymentMovement` (amounts append-only except latest undo within 5 min; optional `proofImages` replace-set); Paid = sum — see [`_docs/reservations-design.md`](_docs/reservations-design.md) §6.
+Money quote (locked): stay Total suggests `periodCount ×` matching rack (`billingPeriod` + daily/monthly/yearly prices); cash = `PaymentMovement` (Collect IN uncapped; amounts append-only except latest undo within 5 min; optional `proofImages` replace-set); Paid = sum; excess above Total is credit until checkout, Refund chase after `CHECKED_OUT` — see [`_docs/reservations-design.md`](_docs/reservations-design.md) §6.
 
 ## Navigation
 

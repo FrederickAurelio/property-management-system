@@ -7,6 +7,7 @@ import {
   PaymentMovementDirection,
   PaymentMovementKind,
   balanceDueIdr,
+  moneyGapKind,
   refundDueIdr,
   recomputePaymentStatus,
   type ArchiveItem,
@@ -83,23 +84,23 @@ function emptyFormValues(): FormValues {
 
 function collectDefaults(
   reservation: StaffReservation,
-  mode: "collect" | "refund" | "settled",
-  maxAmount: number,
+  intent: "collect" | "refund",
+  defaultAmount: number,
 ): FormValues {
   return {
-    amountDigits: maxAmount > 0 ? String(maxAmount) : "",
+    amountDigits: defaultAmount > 0 ? String(defaultAmount) : "",
     method:
       reservation.collectedVia ??
-      (mode === "collect" ? CollectedVia.PROPERTY : METHOD_NONE),
+      (intent === "collect" ? CollectedVia.PROPERTY : METHOD_NONE),
     note: "",
   };
 }
 
 function createCollectSchema(
   t: TFunction,
-  mode: "collect" | "refund" | "settled",
+  intent: "collect" | "refund",
   totalAmountIdr: number | null,
-  maxAmount: number,
+  maxAmount: number | null,
 ) {
   return z
     .object({
@@ -118,19 +119,19 @@ function createCollectSchema(
       ]),
     })
     .superRefine((values, ctx) => {
-      if (mode === "settled") {
-        ctx.addIssue({
-          code: "custom",
-          path: ["amountDigits"],
-          message: t("reservations:collectSheet.zod.nothingToDo"),
-        });
-        return;
-      }
-      if (totalAmountIdr == null && mode === "collect") {
+      if (totalAmountIdr == null && intent === "collect") {
         ctx.addIssue({
           code: "custom",
           path: ["amountDigits"],
           message: t("reservations:collectSheet.zod.setTotalFirst"),
+        });
+        return;
+      }
+      if (intent === "refund" && (maxAmount == null || maxAmount <= 0)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["amountDigits"],
+          message: t("reservations:collectSheet.zod.nothingToDo"),
         });
         return;
       }
@@ -143,7 +144,12 @@ function createCollectSchema(
         });
         return;
       }
-      if (amount > maxAmount) {
+      if (
+        intent === "refund" &&
+        maxAmount != null &&
+        maxAmount > 0 &&
+        amount > maxAmount
+      ) {
         ctx.addIssue({
           code: "custom",
           path: ["amountDigits"],
@@ -155,16 +161,20 @@ function createCollectSchema(
     });
 }
 
+export type CollectSheetIntent = "collect" | "refund";
+
 type CollectSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reservation: StaffReservation;
+  intent: CollectSheetIntent;
 };
 
 export function CollectSheet({
   open,
   onOpenChange,
   reservation,
+  intent,
 }: CollectSheetProps) {
   const { t } = useTranslation(["reservations", "common"]);
   const queryClient = useQueryClient();
@@ -176,23 +186,24 @@ export function CollectSheet({
     reservation.totalAmountIdr,
     reservation.paidAmountIdr,
   );
-  const mode: "collect" | "refund" | "settled" =
-    refund != null && refund > 0
-      ? "refund"
-      : due != null && due > 0
-        ? "collect"
-        : "settled";
-  const maxAmount =
-    mode === "refund" ? (refund ?? 0) : mode === "collect" ? (due ?? 0) : 0;
+  const maxRefund = refund != null && refund > 0 ? refund : 0;
+  const dueShortcut = due != null && due > 0 ? due : 0;
+  const defaultAmount = intent === "refund" ? maxRefund : dueShortcut;
 
   const schema = useMemo(
-    () => createCollectSchema(t, mode, reservation.totalAmountIdr, maxAmount),
-    [t, mode, reservation.totalAmountIdr, maxAmount],
+    () =>
+      createCollectSchema(
+        t,
+        intent,
+        reservation.totalAmountIdr,
+        intent === "refund" ? maxRefund : null,
+      ),
+    [t, intent, reservation.totalAmountIdr, maxRefund],
   );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema as never),
-    defaultValues: collectDefaults(reservation, mode, maxAmount),
+    defaultValues: collectDefaults(reservation, intent, defaultAmount),
   });
   const [proofImages, setProofImages] = useState<ArchiveItem[]>([]);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -207,15 +218,18 @@ export function CollectSheet({
     const safeAmount =
       Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 0;
     const nextPaid =
-      mode === "collect"
+      intent === "collect"
         ? reservation.paidAmountIdr + safeAmount
-        : mode === "refund"
-          ? Math.max(0, reservation.paidAmountIdr - safeAmount)
-          : reservation.paidAmountIdr;
+        : Math.max(0, reservation.paidAmountIdr - safeAmount);
     return {
       paid: nextPaid,
       due: balanceDueIdr(reservation.totalAmountIdr, nextPaid),
       refund: refundDueIdr(reservation.totalAmountIdr, nextPaid),
+      gap: moneyGapKind({
+        status: reservation.status,
+        totalAmountIdr: reservation.totalAmountIdr,
+        paidAmountIdr: nextPaid,
+      }),
       status: recomputePaymentStatus({
         totalAmountIdr: reservation.totalAmountIdr,
         paidAmountIdr: nextPaid,
@@ -223,8 +237,9 @@ export function CollectSheet({
     };
   }, [
     amountDigits,
-    mode,
+    intent,
     reservation.paidAmountIdr,
+    reservation.status,
     reservation.totalAmountIdr,
   ]);
 
@@ -233,7 +248,7 @@ export function CollectSheet({
     mutationFn: async (values: FormValues) => {
       const amount = Number(values.amountDigits);
       const method = values.method === METHOD_NONE ? null : values.method;
-      if (mode === "collect") {
+      if (intent === "collect") {
         const isFullChannelSettle =
           method === CollectedVia.CHANNEL &&
           reservation.paidAmountIdr === 0 &&
@@ -266,7 +281,7 @@ export function CollectSheet({
       setPhotoUploading(false);
       syncReservationCaches(queryClient, saved);
       handleSuccess(
-        mode === "refund"
+        intent === "refund"
           ? t("reservations:collectSheet.toastRefundRecorded")
           : t("reservations:collectSheet.toastPaymentCollected"),
       );
@@ -283,15 +298,13 @@ export function CollectSheet({
     }) > 0;
 
   const title =
-    mode === "refund"
+    intent === "refund"
       ? t("reservations:collectSheet.titleRefund")
       : t("reservations:collectSheet.titleCollect");
   const description =
-    mode === "refund"
+    intent === "refund"
       ? t("reservations:collectSheet.descriptionRefund")
-      : mode === "collect"
-        ? t("reservations:collectSheet.descriptionCollect")
-        : t("reservations:collectSheet.descriptionSettled");
+      : t("reservations:collectSheet.descriptionCollect");
 
   return (
     <ResponsiveFormShell
@@ -314,11 +327,11 @@ export function CollectSheet({
           <Button
             type="submit"
             form="collect-form"
-            disabled={cashBusy || photoUploading || mode === "settled"}
+            disabled={cashBusy || photoUploading}
           >
             {saveMutation.isPending
               ? t("reservations:collectSheet.saving")
-              : mode === "refund"
+              : intent === "refund"
                 ? t("reservations:collectSheet.recordRefund")
                 : t("reservations:collectSheet.recordCollection")}
           </Button>
@@ -368,24 +381,31 @@ export function CollectSheet({
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">
-                  {preview.refund != null && preview.refund > 0
+                  {preview.gap === "refund"
                     ? t("reservations:collectSheet.refund")
-                    : t("reservations:collectSheet.due")}
+                    : preview.gap === "credit"
+                      ? t("reservations:collectSheet.credit")
+                      : t("reservations:collectSheet.due")}
                 </dt>
                 <dd className="mt-0.5 font-medium tabular-nums">
                   {formatMoneyOrDash(
-                    preview.refund != null && preview.refund > 0
+                    preview.gap === "refund" || preview.gap === "credit"
                       ? preview.refund
                       : preview.due,
                   )}
                 </dd>
               </div>
             </dl>
-            {mode === "refund" && (
+            {intent === "refund" && (
               <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
                 {t("reservations:collectSheet.overpaidHint", {
                   amount: formatIdr(refund ?? 0),
                 })}
+              </p>
+            )}
+            {intent === "collect" && preview.gap === "credit" && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("reservations:collectSheet.creditHeldHint")}
               </p>
             )}
           </div>
@@ -403,7 +423,7 @@ export function CollectSheet({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="cash-amount">
-                  {mode === "refund"
+                  {intent === "refund"
                     ? t("reservations:collectSheet.refundAmountLabel")
                     : t("reservations:collectSheet.collectAmountLabel")}
                 </FieldLabel>
@@ -417,43 +437,44 @@ export function CollectSheet({
                     id="cash-amount"
                     data-slot="input-group-control"
                     className="flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0"
-                    autoFocus={mode !== "settled"}
+                    autoFocus
                     aria-invalid={fieldState.invalid}
-                    disabled={mode === "settled"}
                     placeholder={
-                      maxAmount > 0
+                      intent === "refund" && maxRefund > 0
                         ? t("reservations:collectSheet.maxAmountPlaceholder", {
-                            amount: formatMoneyOrDash(maxAmount),
+                            amount: formatMoneyOrDash(maxRefund),
                           })
                         : undefined
                     }
                     value={field.value}
-                    max={maxAmount}
+                    max={intent === "refund" ? maxRefund : undefined}
                     onValueChange={field.onChange}
                     onBlur={field.onBlur}
                     name={field.name}
                     ref={field.ref}
                   />
                 </InputGroup>
-                {maxAmount > 0 && (
+                {(intent === "refund" ? maxRefund : dueShortcut) > 0 && (
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        form.setValue("amountDigits", String(maxAmount), {
+                        const fill =
+                          intent === "refund" ? maxRefund : dueShortcut;
+                        form.setValue("amountDigits", String(fill), {
                           shouldDirty: true,
                           shouldValidate: true,
                         });
                       }}
                     >
-                      {mode === "refund"
+                      {intent === "refund"
                         ? t("reservations:collectSheet.fullRefundButton", {
-                            amount: formatIdr(maxAmount),
+                            amount: formatIdr(maxRefund),
                           })
                         : t("reservations:collectSheet.collectFullDueButton", {
-                            amount: formatIdr(maxAmount),
+                            amount: formatIdr(dueShortcut),
                           })}
                     </Button>
                   </div>
@@ -479,11 +500,7 @@ export function CollectSheet({
                   <FieldLabel>
                     {t("reservations:collectSheet.viaLabel")}
                   </FieldLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    disabled={mode === "settled"}
-                  >
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger aria-invalid={fieldState.invalid}>
                       <SelectValue
                         placeholder={t(
@@ -526,7 +543,6 @@ export function CollectSheet({
                     rows={2}
                     maxLength={PAYMENT_MOVEMENT_NOTE_MAX}
                     aria-invalid={fieldState.invalid}
-                    disabled={mode === "settled"}
                     placeholder={t("reservations:collectSheet.notePlaceholder")}
                     {...field}
                   />
@@ -547,7 +563,6 @@ export function CollectSheet({
                 value={proofImages}
                 max={PAYMENT_MOVEMENT_PROOF_MAX}
                 layout="row"
-                readOnly={mode === "settled"}
                 onUploadingChange={setPhotoUploading}
                 onChange={setProofImages}
                 labels={{

@@ -369,7 +369,7 @@ Same overlap rule applies vs `CalendarBlock` on that unit (monthly/yearly candid
 
 **FE shape (detail):** full row + nested `unit` + `unitType` summary + `movements[]` (cash timeline) + utility readings / maintenance + `quoteBreakdown` + `utilitiesDueNotice`.
 
-**Quote components:** rent + monthly electricity/water/maintenance (see [`reservations-design.md`](reservations-design.md) §6). Cash movements live on **`PaymentMovement`** (below). Stay **Rent** on create/edit is suggested from rack × period (`suggestStayTotalIdr`) and sent as wire `rentAmountIdr`. `totalAmountIdr` = rent + utility denorms. Paid is **not** auto-changed when nights/utilities change; if Paid > Total → `refundDueIdr`.
+**Quote components:** rent + monthly electricity/water/maintenance (see [`reservations-design.md`](reservations-design.md) §6). Cash movements live on **`PaymentMovement`** (below). Stay **Rent** on create/edit is suggested from rack × period (`suggestStayTotalIdr`) and sent as wire `rentAmountIdr`. `totalAmountIdr` = rent + utility denorms. Paid is **not** auto-changed when nights/utilities change; if Paid > Total → `refundDueIdr` (credit while live, Refund chase after `CHECKED_OUT`).
 
 **Not on this table:** multi-unit group bookings.
 

@@ -9,6 +9,7 @@ import {
   balanceDueIdr,
   getConfirmFieldGaps,
   isReadyToConfirm,
+  moneyGapKind,
   periodCountFromRange,
   refundDueIdr,
   todayYmdInTimezone,
@@ -199,7 +200,7 @@ export function reservationDue(
   return balanceDueIdr(row.totalAmountIdr, row.paidAmountIdr);
 }
 
-/** Excess Paid above Total (shrink / overpay) — settle with Refund. */
+/** Excess Paid above Total (utilities deposit / overpay / shrink). */
 export function reservationRefund(
   row: Pick<StaffReservation, "totalAmountIdr" | "paidAmountIdr">,
 ): number | null {
@@ -207,21 +208,24 @@ export function reservationRefund(
 }
 
 /**
- * Open money gap: Due when guest owes, Refund when overpaid, else settled.
- * Prefer Refund when refund > 0.
+ * Open money gap: Due when guest owes, Credit while live excess sits,
+ * Refund after checkout, else settled.
  */
 export function reservationBalance(
-  row: Pick<StaffReservation, "totalAmountIdr" | "paidAmountIdr">,
+  row: Pick<StaffReservation, "status" | "totalAmountIdr" | "paidAmountIdr">,
 ): {
   amount: number | null;
-  kind: "due" | "refund" | "settled";
+  kind: "due" | "credit" | "refund" | "settled";
 } {
-  const refund = reservationRefund(row);
-  if (refund != null && refund > 0) {
-    return { amount: refund, kind: "refund" };
+  const kind = moneyGapKind(row);
+  if (kind === "refund") {
+    return { amount: reservationRefund(row), kind: "refund" };
+  }
+  if (kind === "credit") {
+    return { amount: reservationRefund(row), kind: "credit" };
   }
   const due = reservationDue(row);
-  if (due != null && due > 0) {
+  if (kind === "due") {
     return { amount: due, kind: "due" };
   }
   if (due == null) {
@@ -230,12 +234,12 @@ export function reservationBalance(
   return { amount: 0, kind: "settled" };
 }
 
-/** Desk cell copy — Due / Refund for live money; cancelled is closed (no collect). */
+/** Desk cell copy — Due / Credit / Refund; cancelled is closed (no collect). */
 export function formatReservationBalanceCell(
   row: Pick<StaffReservation, "status" | "totalAmountIdr" | "paidAmountIdr">,
 ): {
   text: string;
-  kind: "due" | "refund" | "settled" | "closed";
+  kind: "due" | "credit" | "refund" | "settled" | "closed";
 } {
   if (row.status === ReservationStatus.CANCELLED) {
     return { text: i18n.t("reservations:format.moneyDash"), kind: "closed" };
@@ -247,6 +251,14 @@ export function formatReservationBalanceCell(
         amount: formatMoneyOrDash(balance.amount),
       }),
       kind: "refund",
+    };
+  }
+  if (balance.kind === "credit") {
+    return {
+      text: i18n.t("reservations:format.credit", {
+        amount: formatMoneyOrDash(balance.amount),
+      }),
+      kind: "credit",
     };
   }
   if (balance.kind === "due") {
@@ -412,28 +424,22 @@ export function canEditStay(status: ReservationStatus): boolean {
 }
 
 /**
- * Cash Collect / Refund sheet — only when money is still open.
- *
- * - Cancelled: closed (disposition already chosen).
- * - Live + checked-out: open only if Due > 0 (collect) or Refund > 0 (return).
- * - Settled (Due = 0 and Refund = 0): no button — nothing to do.
+ * Collect sheet — any non-cancelled stay with Total set (no Due/Refund gate).
+ * Extra cash is credit until checkout.
  */
 export function canCollectPayment(row: StaffReservation): boolean {
+  return (
+    row.status !== ReservationStatus.CANCELLED && row.totalAmountIdr != null
+  );
+}
+
+/** Refund sheet — excess above Total; cancelled stays use the Cancel sheet. */
+export function canRefundPayment(row: StaffReservation): boolean {
   if (row.status === ReservationStatus.CANCELLED) {
     return false;
   }
-  const due = reservationDue(row);
   const refund = reservationRefund(row);
-  return (due != null && due > 0) || (refund != null && refund > 0);
-}
-
-/** Detail CTA label: Collect (guest owes) vs Refund (property owes). */
-export function collectPaymentLabel(row: StaffReservation): string {
-  const refund = reservationRefund(row);
-  if (refund != null && refund > 0) {
-    return i18n.t("reservations:format.refundLabel");
-  }
-  return i18n.t("reservations:format.collectLabel");
+  return refund != null && refund > 0;
 }
 
 export function primaryActionLabel(action: PrimaryAction): string {

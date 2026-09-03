@@ -105,6 +105,42 @@ describe('dashboard-assemble', () => {
       ).toContain(StaffDashboardAttentionKind.OPEN_BALANCE);
     });
 
+    it('does not tag occupying overpay as OPEN_BALANCE (credit until checkout)', () => {
+      expect(
+        tagAttentionKinds(
+          item({
+            id: 'credit-in-house',
+            guestName: 'Credit',
+            status: ReservationStatus.CHECKED_IN,
+            checkInDate: '2026-07-20',
+            checkOutDate: '2026-07-28',
+            totalAmountIdr: 1_000_000,
+            paidAmountIdr: 1_500_000,
+            paymentStatus: PaymentStatus.PAID,
+          }),
+          ctx,
+        ),
+      ).not.toContain(StaffDashboardAttentionKind.OPEN_BALANCE);
+    });
+
+    it('tags checked-out overpay as OPEN_BALANCE (refund chase)', () => {
+      expect(
+        tagAttentionKinds(
+          item({
+            id: 'refund-out',
+            guestName: 'Refund',
+            status: ReservationStatus.CHECKED_OUT,
+            checkInDate: '2026-07-10',
+            checkOutDate: '2026-07-15',
+            totalAmountIdr: 1_000_000,
+            paidAmountIdr: 1_500_000,
+            paymentStatus: PaymentStatus.PAID,
+          }),
+          ctx,
+        ),
+      ).toContain(StaffDashboardAttentionKind.OPEN_BALANCE);
+    });
+
     it('tags needs details soon and iCal', () => {
       expect(
         tagAttentionKinds(

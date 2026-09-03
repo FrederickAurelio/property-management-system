@@ -108,7 +108,10 @@ function MobileStayCard({
   const why = showWhy
     ? primaryAttentionLabel(attentionKinds, balance.kind)
     : null;
-  const showMoney = balance.kind === "due" || balance.kind === "refund";
+  const showMoney =
+    balance.kind === "due" ||
+    balance.kind === "refund" ||
+    balance.kind === "credit";
 
   return (
     <Link
@@ -134,6 +137,7 @@ function MobileStayCard({
               balance.kind === "refund" &&
               "text-amber-800 dark:text-amber-200",
             showMoney && balance.kind === "due" && "text-foreground",
+            showMoney && balance.kind === "credit" && "text-muted-foreground",
             !showMoney && "text-muted-foreground",
           )}
         >
@@ -183,7 +187,9 @@ function DesktopStayTable({
               ? primaryAttentionLabel(kinds, balance.kind)
               : null;
             const showMoney =
-              balance.kind === "due" || balance.kind === "refund";
+              balance.kind === "due" ||
+              balance.kind === "refund" ||
+              balance.kind === "credit";
 
             return (
               <TableRow key={row.id} className="relative hover:bg-muted/40">
@@ -208,6 +214,9 @@ function DesktopStayTable({
                     showMoney &&
                       balance.kind === "refund" &&
                       "text-amber-800 dark:text-amber-200",
+                    showMoney &&
+                      balance.kind === "credit" &&
+                      "text-muted-foreground",
                     !showMoney && "text-muted-foreground",
                   )}
                 >

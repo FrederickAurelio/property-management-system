@@ -22,6 +22,7 @@
   "stayBar": {
     "needsDetails": "Needs details ({{source}})",
     "due": "Due {{amount}}",
+    "credit": "Credit {{amount}}",
     "refund": "Refund {{amount}}",
     "late": "Late",
     "ota": "OTA",

@@ -50,11 +50,13 @@ import {
   confirmReadinessFromReservation,
   formatConfirmGapsMessage,
   formatDateYmd,
+  formatIdr,
   formatReservationLateCue,
   formatReservationSource,
   formatReservationStatus,
   canCollectPayment,
   canEditStay,
+  canRefundPayment,
   isCheckInWindow,
   isTerminalStatus,
   primaryActionButtonClass,
@@ -62,8 +64,6 @@ import {
   primaryActionLabel,
   reservationDue,
   reservationLateCue,
-  reservationRefund,
-  collectPaymentLabel,
   statusBadgeTone,
   StayBillingPeriod,
   todayYmdInTimezone,
@@ -73,6 +73,8 @@ import { UtilitiesSheet } from "./utilities-sheet";
 import {
   ReservationSource,
   ReservationStatus,
+  moneyGapKind,
+  refundDueIdr,
   type StaffReservation,
 } from "@cabin/api-contract";
 
@@ -129,10 +131,15 @@ function primaryActionDialogCopy(
           ? null
           : Math.max(row.totalAmountIdr - row.paidAmountIdr, 0);
       const unpaid = due != null && due > 0;
+      const credit = refundDueIdr(row.totalAmountIdr, row.paidAmountIdr) ?? 0;
       const offDay = row.checkOutDate !== today;
       const baseDescription = unpaid
         ? t("detailPage.primaryDialogs.checkOutUnpaidDescription")
-        : t("detailPage.primaryDialogs.checkOutPaidDescription");
+        : credit > 0
+          ? t("detailPage.primaryDialogs.checkOutCreditDescription", {
+              amount: formatIdr(credit),
+            })
+          : t("detailPage.primaryDialogs.checkOutPaidDescription");
       return {
         title: offDay
           ? row.checkOutDate > today
@@ -169,7 +176,9 @@ export function ReservationDetailPage() {
   );
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelSession, setCancelSession] = useState(0);
-  const [collectOpen, setCollectOpen] = useState(false);
+  const [collectIntent, setCollectIntent] = useState<
+    "collect" | "refund" | null
+  >(null);
   const [utilitiesOpen, setUtilitiesOpen] = useState(false);
   const [utilitiesSession, setUtilitiesSession] = useState(0);
   const { showRefreshImports, showSourceRemind, remindDialog } =
@@ -305,12 +314,13 @@ export function ReservationDetailPage() {
   const lateCue = reservationLateCue(row);
   const primary = primaryActionFor(row);
   const due = reservationDue(row);
-  const refund = reservationRefund(row);
   const editable = canEditStay(row.status);
   const showCollect = canCollectPayment(row);
+  const showRefundCta = canRefundPayment(row);
   const showUtilities = row.status !== ReservationStatus.CANCELLED;
+  const moneyKind = moneyGapKind(row);
   const showDueWarn = due != null && due > 0 && showCollect;
-  const showRefundWarn = refund != null && refund > 0 && showCollect;
+  const showRefundWarn = moneyKind === "refund";
   const showIcalWarn = row.icalSyncWarning != null;
   const utilitiesMonthLabel = row.utilitiesNextDueDate
     ? formatDateYmd(row.utilitiesNextDueDate)
@@ -403,7 +413,7 @@ export function ReservationDetailPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-10">
         <ReservationMoneyBlock
           reservation={row}
-          className="w-full shrink-0 md:order-2 md:sticky md:top-4 md:w-72"
+          className="w-full shrink-0 md:sticky md:top-4 md:order-2 md:w-72"
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-4 md:order-1">
@@ -574,12 +584,23 @@ export function ReservationDetailPage() {
         {showCollect && (
           <Button
             type="button"
-            variant={primary ? "outline" : "default"}
+            variant={primary || showRefundWarn ? "outline" : "default"}
             onClick={() => {
-              setCollectOpen(true);
+              setCollectIntent("collect");
             }}
           >
-            {collectPaymentLabel(row)}
+            {t("reservations:format.collectLabel")}
+          </Button>
+        )}
+        {showRefundCta && (
+          <Button
+            type="button"
+            variant={showRefundWarn && !primary ? "default" : "outline"}
+            onClick={() => {
+              setCollectIntent("refund");
+            }}
+          >
+            {t("reservations:format.refundLabel")}
           </Button>
         )}
         {showUtilities && (
@@ -651,11 +672,16 @@ export function ReservationDetailPage() {
         />
       )}
 
-      {collectOpen && (
+      {collectIntent && (
         <CollectSheet
-          key={row.id}
+          key={`${row.id}-${collectIntent}`}
           open
-          onOpenChange={setCollectOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCollectIntent(null);
+            }
+          }}
+          intent={collectIntent}
           reservation={row}
         />
       )}

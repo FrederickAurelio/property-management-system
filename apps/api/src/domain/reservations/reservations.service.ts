@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiFieldReason,
-  balanceDueIdr,
   canUndoPaymentMovement,
   buildPageInfo,
   CancelDisposition,
@@ -1508,19 +1507,6 @@ export class ReservationsService {
           },
         });
       }
-      const due = balanceDueIdr(total, paid);
-      if (due != null && amountIdr > due) {
-        throw new BadRequestException({
-          message:
-            due <= 0
-              ? 'Nothing left to collect — Paid already covers Total'
-              : `Collect cannot exceed Due (${due})`,
-          details: {
-            field: 'amountIdr',
-            reason: ApiFieldReason.MOVEMENT_EXCEEDS_DUE,
-          },
-        });
-      }
     } else {
       const refund = refundDueIdr(total, paid);
       const maxOut = refund != null && refund > 0 ? refund : paid;
@@ -2318,8 +2304,8 @@ export class ReservationsService {
   }
 
   /**
-   * Balance-due board: Due > 0 or Refund > 0 (doc §3.1).
-   * Money predicates stay in the DB — never page-then-filter in memory.
+   * Balance-due board: Due > 0, or Refund after CHECKED_OUT (doc §3.1).
+   * Live excess is credit — not a chase. Money predicates stay in the DB.
    */
   private async balanceDueMoneyFilter(
     base: Prisma.ReservationWhereInput,

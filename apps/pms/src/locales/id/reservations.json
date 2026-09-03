@@ -62,7 +62,7 @@
       "paid": "Dibayar",
       "paidTitle": "Cash yang sudah diterima",
       "due": "Sisa",
-      "dueTitle": "Tagihan tamu, atau Refund jika kelebihan bayar",
+      "dueTitle": "Tagihan tamu, Kredit ditahan, atau Refund setelah check-out",
       "warningSr": "Peringatan",
       "openSr": "Buka"
     },
@@ -121,6 +121,7 @@
     },
     "moneyDash": "—",
     "due": "Sisa {{amount}}",
+    "credit": "Kredit {{amount}}",
     "refund": "Refund {{amount}}",
     "confirmGap": {
       "unit": "unit",
@@ -185,7 +186,7 @@
     "rackSuggestLine": "{{count}} {{unit}} × {{price}}/{{unit}} = {{total}}",
     "rackSuggestNightsSuffix": " · {{count}} malam",
     "useSuggested": "Pakai saran",
-    "refundAbovePaidHint": "Refund {{amount}} — Dibayar lebih besar dari Total. Simpan quote-nya, lalu pakai Refund untuk mengembalikan selisihnya.",
+    "refundAbovePaidHint": "Kredit {{amount}} — Dibayar lebih besar dari Total. Kelebihan ditahan untuk utilitas sampai check-out.",
     "paidEditHint": "Pakai Collect atau Refund di reservasi untuk uang masuk atau keluar.",
     "paidCreateHint": "DP pembuka opsional. Biarkan 0 jika bayar nanti.",
     "buttons": {
@@ -279,6 +280,7 @@
       "checkOutLabel": "Check out",
       "checkOutUnpaidDescription": "Mengakhiri stay. Tanggal booking tetap tersimpan sebagai riwayat — pakai Collect setelahnya jika masih ada tagihan. OTA mengambil ketersediaan dari feed iCal unit (bisa terlambat).",
       "checkOutPaidDescription": "Mengakhiri stay. Tanggal booking tetap tersimpan sebagai riwayat kecuali kamu sudah mengubahnya. OTA mengambil ketersediaan dari feed iCal unit (bisa terlambat).",
+      "checkOutCreditDescription": "Mengakhiri stay. Tamu punya kredit {{amount}} — setelah check-out itu jadi Refund yang perlu diselesaikan. OTA mengambil ketersediaan dari feed iCal unit (bisa terlambat).",
       "checkOutUtilitiesDue": "Catat pembacaan meter akhir dan maintenance stay ini sebelum check-out — Total akhir tidak akan menyertakan utilitas bulan lalu."
     }
   },
@@ -331,7 +333,7 @@
     "titleRefund": "Refund",
     "titleCollect": "Collect",
     "descriptionRefund": "Catat uang yang dikembalikan ke tamu. Dibayar terupdate dari cash timeline.",
-    "descriptionCollect": "Catat uang yang diterima. Ubah Total di Edit stay jika quote berubah.",
+    "descriptionCollect": "Catat uang yang diterima. Kelebihan di atas Total ditahan sebagai kredit utilitas sampai check-out.",
     "descriptionSettled": "Dibayar sudah sesuai Total. Ubah Total di Edit stay jika quote berubah.",
     "sections": {
       "preview": "Setelah pergerakan ini",
@@ -346,8 +348,10 @@
     "total": "Total",
     "paid": "Dibayar",
     "refund": "Refund",
+    "credit": "Kredit",
     "due": "Sisa",
     "overpaidHint": "Tamu kelebihan bayar {{amount}}. Refund maksimal sejumlah itu.",
+    "creditHeldHint": "Kelebihan di atas Total ditahan sebagai kredit utilitas sampai check-out.",
     "refundAmountLabel": "Jumlah refund (IDR)",
     "collectAmountLabel": "Jumlah collect (IDR)",
     "maxAmountPlaceholder": "Maks {{amount}}",
@@ -400,9 +404,11 @@
     "paid": "Dibayar",
     "propertyKept": "Disimpan properti",
     "refund": "Refund",
+    "credit": "Kredit",
     "due": "Sisa",
     "settledOnCancelHint": "Uang sudah diselesaikan saat stay dibatalkan.",
-    "overpaidHint": "Tamu kelebihan bayar — pakai Refund untuk mengembalikan selisihnya."
+    "overpaidHint": "Tamu kelebihan bayar — pakai Refund untuk mengembalikan selisihnya.",
+    "creditHint": "Ditahan sebagai kredit utilitas sampai check-out. Refund opsional sebelum itu."
   },
   "utilitiesSheet": {
     "title": "Utilitas & biaya",

@@ -62,7 +62,7 @@
       "paid": "Paid",
       "paidTitle": "Cash received so far",
       "due": "Due",
-      "dueTitle": "Guest owes, or Refund if overpaid",
+      "dueTitle": "Guest owes, Credit held, or Refund after checkout",
       "warningSr": "Warning",
       "openSr": "Open"
     },
@@ -121,6 +121,7 @@
     },
     "moneyDash": "—",
     "due": "Due {{amount}}",
+    "credit": "Credit {{amount}}",
     "refund": "Refund {{amount}}",
     "confirmGap": {
       "unit": "unit",
@@ -185,7 +186,7 @@
     "rackSuggestLine": "{{count}} {{unit}} × {{price}}/{{unit}} = {{total}}",
     "rackSuggestNightsSuffix": " · {{count}} nights",
     "useSuggested": "Use suggested",
-    "refundAbovePaidHint": "Refund {{amount}} — Paid is above Total. Save the quote, then use Refund to return the excess.",
+    "refundAbovePaidHint": "Credit {{amount}} — Paid is above Total. Extra is held for utilities until checkout.",
     "paidEditHint": "Use Collect or Refund on the reservation for money in or out.",
     "paidCreateHint": "Optional opening deposit. Leave 0 if paying later.",
     "buttons": {
@@ -279,6 +280,7 @@
       "checkOutLabel": "Check out",
       "checkOutUnpaidDescription": "Ends the stay. Booked dates stay as history — use Collect afterward if they still owe. OTAs pick up availability from the unit’s iCal feed (may lag).",
       "checkOutPaidDescription": "Ends the stay. Booked dates stay as history unless you edited them first. OTAs pick up availability from the unit’s iCal feed (may lag).",
+      "checkOutCreditDescription": "Ends the stay. Guest has {{amount}} credit — after checkout it becomes Refund to settle. OTAs pick up availability from the unit’s iCal feed (may lag).",
       "checkOutUtilitiesDue": "Record this stay's final meter reading and maintenance before checkout — the final Total won't include last month's utilities."
     }
   },
@@ -331,7 +333,7 @@
     "titleRefund": "Refund",
     "titleCollect": "Collect",
     "descriptionRefund": "Record cash returned to the guest. Paid updates from the cash timeline.",
-    "descriptionCollect": "Record cash received. Change Total on Edit stay if the quote changed.",
+    "descriptionCollect": "Record cash received. Extra above Total is held as credit for utilities until checkout.",
     "descriptionSettled": "Paid already matches Total. Change Total on Edit stay if the quote changed.",
     "sections": {
       "preview": "After this movement",
@@ -346,8 +348,10 @@
     "total": "Total",
     "paid": "Paid",
     "refund": "Refund",
+    "credit": "Credit",
     "due": "Due",
     "overpaidHint": "Guest overpaid by {{amount}}. Refund up to that amount.",
+    "creditHeldHint": "Extra above Total is held as credit for utilities until checkout.",
     "refundAmountLabel": "Refund amount (IDR)",
     "collectAmountLabel": "Collect amount (IDR)",
     "maxAmountPlaceholder": "Max {{amount}}",
@@ -400,9 +404,11 @@
     "paid": "Paid",
     "propertyKept": "Property kept",
     "refund": "Refund",
+    "credit": "Credit",
     "due": "Due",
     "settledOnCancelHint": "Money was settled when the stay was cancelled.",
-    "overpaidHint": "Guest overpaid — use Refund to return the excess."
+    "overpaidHint": "Guest overpaid — use Refund to return the excess.",
+    "creditHint": "Held as credit for utilities until checkout. Refund is optional until then."
   },
   "utilitiesSheet": {
     "title": "Utilities & fees",

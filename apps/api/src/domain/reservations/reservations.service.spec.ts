@@ -1087,29 +1087,42 @@ describe('ReservationsService', () => {
   });
 
   describe('postMovement', () => {
-    it('rejects IN over Due', async () => {
-      prisma.reservation.findUnique.mockResolvedValue({
-        id: 'res_1',
-        status: ReservationStatus.CONFIRMED,
+    it('allows IN over Due (held as credit)', async () => {
+      prisma.reservation.findUnique.mockResolvedValue(
+        staffDetailRow({
+          paidAmountIdr: BigInt(800_000),
+          movements: [],
+        }),
+      );
+      prisma.reservation.findUniqueOrThrow.mockResolvedValue({
         totalAmountIdr: BigInt(1_000_000),
-        paidAmountIdr: BigInt(800_000),
       });
+      prisma.$queryRaw.mockResolvedValue([
+        { id: 'res_1', status: ReservationStatus.CONFIRMED },
+      ]);
+      prisma.paymentMovement.create.mockResolvedValue({ id: 'mov_1' });
+      prisma.paymentMovement.findMany.mockResolvedValue([
+        { signedAmount: BigInt(1_100_000), method: null },
+      ]);
 
-      await expect(
-        service.postMovement(
-          'res_1',
-          {
-            direction: PaymentMovementDirection.IN,
-            kind: PaymentMovementKind.TOP_UP,
-            amountIdr: 300_000,
-          },
-          actor,
-        ),
-      ).rejects.toMatchObject({
-        response: {
-          details: { reason: ApiFieldReason.MOVEMENT_EXCEEDS_DUE },
+      await service.postMovement(
+        'res_1',
+        {
+          direction: PaymentMovementDirection.IN,
+          kind: PaymentMovementKind.TOP_UP,
+          amountIdr: 300_000,
         },
-      });
+        actor,
+      );
+
+      expect(prisma.paymentMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amountIdr: BigInt(300_000),
+            direction: PaymentMovementDirection.IN,
+          }) as Record<string, unknown>,
+        }),
+      );
     });
 
     it('persists proofImages and defaults to empty', async () => {
