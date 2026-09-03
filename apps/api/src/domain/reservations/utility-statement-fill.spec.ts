@@ -21,6 +21,8 @@ import {
   writeUtilityStatementNamedFields,
   type UtilityStatementFillInput,
 } from './utility-statement-fill.js';
+import { patchUtilityStatementXlsxPrintSetup } from './utility-statement-print-patch.js';
+import JSZip from 'jszip';
 
 function cellString(value: unknown): string {
   if (typeof value === 'string') {
@@ -322,6 +324,20 @@ describe('utility-statement exceljs fill', () => {
     );
     expect(sheet.pageSetup.margins?.bottom).toBe(
       UTILITY_STATEMENT_PRINT_MARGINS_IN.bottom,
+    );
+
+    const patchedXml = await (async () => {
+      const zip = await JSZip.loadAsync(
+        await patchUtilityStatementXlsxPrintSetup(
+          Buffer.from(await wb.xlsx.writeBuffer()),
+        ),
+      );
+      const sheetFile = zip.file('xl/worksheets/sheet1.xml');
+      return sheetFile ? await sheetFile.async('string') : '';
+    })();
+    expect(patchedXml).toContain('<printOptions headings="0" gridLines="0"/>');
+    expect(patchedXml).toContain(
+      '<pageSetUpPr autoPageBreaks="1" fitToPage="1"/>',
     );
   });
 

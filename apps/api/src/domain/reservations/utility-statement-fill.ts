@@ -21,6 +21,7 @@ import {
   parseUnitCodeForStatement,
   utilityStatementAmountDueIdr,
 } from './utility-statement-layout.js';
+import { patchUtilityStatementXlsxPrintSetup } from './utility-statement-print-patch.js';
 import { utilityStatementTemplatePath } from './utility-statement-path.js';
 
 export type UtilityStatementFillInput = {
@@ -598,5 +599,5 @@ export async function fillUtilityStatementXlsx(
 ): Promise<Buffer> {
   const wb = await fillUtilityStatementWorkbook(input);
   const out = await wb.xlsx.writeBuffer();
-  return Buffer.from(out);
+  return patchUtilityStatementXlsxPrintSetup(Buffer.from(out));
 }

@@ -34,6 +34,9 @@ export class GotenbergPdfConvertAdapter implements PdfConvertPort {
     // ignores paper size and flushes the sheet to the page edge, clipping borders.
     form.append('exportFormFields', 'false');
     form.append('skipEmptyPages', 'true');
+    // PDF viewer: fit page + single-page layout so browser Print uses the full A4 sheet.
+    form.append('magnification', '1');
+    form.append('pageLayout', '1');
 
     let response: Response;
     try {
