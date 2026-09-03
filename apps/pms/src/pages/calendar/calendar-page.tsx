@@ -299,9 +299,7 @@ export function CalendarPage() {
       {propertyId && calendarQuery.isLoading && (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-10 w-full" />
-          <Skeleton
-            className="h-[min(480px,calc(100svh-17rem))] w-full md:h-[min(480px,calc(100svh-13rem))]"
-          />
+          <Skeleton className="h-[min(480px,calc(100svh-17rem))] w-full md:h-[min(480px,calc(100svh-13rem))]" />
         </div>
       )}
 

@@ -1,49 +1,8 @@
 {
   "folders": [
     {
-      "name": "cabin (root)",
+      "name": "cabin",
       "path": ".",
-    },
-    {
-      "name": "api",
-      "path": "apps/api",
-      "settings": {
-        "eslint.workingDirectories": [
-          { "directory": ".", "changeProcessCWD": true },
-        ],
-      },
-    },
-    {
-      "name": "pms",
-      "path": "apps/pms",
-      "settings": {
-        "eslint.workingDirectories": [
-          { "directory": ".", "changeProcessCWD": true },
-        ],
-        "prettier.configPath": "prettier.config.mjs",
-        "prettier.prettierPath": "./node_modules/prettier",
-        "tailwindCSS.experimental.configFile": "src/index.css",
-      },
-    },
-    {
-      "name": "web",
-      "path": "apps/web",
-      "settings": {
-        "eslint.workingDirectories": [
-          { "directory": ".", "changeProcessCWD": true },
-        ],
-        "prettier.configPath": "prettier.config.mjs",
-        "prettier.prettierPath": "./node_modules/prettier",
-        "tailwindCSS.experimental.configFile": "src/index.css",
-      },
-    },
-    {
-      "name": "api-contract",
-      "path": "packages/api-contract",
-    },
-    {
-      "name": "ui-tokens",
-      "path": "packages/ui-tokens",
     },
   ],
   "settings": {
@@ -64,12 +23,34 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true,
     "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
-    "[javascriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "[javascriptreact]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode",
+    },
     "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
-    "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "[typescriptreact]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode",
+    },
     "[css]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
     "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
     "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/coverage": true,
+      "**/.pnpm-store": true,
+      "**/.impeccable": true,
+    },
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/dist/**": true,
+      "**/.git/objects/**": true,
+      "**/coverage/**": true,
+      "**/.impeccable/**": true,
+    },
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+    },
     "tailwindCSS.experimental.configFile": {
       "apps/pms/src/index.css": "apps/pms/**",
       "apps/web/src/index.css": "apps/web/**",

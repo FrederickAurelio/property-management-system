@@ -26,10 +26,7 @@ export function opsTodayYmd(
 }
 
 /** `Date` for react-day-picker `today` (calendar day = ops today YMD). */
-export function opsTodayDate(
-  timezone?: string | null,
-  now = new Date(),
-): Date {
+export function opsTodayDate(timezone?: string | null, now = new Date()): Date {
   return ymdToDate(opsTodayYmd(timezone, now))!;
 }
 

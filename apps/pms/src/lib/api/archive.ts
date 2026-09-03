@@ -85,10 +85,7 @@ export async function uploadArchiveFile(file: File): Promise<ArchiveItem> {
     id: intent.id,
     kind: ArchiveKind.IMAGE,
     url: intent.delivery.publicUrl,
-    name:
-      uploadFile.name ||
-      file.name ||
-      `archive-${intent.id.slice(0, 8)}`,
+    name: uploadFile.name || file.name || `archive-${intent.id.slice(0, 8)}`,
     mimeType: uploadFile.type || file.type,
     byteSize: uploadFile.size,
   };

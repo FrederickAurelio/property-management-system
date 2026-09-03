@@ -307,7 +307,9 @@ export function ReservationFiltersBar({
               className="w-[9.5rem] shrink-0"
               aria-label={t("reservations:filtersBar.sortAria")}
             >
-              <SelectValue placeholder={t("reservations:filtersBar.sortAria")} />
+              <SelectValue
+                placeholder={t("reservations:filtersBar.sortAria")}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>

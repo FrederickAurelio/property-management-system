@@ -13,10 +13,7 @@ import {
   staffReportsSummaryQueryKey,
 } from "@/lib/api";
 import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
-import {
-  opsTodayYmd,
-  resolvePropertyTimezone,
-} from "@/lib/ops-date";
+import { opsTodayYmd, resolvePropertyTimezone } from "@/lib/ops-date";
 import { ReportsCashSection } from "./reports-cash-section";
 import { downloadReportsCsv } from "./reports-export";
 import { ReportsFilterBar } from "./reports-filter-bar";
@@ -116,8 +113,7 @@ export function ReportsPage() {
 
   // URL hygiene: fill missing period defaults, ensure propertyId, re-seed presets when TZ resolves.
   useEffect(() => {
-    const needsPeriodDefaults =
-      !fromParam || !toParam || compareParam == null;
+    const needsPeriodDefaults = !fromParam || !toParam || compareParam == null;
 
     // Wait for property options so period defaults use the resolved property TZ,
     // not the Jakarta fallback from an empty options list.
@@ -126,8 +122,7 @@ export function ReportsPage() {
     }
 
     const propertyOk =
-      Boolean(propertyId) &&
-      optionsQuery.data.some((p) => p.id === propertyId);
+      Boolean(propertyId) && optionsQuery.data.some((p) => p.id === propertyId);
 
     const prevToday = prevTodayRef.current;
     const todayChanged = prevToday !== today;

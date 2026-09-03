@@ -23,11 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getUnitMonthOccupancy, staffUnitOccupancyQueryKey } from "@/lib/api";
-import {
-  calendarOpsProps,
-  dateToYmd,
-  ymdToDate,
-} from "@/lib/ops-date";
+import { calendarOpsProps, dateToYmd, ymdToDate } from "@/lib/ops-date";
 import { cn } from "@/lib/utils";
 import { nightCount } from "./reservation-format";
 
@@ -371,7 +367,8 @@ function StayDateRangePickerComponent({
   const period = billingPeriodProp ?? StayBillingPeriod.DAILY;
   const isAnchorMode = period !== StayBillingPeriod.DAILY;
   const calendarTodayProps = calendarOpsProps(propertyTimezone);
-  const resolvedOpsTodayYmd = opsTodayYmdProp ?? dateToYmd(calendarTodayProps.today);
+  const resolvedOpsTodayYmd =
+    opsTodayYmdProp ?? dateToYmd(calendarTodayProps.today);
   const resolvedOpsTodayDate = useMemo(
     () => ymdToDate(resolvedOpsTodayYmd) ?? calendarTodayProps.today,
     [resolvedOpsTodayYmd, calendarTodayProps.today],
@@ -432,7 +429,10 @@ function StayDateRangePickerComponent({
     const first = visibleYearMonths[0];
     const last = visibleYearMonths[visibleYearMonths.length - 1];
     if (!first || !last) {
-      return { from: resolvedOpsTodayYmd, to: addDaysYmd(resolvedOpsTodayYmd, 62) };
+      return {
+        from: resolvedOpsTodayYmd,
+        to: addDaysYmd(resolvedOpsTodayYmd, 62),
+      };
     }
     return {
       from: `${first}-01`,

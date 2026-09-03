@@ -69,9 +69,7 @@ export function handleError(error: unknown): void {
       return;
     }
     toast.error(messageForApiError(error), {
-      description: error.requestId
-        ? `requestId ${error.requestId}`
-        : undefined,
+      description: error.requestId ? `requestId ${error.requestId}` : undefined,
     });
     return;
   }

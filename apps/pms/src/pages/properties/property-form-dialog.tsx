@@ -270,10 +270,7 @@ export function PropertyFormDialog({
   const propertyTimezone = property?.timezone;
   const timezoneOptions = useMemo(
     () =>
-      getTimezoneOptions(
-        geoLocale,
-        propertyTimezone ? [propertyTimezone] : [],
-      ),
+      getTimezoneOptions(geoLocale, propertyTimezone ? [propertyTimezone] : []),
     [geoLocale, propertyTimezone],
   );
   const form = useForm<FormValues>({
@@ -529,8 +526,8 @@ export function PropertyFormDialog({
                         "inventory:properties.form.fields.countrySearchPlaceholder",
                       )}
                       emptyMessage={t(
-                      "inventory:properties.form.fields.searchNoResults",
-                    )}
+                        "inventory:properties.form.fields.searchNoResults",
+                      )}
                       allowEmpty
                       emptyLabel={t(
                         "inventory:properties.form.fields.countryEmpty",

@@ -25,8 +25,8 @@ Do **not** use `"eslint.workingDirectories": [{ "mode": "auto" }]` here. Root `p
 
 ## Locked IDE setup (do not “workaround” around this)
 
-1. Open **[`cabin.code-workspace`](cabin.code-workspace)** (multi-root), not only the repo folder if diagnostics stay wrong.
-2. [`.vscode/settings.json`](.vscode/settings.json) (single-root / **cabin (root)** folder) lists each app with `changeProcessCWD: true`. **`cabin.code-workspace`** also sets per-app-folder `eslint.workingDirectories: [{ "directory": ".", "changeProcessCWD": true }]` on the `api` / `pms` / `web` roots — required when you open files from those sidebar roots instead of `cabin (root)`.
+1. Open **[`cabin.code-workspace`](cabin.code-workspace)** — **one folder** (the repo root). Do **not** add `apps/api`, `apps/pms`, `apps/web`, or `packages/*` as extra workspace folders. Nested roots make Cursor index and agent-grep the same tree once per folder (ignore files at repo root do not apply to those extra roots).
+2. [`.vscode/settings.json`](.vscode/settings.json) and the workspace `settings` both list each app with `changeProcessCWD: true`. That is what points ESLint at the right app CWD — extra sidebar roots are not required.
 
 ```json
 "eslint.workingDirectories": [
@@ -37,7 +37,7 @@ Do **not** use `"eslint.workingDirectories": [{ "mode": "auto" }]` here. Root `p
 "eslint.useFlatConfig": true
 ```
 
-3. Each app owns its own `eslint.config.*` + `tsconfig*.json`. No root type-aware ESLint config. FE apps (`pms`, `web`) must set `parserOptions.tsconfigRootDir` to the app dir (`import.meta.dirname` / `fileURLToPath`) so multi-root `cabin.code-workspace` does not see multiple candidate roots.
+3. Each app owns its own `eslint.config.*` + `tsconfig*.json`. No root type-aware ESLint config. FE apps (`pms`, `web`) must set `parserOptions.tsconfigRootDir` to the app dir (`import.meta.dirname` / `fileURLToPath`) so ESLint does not pick the wrong `tsconfig` among several apps.
 4. After changing those settings: **ESLint: Restart ESLint Server**, then **Developer: Reload Window** if needed.
 5. Truth check — IDE Problems for a file must match CLI from that app:
 

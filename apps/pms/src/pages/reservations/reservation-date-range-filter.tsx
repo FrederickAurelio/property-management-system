@@ -55,7 +55,11 @@ function draftPresetId(
   opsToday: string,
 ): StayRangePresetId | null {
   if (!draft.start || !draft.end) return null;
-  return activeStayPresetId(dateToYmd(draft.start), dateToYmd(draft.end), opsToday);
+  return activeStayPresetId(
+    dateToYmd(draft.start),
+    dateToYmd(draft.end),
+    opsToday,
+  );
 }
 
 function presetKey(id: StayRangePresetId): "thisWeek" | "thisMonth" | "next30" {
@@ -244,8 +248,7 @@ export function ReservationDateRangeFilter({
   const hasApplied = Boolean(from);
   const activePreset = draftPresetId(draft, opsTodayYmd);
   /** Start set (end optional), or empty draft (= All dates). End-only is invalid. */
-  const canConfirm =
-    (!draft.start && !draft.end) || Boolean(draft.start);
+  const canConfirm = (!draft.start && !draft.end) || Boolean(draft.start);
 
   function openPanel(nextOpen: boolean) {
     if (nextOpen) {

@@ -14,4 +14,4 @@ alwaysApply: true
 - Tooling pitfalls (pnpm builds, Prisma output, single `.env`, ESLint per app, shared packages): `.cursor/rules/monorepo-tooling.mdc`.
 - Docker: `docker-compose.yml` = VPS stack (postgres+api+pms+web+garage+Loki+Gotenberg; FE `:8080` · web `:3050` · archive S3 `:3900` · archive GET `:3910`; later HTTPS closes those — `deploy/garage/README.md`); `docker-compose.dev.yml` = local Postgres + Garage + optional logs (`pnpm db:up` / `archive:up` / `logs:up`) + optional Gotenberg (`pnpm gotenberg:up`). Deploy on push to `release` via **GHCR** (build on GitHub, pull on VPS); direct-on-VPS backup workflow available.
 - When editing `AGENTS.md` or `.cursor/rules/*.mdc`: **general patterns, not one-off cases** — see root `AGENTS.md` → “How to write…” and `.cursor/rules/agents-writing.mdc`. App rules scale via layered globs — map: `.cursor/rules/README.md`.
-- Open the repo via `cabin.code-workspace` when IDE diagnostics look wrong.
+- Open the repo via `cabin.code-workspace` (single folder). Do not add nested app/package folders as extra workspace roots.

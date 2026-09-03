@@ -133,7 +133,12 @@ export function getTimezoneOptions(
   }
 
   const rest = [...supported]
-    .filter((tz) => !INDONESIA_TIMEZONES.includes(tz as (typeof INDONESIA_TIMEZONES)[number]))
+    .filter(
+      (tz) =>
+        !INDONESIA_TIMEZONES.includes(
+          tz as (typeof INDONESIA_TIMEZONES)[number],
+        ),
+    )
     .sort((a, b) => {
       const off = utcOffsetMinutes(a) - utcOffsetMinutes(b);
       if (off !== 0) return off;
@@ -150,11 +155,14 @@ export function getTimezoneOptions(
   }
 
   return ordered.map((tz) => {
-    const isId = INDONESIA_TIMEZONES.includes(tz as (typeof INDONESIA_TIMEZONES)[number]);
+    const isId = INDONESIA_TIMEZONES.includes(
+      tz as (typeof INDONESIA_TIMEZONES)[number],
+    );
     return {
       value: tz,
       label: timezoneLabel(tz),
-      searchText: `${tz} ${INDONESIA_TIMEZONE_LABEL[tz] ?? ""} ${formatUtcOffset(tz)}`.toLowerCase(),
+      searchText:
+        `${tz} ${INDONESIA_TIMEZONE_LABEL[tz] ?? ""} ${formatUtcOffset(tz)}`.toLowerCase(),
       group: isId ? "indonesia" : undefined,
     };
   });

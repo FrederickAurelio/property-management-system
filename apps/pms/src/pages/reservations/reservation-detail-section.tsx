@@ -38,9 +38,7 @@ export function DetailDl({
   children: ReactNode;
   className?: string;
 }) {
-  return (
-    <dl className={cn("flex flex-col gap-2", className)}>{children}</dl>
-  );
+  return <dl className={cn("flex flex-col gap-2", className)}>{children}</dl>;
 }
 
 export function DetailDlRow({

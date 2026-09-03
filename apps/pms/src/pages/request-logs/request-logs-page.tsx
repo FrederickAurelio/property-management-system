@@ -225,7 +225,8 @@ export function RequestLogsPage() {
   const pageInfo = listQuery.data?.pageInfo;
   const truncated = listQuery.data?.truncated === true;
   const total = pageInfo?.total ?? 0;
-  const emptyWindow = Boolean(listQuery.data) && items.length === 0 && total === 0;
+  const emptyWindow =
+    Boolean(listQuery.data) && items.length === 0 && total === 0;
   const emptyPage = Boolean(listQuery.data) && items.length === 0 && total > 0;
 
   return (
@@ -316,85 +317,89 @@ export function RequestLogsPage() {
         <>
           {items.length > 0 &&
             (isMobile ? (
-            <ul className="flex flex-col gap-2">
-              {items.map((row) => (
-                <li key={`${row.requestId}-${row.time}`}>
-                  <button
-                    type="button"
-                    className="flex w-full flex-col gap-1 rounded-lg border border-border px-3 py-2.5 text-left hover:bg-muted/40"
-                    onClick={() => {
-                      setSelected(row);
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {formatTime(row.time)}
-                      </span>
-                      <Badge variant={statusTone(row.status)}>
-                        {row.status}
-                      </Badge>
-                    </div>
-                    <p className="truncate font-medium">
-                      {row.method} {row.path}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {row.actor} · {row.app}
-                      {row.errorMessage ? ` · ${row.errorMessage}` : ""}
-                    </p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("request-logs:table.time")}</TableHead>
-                  <TableHead>{t("request-logs:table.user")}</TableHead>
-                  <TableHead>{t("request-logs:table.app")}</TableHead>
-                  <TableHead>{t("request-logs:table.method")}</TableHead>
-                  <TableHead>{t("request-logs:table.path")}</TableHead>
-                  <TableHead>{t("request-logs:table.status")}</TableHead>
-                  <TableHead>{t("request-logs:table.error")}</TableHead>
-                  <TableHead>{t("request-logs:table.requestId")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+              <ul className="flex flex-col gap-2">
                 {items.map((row) => (
-                  <TableRow
-                    key={`${row.requestId}-${row.time}`}
-                    className={cn("relative cursor-pointer hover:bg-muted/40")}
-                    onClick={() => {
-                      setSelected(row);
-                    }}
-                  >
-                    <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
-                      {formatTime(row.time)}
-                    </TableCell>
-                    <TableCell className="max-w-28 truncate">
-                      {row.actor}
-                    </TableCell>
-                    <TableCell>{row.app}</TableCell>
-                    <TableCell className="font-medium">{row.method}</TableCell>
-                    <TableCell className="max-w-xs truncate font-mono text-xs">
-                      {row.path}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusTone(row.status)}>
-                        {row.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
-                      {row.errorMessage ?? row.errorCode ?? "—"}
-                    </TableCell>
-                    <TableCell className="max-w-36 truncate font-mono text-xs text-muted-foreground">
-                      {row.requestId}
-                    </TableCell>
-                  </TableRow>
+                  <li key={`${row.requestId}-${row.time}`}>
+                    <button
+                      type="button"
+                      className="flex w-full flex-col gap-1 rounded-lg border border-border px-3 py-2.5 text-left hover:bg-muted/40"
+                      onClick={() => {
+                        setSelected(row);
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {formatTime(row.time)}
+                        </span>
+                        <Badge variant={statusTone(row.status)}>
+                          {row.status}
+                        </Badge>
+                      </div>
+                      <p className="truncate font-medium">
+                        {row.method} {row.path}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {row.actor} · {row.app}
+                        {row.errorMessage ? ` · ${row.errorMessage}` : ""}
+                      </p>
+                    </button>
+                  </li>
                 ))}
-              </TableBody>
-            </Table>
-          ))}
+              </ul>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("request-logs:table.time")}</TableHead>
+                    <TableHead>{t("request-logs:table.user")}</TableHead>
+                    <TableHead>{t("request-logs:table.app")}</TableHead>
+                    <TableHead>{t("request-logs:table.method")}</TableHead>
+                    <TableHead>{t("request-logs:table.path")}</TableHead>
+                    <TableHead>{t("request-logs:table.status")}</TableHead>
+                    <TableHead>{t("request-logs:table.error")}</TableHead>
+                    <TableHead>{t("request-logs:table.requestId")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((row) => (
+                    <TableRow
+                      key={`${row.requestId}-${row.time}`}
+                      className={cn(
+                        "relative cursor-pointer hover:bg-muted/40",
+                      )}
+                      onClick={() => {
+                        setSelected(row);
+                      }}
+                    >
+                      <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                        {formatTime(row.time)}
+                      </TableCell>
+                      <TableCell className="max-w-28 truncate">
+                        {row.actor}
+                      </TableCell>
+                      <TableCell>{row.app}</TableCell>
+                      <TableCell className="font-medium">
+                        {row.method}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate font-mono text-xs">
+                        {row.path}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusTone(row.status)}>
+                          {row.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate text-muted-foreground">
+                        {row.errorMessage ?? row.errorCode ?? "—"}
+                      </TableCell>
+                      <TableCell className="max-w-36 truncate font-mono text-xs text-muted-foreground">
+                        {row.requestId}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ))}
 
           {pageInfo && pageInfo.totalPages > 1 && (
             <Pagination>

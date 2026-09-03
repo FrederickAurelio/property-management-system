@@ -2,3 +2,40 @@
 .env
 .env.*
 !.env.example
+
+# Dependencies — pnpm virtual store is the usual hang
+node_modules/
+**/node_modules/
+.pnpm-store/
+**/.pnpm-store/
+
+# Build + caches
+dist/
+**/dist/
+build/
+**/build/
+coverage/
+**/coverage/
+.turbo/
+**/.turbo/
+.vite/
+**/.vite/
+**/*.tsbuildinfo
+**/*.map
+
+# Generated (Prisma, Nest emit, etc.)
+**/generated/
+**/.prisma/
+
+# Test / Playwright junk
+**/playwright-report/
+**/test-results/
+**/.nyc_output/
+
+# VCS + logs
+.git/
+**/*.log
+
+# Local data if it ever lands in-tree
+**/pgdata/
+**/*.dump

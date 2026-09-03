@@ -80,10 +80,7 @@ export function formatIdrInput(digits: string): string {
 }
 
 /** Meter decimal helpers — see `@/lib/decimal-input`. */
-export {
-  formatDecimalInput,
-  plainFromMeterValue,
-} from "@/lib/decimal-input";
+export { formatDecimalInput, plainFromMeterValue } from "@/lib/decimal-input";
 
 export function hasCoordinates(
   latitude: number | null | undefined,

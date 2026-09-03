@@ -30,8 +30,8 @@ IDE Problems must match CLI. CLI wins.
 
 ## Fix IDE/workspace (not code)
 
-1. Open **[`cabin.code-workspace`](../../cabin.code-workspace)** (not repo folder alone).
-2. Per-app sidebar roots (`api`, `pms`, `web`) need `eslint.workingDirectories: [{ "directory": ".", "changeProcessCWD": true }]`. **cabin (root)** uses `apps/<app>` paths — see [`monorepo-tooling.mdc`](monorepo-tooling.mdc).
+1. Open **[`cabin.code-workspace`](../../cabin.code-workspace)** (single folder — not extra `apps/*` / `packages/*` roots).
+2. `eslint.workingDirectories` with `changeProcessCWD: true` for `apps/api`, `apps/pms`, `apps/web` — see [`monorepo-tooling.mdc`](monorepo-tooling.mdc).
 3. `pnpm --filter @cabin/api-contract build` (or `pnpm install` from root).
 4. No compiled `.js` / `.d.ts` in `packages/*/src/` — emit **only** to `dist/`.
 5. **ESLint: Restart ESLint Server** → **Developer: Reload Window**.

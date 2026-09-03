@@ -7,19 +7,19 @@
     "title": "Password",
     "description": "Change the password for this account."
   },
-    "appearance": {
-      "title": "Appearance",
-      "description": "Display preference.",
-      "themeLabel": "Theme",
-      "themeDescription": "Light, dark, or match the system",
-      "themeSelectAriaLabel": "Theme",
-      "themeSelectPlaceholder": "Theme"
-    },
-    "requestLogs": {
-      "title": "Request logs",
-      "description": "HTTP errors and requestId for debugging. Not a business activity feed.",
-      "open": "Open request logs"
-    },
+  "appearance": {
+    "title": "Appearance",
+    "description": "Display preference.",
+    "themeLabel": "Theme",
+    "themeDescription": "Light, dark, or match the system",
+    "themeSelectAriaLabel": "Theme",
+    "themeSelectPlaceholder": "Theme"
+  },
+  "requestLogs": {
+    "title": "Request logs",
+    "description": "HTTP errors and requestId for debugging. Not a business activity feed.",
+    "open": "Open request logs"
+  },
   "staff": {
     "title": "Staff",
     "description": "Create accounts, change roles, and revoke access."

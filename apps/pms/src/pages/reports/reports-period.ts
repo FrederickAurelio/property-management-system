@@ -1,5 +1,9 @@
 import { format } from "date-fns";
-import { addDaysYmd, inclusiveDayCount, previousEqualPeriod } from "@cabin/api-contract";
+import {
+  addDaysYmd,
+  inclusiveDayCount,
+  previousEqualPeriod,
+} from "@cabin/api-contract";
 import i18n from "@/i18n";
 import { dateToYmd, ymdToDate } from "@/lib/ops-date";
 

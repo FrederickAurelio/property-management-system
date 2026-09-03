@@ -242,8 +242,7 @@ export function CalendarBlockSheet({
     : undefined;
 
   const extraOccupancyBlocks = useMemo(
-    () =>
-      occupancyExtrasForUnit(calendar, chosen?.unitId ?? unitId, block?.id),
+    () => occupancyExtrasForUnit(calendar, chosen?.unitId ?? unitId, block?.id),
     [calendar, chosen?.unitId, unitId, block?.id],
   );
 
