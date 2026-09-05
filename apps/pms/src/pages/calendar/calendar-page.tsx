@@ -218,7 +218,7 @@ export function CalendarPage() {
 
       <div className="sticky top-0 z-30 -mx-4 flex flex-col gap-2 border-b border-border bg-background/95 px-4 py-2 backdrop-blur sm:flex-row sm:flex-wrap sm:items-center md:-mx-6 md:px-6">
         <Select
-          value={propertyId || undefined}
+          value={propertyId}
           onValueChange={(id) => {
             setChrome({ propertyId: id, from: range.from, to: range.to });
           }}

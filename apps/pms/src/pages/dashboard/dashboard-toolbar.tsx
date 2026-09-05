@@ -98,7 +98,7 @@ export function DashboardToolbar({
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         <Select
-          value={propertyId || undefined}
+          value={propertyId}
           onValueChange={onPropertyChange}
           disabled={propertiesLoading || properties.length === 0}
         >

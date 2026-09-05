@@ -158,7 +158,7 @@ export function ExpensesFilterBar({
           ))}
         </div>
         <Select
-          value={propertyId || undefined}
+          value={propertyId}
           onValueChange={(id) => {
             if (id) onPropertyChange(id);
           }}
@@ -208,7 +208,7 @@ export function ExpensesFilterBar({
 
       <div className="hidden flex-wrap items-center gap-2 md:flex">
         <Select
-          value={propertyId || undefined}
+          value={propertyId}
           onValueChange={(id) => {
             if (id) onPropertyChange(id);
           }}

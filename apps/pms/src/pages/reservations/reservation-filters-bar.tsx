@@ -159,7 +159,7 @@ export function ReservationFiltersBar({
 
         <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-0.5 sm:mx-0 sm:ml-auto sm:overflow-visible sm:px-0 sm:pb-0">
           <Select
-            value={propertyId || undefined}
+            value={propertyId}
             onValueChange={(value) => {
               if (value) {
                 onPatch({ propertyId: value });

@@ -178,7 +178,7 @@ function PropertySelect({
   const { t } = useTranslation(["reports", "common"]);
   return (
     <Select
-      value={propertyId || undefined}
+      value={propertyId}
       onValueChange={(id) => {
         if (id) onPropertyChange(id);
       }}
