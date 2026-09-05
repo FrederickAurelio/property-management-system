@@ -11,12 +11,14 @@ import {
 } from './utility-statement-cells.js';
 import {
   expandUtilityStatementAddonRows,
+  electricityMinRowApplies,
   fillUtilityStatementWorkbook,
   findRowByUniqueLabel,
   findRowContainingLabel,
   findStatementPrintLastRow,
   namedCell,
   openUtilityStatementWorkbook,
+  utilityStatementPaperTwips,
   writeUtilityStatementFooter,
   writeUtilityStatementNamedFields,
   type UtilityStatementFillInput,
@@ -54,6 +56,7 @@ function exampleInput(
     elecStartKwh: 1000,
     elecEndKwh: 1023,
     elecActualUsage: 23,
+    elecMinKwh: 52,
     elecBilledKwh: 52,
     elecRate: 1700,
     elecUsageAmountIdr: usageRp,
@@ -114,21 +117,10 @@ describe('utility-statement exceljs fill', () => {
     ).toBe('01');
     expect(
       sheetAfterHeader.getCell(UTILITY_STATEMENT_HEADER_CELLS.billingId).value,
-    ).toBe('US-RES1TEST');
-    expect(
-      sheetAfterHeader.getCell(UTILITY_STATEMENT_HEADER_CELLS.billingYear)
-        .value,
-    ).toBe('2026');
-    expect(
-      sheetAfterHeader.getCell(UTILITY_STATEMENT_HEADER_CELLS.billingMonth)
-        .value,
-    ).toBe('06');
-    expect(namedCell(wb, UTILITY_STATEMENT_NAMES.periodStart).value).toEqual(
-      new Date(Date.UTC(2026, 4, 10, 12, 0, 0)),
-    );
-    expect(namedCell(wb, UTILITY_STATEMENT_NAMES.periodEnd).value).toEqual(
-      new Date(Date.UTC(2026, 5, 1, 12, 0, 0)),
-    );
+    ).toBe('US-RES1TEST / 2026 / 06');
+    expect(sheetAfterHeader.getCell('D8').value).toBe('10-05-26 - 01-06-26');
+    expect(sheetAfterHeader.getCell('D8').isMerged).toBe(true);
+    expect(sheetAfterHeader.getCell('D9').isMerged).toBe(true);
     expect(namedCell(wb, UTILITY_STATEMENT_NAMES.statementDate).value).toBe(
       '01/06/26',
     );
@@ -218,8 +210,11 @@ describe('utility-statement exceljs fill', () => {
     expect(sheet.getRow(listrik).hidden).toBeFalsy();
     expect(sheet.getRow(listrik + 1).hidden).toBeFalsy();
     expect(sheet.getRow(listrik + 2).hidden).toBeFalsy();
-    expect(sheet.getRow(listrik + 3).hidden).toBe(true);
+    expect(sheet.getRow(listrik + 3).hidden).toBeFalsy();
+    expect(sheet.getCell(`F${listrik + 3}`).value).toBe(52);
+    expect(sheet.getCell(`G${listrik + 3}`).value).toBe('kWh');
     expect(sheet.getRow(listrik + 4).hidden).toBe(true);
+    expect(sheet.getRow(listrik + 5).hidden).toBe(true);
 
     expect(namedCell(wb, UTILITY_STATEMENT_NAMES.waterRate).font?.name).toBe(
       'Calibri',
@@ -267,11 +262,29 @@ describe('utility-statement exceljs fill', () => {
       size: 9,
       underline: true,
     });
+    expect(sheet.getRow(catatanRow).height).toBe(11);
+
+    const dueRow = findRowByUniqueLabel(
+      sheet,
+      UTILITY_STATEMENT_FOOTER_LABELS.due,
+    );
+    if (catatanRow - dueRow > 1) {
+      expect(sheet.getRow(catatanRow - 1).height).toBe(8);
+    }
+    if (caraRow - jatuhRow > 1) {
+      expect(sheet.getRow(caraRow - 1).height).toBe(6);
+    }
 
     const disconnectRow = findRowContainingLabel(
       sheet,
       UTILITY_STATEMENT_NOTE_SNIPPETS.disconnect,
     );
+    for (let row = rekRow + 1; row < disconnectRow - 1; row++) {
+      expect(sheet.getRow(row).hidden).toBe(true);
+    }
+    const notesSpacerRow = disconnectRow - 1;
+    expect(sheet.getRow(notesSpacerRow).hidden).toBeFalsy();
+    expect(sheet.getRow(notesSpacerRow).height).toBe(6);
     const disconnectValue = cellString(
       sheet.getCell(`B${disconnectRow}`).value,
     );
@@ -279,10 +292,6 @@ describe('utility-statement exceljs fill', () => {
     expect(sheet.getCell(`B${disconnectRow}`).font?.name).toBe('Calibri');
     expect(sheet.getCell(`B${disconnectRow}`).font?.bold).toBe(true);
 
-    const dueRow = findRowByUniqueLabel(
-      sheet,
-      UTILITY_STATEMENT_FOOTER_LABELS.due,
-    );
     expect(sheet.getCell(`D${dueRow}`).isMerged).toBe(true);
     expect(sheet.getCell(`D${dueRow}`).font?.name).toBe('Calibri');
     expect(sheet.getCell(`D${dueRow}`).value).toBe(
@@ -301,9 +310,8 @@ describe('utility-statement exceljs fill', () => {
       bold: true,
     });
     expect(sheet.getCell(`L${dueRow}`).alignment?.horizontal).toBe('center');
-    expect(sheet.pageSetup.fitToPage).toBe(true);
-    expect(sheet.pageSetup.fitToHeight).toBe(1);
-    expect(sheet.pageSetup.fitToWidth).toBe(1);
+    expect(sheet.pageSetup.fitToPage).toBe(false);
+    expect(sheet.pageSetup.scale).toBe(100);
     expect(sheet.pageSetup.showGridLines).toBe(false);
     expect(sheet.pageSetup.showRowColHeaders).toBe(false);
     const lastPrintRow = findStatementPrintLastRow(sheet);
@@ -330,6 +338,7 @@ describe('utility-statement exceljs fill', () => {
       const zip = await JSZip.loadAsync(
         await patchUtilityStatementXlsxPrintSetup(
           Buffer.from(await wb.xlsx.writeBuffer()),
+          utilityStatementPaperTwips(sheet),
         ),
       );
       const sheetFile = zip.file('xl/worksheets/sheet1.xml');
@@ -337,8 +346,10 @@ describe('utility-statement exceljs fill', () => {
     })();
     expect(patchedXml).toContain('<printOptions headings="0" gridLines="0"/>');
     expect(patchedXml).toContain(
-      '<pageSetUpPr autoPageBreaks="1" fitToPage="1"/>',
+      '<pageSetUpPr autoPageBreaks="0" fitToPage="0"/>',
     );
+    expect(patchedXml).toContain('paperWidth="');
+    expect(patchedXml).toContain('paperHeight="');
   });
 
   it('writes Cara Pembayaran F cells from input', async () => {
@@ -356,6 +367,23 @@ describe('utility-statement exceljs fill', () => {
     expect(sheet.getCell(`F${nameRow}`).value).toBe('PT CABIN');
     expect(sheet.getCell(`F${rekRow}`).value).toBe('1234567890');
     expect(sheet.getCell(`F${rekRow}`).isMerged).toBe(true);
+  });
+
+  it('hides min-kWh row when usage meets billed units', async () => {
+    const input = exampleInput({
+      elecMinKwh: 0,
+      elecActualUsage: 52,
+      elecBilledKwh: 52,
+    });
+    const wb = await fillUtilityStatementWorkbook(input);
+    const sheet = wb.getWorksheet('Sheet1') ?? wb.worksheets[0];
+    const listrik = findRowByUniqueLabel(
+      sheet,
+      UTILITY_STATEMENT_SECTION_LABELS.electricity,
+    );
+    expect(electricityMinRowApplies(input)).toBe(false);
+    expect(sheet.getRow(listrik + 3).hidden).toBe(true);
+    expect(sheet.getRow(listrik + 5).hidden).toBe(true);
   });
 
   it('period subtotal excludes admin', async () => {

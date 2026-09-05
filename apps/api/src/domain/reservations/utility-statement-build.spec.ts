@@ -5,7 +5,10 @@ import {
   StayBillingPeriod,
   UtilityKind,
 } from '@cabin/api-contract';
-import { buildUtilityStatementFillInput } from './utility-statement-build.js';
+import {
+  buildUtilityStatementFillInput,
+  utilityStatementBillingNo,
+} from './utility-statement-build.js';
 import { toStaffReservation } from './reservations-mapper.js';
 
 function readingRow(id: string, readingDate: string, meterValue: number) {
@@ -208,5 +211,11 @@ describe('buildUtilityStatementFillInput', () => {
     expect(reservation.utilityPeriodSchemes[0]?.electricityRateIdrPerKwh).toBe(
       2000,
     );
+  });
+
+  it('builds billing no from reservation id and charge month', () => {
+    expect(
+      utilityStatementBillingNo('cmtjh8sp-aaaa-bbbb-cccc-dddddddddddd', '2026-10'),
+    ).toBe('US-CMTJH8SP-2026-10');
   });
 });

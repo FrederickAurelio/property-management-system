@@ -11,7 +11,7 @@ async function sheetXml(xlsx: Buffer): Promise<string> {
 }
 
 describe('utility-statement-print-patch', () => {
-  it('adds printOptions and autoPageBreaks and drops fixed scale', async () => {
+  it('adds printOptions, disables fit-to-page, and sets custom paper twips', async () => {
     const before = Buffer.from(
       `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><pageMargins left="0.7"/><pageSetup paperSize="9" scale="100" fitToWidth="1" fitToHeight="1"/></worksheet>`,
     );
@@ -21,13 +21,21 @@ describe('utility-statement-print-patch', () => {
       await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }),
     );
 
-    const patched = await patchUtilityStatementXlsxPrintSetup(xlsx);
+    const patched = await patchUtilityStatementXlsxPrintSetup(xlsx, {
+      widthTwips: 10_800,
+      heightTwips: 15_840,
+    });
     const xml = await sheetXml(patched);
 
     expect(xml).toContain(
-      '<pageSetUpPr autoPageBreaks="1" fitToPage="1"/>',
+      '<pageSetUpPr autoPageBreaks="0" fitToPage="0"/>',
     );
     expect(xml).toContain('<printOptions headings="0" gridLines="0"/>');
-    expect(xml).not.toContain('scale="100"');
+    expect(xml).toContain('paperWidth="10800"');
+    expect(xml).toContain('paperHeight="15840"');
+    expect(xml).toContain('paperSize="0"');
+    expect(xml).toContain('scale="100"');
+    expect(xml).not.toContain('fitToWidth');
+    expect(xml).not.toContain('fitToHeight');
   });
 });

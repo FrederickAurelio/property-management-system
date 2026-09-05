@@ -87,6 +87,6 @@ describe('GotenbergPdfConvertAdapter', () => {
     expect((init?.body as FormData).get('skipEmptyPages')).toBe('true');
     expect((init?.body as FormData).get('magnification')).toBe('1');
     expect((init?.body as FormData).get('pageLayout')).toBe('1');
-    expect((init?.body as FormData).get('singlePageSheets')).toBeNull();
+    expect((init?.body as FormData).get('singlePageSheets')).toBe('true');
   });
 });

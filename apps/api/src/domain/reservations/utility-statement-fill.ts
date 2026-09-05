@@ -15,13 +15,17 @@ import {
   UTILITY_STATEMENT_SHEET,
 } from './utility-statement-cells.js';
 import {
+  formatBillingNoDisplay,
   formatStatementDateShort,
-  parseBillingNoForStatement,
-  parseStatementIsoDate,
+  formatStatementPeriodRange,
   parseUnitCodeForStatement,
   utilityStatementAmountDueIdr,
 } from './utility-statement-layout.js';
 import { patchUtilityStatementXlsxPrintSetup } from './utility-statement-print-patch.js';
+import {
+  measureStatementPrintContentInches,
+  statementPaperTwipsForContent,
+} from './utility-statement-print-size.js';
 import { utilityStatementTemplatePath } from './utility-statement-path.js';
 
 export type UtilityStatementFillInput = {
@@ -36,6 +40,8 @@ export type UtilityStatementFillInput = {
   elecStartKwh: number;
   elecEndKwh: number;
   elecActualUsage: number;
+  /** Scheme min kWh — shown on the statement when billed usage exceeds actual. */
+  elecMinKwh: number;
   elecBilledKwh: number;
   elecRate: number;
   elecUsageAmountIdr: number;
@@ -246,17 +252,61 @@ function writeHeaderBoxes(
   sheet.getCell(UTILITY_STATEMENT_HEADER_CELLS.unitFloor).value = unit.floor;
   sheet.getCell(UTILITY_STATEMENT_HEADER_CELLS.unitRoom).value = unit.room;
 
-  const billing = parseBillingNoForStatement(input.billingNo);
-  sheet.getCell(UTILITY_STATEMENT_HEADER_CELLS.billingId).value =
-    billing.idPart;
-  sheet.getCell(UTILITY_STATEMENT_HEADER_CELLS.billingYear).value =
-    billing.year;
-  sheet.getCell(UTILITY_STATEMENT_HEADER_CELLS.billingMonth).value =
-    billing.month;
+  const periodRow = namedRowNumber(wb, UTILITY_STATEMENT_NAMES.periodStart);
+  layoutStatementPeriodRow(
+    sheet,
+    periodRow,
+    input.periodStart,
+    input.periodEnd,
+  );
+
+  const billingRow = namedRowNumber(wb, UTILITY_STATEMENT_NAMES.billingNo);
+  layoutStatementBillingNoRow(sheet, billingRow, input.billingNo);
+
   sheet.getCell('I9').value = null;
   sheet.getCell('J9').value = null;
   sheet.getCell('K9').value = null;
   sheet.getCell('L9').value = null;
+}
+
+/** Merge D:H so Periode reads `dd-mm-yy - dd-mm-yy` without column gaps. */
+function layoutStatementPeriodRow(
+  sheet: Worksheet,
+  rowNumber: number,
+  periodStart: string,
+  periodEnd: string,
+): void {
+  const periodCell = sheet.getCell(`D${rowNumber}`);
+  const periodFont = cloneFont(periodCell);
+  tryUnmerge(sheet, `F${rowNumber}:H${rowNumber}`);
+  tryUnmerge(sheet, `D${rowNumber}:H${rowNumber}`);
+  for (const col of ['E', 'F', 'G', 'H'] as const) {
+    sheet.getCell(`${col}${rowNumber}`).value = null;
+  }
+  sheet.mergeCells(`D${rowNumber}:H${rowNumber}`);
+  periodCell.value = formatStatementPeriodRange(periodStart, periodEnd);
+  if (periodFont) {
+    periodCell.font = periodFont;
+  }
+}
+
+/** Merge D:H so No. Billing reads `US-… / YYYY / MM` without slash gaps. */
+function layoutStatementBillingNoRow(
+  sheet: Worksheet,
+  rowNumber: number,
+  billingNo: string,
+): void {
+  const billingCell = sheet.getCell(`D${rowNumber}`);
+  const billingFont = cloneFont(billingCell);
+  tryUnmerge(sheet, `D${rowNumber}:H${rowNumber}`);
+  for (const col of ['E', 'F', 'G', 'H'] as const) {
+    sheet.getCell(`${col}${rowNumber}`).value = null;
+  }
+  sheet.mergeCells(`D${rowNumber}:H${rowNumber}`);
+  billingCell.value = formatBillingNoDisplay(billingNo);
+  if (billingFont) {
+    billingCell.font = billingFont;
+  }
 }
 
 /** Step 1–2: HEADER + meters + rates via defined names (before any insert). */
@@ -267,16 +317,6 @@ export function writeUtilityStatementNamedFields(
   writeNamed(wb, UTILITY_STATEMENT_NAMES.guestName, input.guestName);
   writeNamed(wb, UTILITY_STATEMENT_NAMES.guestPhone, input.guestPhone);
   writeHeaderBoxes(wb, input);
-  writeNamed(
-    wb,
-    UTILITY_STATEMENT_NAMES.periodStart,
-    parseStatementIsoDate(input.periodStart),
-  );
-  writeNamed(
-    wb,
-    UTILITY_STATEMENT_NAMES.periodEnd,
-    parseStatementIsoDate(input.periodEnd),
-  );
   writeNamed(
     wb,
     UTILITY_STATEMENT_NAMES.statementDate,
@@ -294,6 +334,7 @@ export function writeUtilityStatementNamedFields(
     UTILITY_STATEMENT_NAMES.elecActualUsage,
     input.elecActualUsage,
   );
+  writeNamed(wb, UTILITY_STATEMENT_NAMES.elecMinKwh, input.elecMinKwh);
   writeNamed(wb, UTILITY_STATEMENT_NAMES.elecBilledKwh, input.elecBilledKwh);
   writeNamed(wb, UTILITY_STATEMENT_NAMES.elecChargeKwh, input.elecBilledKwh);
   writeNamedRate(wb, UTILITY_STATEMENT_NAMES.elecRate, input.elecRate);
@@ -313,7 +354,16 @@ export function writeUtilityStatementNamedFields(
   );
 }
 
-/** Step 3: duplicate addon anchors; do not use footer names after this. */
+/** True when the min-kWh row should appear between Usage and Tagihan terhutang. */
+export function electricityMinRowApplies(input: {
+  elecMinKwh: number;
+  elecActualUsage: number;
+  elecBilledKwh: number;
+}): boolean {
+  return (
+    input.elecMinKwh > 0 && input.elecBilledKwh > input.elecActualUsage
+  );
+}
 export function expandUtilityStatementAddonRows(
   wb: Workbook,
   input: Pick<
@@ -498,7 +548,94 @@ function writePaymentValue(
   sheet.getCell(`F${row}`).value = value;
 }
 
-/** exceljs spliceRows does not rewrite F:I on the No. Rek row. */
+/** Compact spacer after the due line, before Catatan / jatuh tempo notes. */
+const UTILITY_STATEMENT_FOOTER_SECTION_GAP_PT = 8;
+/** Compact spacer around the Cara Pembayaran box (above and below). */
+const UTILITY_STATEMENT_PAYMENT_BOX_GAP_PT = 6;
+/** Single-line Catatan header — default row height leaves a loose gap to the bullet. */
+const UTILITY_STATEMENT_CATATAN_HEADER_ROW_PT = 11;
+
+/**
+ * Collapse one or more empty template rows into a single short spacer row.
+ */
+function collapseRowGap(
+  sheet: Worksheet,
+  afterRow: number,
+  beforeRow: number,
+  spacerHeightPt: number,
+): void {
+  const gapCount = beforeRow - afterRow - 1;
+  if (gapCount <= 0) {
+    return;
+  }
+
+  if (gapCount === 1) {
+    const spacer = sheet.getRow(afterRow + 1);
+    spacer.hidden = false;
+    spacer.height = spacerHeightPt;
+    return;
+  }
+
+  for (let row = afterRow + 1; row < beforeRow - 1; row++) {
+    sheet.getRow(row).hidden = true;
+  }
+  const spacer = sheet.getRow(beforeRow - 1);
+  spacer.hidden = false;
+  spacer.height = spacerHeightPt;
+}
+
+/**
+ * Virgin template leaves full-height empty rows around the footer notes block and
+ * payment box. Tighten to compact spacers so PDF/print matches a dense bill.
+ */
+function applyFooterNotesSpacing(sheet: Worksheet): void {
+  const dueRow = findRowByUniqueLabel(
+    sheet,
+    UTILITY_STATEMENT_FOOTER_LABELS.due,
+  );
+  const catatanRow = findRowContainingLabel(
+    sheet,
+    UTILITY_STATEMENT_NOTE_SNIPPETS.catatan,
+  );
+  const jatuhRow = findRowContainingLabel(
+    sheet,
+    UTILITY_STATEMENT_NOTE_SNIPPETS.jatuhTempo,
+  );
+  const boxStartRow = findRowContainingLabel(
+    sheet,
+    UTILITY_STATEMENT_NOTE_SNIPPETS.caraPembayaran,
+  );
+  const boxEndRow = findRowByUniqueLabel(
+    sheet,
+    UTILITY_STATEMENT_PAYMENT_LABELS.accountNumber,
+  );
+  const closingNotesRow = findRowContainingLabel(
+    sheet,
+    UTILITY_STATEMENT_NOTE_SNIPPETS.disconnect,
+  );
+
+  collapseRowGap(
+    sheet,
+    dueRow,
+    catatanRow,
+    UTILITY_STATEMENT_FOOTER_SECTION_GAP_PT,
+  );
+  sheet.getRow(catatanRow).height = UTILITY_STATEMENT_CATATAN_HEADER_ROW_PT;
+
+  collapseRowGap(
+    sheet,
+    jatuhRow,
+    boxStartRow,
+    UTILITY_STATEMENT_PAYMENT_BOX_GAP_PT,
+  );
+  collapseRowGap(
+    sheet,
+    boxEndRow,
+    closingNotesRow,
+    UTILITY_STATEMENT_PAYMENT_BOX_GAP_PT,
+  );
+}
+
 function restoreAccountNumberMerge(sheet: Worksheet): void {
   const rekRow = findRowByUniqueLabel(sheet, 'No. Rek');
   if (sheet.getCell(`F${rekRow}`).isMerged) {
@@ -513,8 +650,36 @@ function restoreAccountNumberMerge(sheet: Worksheet): void {
   sheet.mergeCells(`F${rekRow}:I${rekRow}`);
 }
 
-/** A4 portrait — matches the hand-edited template (`paperSize` 9 in Excel). */
-const UTILITY_STATEMENT_PAPER_SIZE_A4 = 9;
+/** Compact bill — page size is patched to content width/height (not A4). */
+function fitStatementToOnePage(sheet: Worksheet): void {
+  const lastPrintRow = findStatementPrintLastRow(sheet);
+  const { pageSetup } = sheet;
+  pageSetup.fitToPage = false;
+  pageSetup.scale = 100;
+  pageSetup.orientation = 'portrait';
+  pageSetup.printArea = `A2:M${lastPrintRow}`;
+  pageSetup.margins = {
+    left: UTILITY_STATEMENT_PRINT_MARGINS_IN.left,
+    right: UTILITY_STATEMENT_PRINT_MARGINS_IN.right,
+    top: UTILITY_STATEMENT_PRINT_MARGINS_IN.top,
+    bottom: UTILITY_STATEMENT_PRINT_MARGINS_IN.bottom,
+    header: UTILITY_STATEMENT_PRINT_MARGINS_IN.header,
+    footer: UTILITY_STATEMENT_PRINT_MARGINS_IN.footer,
+  };
+  pageSetup.horizontalCentered = false;
+  pageSetup.verticalCentered = false;
+  pageSetup.showGridLines = false;
+  pageSetup.showRowColHeaders = false;
+}
+
+export function utilityStatementPaperTwips(sheet: Worksheet): {
+  widthTwips: number;
+  heightTwips: number;
+} {
+  const lastPrintRow = findStatementPrintLastRow(sheet);
+  const content = measureStatementPrintContentInches(sheet, lastPrintRow);
+  return statementPaperTwipsForContent(content);
+}
 
 function outerFrameBottomStyle(
   sheet: Worksheet,
@@ -544,30 +709,13 @@ export function findStatementPrintLastRow(sheet: Worksheet): number {
   return lastNoteRow;
 }
 
-function fitStatementToOnePage(sheet: Worksheet): void {
-  const lastPrintRow = findStatementPrintLastRow(sheet);
-  const { pageSetup } = sheet;
-  pageSetup.fitToPage = true;
-  pageSetup.fitToWidth = 1;
-  pageSetup.fitToHeight = 1;
-  pageSetup.orientation = 'portrait';
-  pageSetup.paperSize = UTILITY_STATEMENT_PAPER_SIZE_A4;
-  pageSetup.printArea = `A2:M${lastPrintRow}`;
-  pageSetup.margins = {
-    left: UTILITY_STATEMENT_PRINT_MARGINS_IN.left,
-    right: UTILITY_STATEMENT_PRINT_MARGINS_IN.right,
-    top: UTILITY_STATEMENT_PRINT_MARGINS_IN.top,
-    bottom: UTILITY_STATEMENT_PRINT_MARGINS_IN.bottom,
-    header: UTILITY_STATEMENT_PRINT_MARGINS_IN.header,
-    footer: UTILITY_STATEMENT_PRINT_MARGINS_IN.footer,
-  };
-  pageSetup.horizontalCentered = false;
-  pageSetup.verticalCentered = false;
-  pageSetup.showGridLines = false;
-  pageSetup.showRowColHeaders = false;
-}
-
-function restoreMeterBlockVisibility(sheet: Worksheet): void {
+function applyElectricityMeterRows(
+  sheet: Worksheet,
+  input: Pick<
+    UtilityStatementFillInput,
+    'elecMinKwh' | 'elecActualUsage' | 'elecBilledKwh'
+  >,
+): void {
   const listrik = findRowByUniqueLabel(
     sheet,
     UTILITY_STATEMENT_SECTION_LABELS.electricity,
@@ -575,8 +723,23 @@ function restoreMeterBlockVisibility(sheet: Worksheet): void {
   sheet.getRow(listrik).hidden = false;
   sheet.getRow(listrik + 1).hidden = false;
   sheet.getRow(listrik + 2).hidden = false;
-  sheet.getRow(listrik + 3).hidden = true;
-  sheet.getRow(listrik + 4).hidden = true;
+
+  const minRow = listrik + 3;
+  const spareRow = listrik + 4;
+  const gapRow = listrik + 5;
+  const showMin = electricityMinRowApplies(input);
+
+  sheet.getRow(minRow).hidden = !showMin;
+  sheet.getRow(spareRow).hidden = true;
+  sheet.getRow(gapRow).hidden = true;
+
+  if (showMin) {
+    sheet.getCell(`F${minRow}`).value = input.elecMinKwh;
+    sheet.getCell(`G${minRow}`).value = 'kWh';
+    sheet.getCell(`H${minRow}`).value = null;
+    sheet.getCell(`I${minRow}`).value = null;
+    sheet.getCell(`J${minRow}`).value = null;
+  }
 }
 
 export async function fillUtilityStatementWorkbook(
@@ -585,11 +748,12 @@ export async function fillUtilityStatementWorkbook(
   const wb = await openUtilityStatementWorkbook();
   const sheet = sheetOf(wb);
   writeUtilityStatementNamedFields(wb, input);
-  restoreMeterBlockVisibility(sheet);
+  applyElectricityMeterRows(sheet, input);
   expandUtilityStatementAddonRows(wb, input);
   writeUtilityStatementFooter(wb, input);
   writeUtilityStatementPayment(sheet, input);
   restoreAccountNumberMerge(sheet);
+  applyFooterNotesSpacing(sheet);
   fitStatementToOnePage(sheet);
   return wb;
 }
@@ -598,6 +762,8 @@ export async function fillUtilityStatementXlsx(
   input: UtilityStatementFillInput,
 ): Promise<Buffer> {
   const wb = await fillUtilityStatementWorkbook(input);
+  const sheet = sheetOf(wb);
+  const paper = utilityStatementPaperTwips(sheet);
   const out = await wb.xlsx.writeBuffer();
-  return patchUtilityStatementXlsxPrintSetup(Buffer.from(out));
+  return patchUtilityStatementXlsxPrintSetup(Buffer.from(out), paper);
 }

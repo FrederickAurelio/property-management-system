@@ -181,6 +181,7 @@ export function buildUtilityStatementFillInput(
     elecStartKwh: period.elecStart ?? 0,
     elecEndKwh: period.elecEnd ?? 0,
     elecActualUsage: elec.usage,
+    elecMinKwh: scheme.electricityMinKwh,
     elecBilledKwh: elec.billedUnits,
     elecRate: scheme.electricityRateIdrPerKwh,
     elecUsageAmountIdr: elec.usageAmountIdr,

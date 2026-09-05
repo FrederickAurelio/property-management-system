@@ -69,6 +69,7 @@ const NAMES = {
   ElecStartKwh: `F${listrik + 1}`,
   ElecEndKwh: `I${listrik + 1}`,
   ElecActualUsage: `F${listrik + 2}`,
+  ElecMinKwh: `F${listrik + 3}`,
   ElecBilledKwh: `F${listrik + 4}`,
   ElecChargeKwh: `F${listrik + 6}`,
   ElecRate: `I${listrik + 6}`,

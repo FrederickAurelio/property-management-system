@@ -55,6 +55,35 @@ export function parseStatementIsoDate(iso: string): Date | string {
   );
 }
 
+/** Compact `dd-mm-yy` for the Periode header row (matches template numFmt). */
+export function formatStatementDateDash(iso: string): string {
+  const parsed = parseStatementIsoDate(iso);
+  if (!(parsed instanceof Date)) {
+    return iso;
+  }
+  const day = String(parsed.getUTCDate()).padStart(2, '0');
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+  const year = String(parsed.getUTCFullYear()).slice(-2);
+  return `${day}-${month}-${year}`;
+}
+
+/** Single-line Periode value — avoids wide-column gaps between start, dash, and end. */
+export function formatStatementPeriodRange(
+  periodStart: string,
+  periodEnd: string,
+): string {
+  return `${formatStatementDateDash(periodStart)} - ${formatStatementDateDash(periodEnd)}`;
+}
+
+/** Boxed No. Billing line — `US-ABC / 2026 / 10` from `US-ABC-2026-10`. */
+export function formatBillingNoDisplay(billingNo: string): string {
+  const { idPart, year, month } = parseBillingNoForStatement(billingNo);
+  if (!year || !month) {
+    return idPart;
+  }
+  return `${idPart} / ${year} / ${month}`;
+}
+
 /** Compact `dd/mm/yy` text for B12 Tanggal (period end; avoids ###). */
 export function formatStatementDateShort(iso: string): string {
   const parsed = parseStatementIsoDate(iso);

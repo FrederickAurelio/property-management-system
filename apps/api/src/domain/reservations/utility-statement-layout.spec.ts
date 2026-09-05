@@ -1,5 +1,8 @@
 import {
+  formatBillingNoDisplay,
+  formatStatementDateDash,
   formatStatementDateShort,
+  formatStatementPeriodRange,
   parseBillingNoForStatement,
   parseStatementIsoDate,
   parseUnitCodeForStatement,
@@ -30,6 +33,16 @@ describe('utility-statement-layout', () => {
         adminAmountIdr: 3_000,
       }),
     ).toBe(1_312_577);
+  });
+
+  it('formats compact period and billing display strings', () => {
+    expect(formatStatementDateDash('2026-10-01')).toBe('01-10-26');
+    expect(
+      formatStatementPeriodRange('2026-09-17', '2026-10-01'),
+    ).toBe('17-09-26 - 01-10-26');
+    expect(formatBillingNoDisplay('US-CMTJH8SP-2026-10')).toBe(
+      'US-CMTJH8SP / 2026 / 10',
+    );
   });
 
   it('parses ISO dates as UTC noon so the calendar day is stable', () => {

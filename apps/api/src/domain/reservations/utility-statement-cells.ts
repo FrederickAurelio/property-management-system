@@ -50,6 +50,7 @@ export const UTILITY_STATEMENT_HEADER_CELLS = {
   unitPrefix: 'D7',
   unitFloor: 'F7',
   unitRoom: 'G7',
+  /** Legacy anchors — fill merges D:H on the billing row for display. */
   billingId: 'D9',
   billingYear: 'F9',
   billingMonth: 'H9',
@@ -69,6 +70,7 @@ export const UTILITY_STATEMENT_NAMES = {
   elecStartKwh: 'ElecStartKwh',
   elecEndKwh: 'ElecEndKwh',
   elecActualUsage: 'ElecActualUsage',
+  elecMinKwh: 'ElecMinKwh',
   elecBilledKwh: 'ElecBilledKwh',
   /** Billed kWh on the Tagihan terhutang row (same number as ElecBilledKwh). */
   elecChargeKwh: 'ElecChargeKwh',
@@ -110,6 +112,7 @@ export const UTILITY_STATEMENT_FOOTER_LABELS = {
 
 export const UTILITY_STATEMENT_SECTION_LABELS = {
   electricity: 'Listrik (Electricity)',
+  electricityMinUsage: 'Minimum pakai',
   water: 'Air Bersih (Water Consumption)',
   maintenance: 'Maintenance',
   hasilAkhir: 'Hasil Akhir Tagihan :',
@@ -147,17 +150,17 @@ export const UTILITY_STATEMENT_PAYMENT_VALUE_CELLS = {
 } as const;
 
 /**
- * Print margins (inches) on the hand-edited template.
- * Keep these on the sheet so LibreOffice PDF / paper print leaves the
- * payment-box border inside the printable area (not flush to the page edge).
+ * Tight print margins (inches) for a compact utility bill — not full A4 office
+ * margins. Keeps the payment-box border inside the printable area while letting
+ * the PDF page size track the statement height (add-on rows).
  */
 export const UTILITY_STATEMENT_PRINT_MARGINS_IN = {
-  left: 0.7,
-  right: 0.7,
-  top: 0.75,
-  bottom: 0.75,
-  header: 0.3,
-  footer: 0.3,
+  left: 0.25,
+  right: 0.25,
+  top: 0.25,
+  bottom: 0.25,
+  header: 0.15,
+  footer: 0.15,
 } as const;
 
 /**

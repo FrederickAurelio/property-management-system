@@ -30,11 +30,14 @@ export class GotenbergPdfConvertAdapter implements PdfConvertPort {
       'files',
       new File([new Uint8Array(xlsx)], 'statement.xlsx', { type: XLSX_MIME }),
     );
-    // Honor the xlsx pageSetup (A4 + ~0.7" margins + fit 1×1). singlePageSheets
+    // Honor xlsx pageSetup (compact custom page + tight margins). singlePageSheets
     // ignores paper size and flushes the sheet to the page edge, clipping borders.
     form.append('exportFormFields', 'false');
     form.append('skipEmptyPages', 'true');
-    // PDF viewer: fit page + single-page layout so browser Print uses the full A4 sheet.
+    // Trim the PDF page to the sheet print area (compact bill, not full A4).
+    // LibreOffice ignores custom paperWidth/Height in xlsx; this is the reliable knob.
+    form.append('singlePageSheets', 'true');
+    // PDF viewer: fit page + single-page layout so browser Print uses the full sheet.
     form.append('magnification', '1');
     form.append('pageLayout', '1');
 
