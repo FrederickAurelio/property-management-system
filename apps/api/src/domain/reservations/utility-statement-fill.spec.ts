@@ -369,7 +369,7 @@ describe('utility-statement exceljs fill', () => {
     expect(sheet.getCell(`F${rekRow}`).isMerged).toBe(true);
   });
 
-  it('hides min-kWh row when usage meets billed units', async () => {
+  it('hides min-kWh row when scheme minimum is zero', async () => {
     const input = exampleInput({
       elecMinKwh: 0,
       elecActualUsage: 52,
@@ -384,6 +384,24 @@ describe('utility-statement exceljs fill', () => {
     expect(electricityMinRowApplies(input)).toBe(false);
     expect(sheet.getRow(listrik + 3).hidden).toBe(true);
     expect(sheet.getRow(listrik + 5).hidden).toBe(true);
+  });
+
+  it('shows min-kWh row even when actual usage exceeds the minimum', async () => {
+    const input = exampleInput({
+      elecMinKwh: 30,
+      elecActualUsage: 52,
+      elecBilledKwh: 52,
+    });
+    const wb = await fillUtilityStatementWorkbook(input);
+    const sheet = wb.getWorksheet('Sheet1') ?? wb.worksheets[0];
+    const listrik = findRowByUniqueLabel(
+      sheet,
+      UTILITY_STATEMENT_SECTION_LABELS.electricity,
+    );
+    expect(electricityMinRowApplies(input)).toBe(true);
+    expect(sheet.getRow(listrik + 3).hidden).toBeFalsy();
+    expect(sheet.getCell(`F${listrik + 3}`).value).toBe(30);
+    expect(sheet.getCell(`G${listrik + 3}`).value).toBe('kWh');
   });
 
   it('period subtotal excludes admin', async () => {

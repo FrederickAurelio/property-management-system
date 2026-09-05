@@ -354,15 +354,11 @@ export function writeUtilityStatementNamedFields(
   );
 }
 
-/** True when the min-kWh row should appear between Usage and Tagihan terhutang. */
+/** True when the scheme defines a minimum kWh row on the statement. */
 export function electricityMinRowApplies(input: {
   elecMinKwh: number;
-  elecActualUsage: number;
-  elecBilledKwh: number;
 }): boolean {
-  return (
-    input.elecMinKwh > 0 && input.elecBilledKwh > input.elecActualUsage
-  );
+  return input.elecMinKwh > 0;
 }
 export function expandUtilityStatementAddonRows(
   wb: Workbook,
@@ -711,10 +707,7 @@ export function findStatementPrintLastRow(sheet: Worksheet): number {
 
 function applyElectricityMeterRows(
   sheet: Worksheet,
-  input: Pick<
-    UtilityStatementFillInput,
-    'elecMinKwh' | 'elecActualUsage' | 'elecBilledKwh'
-  >,
+  input: Pick<UtilityStatementFillInput, 'elecMinKwh'>,
 ): void {
   const listrik = findRowByUniqueLabel(
     sheet,
