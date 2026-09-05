@@ -20,13 +20,20 @@ import {
   assembleCash,
   assembleOccupancy,
   assembleSourceMix,
+  emptyBilledTotals,
   toInt,
   type BlockClipRow,
   type CashAggRow,
+  type ExpenseAggRow,
   type InventoryUnit,
   type LandingRow,
   type StayClipRow,
 } from './reports-assemble.js';
+import {
+  billedStayFromRow,
+  sumBilledUtilitiesInRange,
+  withRentAccrual,
+} from './reports-billed.js';
 
 function parseYmdDate(ymd: string): Date {
   return new Date(`${ymd}T00:00:00.000Z`);
@@ -80,42 +87,87 @@ export class ReportsService {
       ? addDaysYmd(compareWindow.to, 1)
       : null;
 
-    const [cashRows, stayClips, blockClips, landings, inventory] =
-      await Promise.all([
-        this.queryCashAgg(
-          propertyId,
-          spanStart,
-          spanEnd,
-          primaryUtc.start,
-          primaryUtc.endExclusive,
-          compareUtc?.start ?? null,
-          compareUtc?.endExclusive ?? null,
-        ),
-        this.queryStayClips(
-          propertyId,
-          from,
-          toExclusivePrimary,
-          compareWindow?.from ?? null,
-          toExclusiveCompare,
-        ),
-        this.queryBlockClips(
-          propertyId,
-          from,
-          toExclusivePrimary,
-          compareWindow?.from ?? null,
-          toExclusiveCompare,
-        ),
-        this.queryLandings(
-          propertyId,
-          from,
-          to,
-          compareWindow?.from ?? null,
-          compareWindow?.to ?? null,
-        ),
-        this.loadInventory(propertyId),
-      ]);
+    const [
+      cashRows,
+      stayClips,
+      blockClips,
+      landings,
+      inventory,
+      expenseRows,
+      rentRows,
+      billedStays,
+    ] = await Promise.all([
+      this.queryCashAgg(
+        propertyId,
+        spanStart,
+        spanEnd,
+        primaryUtc.start,
+        primaryUtc.endExclusive,
+        compareUtc?.start ?? null,
+        compareUtc?.endExclusive ?? null,
+      ),
+      this.queryStayClips(
+        propertyId,
+        from,
+        toExclusivePrimary,
+        compareWindow?.from ?? null,
+        toExclusiveCompare,
+      ),
+      this.queryBlockClips(
+        propertyId,
+        from,
+        toExclusivePrimary,
+        compareWindow?.from ?? null,
+        toExclusiveCompare,
+      ),
+      this.queryLandings(
+        propertyId,
+        from,
+        to,
+        compareWindow?.from ?? null,
+        compareWindow?.to ?? null,
+      ),
+      this.loadInventory(propertyId),
+      this.queryExpenseAgg(
+        propertyId,
+        from,
+        to,
+        compareWindow?.from ?? null,
+        compareWindow?.to ?? null,
+      ),
+      this.queryRentAccrual(
+        propertyId,
+        from,
+        toExclusivePrimary,
+        compareWindow?.from ?? null,
+        toExclusiveCompare,
+      ),
+      this.loadBilledStays(propertyId, from, to, compareWindow?.from ?? null),
+    ]);
 
-    const cash = assembleCash(cashRows, inventory, compare);
+    const billedPrimary = withRentAccrual(
+      sumBilledUtilitiesInRange(billedStays, from, to),
+      rentRows.find((r) => r.period === 'primary')?.rentIdr ?? 0,
+    );
+    const billedCompare = compareWindow
+      ? withRentAccrual(
+          sumBilledUtilitiesInRange(
+            billedStays,
+            compareWindow.from,
+            compareWindow.to,
+          ),
+          rentRows.find((r) => r.period === 'compare')?.rentIdr ?? 0,
+        )
+      : emptyBilledTotals();
+
+    const cash = assembleCash(
+      cashRows,
+      inventory,
+      compare,
+      expenseRows,
+      billedPrimary,
+      billedCompare,
+    );
     const { occupancy, occupancyByUnitType } = assembleOccupancy(
       inventory,
       stayClips,
@@ -243,6 +295,170 @@ export class ReportsService {
         inIdr: toInt(r.inIdr),
         outIdr: toInt(r.outIdr),
       }));
+  }
+
+  private async queryExpenseAgg(
+    propertyId: string,
+    pFrom: string,
+    pTo: string,
+    cFrom: string | null,
+    cTo: string | null,
+  ): Promise<ExpenseAggRow[]> {
+    const group = async (
+      period: 'primary' | 'compare',
+      from: string,
+      to: string,
+    ): Promise<ExpenseAggRow[]> => {
+      const grouped = await this.prisma.propertyExpense.groupBy({
+        by: ['category'],
+        where: {
+          propertyId,
+          occurredOn: { gte: parseYmdDate(from), lte: parseYmdDate(to) },
+        },
+        _sum: { amountIdr: true },
+      });
+      return grouped.map((g) => ({
+        period,
+        category: g.category,
+        outIdr: toInt(g._sum.amountIdr ?? 0),
+      }));
+    };
+
+    const primary = await group('primary', pFrom, pTo);
+    if (!cFrom || !cTo) {
+      return primary;
+    }
+    const previous = await group('compare', cFrom, cTo);
+    return [...primary, ...previous];
+  }
+
+  private async queryRentAccrual(
+    propertyId: string,
+    pFrom: string,
+    pToExcl: string,
+    cFrom: string | null,
+    cToExcl: string | null,
+  ): Promise<{ period: 'primary' | 'compare'; rentIdr: number }[]> {
+    type Raw = { period: string; rentIdr: bigint | number };
+    const statuses = [...REPORTS_OCCUPANCY_STATUSES];
+    const pFromD = parseYmdDate(pFrom);
+    const pToExclD = parseYmdDate(pToExcl);
+
+    const rentExpr = Prisma.sql`
+      COALESCE(SUM(
+        CASE
+          WHEN r."rentAmountIdr" IS NULL THEN 0
+          WHEN (r."checkOutDate" - r."checkInDate") <= 0 THEN 0
+          ELSE FLOOR(
+            r."rentAmountIdr"::numeric
+            * GREATEST(
+              0,
+              (LEAST(r."checkOutDate", b.to_excl) - GREATEST(r."checkInDate", b.from_d))
+            )
+            / (r."checkOutDate" - r."checkInDate")
+          )
+        END
+      ), 0)::bigint
+    `;
+
+    const rows =
+      cFrom && cToExcl
+        ? await this.prisma.$queryRaw<Raw[]>`
+            SELECT
+              b.period,
+              ${rentExpr} AS "rentIdr"
+            FROM "Reservation" r
+            CROSS JOIN (
+              VALUES
+                ('primary'::text, ${pFromD}::date, ${pToExclD}::date),
+                ('compare'::text, ${parseYmdDate(cFrom)}::date, ${parseYmdDate(cToExcl)}::date)
+            ) AS b(period, from_d, to_excl)
+            WHERE r."propertyId" = ${propertyId}
+              AND r.status::text IN (${Prisma.join(statuses)})
+              AND r."icalOverlapHold" = false
+              AND r."checkInDate" < b.to_excl
+              AND r."checkOutDate" > b.from_d
+            GROUP BY b.period
+          `
+        : await this.prisma.$queryRaw<Raw[]>`
+            SELECT
+              'primary'::text AS period,
+              COALESCE(SUM(
+                CASE
+                  WHEN r."rentAmountIdr" IS NULL THEN 0
+                  WHEN (r."checkOutDate" - r."checkInDate") <= 0 THEN 0
+                  ELSE FLOOR(
+                    r."rentAmountIdr"::numeric
+                    * GREATEST(
+                      0,
+                      (LEAST(r."checkOutDate", ${pToExclD}::date) - GREATEST(r."checkInDate", ${pFromD}::date))
+                    )
+                    / (r."checkOutDate" - r."checkInDate")
+                  )
+                END
+              ), 0)::bigint AS "rentIdr"
+            FROM "Reservation" r
+            WHERE r."propertyId" = ${propertyId}
+              AND r.status::text IN (${Prisma.join(statuses)})
+              AND r."icalOverlapHold" = false
+              AND r."checkInDate" < ${pToExclD}::date
+              AND r."checkOutDate" > ${pFromD}::date
+          `;
+
+    return rows
+      .filter((r) => r.period === 'primary' || r.period === 'compare')
+      .map((r) => ({
+        period: r.period as 'primary' | 'compare',
+        rentIdr: toInt(r.rentIdr),
+      }));
+  }
+
+  private async loadBilledStays(
+    propertyId: string,
+    pFrom: string,
+    pTo: string,
+    cFrom: string | null,
+  ) {
+    const spanFrom = cFrom && cFrom < pFrom ? cFrom : pFrom;
+    const spanTo = pTo;
+    const padFrom = addDaysYmd(spanFrom, -40);
+    const padToExcl = addDaysYmd(spanTo, 41);
+    const statuses = [...REPORTS_OCCUPANCY_STATUSES];
+
+    const rows = await this.prisma.reservation.findMany({
+      where: {
+        propertyId,
+        icalOverlapHold: false,
+        status: { in: [...statuses] },
+        checkInDate: { lt: parseYmdDate(padToExcl) },
+        checkOutDate: { gt: parseYmdDate(padFrom) },
+      },
+      select: {
+        checkInDate: true,
+        electricityRateIdrPerKwh: true,
+        waterRateIdrPerM3: true,
+        maintenanceFeeIdrPerMonth: true,
+        electricityMinKwh: true,
+        adminFeeIdrPerMonth: true,
+        utilityAddons: true,
+        utilityReadings: {
+          select: {
+            utility: true,
+            readingDate: true,
+            meterValue: true,
+          },
+        },
+        maintenanceCharges: {
+          select: { chargeDate: true, amountIdr: true },
+        },
+        adminCharges: {
+          select: { chargeDate: true, amountIdr: true },
+        },
+        utilityPeriodSchemes: true,
+      },
+    });
+
+    return rows.map(billedStayFromRow);
   }
 
   private async queryStayClips(

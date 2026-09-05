@@ -31,6 +31,8 @@ const FIELD_REASON_KEY: Partial<Record<ApiFieldReasonType, string>> = {
   [ApiFieldReason.SOURCE_LOCKED_WITH_EXTERNAL_REF]:
     "sourceLockedWithExternalRef",
   [ApiFieldReason.UTILITY_ADDON_LIMIT]: "utilityAddonLimit",
+  [ApiFieldReason.NOTE_REQUIRED]: "noteRequired",
+  [ApiFieldReason.UNIT_INVALID]: "unitInvalid",
 };
 
 /** Looks up the i18n message for a mapped `ApiFieldReason`, if any. */

@@ -5,6 +5,7 @@
     "calendar": "Calendar",
     "reservations": "Reservations",
     "properties": "Properties",
+    "expenses": "Expenses",
     "reports": "Reports",
     "requestLogs": "Request logs",
     "settings": "Settings"
@@ -18,7 +19,7 @@
     "more": "More",
     "mainAriaLabel": "Main",
     "moreSheetTitle": "More",
-    "moreSheetDescription": "Units, reports, and settings"
+    "moreSheetDescription": "Units, expenses, reports, and settings"
   },
   "auth": {
     "checkingSession": "Checking session…"

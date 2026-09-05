@@ -1,0 +1,74 @@
+{
+  "page": {
+    "title": "Pengeluaran",
+    "subtitle": "Uang keluar operasional properti ini",
+    "add": "Tambah pengeluaran",
+    "addPropertyFirst": "Tambahkan properti sebelum mencatat pengeluaran.",
+    "selectProperty": "Pilih properti untuk melihat pengeluaran.",
+    "invalidRange": "Tanggal Dari harus sebelum atau sama dengan tanggal Sampai.",
+    "loadError": "Pengeluaran periode ini gagal dimuat.",
+    "emptyTitle": "Tidak ada pengeluaran di periode ini",
+    "emptyDescription": "Catat tagihan vendor, perbaikan, dan biaya operasional lain.",
+    "deletedToast": "Pengeluaran dihapus",
+    "createdToast": "Pengeluaran disimpan",
+    "updatedToast": "Pengeluaran diperbarui"
+  },
+  "table": {
+    "date": "Tanggal",
+    "category": "Kategori",
+    "unit": "Unit",
+    "note": "Catatan",
+    "amount": "Jumlah",
+    "who": "Oleh"
+  },
+  "categories": {
+    "UTILITIES": "Utilitas",
+    "MAINTENANCE": "Perawatan",
+    "INTERNET": "Internet",
+    "SUPPLIES": "Perlengkapan",
+    "STAFF": "Staf",
+    "OTHER": "Lainnya"
+  },
+  "sheet": {
+    "createTitle": "Tambah pengeluaran",
+    "editTitle": "Ubah pengeluaran",
+    "description": "Uang yang properti keluarkan — bukan refund tamu.",
+    "date": "Tanggal",
+    "category": "Kategori",
+    "amount": "Jumlah",
+    "unit": "Unit",
+    "unitNone": "Seluruh properti",
+    "note": "Catatan",
+    "notePlaceholder": "mis. PLN Juli…",
+    "noteRequiredOther": "Wajib untuk Lainnya",
+    "proofLabel": "Bukti",
+    "proofOptional": "(opsional)",
+    "proofHint": "Struk atau screenshot transfer.",
+    "save": "Simpan pengeluaran",
+    "delete": "Hapus",
+    "photos": {
+      "add": "Tambah foto",
+      "limit": "Maksimal {{max}} foto",
+      "counter": "{{count}} / {{max}}",
+      "noPhotos": "Tidak ada foto",
+      "titleFallback": "Bukti pengeluaran",
+      "previousAria": "Foto sebelumnya",
+      "nextAria": "Foto berikutnya",
+      "closeAria": "Tutup pratinjau",
+      "removeAria": "Hapus foto",
+      "nothingToPreview": "Tidak ada yang bisa dilihat"
+    },
+    "zod": {
+      "dateRequired": "Pilih tanggal",
+      "categoryRequired": "Pilih kategori",
+      "amountRequired": "Masukkan jumlah",
+      "amountAboveZero": "Jumlah harus lebih dari nol",
+      "amountTooLarge": "Jumlah terlalu besar",
+      "noteRequired": "Isi catatan singkat untuk Lainnya"
+    }
+  },
+  "delete": {
+    "title": "Hapus pengeluaran ini?",
+    "description": "Baris {{category}} {{amount}} akan dihapus. Laporan tanggal itu akan berubah."
+  }
+}

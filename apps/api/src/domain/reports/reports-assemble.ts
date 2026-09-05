@@ -1,8 +1,12 @@
 import {
   CollectedVia,
+  PROPERTY_EXPENSE_CATEGORIES,
   ReservationSource,
+  StaffReportsCashOutKind,
+  type StaffReportsBilled,
   type StaffReportsCash,
   type StaffReportsCashMethodRow,
+  type StaffReportsCashOutRow,
   type StaffReportsCashSourceRow,
   type StaffReportsCashUnitTypeRow,
   type StaffReportsOccupancy,
@@ -37,6 +41,20 @@ export type LandingRow = {
   period: 'primary' | 'compare';
   source: string;
   stays: number;
+};
+
+export type ExpenseAggRow = {
+  period: 'primary' | 'compare';
+  category: string;
+  outIdr: number;
+};
+
+export type BilledTotals = {
+  rentIdr: number;
+  electricityIdr: number;
+  waterIdr: number;
+  maintenanceIdr: number;
+  adminIdr: number;
 };
 
 export type InventoryUnit = {
@@ -104,10 +122,82 @@ function netOf(b: { inIdr: number; outIdr: number }): number {
   return b.inIdr - b.outIdr;
 }
 
+export function emptyBilledTotals(): BilledTotals {
+  return {
+    rentIdr: 0,
+    electricityIdr: 0,
+    waterIdr: 0,
+    maintenanceIdr: 0,
+    adminIdr: 0,
+  };
+}
+
+export function toStaffReportsBilled(
+  totals: BilledTotals,
+  compareTotals?: BilledTotals,
+): StaffReportsBilled {
+  const utilitiesIdr =
+    totals.electricityIdr +
+    totals.waterIdr +
+    totals.maintenanceIdr +
+    totals.adminIdr;
+  const billed: StaffReportsBilled = {
+    rentIdr: totals.rentIdr,
+    electricityIdr: totals.electricityIdr,
+    waterIdr: totals.waterIdr,
+    maintenanceIdr: totals.maintenanceIdr,
+    adminIdr: totals.adminIdr,
+    utilitiesIdr,
+    totalIdr: totals.rentIdr + utilitiesIdr,
+  };
+  if (compareTotals) {
+    const prevUtils =
+      compareTotals.electricityIdr +
+      compareTotals.waterIdr +
+      compareTotals.maintenanceIdr +
+      compareTotals.adminIdr;
+    billed.compare = {
+      rentIdr: compareTotals.rentIdr,
+      electricityIdr: compareTotals.electricityIdr,
+      waterIdr: compareTotals.waterIdr,
+      maintenanceIdr: compareTotals.maintenanceIdr,
+      adminIdr: compareTotals.adminIdr,
+      utilitiesIdr: prevUtils,
+      totalIdr: compareTotals.rentIdr + prevUtils,
+    };
+  }
+  return billed;
+}
+
+function outByCategoryRows(
+  guestOutIdr: number,
+  expenses: ExpenseAggRow[],
+  period: 'primary' | 'compare',
+): StaffReportsCashOutRow[] {
+  const byCat = new Map<string, number>();
+  for (const c of PROPERTY_EXPENSE_CATEGORIES) {
+    byCat.set(c, 0);
+  }
+  for (const row of expenses) {
+    if (row.period !== period) continue;
+    byCat.set(row.category, (byCat.get(row.category) ?? 0) + row.outIdr);
+  }
+  const rows: StaffReportsCashOutRow[] = [
+    { key: StaffReportsCashOutKind.GUEST_REFUND, outIdr: guestOutIdr },
+  ];
+  for (const c of PROPERTY_EXPENSE_CATEGORIES) {
+    rows.push({ key: c, outIdr: byCat.get(c) ?? 0 });
+  }
+  return rows;
+}
+
 export function assembleCash(
   rows: CashAggRow[],
   inventory: InventoryUnit[],
   compare: boolean,
+  expenses: ExpenseAggRow[] = [],
+  billedPrimary: BilledTotals = emptyBilledTotals(),
+  billedCompare: BilledTotals = emptyBilledTotals(),
 ): StaffReportsCash {
   const primary = rows.filter((r) => r.period === 'primary');
   const previous = rows.filter((r) => r.period === 'compare');
@@ -195,6 +285,20 @@ export function assembleCash(
   const pMethod = byMethodMap(primary);
   const pType = byTypeMap(primary);
 
+  const expenseSum = (period: 'primary' | 'compare') => {
+    let n = 0;
+    for (const row of expenses) {
+      if (row.period === period) n += row.outIdr;
+    }
+    return n;
+  };
+  const pExpense = expenseSum('primary');
+  const cExpense = expenseSum('compare');
+  const pOut = pTot.outIdr + pExpense;
+  const cOut = cTot.outIdr + cExpense;
+  const pNet = pTot.inIdr - pOut;
+  const cNet = cTot.inIdr - cOut;
+
   const bySource: StaffReportsCashSourceRow[] = ALL_SOURCES.map((source) => {
     const b = pSource.get(source) ?? emptyCashBucket();
     return {
@@ -231,24 +335,32 @@ export function assembleCash(
 
   const cash: StaffReportsCash = {
     inIdr: pTot.inIdr,
-    outIdr: pTot.outIdr,
-    netIdr: pTot.netIdr,
+    outIdr: pOut,
+    netIdr: pNet,
+    guestInIdr: pTot.inIdr,
+    guestOutIdr: pTot.outIdr,
+    expenseOutIdr: pExpense,
+    billed: toStaffReportsBilled(
+      billedPrimary,
+      compare ? billedCompare : undefined,
+    ),
+    outByCategory: outByCategoryRows(pTot.outIdr, expenses, 'primary'),
     bySource,
     byUnitType,
     byMethod,
   };
 
   if (compare) {
-    const netDeltaIdr = pTot.netIdr - cTot.netIdr;
+    const netDeltaIdr = pNet - cNet;
     cash.compare = {
       inIdr: cTot.inIdr,
-      outIdr: cTot.outIdr,
-      netIdr: cTot.netIdr,
+      outIdr: cOut,
+      netIdr: cNet,
       netDeltaIdr,
       netDeltaPct:
-        cTot.netIdr === 0
+        cNet === 0
           ? null
-          : Math.round((netDeltaIdr / Math.abs(cTot.netIdr)) * 1000) / 10,
+          : Math.round((netDeltaIdr / Math.abs(cNet)) * 1000) / 10,
     };
   }
 

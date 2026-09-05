@@ -21,6 +21,7 @@ import { StaffUnitsModule } from './staff/units/units.module.js';
 import { StaffReservationsModule } from './staff/reservations/reservations.module.js';
 import { StaffCalendarModule } from './staff/calendar/calendar.module.js';
 import { StaffReportsModule } from './staff/reports/reports.module.js';
+import { StaffExpensesModule } from './staff/expenses/expenses.module.js';
 import { StaffRequestLogsModule } from './staff/request-logs/request-logs.module.js';
 import { StaffDashboardModule } from './staff/dashboard/dashboard.module.js';
 import { StaffIcalModule } from './staff/ical/ical.module.js';
@@ -52,6 +53,7 @@ import { PublicModule } from './public/public.module.js';
     StaffReservationsModule,
     StaffCalendarModule,
     StaffReportsModule,
+    StaffExpensesModule,
     StaffRequestLogsModule,
     StaffDashboardModule,
     StaffIcalModule,

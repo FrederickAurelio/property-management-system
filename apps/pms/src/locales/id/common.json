@@ -5,6 +5,7 @@
     "calendar": "Kalender",
     "reservations": "Reservasi",
     "properties": "Properti",
+    "expenses": "Pengeluaran",
     "reports": "Laporan",
     "requestLogs": "Log permintaan",
     "settings": "Pengaturan"
@@ -18,7 +19,7 @@
     "more": "Lainnya",
     "mainAriaLabel": "Utama",
     "moreSheetTitle": "Lainnya",
-    "moreSheetDescription": "Unit, laporan, dan pengaturan"
+    "moreSheetDescription": "Unit, pengeluaran, laporan, dan pengaturan"
   },
   "auth": {
     "checkingSession": "Memeriksa sesi…"

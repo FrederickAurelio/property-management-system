@@ -36,6 +36,8 @@
     "earlyConfirmRequired": "Konfirmasi tindakan early/late",
     "invalidStatusTransition": "Tindakan ini tidak diizinkan saat ini",
     "sourceLockedWithExternalRef": "Source terkunci karena stay ini terhubung ke calendar UID OTA",
-    "utilityAddonLimit": "Maksimal 8 biaya tambahan untuk listrik atau air"
+    "utilityAddonLimit": "Maksimal 8 biaya tambahan untuk listrik atau air",
+    "noteRequired": "Isi catatan singkat",
+    "unitInvalid": "Unit tidak ditemukan di properti ini"
   }
 }

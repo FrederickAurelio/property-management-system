@@ -1,0 +1,74 @@
+{
+  "page": {
+    "title": "Expenses",
+    "subtitle": "Operating cash out for this property",
+    "add": "Add expense",
+    "addPropertyFirst": "Add a property before recording expenses.",
+    "selectProperty": "Select a property to see expenses.",
+    "invalidRange": "From date must be on or before To date.",
+    "loadError": "Couldn’t load expenses for this period.",
+    "emptyTitle": "No expenses in this period",
+    "emptyDescription": "Record vendor bills, repairs, and other operating costs.",
+    "deletedToast": "Expense deleted",
+    "createdToast": "Expense saved",
+    "updatedToast": "Expense updated"
+  },
+  "table": {
+    "date": "Date",
+    "category": "Category",
+    "unit": "Unit",
+    "note": "Note",
+    "amount": "Amount",
+    "who": "By"
+  },
+  "categories": {
+    "UTILITIES": "Utilities",
+    "MAINTENANCE": "Maintenance",
+    "INTERNET": "Internet",
+    "SUPPLIES": "Supplies",
+    "STAFF": "Staff",
+    "OTHER": "Other"
+  },
+  "sheet": {
+    "createTitle": "Add expense",
+    "editTitle": "Edit expense",
+    "description": "Cash the property paid out — not a guest refund.",
+    "date": "Date",
+    "category": "Category",
+    "amount": "Amount",
+    "unit": "Unit",
+    "unitNone": "Whole property",
+    "note": "Note",
+    "notePlaceholder": "e.g. PLN July…",
+    "noteRequiredOther": "Required for Other",
+    "proofLabel": "Proof",
+    "proofOptional": "(optional)",
+    "proofHint": "Receipt or transfer screenshot.",
+    "save": "Save expense",
+    "delete": "Delete",
+    "photos": {
+      "add": "Add photo",
+      "limit": "Up to {{max}} photos",
+      "counter": "{{count}} / {{max}}",
+      "noPhotos": "No photos",
+      "titleFallback": "Expense proof",
+      "previousAria": "Previous photo",
+      "nextAria": "Next photo",
+      "closeAria": "Close preview",
+      "removeAria": "Remove photo",
+      "nothingToPreview": "Nothing to preview"
+    },
+    "zod": {
+      "dateRequired": "Pick a date",
+      "categoryRequired": "Pick a category",
+      "amountRequired": "Enter an amount",
+      "amountAboveZero": "Amount must be above zero",
+      "amountTooLarge": "Amount is too large",
+      "noteRequired": "Add a short note for Other"
+    }
+  },
+  "delete": {
+    "title": "Delete this expense?",
+    "description": "This removes the {{amount}} {{category}} line. Reports for that date will change."
+  }
+}

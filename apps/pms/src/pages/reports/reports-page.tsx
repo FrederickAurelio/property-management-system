@@ -17,6 +17,7 @@ import { opsTodayYmd, resolvePropertyTimezone } from "@/lib/ops-date";
 import { ReportsCashSection } from "./reports-cash-section";
 import { downloadReportsCsv } from "./reports-export";
 import { ReportsFilterBar } from "./reports-filter-bar";
+import { guestLedgerNetIdr } from "./reports-format";
 import { ReportsOccupancySection } from "./reports-occupancy-section";
 import {
   activePresetId,
@@ -82,7 +83,7 @@ export function ReportsPage() {
   const to =
     toParam && /^\d{4}-\d{2}-\d{2}$/.test(toParam) ? toParam : defaults.to;
   const rangeOk = from <= to;
-  const compare = compareParam !== "0";
+  const compare = compareParam === "1";
 
   const setChrome = useCallback(
     (next: {
@@ -97,7 +98,7 @@ export function ReportsPage() {
           const pid = next.propertyId ?? p.get("propertyId") ?? "";
           const nextFrom = next.from ?? p.get("from") ?? defaults.from;
           const nextTo = next.to ?? p.get("to") ?? defaults.to;
-          const nextCompare = next.compare ?? p.get("compare") !== "0";
+          const nextCompare = next.compare ?? p.get("compare") === "1";
           if (pid) p.set("propertyId", pid);
           else p.delete("propertyId");
           p.set("from", nextFrom);
@@ -299,7 +300,15 @@ export function ReportsPage() {
             </p>
           </header>
 
-          <ReportsCashSection cash={summaryQuery.data.cash} compare={compare} />
+          <ReportsCashSection
+            cash={summaryQuery.data.cash}
+            compare={compare}
+            expensesHref={`/expenses?${new URLSearchParams({
+              propertyId,
+              from,
+              to,
+            }).toString()}`}
+          />
           <ReportsOccupancySection
             occupancy={summaryQuery.data.occupancy}
             byUnitType={summaryQuery.data.occupancyByUnitType}
@@ -308,7 +317,7 @@ export function ReportsPage() {
           <ReportsSourceMixSection
             rows={summaryQuery.data.sourceMix}
             cashBySource={summaryQuery.data.cash.bySource}
-            periodCashNet={summaryQuery.data.cash.netIdr}
+            periodCashNet={guestLedgerNetIdr(summaryQuery.data.cash)}
             compare={compare}
           />
 

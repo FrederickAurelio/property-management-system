@@ -12,6 +12,7 @@ import enOta from "@/locales/en/ota.json";
 import enReports from "@/locales/en/reports.json";
 import enRequestLogs from "@/locales/en/request-logs.json";
 import enReservations from "@/locales/en/reservations.json";
+import enExpenses from "@/locales/en/expenses.json";
 import enSettings from "@/locales/en/settings.json";
 import idAuth from "@/locales/id/auth.json";
 import idCalendar from "@/locales/id/calendar.json";
@@ -23,6 +24,7 @@ import idOta from "@/locales/id/ota.json";
 import idReports from "@/locales/id/reports.json";
 import idRequestLogs from "@/locales/id/request-logs.json";
 import idReservations from "@/locales/id/reservations.json";
+import idExpenses from "@/locales/id/expenses.json";
 import idSettings from "@/locales/id/settings.json";
 
 export const pmsLocales = ["en", "id"] as const;
@@ -37,6 +39,7 @@ export const pmsNamespaces = [
   "calendar",
   "inventory",
   "reports",
+  "expenses",
   "request-logs",
   "reservations",
   "ota",
@@ -56,6 +59,7 @@ void i18n
         calendar: enCalendar,
         inventory: enInventory,
         reports: enReports,
+        expenses: enExpenses,
         "request-logs": enRequestLogs,
         reservations: enReservations,
         ota: enOta,
@@ -69,6 +73,7 @@ void i18n
         calendar: idCalendar,
         inventory: idInventory,
         reports: idReports,
+        expenses: idExpenses,
         "request-logs": idRequestLogs,
         reservations: idReservations,
         ota: idOta,

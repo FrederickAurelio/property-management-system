@@ -23,6 +23,8 @@ export {
   staffPropertyCalendarQueryKeyPrefix,
   staffReportsQueryKeyPrefix,
   staffReportsSummaryQueryKey,
+  staffExpensesListQueryKeyPrefix,
+  staffExpensesListQueryKey,
   staffRequestLogsQueryKey,
   staffRequestLogsQueryKeyPrefix,
   reservationCashMutationKey,
@@ -46,6 +48,7 @@ export {
   type StaffPropertiesListFilters,
   type StaffPropertyCalendarParams,
   type StaffReportsSummaryQueryParams,
+  type StaffExpensesListFilters,
   type StaffRequestLogsListFilters,
   type StaffReservationsListFilters,
   type StaffUnitsListFilters,
@@ -141,6 +144,13 @@ export {
   REPORTS_USE_FIXTURE,
   type GetStaffReportsSummaryParams,
 } from "./reports";
+export {
+  createPropertyExpense,
+  deletePropertyExpense,
+  invalidateExpenseCaches,
+  listPropertyExpenses,
+  updatePropertyExpense,
+} from "./expenses";
 export { getStaffDashboard, type GetStaffDashboardParams } from "./dashboard";
 export { listRequestLogs, type ListRequestLogsParams } from "./request-logs";
 export { invalidateIcalSyncCaches, syncAllIcalFeeds } from "./ical";

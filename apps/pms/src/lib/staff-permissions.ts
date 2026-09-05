@@ -10,6 +10,11 @@ export function canViewReports(role: AdminRole): boolean {
   return role === AdminRole.ADMIN || role === AdminRole.SUPER_ADMIN;
 }
 
+/** Property expense ledger — same owner/manager gate as reports. */
+export function canManageExpenses(role: AdminRole): boolean {
+  return canViewReports(role);
+}
+
 /** HTTP request diary (Settings → Request logs) — ADMIN+; not FRONT_DESK. */
 export function canViewRequestLogs(role: AdminRole): boolean {
   return canViewReports(role);

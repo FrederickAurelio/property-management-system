@@ -108,6 +108,39 @@ describe('reports-assemble', () => {
     expect(cash.compare?.netIdr).toBe(800_000);
     expect(cash.compare?.netDeltaIdr).toBe(600_000);
     expect(cash.compare?.netDeltaPct).toBe(75);
+    expect(cash.guestInIdr).toBe(1_500_000);
+    expect(cash.guestOutIdr).toBe(100_000);
+    expect(cash.expenseOutIdr).toBe(0);
+    expect(cash.billed.totalIdr).toBe(0);
+  });
+
+  it('assembleCash adds expenses into Out and Net', () => {
+    const cash = assembleCash(
+      [
+        {
+          period: 'primary',
+          source: ReservationSource.MANUAL,
+          unitTypeId: 't1',
+          method: null,
+          inIdr: 1_000_000,
+          outIdr: 50_000,
+        },
+      ],
+      inventory,
+      false,
+      [{ period: 'primary', category: 'UTILITIES', outIdr: 300_000 }],
+    );
+    expect(cash.inIdr).toBe(1_000_000);
+    expect(cash.guestOutIdr).toBe(50_000);
+    expect(cash.expenseOutIdr).toBe(300_000);
+    expect(cash.outIdr).toBe(350_000);
+    expect(cash.netIdr).toBe(650_000);
+    expect(
+      cash.outByCategory.find((r) => r.key === 'GUEST_REFUND')?.outIdr,
+    ).toBe(50_000);
+    expect(cash.outByCategory.find((r) => r.key === 'UTILITIES')?.outIdr).toBe(
+      300_000,
+    );
   });
 
   it('assembleCash netDeltaPct is null when previous net is 0', () => {

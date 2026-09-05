@@ -101,6 +101,15 @@ enum UtilityAddonKind {
   PERCENT
 }
 
+enum PropertyExpenseCategory {
+  UTILITIES
+  MAINTENANCE
+  INTERNET
+  SUPPLIES
+  STAFF
+  OTHER
+}
+
 model Admin {
   id           String    @id @default(cuid())
   username     String    @unique @db.VarChar(64)
@@ -117,6 +126,8 @@ model Admin {
   utilityReadingsCreated ReservationUtilityReading[] @relation("UtilityReadingCreatedBy")
   maintenanceChargesCreated ReservationMaintenanceCharge[] @relation("MaintenanceChargeCreatedBy")
   adminChargesCreated ReservationAdminCharge[] @relation("AdminChargeCreatedBy")
+  expensesCreated PropertyExpense[] @relation("ExpenseCreatedBy")
+  expensesUpdated PropertyExpense[] @relation("ExpenseUpdatedBy")
 }
 
 /// connect-pg-simple table (exact column names)
@@ -153,6 +164,7 @@ model Property {
   units          Unit[]
   reservations   Reservation[]
   calendarBlocks CalendarBlock[]
+  expenses       PropertyExpense[]
 
   @@index([isActive])
   /// DB: Property_lat_lng_pair_check — (latitude IS NULL) = (longitude IS NULL)
@@ -240,6 +252,7 @@ model Unit {
   icalFeeds      UnitIcalFeed[]
   /// Reservations where OTA feed lists this unit (UNIT_DIFFER observed target).
   icalObservedByReservations Reservation[] @relation("ReservationIcalObservedUnit")
+  expenses                   PropertyExpense[]
 
   @@unique([propertyId, code])
   @@index([propertyId, status])
@@ -464,6 +477,31 @@ model CalendarBlock {
   @@index([createdByAdminId])
   /// DB: CalendarBlock_end_after_start_check — endDate > startDate
   /// DB: CalendarBlock_unit_excl — gist exclusion on unitId + daterange
+}
+
+model PropertyExpense {
+  id               String                  @id @default(cuid())
+  propertyId       String
+  unitId           String?
+  category         PropertyExpenseCategory
+  amountIdr        BigInt
+  occurredOn       DateTime                @db.Date
+  note             String?                 @db.VarChar(500)
+  proofImages      Json                    @default("[]")
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  createdByAdminId String?
+  updatedByAdminId String?
+
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit           Unit?    @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  createdByAdmin Admin?   @relation("ExpenseCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  updatedByAdmin Admin?   @relation("ExpenseUpdatedBy", fields: [updatedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId, occurredOn])
+  @@index([propertyId, category])
+  @@index([unitId])
+  @@index([createdByAdminId])
 }
 
 /// Last 5 transfer accounts used on utility-statement PDF export (Cara Pembayaran).

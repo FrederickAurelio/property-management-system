@@ -112,3 +112,40 @@ export const REPORTS_OCCUPANCY_STATUSES = [
   'CHECKED_IN',
   'CHECKED_OUT',
 ] as const;
+
+/**
+ * Whether billed month `YYYY-MM` overlaps inclusive `[from, to]` YMDs.
+ * July bill is included in any range that touches 1–31 July.
+ */
+export function yearMonthOverlapsInclusiveRange(
+  chargeYearMonth: string,
+  from: string,
+  to: string,
+): boolean {
+  if (!/^\d{4}-\d{2}$/.test(chargeYearMonth)) {
+    return false;
+  }
+  const monthStart = `${chargeYearMonth}-01`;
+  const y = Number(chargeYearMonth.slice(0, 4));
+  const m = Number(chargeYearMonth.slice(5, 7));
+  const nextM = m === 12 ? 1 : m + 1;
+  const nextY = m === 12 ? y + 1 : y;
+  const nextStart = `${String(nextY).padStart(4, '0')}-${String(nextM).padStart(2, '0')}-01`;
+  const monthEnd = addDaysYmd(nextStart, -1);
+  return monthStart <= to && monthEnd >= from;
+}
+
+/**
+ * Rent accrued into an inclusive report window.
+ * `floor(rent × clipNights / stayNights)`; 0 when any input is non-positive.
+ */
+export function accrueRentIdr(
+  rentAmountIdr: number,
+  stayNights: number,
+  clipNights: number,
+): number {
+  if (rentAmountIdr <= 0 || stayNights <= 0 || clipNights <= 0) {
+    return 0;
+  }
+  return Math.floor((rentAmountIdr * clipNights) / stayNights);
+}

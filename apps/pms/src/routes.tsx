@@ -11,6 +11,7 @@ import { PropertyExplorerLayout } from "@/pages/properties/property-explorer-lay
 import { UnitTypesPage } from "@/pages/properties/unit-types-page";
 import { UnitsPage } from "@/pages/properties/units-page";
 import { ReportsPage } from "@/pages/reports/reports-page";
+import { ExpensesPage } from "@/pages/expenses/expenses-page";
 import { RequestLogsPage } from "@/pages/request-logs/request-logs-page";
 import { ReservationDetailPage } from "@/pages/reservations/reservation-detail-page";
 import { ReservationsPage } from "@/pages/reservations/reservations-page";
@@ -45,6 +46,7 @@ export function AppRoutes() {
           <Route path="units" element={<Navigate to="/properties" replace />} />
           <Route element={<ReportsRoute />}>
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="expenses" element={<ExpensesPage />} />
           </Route>
           <Route element={<RequestLogsRoute />}>
             <Route path="request-logs" element={<RequestLogsPage />} />

@@ -232,6 +232,20 @@ export function staffReportsSummaryQueryKey(
   return [...staffReportsQueryKeyPrefix, "summary", params] as const;
 }
 
+/** Property operating expenses ledger. */
+export const staffExpensesListQueryKeyPrefix = ["staff", "expenses"] as const;
+
+export type StaffExpensesListFilters = {
+  propertyId: string;
+  from: string;
+  to: string;
+  category?: string;
+};
+
+export function staffExpensesListQueryKey(filters: StaffExpensesListFilters) {
+  return [...staffExpensesListQueryKeyPrefix, filters] as const;
+}
+
 /** Staff request-log list (Loki via Nest). */
 export const staffRequestLogsQueryKeyPrefix = [
   "staff",

@@ -1,7 +1,7 @@
 import type { StaffReportsSummary } from "@cabin/api-contract";
 import { formatReservationSource } from "@/pages/reservations/reservation-format";
 import i18n from "@/i18n";
-import { pctOfTotal, shareDeltaPp } from "./reports-format";
+import { guestLedgerNetIdr, pctOfTotal, shareDeltaPp } from "./reports-format";
 
 function csvEscape(value: string | number | null | undefined): string {
   if (value == null) return "";
@@ -35,7 +35,7 @@ export function buildReportsCsv(
 ): string {
   const sections: string[] = [];
   const compareOn = opts.compare && summary.compare != null;
-  const cashNetAbs = Math.abs(summary.cash.netIdr) || 0;
+  const cashNetAbs = Math.abs(guestLedgerNetIdr(summary.cash)) || 0;
 
   sections.push(`# ${i18n.t("reports:csv.reportTitle")}`);
   sections.push(
@@ -130,6 +130,43 @@ export function buildReportsCsv(
         r.netIdr,
         pctOfTotal(r.netIdr, cashNetAbs),
       ]),
+    ),
+  );
+
+  sections.push("");
+  sections.push(`# ${i18n.t("reports:csv.sectionCashOut")}`);
+  sections.push(
+    rowsToCsv(
+      ["key", "outIdr"],
+      summary.cash.outByCategory.map((r) => [r.key, r.outIdr]),
+    ),
+  );
+  sections.push("");
+  sections.push(`# ${i18n.t("reports:csv.sectionCashBilled")}`);
+  sections.push(
+    rowsToCsv(
+      compareOn ? ["item", "amountIdr", "previousIdr"] : ["item", "amountIdr"],
+      [
+        ["rent", summary.cash.billed.rentIdr, summary.cash.billed.compare?.rentIdr ?? null],
+        [
+          "electricity",
+          summary.cash.billed.electricityIdr,
+          summary.cash.billed.compare?.electricityIdr ?? null,
+        ],
+        ["water", summary.cash.billed.waterIdr, summary.cash.billed.compare?.waterIdr ?? null],
+        [
+          "maintenance",
+          summary.cash.billed.maintenanceIdr,
+          summary.cash.billed.compare?.maintenanceIdr ?? null,
+        ],
+        ["admin", summary.cash.billed.adminIdr, summary.cash.billed.compare?.adminIdr ?? null],
+        [
+          "utilities",
+          summary.cash.billed.utilitiesIdr,
+          summary.cash.billed.compare?.utilitiesIdr ?? null,
+        ],
+        ["total", summary.cash.billed.totalIdr, summary.cash.billed.compare?.totalIdr ?? null],
+      ].map((row) => (compareOn ? row : [row[0], row[1]])),
     ),
   );
 

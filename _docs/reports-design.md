@@ -15,7 +15,7 @@ Reports does **not** replace Reservations boards, Calendar, or Dashboard. Those 
 | Mental model     | Today’s work                                              | Period performance                                     |
 | Default question | Who arrives / what’s free / who’s due?                    | How much cash, how full, which source, vs last period? |
 | Shape            | Boards, grid, today strip                                 | Filters + ranked sections + export                     |
-| Money            | Per stay Total / Paid / Due · Collect · Balance due board | Cash posted in range (not open-Due chase)              |
+| Money            | Per stay Total / Paid / Due · Collect · Balance due board | Cash posted in range (In mixed; Out = refunds + expenses). Billed is quote, not collected. |
 | Audience         | Front desk + owner walking the floor                      | Owner review · month-end · Excel                       |
 
 ---
@@ -26,14 +26,16 @@ All of these ship on `/reports`. No “later” carve-outs in this list — data
 
 | #     | Capability               | One-line                                                                                             |
 | ----- | ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| **1** | Cash statement           | Cash in / out / net for the period                                                                   |
+| **1** | Cash statement           | Cash in (mixed guest Collect) / out (refunds + expenses) / net; billed rent vs utilities (not cash) |
 | **2** | Occupancy                | Property occupied ÷ available unit-nights                                                            |
 | **3** | Source mix               | Stays and nights by `Reservation.source` (incl. `WEBSITE`)                                           |
 | **4** | Spreadsheet export (CSV) | Download the same numbers / rows for Excel / Sheets / accountant — **not** PDF as primary (see §5.6) |
 | **5** | Occupancy by unit type   | Same occupancy math, grouped by type                                                                 |
 | **6** | Period compare           | Primary period vs previous equal-length period                                                       |
 
-**Out of this page (wrong job):** daily arrivals/departures lists, open Due/Refund chase lists (Reservations owns that), Collect/Check-in actions, ADR/RevPAR from rack Total, OTA bank payout / commission (not in schema), guest demographics.
+Operating expenses are **written** on `/expenses` (ADMIN+), not on Reports. Reports only **summarizes** them in Cash Out / Net.
+
+**Out of this page (wrong job):** daily arrivals/departures lists, open Due/Refund chase lists (Reservations owns that), Collect/Check-in actions, tagging Collect as rent vs utilities, ADR/RevPAR from rack Total, OTA bank payout / commission (not in schema), guest demographics, expense data entry.
 
 ---
 
@@ -52,7 +54,7 @@ Every section uses the **same** filter bar. Changing filters recomputes all sect
 | **Presets**   | Quick ranges: month-to-date · last full calendar month · last 7 days · last 30 days (inclusive). Selecting a preset sets From/To.      |
 | **Property**  | Required. One property at a time (same language as Calendar). Options from existing property options.                                  |
 | **From / To** | Inclusive calendar dates for the **primary** period. Default: **current month to today**.                                              |
-| **Compare**   | On by default. Previous period = same length immediately before `From` (e.g. 1–23 Jul → 8–30 Jun). Chrome shows day count + vs window. |
+| **Compare**   | Off by default. When on: previous period = same length immediately before `From` (e.g. 1–23 Jul → 8–30 Jun). Chrome shows day count + vs window. |
 | **Export**    | Spreadsheet/CSV of what the page shows (incl. denser columns + compare). See §5.6. **Not** PDF-first.                                  |
 
 Optional thin filter (not required for v1 layout): **Source** — when set, cash / occupancy narrow to that source; source-mix section still shows all sources (or hide mix when filtered — prefer still show all so mix stays honest).
@@ -67,8 +69,11 @@ Owner opens the page top → bottom. **One screen composition**, not a dashboard
 ┌─ Filters (presets · property · dates · compare · export) ───────────┐
 ├─ Header: property name · primary range ─────────────────────────────┤
 ├─ 1. Cash statement (hero) ──────────────────────────────────────────┤
-│     Net (+ prev · Δ · %Δ)  ·  In / Out (+ prev muted)               │
-│     Breakdown tables: source → unit type → method · In · Out · Net · % of net │
+│     Net (+ prev · Δ · %Δ)  ·  In / Out (Out quietly: refunds + expenses) │
+│     Segmented: Source | Unit type | Method  (guest ledger In · Out · Net) │
+│     Table — Out (Guest refunds · expense categories > 0 · Total)          │
+│     Table — Billed this period (quote, not collected; last on purpose)    │
+│     Link → /expenses (same property + period)                       │
 ├─ 2. Occupancy (property) ───────────────────────────────────────────┤
 │     %  ·  occupied / available (+ prev nights)  ·  Δ pts            │
 ├─ 3. Occupancy by unit type ─────────────────────────────────────────┤
@@ -91,7 +96,7 @@ Owner opens the page top → bottom. **One screen composition**, not a dashboard
 
 Honest footer (always visible once):
 
-> Cash = movements posted in PMS for this period. Not OTA payout or bank reconciliation. Occupancy and source use reservation nights in PMS.
+> Cash In is all guest Collect mixed (rent + utilities). Billed is quote in the period, not collected. Out = guest refunds + property expenses. Not OTA payout or bank reconciliation. Occupancy and source use reservation nights in PMS.
 
 ---
 
@@ -107,32 +112,37 @@ Honest footer (always visible once):
 | Owner + accountant | Reconcile to cash / transfer notes | Net + breakdown they can export           |
 | Owner              | Staff said they collected DP       | Proof via posted movements, not memory    |
 | Owner              | Guest got refund / cancel refund   | See OUT in the same period view           |
+| Owner              | Paid PLN / plumber / Wi-Fi         | See operating expenses in Out / Net       |
+| Owner              | Month-end billed vs cash           | Rent vs utilities billed this period      |
 
 **What matters**
 
-| Metric            | Definition                                                                                                                                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Cash in**       | Sum of `PaymentMovement` with `direction=IN` where `createdAt` (date in property TZ / local business date) falls in `[From, To]` and reservation’s unit belongs to the selected property                     |
-| **Cash out**      | Same for `direction=OUT`                                                                                                                                                                                     |
-| **Net**           | In − Out                                                                                                                                                                                                     |
-| **By source**     | Group by parent reservation `source`                                                                                                                                                                         |
-| **By unit type**  | Group by reservation unit’s `unitType` (`unitTypeId` null → Ungrouped / Untyped, same language as occupancy-by-type)                                                                                          |
-| **By method**     | Group by movement `method` (`PROPERTY` · `CHANNEL` · `MIXED` · null as “Unspecified”)                                                                                                                        |
-| **Compare**       | Same metrics for previous period; show absolute delta and optional % delta on Net                                                                                                                            |
+| Metric               | Definition                                                                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Cash in**          | Sum of guest `PaymentMovement` `direction=IN` where `createdAt` (property-TZ business date) falls in `[From, To]` — **mixed** rent + utilities; Collect is not tagged |
+| **Guest refunds**    | Same window, guest `direction=OUT`                                                                                                                                                                           |
+| **Expense out**      | `PropertyExpense.amountIdr` with `occurredOn` in `[From, To]` for the property                                                                                                                               |
+| **Cash out**         | Guest refunds + expense out                                                                                                                                                                                  |
+| **Net**              | In − Out (true cashflow for the period; can be negative)                                                                                                                                                     |
+| **Billed this period** | Quote lens, **not cash**. Rent = `floor(rentAmountIdr × clipNights / stayNights)` on occupying stays. Utilities = reconstructed billing periods whose calendar month overlaps `[From, To]`. |
+| **By source / type / method** | Guest movements only. **% of net** uses **guest net** (In − refunds), not hero net after expenses, so shares still add up.                                                                    |
+| **Compare**          | Same hero metrics for previous period; show absolute delta and optional % delta on Net. Out table: muted prev on the **total** only.                                                                         |
 
 **Why**
 
-- Desk Collect posts the truth they already trust for Paid.
-- OTAs do not give one combined “property cash” across walk-in + channel settlement lines.
-- Quote (`totalAmountIdr`) is **not** shown as revenue here — that confuses cash with promise.
+- Desk Collect posts mixed guest cash they already trust for Paid. Reports does **not** tag Collect as rent vs utilities.
+- Operating costs are a separate `PropertyExpense` ledger (`/expenses`) — never `PaymentMovement` (that would corrupt stay Paid).
+- Quote (`totalAmountIdr` / stay utility denorms) is **not** shown as cash revenue. Billed is labeled as not collected.
 
 **UI**
 
-- Large **Net** (IDR). Secondary: In · Out; when compare on, muted prev In/Out under that pair.
+- Large **Net** (IDR). Secondary: In · Out with a quiet Out split (refunds · expenses); when compare on, muted prev In/Out under that pair.
 - Compare on Net: muted previous Net + absolute Δ + % Δ when previous net ≠ 0 (not a second hero).
-- Breakdown tables in order **source → unit type → method**: columns **In · Out · Net · % of period Net** (row net ÷ |period net|; same share math as source-mix % of net).
-- Same source labels/colors as Reservations list on source breakdown.
-- Unit type rows sorted by inventory `sortOrder` (Ungrouped last).
+- **Guest cash first** (Source | Unit type | Method): In · Out · Net · % of guest net — this is the table that explains the hero, not billed.
+- **Out:** Guest refunds first, then expense categories with amount > 0 (fixed enum order) · Total out (= hero Out).
+- **Billed last:** Rent · Utilities (expand electricity / water / maintenance / admin) · Total billed. Labeled quote, not collected — after cash tables so it is not mistaken for Net.
+- Quiet link: Manage expenses → `/expenses` with the same property + From/To.
+- Do **not** put four equal tiles (rent / utilities / in / out).
 
 ---
 
@@ -231,7 +241,7 @@ Wire: each `StaffReportsOccupancyByUnitType` includes `units: StaffReportsOccupa
 | **% of nights**    | nights ÷ property occupied nights                                                                                                                                                                                                                                             |
 | **Sources**        | All `ReservationSource` values: `MANUAL` · `WEBSITE` · `BOOKING_COM` · `AIRBNB` · `AGODA` — show row even if 0 in period so mix is stable                                                                                                                                     |
 | **Compare**        | Previous period nights and % per source; show **Δ share (pp)** and Δ nights                                                                                                                                                                                                   |
-| **Cash net share** | Same period’s cash-by-source net ÷ |period cash net| — same **% of net** as Cash breakdown tables |
+| **Cash net share** | Same period’s cash-by-source net ÷ |**guest net**| (In − refunds) — same **% of net** as Cash guest breakdown tables |
 
 **Why**
 
@@ -300,8 +310,10 @@ Export **matches on-screen filters** (property + primary period + compare column
 
 | File / sheet                        | Contents                                                    |
 | ----------------------------------- | ----------------------------------------------------------- |
-| `cash-summary`                      | Net, in, out; prev + deltas when compare                    |
-| `cash-by-source` / `cash-by-unit-type` / `cash-by-method` | In, out, net, % of net (sheet order matches UI) |
+| `cash-summary`                      | Net, in, out (Out includes expenses); prev + deltas when compare                    |
+| `cash-by-source` / `cash-by-unit-type` / `cash-by-method` | Guest ledger In, out, net, % of **guest** net |
+| `cash-out`                          | Guest refunds + expense categories                                                  |
+| `cash-billed`                       | Rent / electricity / water / maintenance / admin / utilities / total                |
 | `occupancy`                         | Property + by type + per-unit rows (`unitType`/`unit`) + compare cols |
 | `source-mix`                        | Stays / nights / % / cash net share + compare share columns |
 
@@ -317,11 +329,13 @@ Export **matches on-screen filters** (property + primary period + compare column
 | Temptation                   | Why not on Reports                                       |
 | ---------------------------- | -------------------------------------------------------- |
 | Arrivals / departures tables | Duplicate boards; daily ops                              |
-| Total quote as “Revenue”     | Quote ≠ cash; misleads owner                             |
+| Total quote as “Revenue”     | Quote ≠ cash; billed table is labeled not-collected      |
+| Tag Collect rent vs utilities| Locked: In stays mixed; billed is the split              |
+| Expense data entry           | `/expenses` owns writes; Reports is period analysis      |
 | ADR / RevPAR                 | Needs trustworthy sold rate; rack suggestion ≠ OTA price |
 | OTA payout / commission      | Not stored; don’t invent                                 |
 | Collect / check-in buttons   | Act on reservation detail                                |
-| Equal-weight KPI wall        | Breaks hierarchy; cash must lead                         |
+| Equal-weight KPI wall        | Breaks hierarchy; cash Net must lead                     |
 
 ---
 
@@ -336,11 +350,11 @@ SUPER_ADMIN  >  ADMIN  >  FRONT_DESK
 | Role          | Reports? | Why                                                                                                                                 |
 | ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `SUPER_ADMIN` | **Yes**  | Full system; includes business oversight                                                                                            |
-| `ADMIN`       | **Yes**  | Property / ops manager — month-end cash, occupancy, channel mix, export                                                             |
-| `FRONT_DESK`  | **No**   | Daily ops only (check-in, Collect, calendar). They already see per-stay Due on the desk; they do not need property-wide cash/export |
+| `ADMIN`       | **Yes**  | Property / ops manager — month-end cash, occupancy, channel mix, export, expense ledger |
+| `FRONT_DESK`  | **No**   | Daily ops only (check-in, Collect, calendar). They already see per-stay Due on the desk; they do not need property-wide cash/export or expense writes |
 
-**API:** `@StaffRoles('ADMIN')` on `/staff/reports/*` (ADMIN + SUPER_ADMIN).  
-**PMS:** hide `/reports` nav (and block route) unless session role is `ADMIN` or `SUPER_ADMIN`. Deep link → same 403 / redirect pattern as other admin-only surfaces.
+**API:** `@StaffRoles('ADMIN')` on `/staff/reports/*` and `/staff/expenses/*` (ADMIN + SUPER_ADMIN).  
+**PMS:** hide `/reports` and `/expenses` nav (and block route) unless session role is `ADMIN` or `SUPER_ADMIN`.
 
 **Not** `SUPER_ADMIN`-only — that is staff-user CRUD. A normal business owner/GM account is expected to be `ADMIN`; locking reports to `SUPER_ADMIN` only would wrongly hide them from that person.
 
@@ -352,11 +366,12 @@ Staff-only aggregate reads — logic in `domain/reports/`, HTTP under `staff/rep
 
 | Method | Path | Returns |
 | ------ | ---- | ------- |
-| `GET` | `/staff/reports/summary?propertyId&from&to&compare=1` | `StaffReportsSummary`: cash · occupancy · occupancyByUnitType (+ nested units) · sourceMix · compare bundle |
+| `GET` | `/staff/reports/summary?propertyId&from&to&compare=1` | `StaffReportsSummary`: cash (In mixed; Out = refunds + expenses; billed; outByCategory; guest breakdowns) · occupancy · occupancyByUnitType · sourceMix · compare bundle |
+| `GET/POST/PATCH/DELETE` | `/staff/expenses` | Property expense CRUD — write surface for operating Out (`StaffPropertyExpense`) |
 
-**Implemented.** Cash filters `PaymentMovement.createdAt` via property-TZ → UTC half-open Instant bounds (index on `createdAt`). Occupancy / source nights use clip-length SQL (`LEAST/GREATEST` on stay/block dates), not per-night loops. One summary payload for the page; CSV is client-built from summary.
+**Implemented.** Cash In filters `PaymentMovement.createdAt` via property-TZ → UTC half-open Instant bounds. Expense Out uses `occurredOn` date (no TZ Instant conversion). Occupancy / source nights use clip-length SQL. Billed rent = contract-night clip × `rentAmountIdr`. Billed utilities reconstruct periods whose billed month overlaps the window. One summary payload for the page; CSV is client-built from summary. Expense writes invalidate reports caches.
 
-Wire types in `@cabin/api-contract`. Do not fork money helpers for cash aggregates — sum movement amounts.
+Wire types in `@cabin/api-contract`. Do not fork money helpers for cash aggregates — sum movement amounts. Do not reuse `PaymentMovement` for operating costs.
 
 ---
 
@@ -365,7 +380,7 @@ Wire types in `@cabin/api-contract`. Do not fork money helpers for cash aggregat
 | Case                   | UI                                                                   |
 | ---------------------- | -------------------------------------------------------------------- |
 | No property selected   | Prompt to pick property (same as Calendar)                           |
-| No movements in period | Cash zeros + short “No cash posted in this period”                   |
+| No movements in period | Cash zeros + short “No cash posted in this period” (billed / Out tables still shown) |
 | No stays / nights      | Occupancy 0% with available nights still shown; source mix all zeros |
 | Available nights = 0   | Occupancy em dash / “n/a”, not divide-by-zero                        |
 
@@ -376,25 +391,29 @@ Wire types in `@cabin/api-contract`. Do not fork money helpers for cash aggregat
 | Surface                | Owns                                                             |
 | ---------------------- | ---------------------------------------------------------------- |
 | `/reservations` boards | Today’s tasks, Due column, Collect, Balance due chase            |
+| `/expenses`            | Operating cash-out ledger (write) — Reports only summarizes      |
 | `/calendar`            | Spatial busy/free                                                |
 | `/` Dashboard          | Today arrivals/departures + Needs attention · Sync all — [`dashboard-design.md`](dashboard-design.md) |
-| `/reports`             | Period cash · occupancy · source · compare · CSV                 |
+| `/reports`             | Period cash (incl. expenses + billed lens) · occupancy · source · compare · CSV |
 
 ---
 
 ## 11. Acceptance checklist
 
 - [ ] One property + date range drives all sections
-- [ ] `@StaffRoles('ADMIN')` + PMS hides Reports for `FRONT_DESK`
-- [ ] Cash hero = movements in period (in / out / net + source → unit type → method)
+- [ ] `@StaffRoles('ADMIN')` + PMS hides Reports **and Expenses** for `FRONT_DESK`
+- [ ] Cash hero Net = In − guest refunds − expenses; In stays mixed Collect
+- [ ] Billed table is quote-in-period, not collected; not a KPI strip
+- [ ] Out table: guest refunds + expense categories > 0
+- [ ] Guest breakdowns (source / type / method) use guest net for % of net
 - [ ] Occupancy % uses locked night rules; blocks reduce available
 - [ ] Occupancy by unit type under property occupancy (expand → units)
 - [ ] Source mix includes all `ReservationSource` values (incl. `WEBSITE`)
 - [ ] No open-balances section — chase stays on Reservations
 - [ ] Compare = previous equal-length period on cash / occupancy / type / source
-- [ ] Spreadsheet/CSV export matches filters (PDF not required; browser Print optional)
-- [ ] Footer honesty: cash ≠ OTA payout
-- [ ] No ADR/RevPAR; no arrivals board clone; no Collect on Reports
+- [ ] Spreadsheet/CSV export includes cash-billed + cash-out (PDF not required)
+- [ ] Footer honesty: billed ≠ collected; cash ≠ OTA payout
+- [ ] No ADR/RevPAR; no arrivals board clone; no Collect on Reports; no expense entry on Reports
 
 ---
 

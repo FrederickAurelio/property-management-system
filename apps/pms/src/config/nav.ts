@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   ScrollText,
   Settings,
+  Wallet,
 } from "lucide-react";
 
 export type NavItem = {
@@ -37,6 +38,7 @@ export const primaryNavItems: NavItem[] = [
 /** Property ops — not account/security */
 export const secondaryNavItems: NavItem[] = [
   { titleKey: "nav.properties", href: "/properties", icon: Building2 },
+  { titleKey: "nav.expenses", href: "/expenses", icon: Wallet },
   { titleKey: "nav.reports", href: "/reports", icon: BarChart3 },
 ];
 

@@ -1,6 +1,8 @@
 import {
   CollectedVia,
+  PropertyExpenseCategory,
   ReservationSource,
+  StaffReportsCashOutKind,
   inclusiveDayCount,
   previousEqualPeriod,
   type StaffReportsSummary,
@@ -21,11 +23,15 @@ export function buildReportsFixture(
   const scale = Math.max(0.55, Math.min(1.35, span / 23));
 
   const cashIn = Math.round(58_200_000 * scale);
-  const cashOut = Math.round(5_800_000 * scale);
+  const guestOut = Math.round(2_000_000 * scale);
+  const expenseOut = Math.round(3_800_000 * scale);
+  const cashOut = guestOut + expenseOut;
   const cashNet = cashIn - cashOut;
 
   const prevIn = Math.round(52_100_000 * scale);
-  const prevOut = Math.round(4_000_000 * scale);
+  const prevGuestOut = Math.round(1_500_000 * scale);
+  const prevExpenseOut = Math.round(2_500_000 * scale);
+  const prevOut = prevGuestOut + prevExpenseOut;
   const prevNet = prevIn - prevOut;
   const netDelta = cashNet - prevNet;
   const netDeltaPct =
@@ -294,6 +300,30 @@ export function buildReportsFixture(
     };
   });
 
+  const billedRent = Math.round(41_000_000 * scale);
+  const billedElectricity = Math.round(4_200_000 * scale);
+  const billedWater = Math.round(1_800_000 * scale);
+  const billedMaintenance = Math.round(1_200_000 * scale);
+  const billedAdmin = Math.round(600_000 * scale);
+  const billedUtilities =
+    billedElectricity + billedWater + billedMaintenance + billedAdmin;
+  const billedTotal = billedRent + billedUtilities;
+
+  const prevBilledRent = Math.round(38_000_000 * scale);
+  const prevBilledElectricity = Math.round(3_900_000 * scale);
+  const prevBilledWater = Math.round(1_600_000 * scale);
+  const prevBilledMaintenance = Math.round(1_100_000 * scale);
+  const prevBilledAdmin = Math.round(500_000 * scale);
+  const prevBilledUtilities =
+    prevBilledElectricity +
+    prevBilledWater +
+    prevBilledMaintenance +
+    prevBilledAdmin;
+
+  const expenseUtilities = Math.round(expenseOut * 0.55);
+  const expenseMaintenance = Math.round(expenseOut * 0.25);
+  const expenseInternet = expenseOut - expenseUtilities - expenseMaintenance;
+
   const compareWindow = compare ? previousEqualPeriod(from, to) : undefined;
 
   return {
@@ -305,36 +335,68 @@ export function buildReportsFixture(
       inIdr: cashIn,
       outIdr: cashOut,
       netIdr: cashNet,
+      guestInIdr: cashIn,
+      guestOutIdr: guestOut,
+      expenseOutIdr: expenseOut,
+      billed: {
+        rentIdr: billedRent,
+        electricityIdr: billedElectricity,
+        waterIdr: billedWater,
+        maintenanceIdr: billedMaintenance,
+        adminIdr: billedAdmin,
+        utilitiesIdr: billedUtilities,
+        totalIdr: billedTotal,
+        compare: compare
+          ? {
+              rentIdr: prevBilledRent,
+              electricityIdr: prevBilledElectricity,
+              waterIdr: prevBilledWater,
+              maintenanceIdr: prevBilledMaintenance,
+              adminIdr: prevBilledAdmin,
+              utilitiesIdr: prevBilledUtilities,
+              totalIdr: prevBilledRent + prevBilledUtilities,
+            }
+          : undefined,
+      },
+      outByCategory: [
+        { key: StaffReportsCashOutKind.GUEST_REFUND, outIdr: guestOut },
+        { key: PropertyExpenseCategory.UTILITIES, outIdr: expenseUtilities },
+        { key: PropertyExpenseCategory.MAINTENANCE, outIdr: expenseMaintenance },
+        { key: PropertyExpenseCategory.INTERNET, outIdr: expenseInternet },
+        { key: PropertyExpenseCategory.SUPPLIES, outIdr: 0 },
+        { key: PropertyExpenseCategory.STAFF, outIdr: 0 },
+        { key: PropertyExpenseCategory.OTHER, outIdr: 0 },
+      ],
       bySource: [
         {
           source: ReservationSource.AIRBNB,
           inIdr: Math.round(cashIn * 0.42),
-          outIdr: Math.round(cashOut * 0.22),
-          netIdr: Math.round(cashIn * 0.42) - Math.round(cashOut * 0.22),
+          outIdr: Math.round(guestOut * 0.22),
+          netIdr: Math.round(cashIn * 0.42) - Math.round(guestOut * 0.22),
         },
         {
           source: ReservationSource.BOOKING_COM,
           inIdr: Math.round(cashIn * 0.3),
-          outIdr: Math.round(cashOut * 0.28),
-          netIdr: Math.round(cashIn * 0.3) - Math.round(cashOut * 0.28),
+          outIdr: Math.round(guestOut * 0.28),
+          netIdr: Math.round(cashIn * 0.3) - Math.round(guestOut * 0.28),
         },
         {
           source: ReservationSource.MANUAL,
           inIdr: Math.round(cashIn * 0.12),
-          outIdr: Math.round(cashOut * 0.25),
-          netIdr: Math.round(cashIn * 0.12) - Math.round(cashOut * 0.25),
+          outIdr: Math.round(guestOut * 0.25),
+          netIdr: Math.round(cashIn * 0.12) - Math.round(guestOut * 0.25),
         },
         {
           source: ReservationSource.AGODA,
           inIdr: Math.round(cashIn * 0.12),
-          outIdr: Math.round(cashOut * 0.15),
-          netIdr: Math.round(cashIn * 0.12) - Math.round(cashOut * 0.15),
+          outIdr: Math.round(guestOut * 0.15),
+          netIdr: Math.round(cashIn * 0.12) - Math.round(guestOut * 0.15),
         },
         {
           source: ReservationSource.WEBSITE,
           inIdr: Math.round(cashIn * 0.04),
-          outIdr: Math.round(cashOut * 0.1),
-          netIdr: Math.round(cashIn * 0.04) - Math.round(cashOut * 0.1),
+          outIdr: Math.round(guestOut * 0.1),
+          netIdr: Math.round(cashIn * 0.04) - Math.round(guestOut * 0.1),
         },
       ],
       byUnitType: [
@@ -343,58 +405,58 @@ export function buildReportsFixture(
           name: "Deluxe Villa",
           sortOrder: 1,
           inIdr: Math.round(cashIn * 0.48),
-          outIdr: Math.round(cashOut * 0.35),
-          netIdr: Math.round(cashIn * 0.48) - Math.round(cashOut * 0.35),
+          outIdr: Math.round(guestOut * 0.35),
+          netIdr: Math.round(cashIn * 0.48) - Math.round(guestOut * 0.35),
         },
         {
           unitTypeId: "ut-garden",
           name: "Garden Suite",
           sortOrder: 2,
           inIdr: Math.round(cashIn * 0.32),
-          outIdr: Math.round(cashOut * 0.3),
-          netIdr: Math.round(cashIn * 0.32) - Math.round(cashOut * 0.3),
+          outIdr: Math.round(guestOut * 0.3),
+          netIdr: Math.round(cashIn * 0.32) - Math.round(guestOut * 0.3),
         },
         {
           unitTypeId: "ut-family",
           name: "Family Bungalow",
           sortOrder: 3,
           inIdr: Math.round(cashIn * 0.12),
-          outIdr: Math.round(cashOut * 0.2),
-          netIdr: Math.round(cashIn * 0.12) - Math.round(cashOut * 0.2),
+          outIdr: Math.round(guestOut * 0.2),
+          netIdr: Math.round(cashIn * 0.12) - Math.round(guestOut * 0.2),
         },
         {
           unitTypeId: null,
           name: "Ungrouped",
           sortOrder: 99,
           inIdr: Math.round(cashIn * 0.08),
-          outIdr: Math.round(cashOut * 0.15),
-          netIdr: Math.round(cashIn * 0.08) - Math.round(cashOut * 0.15),
+          outIdr: Math.round(guestOut * 0.15),
+          netIdr: Math.round(cashIn * 0.08) - Math.round(guestOut * 0.15),
         },
       ],
       byMethod: [
         {
           method: CollectedVia.PROPERTY,
           inIdr: Math.round(cashIn * 0.52),
-          outIdr: Math.round(cashOut * 0.7),
-          netIdr: Math.round(cashIn * 0.52) - Math.round(cashOut * 0.7),
+          outIdr: Math.round(guestOut * 0.7),
+          netIdr: Math.round(cashIn * 0.52) - Math.round(guestOut * 0.7),
         },
         {
           method: CollectedVia.CHANNEL,
           inIdr: Math.round(cashIn * 0.35),
-          outIdr: Math.round(cashOut * 0.15),
-          netIdr: Math.round(cashIn * 0.35) - Math.round(cashOut * 0.15),
+          outIdr: Math.round(guestOut * 0.15),
+          netIdr: Math.round(cashIn * 0.35) - Math.round(guestOut * 0.15),
         },
         {
           method: CollectedVia.MIXED,
           inIdr: Math.round(cashIn * 0.1),
-          outIdr: Math.round(cashOut * 0.1),
-          netIdr: Math.round(cashIn * 0.1) - Math.round(cashOut * 0.1),
+          outIdr: Math.round(guestOut * 0.1),
+          netIdr: Math.round(cashIn * 0.1) - Math.round(guestOut * 0.1),
         },
         {
           method: null,
           inIdr: Math.round(cashIn * 0.03),
-          outIdr: Math.round(cashOut * 0.05),
-          netIdr: Math.round(cashIn * 0.03) - Math.round(cashOut * 0.05),
+          outIdr: Math.round(guestOut * 0.05),
+          netIdr: Math.round(cashIn * 0.03) - Math.round(guestOut * 0.05),
         },
       ],
       compare: compare

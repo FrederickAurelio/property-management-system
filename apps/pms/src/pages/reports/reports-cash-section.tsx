@@ -1,7 +1,15 @@
-/* anchor: Stripe-data cash hero, diverge: Net protagonist; source→type→method */
-import type { ReactNode } from "react";
+/* anchor: Stripe-data cash hero, diverge: Net then guest ledger; billed last */
+import { Fragment, useState, type ReactNode } from "react";
+import { Link } from "react-router";
+import { ChevronRightIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { StaffReportsCash } from "@cabin/api-contract";
+import {
+  StaffReportsCashOutKind,
+  type PropertyExpenseCategory,
+  type StaffReportsCash,
+  type StaffReportsCashOutRow,
+} from "@cabin/api-contract";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Table,
   TableBody,
@@ -15,23 +23,48 @@ import {
   stickyLabelCellClass,
   stickyLabelInnerClass,
 } from "@/lib/sticky-label-col";
+import { cn } from "@/lib/utils";
 import { formatIdr } from "@/pages/properties/inventory-types";
 import { SourceBadge } from "@/pages/reservations/reservation-badges";
 import {
   formatCollectedVia,
   formatReservationSource,
 } from "@/pages/reservations/reservation-format";
+import { formatExpenseCategory } from "@/pages/expenses/expenses-format";
 import {
   deltaToneClass,
   formatPct,
   formatSignedIdr,
+  guestLedgerNetIdr,
   pctOfTotal,
 } from "./reports-format";
+
+type GuestBreakdown = "source" | "unitType" | "method";
 
 type ReportsCashSectionProps = {
   cash: StaffReportsCash;
   compare: boolean;
+  expensesHref: string;
 };
+
+function AmountCell({
+  amount,
+  muted,
+}: {
+  amount: number;
+  muted?: boolean;
+}) {
+  return (
+    <TableCell
+      className={cn(
+        "text-right tabular-nums",
+        muted && "text-muted-foreground",
+      )}
+    >
+      {formatIdr(amount)}
+    </TableCell>
+  );
+}
 
 function CashBreakdownTable({
   labelColumn,
@@ -47,7 +80,7 @@ function CashBreakdownTable({
     outIdr: number;
     netIdr: number;
   }[];
-  /** Absolute period net — share denominator (0 → all shares 0). */
+  /** Absolute guest net — share denominator (0 → all shares 0). */
   periodNetAbs: number;
 }) {
   const { t } = useTranslation(["reports", "common"]);
@@ -113,13 +146,80 @@ function CashBreakdownTable({
   );
 }
 
-export function ReportsCashSection({ cash, compare }: ReportsCashSectionProps) {
-  const { t } = useTranslation(["reports", "common"]);
-  const empty = cash.inIdr === 0 && cash.outIdr === 0;
+function outRowLabel(
+  row: StaffReportsCashOutRow,
+  t: (key: string) => string,
+): string {
+  if (row.key === StaffReportsCashOutKind.GUEST_REFUND) {
+    return t("reports:cash.outGuestRefunds");
+  }
+  return formatExpenseCategory(row.key as PropertyExpenseCategory);
+}
+
+export function ReportsCashSection({
+  cash,
+  compare,
+  expensesHref,
+}: ReportsCashSectionProps) {
+  const { t } = useTranslation(["reports", "expenses", "common"]);
+  const [utilitiesOpen, setUtilitiesOpen] = useState(false);
+  const [breakdown, setBreakdown] = useState<GuestBreakdown>("source");
   const showCompare = compare && cash.compare != null;
+  const guestNetAbs = Math.abs(guestLedgerNetIdr(cash)) || 0;
+  const cashEmpty = cash.inIdr === 0 && cash.outIdr === 0;
+  const guestEmpty = cash.guestInIdr === 0 && cash.guestOutIdr === 0;
   const byUnitType = [...cash.byUnitType].sort(
     (a, b) => a.sortOrder - b.sortOrder,
   );
+
+  const outVisible = cash.outByCategory.filter((row) => {
+    if (row.key === StaffReportsCashOutKind.GUEST_REFUND) return true;
+    return row.outIdr > 0;
+  });
+
+  const billed = cash.billed;
+  const billedCompare = showCompare ? billed.compare : undefined;
+
+  const guestRows =
+    breakdown === "source"
+      ? cash.bySource.map((row) => ({
+          key: row.source,
+          label: (
+            <SourceBadge
+              source={row.source}
+              label={formatReservationSource(row.source)}
+              className="max-w-full truncate"
+            />
+          ),
+          labelTitle: formatReservationSource(row.source),
+          inIdr: row.inIdr,
+          outIdr: row.outIdr,
+          netIdr: row.netIdr,
+        }))
+      : breakdown === "unitType"
+        ? byUnitType.map((row) => ({
+            key: row.unitTypeId ?? "ungrouped",
+            label: row.name,
+            inIdr: row.inIdr,
+            outIdr: row.outIdr,
+            netIdr: row.netIdr,
+          }))
+        : cash.byMethod.map((row) => ({
+            key: row.method ?? "unspecified",
+            label:
+              formatCollectedVia(row.method) ??
+              t("reports:cash.methodUnspecified"),
+            inIdr: row.inIdr,
+            outIdr: row.outIdr,
+            netIdr: row.netIdr,
+          }));
+
+  const guestLabel =
+    breakdown === "source"
+      ? t("reports:cash.table.bySource")
+      : breakdown === "unitType"
+        ? t("reports:cash.table.byUnitType")
+        : t("reports:cash.table.byMethod");
 
   return (
     <section className="flex flex-col gap-3 border-b border-border pb-6 md:gap-3.5 md:pb-5">
@@ -178,6 +278,13 @@ export function ReportsCashSection({ cash, compare }: ReportsCashSectionProps) {
             <span className="font-medium tabular-nums">
               {formatIdr(cash.outIdr)}
             </span>
+            <span className="text-muted-foreground">
+              {" "}
+              {t("reports:cash.outSplit", {
+                refunds: formatIdr(cash.guestOutIdr),
+                expenses: formatIdr(cash.expenseOutIdr),
+              })}
+            </span>
           </div>
         </div>
         {showCompare && cash.compare && (
@@ -190,60 +297,222 @@ export function ReportsCashSection({ cash, compare }: ReportsCashSectionProps) {
         )}
       </div>
 
-      {empty && (
+      {cashEmpty && (
         <p className="text-sm text-muted-foreground">
           {t("reports:cash.empty")}
         </p>
       )}
 
-      {!empty && (
-        <div className="flex flex-col gap-3">
+      {!guestEmpty && (
+        <div className="flex flex-col gap-2">
+          <div>
+            <h3 className="text-sm font-medium text-foreground">
+              {t("reports:cash.guestTitle")}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              {t("reports:cash.guestSubtitle")}
+            </p>
+          </div>
+          <ToggleGroup
+            type="single"
+            variant="default"
+            size="sm"
+            value={breakdown}
+            aria-label={t("reports:cash.breakdownAria")}
+            onValueChange={(value) => {
+              if (!value) return;
+              setBreakdown(value as GuestBreakdown);
+            }}
+          >
+            <ToggleGroupItem value="source">
+              {t("reports:cash.table.bySource")}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="unitType">
+              {t("reports:cash.table.byUnitType")}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="method">
+              {t("reports:cash.table.byMethod")}
+            </ToggleGroupItem>
+          </ToggleGroup>
           <CashBreakdownTable
-            labelColumn={t("reports:cash.table.bySource")}
-            periodNetAbs={Math.abs(cash.netIdr) || 0}
-            rows={cash.bySource.map((row) => ({
-              key: row.source,
-              label: (
-                <SourceBadge
-                  source={row.source}
-                  label={formatReservationSource(row.source)}
-                  className="max-w-full truncate"
-                />
-              ),
-              labelTitle: formatReservationSource(row.source),
-              inIdr: row.inIdr,
-              outIdr: row.outIdr,
-              netIdr: row.netIdr,
-            }))}
-          />
-
-          <CashBreakdownTable
-            labelColumn={t("reports:cash.table.byUnitType")}
-            periodNetAbs={Math.abs(cash.netIdr) || 0}
-            rows={byUnitType.map((row) => ({
-              key: row.unitTypeId ?? "ungrouped",
-              label: row.name,
-              inIdr: row.inIdr,
-              outIdr: row.outIdr,
-              netIdr: row.netIdr,
-            }))}
-          />
-
-          <CashBreakdownTable
-            labelColumn={t("reports:cash.table.byMethod")}
-            periodNetAbs={Math.abs(cash.netIdr) || 0}
-            rows={cash.byMethod.map((row) => ({
-              key: row.method ?? "unspecified",
-              label:
-                formatCollectedVia(row.method) ??
-                t("reports:cash.methodUnspecified"),
-              inIdr: row.inIdr,
-              outIdr: row.outIdr,
-              netIdr: row.netIdr,
-            }))}
+            labelColumn={guestLabel}
+            periodNetAbs={guestNetAbs}
+            rows={guestRows}
           />
         </div>
       )}
+
+      <div className="flex flex-col gap-2">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">
+            {t("reports:cash.outTitle")}
+          </h3>
+        </div>
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className={stickyLabelCellClass()}>
+                  <span className={stickyLabelInnerClass()}>
+                    {t("reports:cash.table.item")}
+                  </span>
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("reports:cash.table.amount")}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {outVisible.map((row) => (
+                <TableRow key={row.key}>
+                  <TableCell className={stickyLabelCellClass()}>
+                    <span className={stickyLabelInnerClass("block")}>
+                      {outRowLabel(row, t)}
+                    </span>
+                  </TableCell>
+                  <AmountCell amount={row.outIdr} />
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell className={stickyLabelCellClass("font-medium")}>
+                  <span className={stickyLabelInnerClass("block")}>
+                    {t("reports:cash.outTotal")}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="block font-medium tabular-nums">
+                    {formatIdr(cash.outIdr)}
+                  </span>
+                  {showCompare && cash.compare && (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {t("reports:cash.prevAmount", {
+                        amount: formatIdr(cash.compare.outIdr),
+                      })}
+                    </span>
+                  )}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">
+            {t("reports:cash.billedTitle")}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {t("reports:cash.billedSubtitle")}
+          </p>
+        </div>
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className={stickyLabelCellClass()}>
+                  <span className={stickyLabelInnerClass()}>
+                    {t("reports:cash.table.item")}
+                  </span>
+                </TableHead>
+                <TableHead className="text-right">
+                  {t("reports:cash.table.amount")}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className={stickyLabelCellClass()}>
+                  <span className={stickyLabelInnerClass("block")}>
+                    {t("reports:cash.billedRent")}
+                  </span>
+                </TableCell>
+                <AmountCell amount={billed.rentIdr} />
+              </TableRow>
+              <TableRow data-state={utilitiesOpen ? "selected" : undefined}>
+                <TableCell className={stickyLabelCellClass("font-medium")}>
+                  <button
+                    type="button"
+                    className={cn(
+                      STICKY_LABEL_MAX_CLASS,
+                      "flex min-w-0 items-center gap-1.5 text-left",
+                    )}
+                    aria-expanded={utilitiesOpen}
+                    onClick={() => {
+                      setUtilitiesOpen((open) => !open);
+                    }}
+                  >
+                    <ChevronRightIcon
+                      className={cn(
+                        "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                        utilitiesOpen && "rotate-90",
+                      )}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 truncate">
+                      {t("reports:cash.billedUtilities")}
+                    </span>
+                  </button>
+                </TableCell>
+                <AmountCell amount={billed.utilitiesIdr} />
+              </TableRow>
+              {utilitiesOpen && (
+                <Fragment>
+                  {(
+                    [
+                      ["electricity", billed.electricityIdr],
+                      ["water", billed.waterIdr],
+                      ["maintenance", billed.maintenanceIdr],
+                      ["admin", billed.adminIdr],
+                    ] as const
+                  ).map(([key, amount]) => (
+                    <TableRow key={key}>
+                      <TableCell
+                        className={stickyLabelCellClass(
+                          "pl-8 text-muted-foreground",
+                        )}
+                      >
+                        <span className={stickyLabelInnerClass("block")}>
+                          {t(`reports:cash.billed.${key}`)}
+                        </span>
+                      </TableCell>
+                      <AmountCell amount={amount} muted />
+                    </TableRow>
+                  ))}
+                </Fragment>
+              )}
+              <TableRow>
+                <TableCell className={stickyLabelCellClass("font-medium")}>
+                  <span className={stickyLabelInnerClass("block")}>
+                    {t("reports:cash.billedTotal")}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="block font-medium tabular-nums">
+                    {formatIdr(billed.totalIdr)}
+                  </span>
+                  {billedCompare && (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {t("reports:cash.prevAmount", {
+                        amount: formatIdr(billedCompare.totalIdr),
+                      })}
+                    </span>
+                  )}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        <Link
+          to={expensesHref}
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          {t("reports:cash.manageExpenses")}
+        </Link>
+      </p>
     </section>
   );
 }

@@ -36,6 +36,8 @@
     "earlyConfirmRequired": "Confirm early / late action",
     "invalidStatusTransition": "This action is not allowed now",
     "sourceLockedWithExternalRef": "Source is locked while this stay is linked to an OTA calendar UID",
-    "utilityAddonLimit": "At most 8 add-on fees per electricity or water"
+    "utilityAddonLimit": "At most 8 add-on fees per electricity or water",
+    "noteRequired": "Add a short note",
+    "unitInvalid": "Unit not found on this property"
   }
 }

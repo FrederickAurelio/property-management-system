@@ -16,7 +16,8 @@ NestJS backend (`@cabin/api`). **Source of truth** for units, reservations, avai
 - **Bookability:** Property `isActive` (open for ops) · UnitType `isActive` (offered) · Unit `status` only (`ACTIVE` bookable; no separate unit `isActive`)
 - **Inventory hold:** DAILY busy = `[checkIn, checkOut)`; MONTHLY/YEARLY occupying busy = `[checkIn, FAR)` until `CHECKED_OUT`/`CANCELLED` (`inventoryEndDate`; contract dates unchanged for money/boards/reports)
 - **Property calendar:** `GET /staff/properties/:propertyId/calendar?from&to` — units + paint stays (`CALENDAR_PAINT_RESERVATION_STATUSES`: occupying + `CHECKED_OUT` history; bars span to `inventoryEndDate`) + `CalendarBlock` bars; block CRUD `/staff/calendar-blocks` (`FRONT_DESK+`); overlap still occupying + blocks only
-- **Reports:** `GET /staff/reports/summary?propertyId&from&to&compare=` — cash (movements by property-TZ business date) · occupancy (clip nights, expand units) · source mix · equal-length compare (`ADMIN+`); wire `StaffReportsSummary`
+- **Reports:** `GET /staff/reports/summary?propertyId&from&to&compare=` — cash (guest In mixed; Out = refunds + `PropertyExpense`; billed rent/utilities; guest breakdowns) · occupancy · source mix · equal-length compare (`ADMIN+`); wire `StaffReportsSummary`
+- **Expenses:** `/staff/expenses` CRUD (`ADMIN+`) — operating cash-out ledger (`PropertyExpense`); writes feed Reports Out/Net; wire `StaffPropertyExpense`
 - **Request logs:** `GET /staff/request-logs` — ADMIN+ Loki query (not Postgres); wire `StaffRequestLogsList`; newest 500 HTTP lines; Loki down → 503 `LOGS_UNAVAILABLE`
 - **Dashboard:** `GET /staff/dashboard?propertyId&date?` — today arrivals/departures + needs attention (`FRONT_DESK+`); real board-predicate assemble (cap 8 + honest totals); wire `StaffDashboard`
 - **iCal:** `Unit.icalExportToken` + `UnitIcalFeed`; hub topology (PMS export → OTAs; import each OTA → PMS) — [`_docs/reservations-design.md`](../../_docs/reservations-design.md) §9. Live `GET /public/ical/units/:unitId.ics?token=` (PMS origin proxy); cron + `POST /staff/ical/sync-all`; Accept dates / Accept unit / Dismiss on reservation detail.
@@ -47,7 +48,7 @@ src/common/    → Cross-cutting (http envelope, pagination base, staff mapper h
 | Shared with web later (inventory, availability, **reservations/money**) | `staff/<feature>/` now; `public/<feature>/` in Phase 2 | `domain/<feature>/` **from day one** |
 | Web-only | `public/<feature>/` | `domain/` if reusable, else under `public/` |
 
-Reservations, calendar, reports, iCal follow the same table — **not** a flat audience-neutral `/reservations` controller. Build reservation **schema + domain** for prod staff now (incl. payment summary); public book only adds HTTP later. **No email ingest module.**
+Reservations, calendar, reports, expenses, iCal follow the same table — **not** a flat audience-neutral `/reservations` controller. Build reservation **schema + domain** for prod staff now (incl. payment summary); public book only adds HTTP later. **No email ingest module.**
 
 Rule: [`.cursor/rules/api-audience.mdc`](../../.cursor/rules/api-audience.mdc).
 

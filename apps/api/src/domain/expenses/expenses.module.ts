@@ -1,0 +1,8 @@
+import { Module } from '@nestjs/common';
+import { ExpensesService } from './expenses.service.js';
+
+@Module({
+  providers: [ExpensesService],
+  exports: [ExpensesService],
+})
+export class ExpensesModule {}

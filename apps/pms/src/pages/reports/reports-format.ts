@@ -1,5 +1,6 @@
 import {
   ReservationSource,
+  type StaffReportsCash,
   type StaffReportsCashSourceRow,
   type StaffReportsSourceMixRow,
 } from "@cabin/api-contract";
@@ -52,6 +53,13 @@ export function shareDeltaPp(
 export function pctOfTotal(part: number, total: number): number {
   if (total === 0) return 0;
   return Math.round((part / total) * 1000) / 10;
+}
+
+/** Guest Collect − guest refunds. Expense Out is excluded so source shares still add up. */
+export function guestLedgerNetIdr(
+  cash: Pick<StaffReportsCash, "guestInIdr" | "guestOutIdr">,
+): number {
+  return cash.guestInIdr - cash.guestOutIdr;
 }
 
 const DIRECT_SOURCES: readonly ReservationSource[] = [

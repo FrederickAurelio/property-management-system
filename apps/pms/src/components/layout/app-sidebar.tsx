@@ -64,7 +64,7 @@ export function AppSidebar() {
   });
 
   const manageItems = secondaryNavItems.filter((item) => {
-    if (item.href === "/reports") {
+    if (item.href === "/reports" || item.href === "/expenses") {
       return staff ? canViewReports(staff.role) : false;
     }
     return true;

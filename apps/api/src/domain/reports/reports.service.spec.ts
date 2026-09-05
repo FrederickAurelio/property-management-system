@@ -8,6 +8,8 @@ describe('ReportsService', () => {
   let prisma: {
     property: { findUnique: jest.Mock };
     unit: { findMany: jest.Mock };
+    reservation: { findMany: jest.Mock };
+    propertyExpense: { groupBy: jest.Mock };
     $queryRaw: jest.Mock;
   };
 
@@ -15,6 +17,8 @@ describe('ReportsService', () => {
     prisma = {
       property: { findUnique: jest.fn() },
       unit: { findMany: jest.fn() },
+      reservation: { findMany: jest.fn().mockResolvedValue([]) },
+      propertyExpense: { groupBy: jest.fn().mockResolvedValue([]) },
       $queryRaw: jest.fn().mockResolvedValue([]),
     };
 
@@ -86,6 +90,9 @@ describe('ReportsService', () => {
     expect(summary.occupancyByUnitType).toHaveLength(1);
     expect(summary.occupancyByUnitType[0]?.units[0]?.name).toBe('D1');
     expect(summary.sourceMix).toHaveLength(5);
+    expect(summary.cash.guestInIdr).toBe(0);
+    expect(summary.cash.expenseOutIdr).toBe(0);
+    expect(summary.cash.billed.totalIdr).toBe(0);
     expect(prisma.$queryRaw).toHaveBeenCalled();
   });
 });

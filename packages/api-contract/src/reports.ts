@@ -1,3 +1,4 @@
+import type { PropertyExpenseCategory } from './expenses.js';
 import type { CollectedVia } from './reservations.js';
 import type { ReservationSource } from './reservations.js';
 
@@ -47,11 +48,56 @@ export type StaffReportsCashCompare = {
   netDeltaPct: number | null;
 };
 
+/** Quote billed in the period — not guest cash collected. */
+export type StaffReportsBilled = {
+  rentIdr: number;
+  electricityIdr: number;
+  waterIdr: number;
+  maintenanceIdr: number;
+  adminIdr: number;
+  /** electricity + water + maintenance + admin. */
+  utilitiesIdr: number;
+  totalIdr: number;
+  compare?: {
+    rentIdr: number;
+    electricityIdr: number;
+    waterIdr: number;
+    maintenanceIdr: number;
+    adminIdr: number;
+    utilitiesIdr: number;
+    totalIdr: number;
+  };
+};
+
+export const StaffReportsCashOutKind = {
+  GUEST_REFUND: 'GUEST_REFUND',
+} as const;
+
+export type StaffReportsCashOutKind =
+  | (typeof StaffReportsCashOutKind)[keyof typeof StaffReportsCashOutKind]
+  | PropertyExpenseCategory;
+
+export type StaffReportsCashOutRow = {
+  key: StaffReportsCashOutKind;
+  outIdr: number;
+};
+
 export type StaffReportsCash = {
+  /** Guest Collect IN (mixed rent + utilities). */
   inIdr: number;
+  /** Guest refunds + property expenses. */
   outIdr: number;
   netIdr: number;
-  /** Breakdown order on UI/export: source → unit type → method. */
+  /** Same as `inIdr` — guest ledger only. */
+  guestInIdr: number;
+  /** Guest `PaymentMovement` OUT (refunds). */
+  guestOutIdr: number;
+  /** Property expenses in the period. */
+  expenseOutIdr: number;
+  billed: StaffReportsBilled;
+  /** Guest refunds first, then expense categories (zeros included). */
+  outByCategory: StaffReportsCashOutRow[];
+  /** Guest movements only. `% of net` uses guest net (in − refunds). */
   bySource: StaffReportsCashSourceRow[];
   byUnitType: StaffReportsCashUnitTypeRow[];
   byMethod: StaffReportsCashMethodRow[];

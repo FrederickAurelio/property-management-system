@@ -46,6 +46,10 @@ export const ApiFieldReason = {
    * for ELECTRICITY or WATER, or unknown `utility`.
    */
   UTILITY_ADDON_LIMIT: 'UTILITY_ADDON_LIMIT',
+  /** `OTHER` expense (or similar) needs a note. `field` is `note`. */
+  NOTE_REQUIRED: 'NOTE_REQUIRED',
+  /** Chosen unit is missing or not on this property. `field` is `unitId`. */
+  UNIT_INVALID: 'UNIT_INVALID',
 } as const;
 
 /** Extra fields allowed on delete-conflict `error.details` alongside `field` / `reason`. */
