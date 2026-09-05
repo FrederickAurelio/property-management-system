@@ -27,9 +27,7 @@
   "theme": {
     "light": "Terang",
     "dark": "Gelap",
-    "system": "Sistem",
-    "switchToLight": "Beralih ke mode terang",
-    "switchToDark": "Beralih ke mode gelap"
+    "system": "Sistem"
   },
   "actions": {
     "cancel": "Batal",
@@ -64,9 +62,15 @@
     "nextYear": "Tahun berikutnya"
   },
   "language": {
-    "label": "Bahasa",
     "en": "English",
     "id": "Bahasa Indonesia"
+  },
+  "preferences": {
+    "open": "Preferensi",
+    "title": "Preferensi",
+    "description": "Tema dan bahasa untuk perangkat ini.",
+    "themeGroup": "Tema",
+    "languageGroup": "Bahasa"
   },
   "signOut": "Keluar"
 }

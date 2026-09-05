@@ -10,10 +10,7 @@
   "appearance": {
     "title": "Appearance",
     "description": "Display preference.",
-    "themeLabel": "Theme",
-    "themeDescription": "Light, dark, or match the system",
-    "themeSelectAriaLabel": "Theme",
-    "themeSelectPlaceholder": "Theme"
+    "changePreferences": "Open the preferences menu (top right) to switch theme and language."
   },
   "requestLogs": {
     "title": "Request logs",

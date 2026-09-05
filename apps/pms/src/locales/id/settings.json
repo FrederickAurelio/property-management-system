@@ -10,10 +10,7 @@
   "appearance": {
     "title": "Tampilan",
     "description": "Preferensi tampilan.",
-    "themeLabel": "Tema",
-    "themeDescription": "Terang, gelap, atau ikuti sistem",
-    "themeSelectAriaLabel": "Tema",
-    "themeSelectPlaceholder": "Tema"
+    "changePreferences": "Buka menu preferensi (kanan atas) untuk mengganti tema dan bahasa."
   },
   "requestLogs": {
     "title": "Log permintaan",

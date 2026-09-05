@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AdminRole } from "@cabin/api-contract";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { PreferencesPopover } from "@/components/preferences-popover";
 import { StaffLogoutButton } from "@/components/layout/staff-logout-button";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -13,7 +13,6 @@ import { canViewRequestLogs } from "@/lib/staff-permissions";
 import { ChangePasswordForm } from "./change-password-form";
 import { ChangeUsernameForm } from "./change-username-form";
 import { StaffSection } from "./staff-section";
-import { ThemePreferenceSelect } from "./theme-preference-select";
 
 function SettingsSection({
   title,
@@ -77,27 +76,11 @@ export function SettingsPage() {
         title={t("settings:appearance.title")}
         description={t("settings:appearance.description")}
       >
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-3 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">
-                {t("settings:appearance.themeLabel")}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("settings:appearance.themeDescription")}
-              </p>
-            </div>
-            <ThemePreferenceSelect />
-          </div>
-
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-3 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">
-                {t("common:language.label")}
-              </p>
-            </div>
-            <LanguageSwitcher />
-          </div>
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-3 py-3">
+          <p className="text-sm text-muted-foreground">
+            {t("settings:appearance.changePreferences")}
+          </p>
+          <PreferencesPopover align="end" sideOffset={6} />
         </div>
       </SettingsSection>
 

@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { NavLink, useLocation } from "react-router";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { PreferencesPopover } from "@/components/preferences-popover";
 import {
   Sidebar,
   SidebarContent,
@@ -96,7 +96,15 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <LanguageSwitcher className="px-2 pb-1 group-data-[collapsible=icon]:hidden" />
+        <div className="flex items-center justify-between gap-2 px-2 pb-1 group-data-[collapsible=icon]:hidden">
+          <span className="text-xs text-muted-foreground">
+            {t("preferences.open")}
+          </span>
+          <PreferencesPopover align="end" sideOffset={6} />
+        </div>
+        <div className="hidden justify-end px-2 pb-1 group-data-[collapsible=icon]:flex">
+          <PreferencesPopover align="end" sideOffset={6} />
+        </div>
         {staff && (
           <div className="min-w-0 rounded-md px-2 py-1.5 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-medium">{staff.username}</p>

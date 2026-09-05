@@ -27,9 +27,7 @@
   "theme": {
     "light": "Light",
     "dark": "Dark",
-    "system": "System",
-    "switchToLight": "Switch to light mode",
-    "switchToDark": "Switch to dark mode"
+    "system": "System"
   },
   "actions": {
     "cancel": "Cancel",
@@ -64,9 +62,15 @@
     "nextYear": "Next year"
   },
   "language": {
-    "label": "Language",
     "en": "English",
     "id": "Bahasa Indonesia"
+  },
+  "preferences": {
+    "open": "Preferences",
+    "title": "Preferences",
+    "description": "Theme and language for this device.",
+    "themeGroup": "Theme",
+    "languageGroup": "Language"
   },
   "signOut": "Sign out"
 }
