@@ -25,14 +25,14 @@ import {
   staffPropertiesOptionsQueryKey,
   staffPropertyCalendarQueryKey,
 } from "@/lib/api";
+import { useOtaRemindDialog } from "@/hooks/use-ota-remind-dialog";
 import { readLastPropertyId, writeLastPropertyId } from "@/lib/last-property";
 import { opsTodayYmd, resolvePropertyTimezone } from "@/lib/ops-date";
-import { ReservationFormDialog } from "@/pages/reservations/reservation-form-dialog";
 import type { ChosenUnit } from "@/pages/reservations/chosen-unit";
+import { ReservationFormDialog } from "@/pages/reservations/reservation-form-dialog";
 import { reservationCalendarStateFromSearch } from "@/pages/reservations/reservation-nav";
 import { CalendarBlockSheet } from "./calendar-block-sheet";
 import { CalendarGrid } from "./calendar-grid";
-import { useOtaRemindDialog } from "@/hooks/use-ota-remind-dialog";
 import {
   defaultRangeFromToday,
   formatRangeLabel,
@@ -155,6 +155,8 @@ export function CalendarPage() {
     enabled: Boolean(propertyId),
   });
 
+  const calendarPending = Boolean(propertyId) && calendarQuery.isLoading;
+
   const [createIntent, setCreateIntent] = useState<CreateIntent | null>(null);
   const [blockIntent, setBlockIntent] = useState<BlockIntent | null>(null);
   const { showRefreshImports, remindDialog } = useOtaRemindDialog();
@@ -178,6 +180,10 @@ export function CalendarPage() {
     [],
   );
 
+  const onBlockClick = useCallback((block: StaffCalendarBlock) => {
+    setBlockIntent({ mode: "edit", block });
+  }, []);
+
   const emptyRangeChosen =
     createIntent?.mode === "empty-range"
       ? chosenFromCalendarUnit(createIntent.unit, propertyId, propertyName)
@@ -199,7 +205,7 @@ export function CalendarPage() {
             type="button"
             variant="outline"
             className="min-h-11 sm:min-h-9"
-            disabled={!propertyId}
+            disabled={!propertyId || calendarPending}
             onClick={() => setBlockIntent({ mode: "create" })}
           >
             {t("calendar:page.newBlock")}
@@ -207,7 +213,7 @@ export function CalendarPage() {
           <Button
             type="button"
             className="min-h-11 sm:min-h-9"
-            disabled={!propertyId}
+            disabled={!propertyId || calendarPending}
             onClick={() => setCreateIntent({ mode: "toolbar" })}
           >
             <PlusIcon data-icon="inline-start" />
@@ -245,6 +251,7 @@ export function CalendarPage() {
             size="icon"
             className="size-11 sm:size-9"
             aria-label={t("calendar:page.previousPeriod")}
+            disabled={calendarPending}
             onClick={() => {
               const next = shiftRange(range.from, range.to, -1);
               setChrome(next);
@@ -261,6 +268,7 @@ export function CalendarPage() {
             size="icon"
             className="size-11 sm:size-9"
             aria-label={t("calendar:page.nextPeriod")}
+            disabled={calendarPending}
             onClick={() => {
               const next = shiftRange(range.from, range.to, 1);
               setChrome(next);
@@ -272,6 +280,7 @@ export function CalendarPage() {
             type="button"
             variant="ghost"
             className="min-h-11 sm:min-h-9"
+            disabled={calendarPending}
             onClick={() => {
               const next = defaultRangeFromToday(today);
               setChrome(next);
@@ -296,7 +305,7 @@ export function CalendarPage() {
         </p>
       )}
 
-      {propertyId && calendarQuery.isLoading && (
+      {calendarPending && (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-[min(480px,calc(100svh-17rem))] w-full md:h-[min(480px,calc(100svh-13rem))]" />
@@ -311,14 +320,14 @@ export function CalendarPage() {
         />
       )}
 
-      {calendarQuery.data && (
+      {calendarQuery.data && !calendarPending && (
         <CalendarGrid
           key={`${calendarQuery.data.propertyId}-${calendarQuery.data.from}-${calendarQuery.data.to}`}
           className="max-h-[calc(100svh-17rem)] md:max-h-[calc(100svh-13rem)]"
           data={calendarQuery.data}
           todayYmd={today}
           onStayClick={onStayClick}
-          onBlockClick={(block) => setBlockIntent({ mode: "edit", block })}
+          onBlockClick={onBlockClick}
           onEmptyRange={onEmptyRange}
         />
       )}

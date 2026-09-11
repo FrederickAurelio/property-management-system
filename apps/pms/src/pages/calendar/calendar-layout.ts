@@ -124,6 +124,63 @@ export function barBoxStyle(
   };
 }
 
+/** Map a pointer X onto an equal-width day column. Clamps to `[0, dayCount)`. */
+export function dayIndexFromClientX(
+  clientX: number,
+  trackLeft: number,
+  trackWidth: number,
+  dayCount: number,
+): number {
+  if (dayCount <= 0 || trackWidth <= 0) return 0;
+  const ratio = (clientX - trackLeft) / trackWidth;
+  if (ratio <= 0) return 0;
+  if (ratio >= 1) return dayCount - 1;
+  return Math.min(dayCount - 1, Math.floor(ratio * dayCount));
+}
+
+/** Percent box for a half-open column span `[startIndex, endIndexExclusive)`. */
+export function columnOverlayStyle(
+  startIndex: number,
+  endIndexExclusive: number,
+  dayCount: number,
+): { left: string; width: string } | null {
+  if (dayCount <= 0) return null;
+  const start = Math.max(0, startIndex);
+  const end = Math.min(dayCount, endIndexExclusive);
+  if (start >= end) return null;
+  return {
+    left: `${(start / dayCount) * 100}%`,
+    width: `${((end - start) / dayCount) * 100}%`,
+  };
+}
+
+export function dragOverlayStyle(
+  drag: { anchorYmd: string; hoverYmd: string },
+  days: readonly string[],
+): { left: string; width: string } | null {
+  const a = days.indexOf(drag.anchorYmd);
+  const b = days.indexOf(drag.hoverYmd);
+  if (a < 0 || b < 0) return null;
+  return columnOverlayStyle(Math.min(a, b), Math.max(a, b) + 1, days.length);
+}
+
+/** Vertical day rules without a React node per cell (`border-border/40`). */
+export function dayColumnTrackStyle(dayCount: number):
+  | {
+      backgroundImage: string;
+      backgroundSize: string;
+      backgroundRepeat: "repeat-x";
+    }
+  | undefined {
+  if (dayCount <= 0) return undefined;
+  return {
+    backgroundImage:
+      "linear-gradient(to right, transparent calc(100% - 1px), color-mix(in oklab, var(--border) 40%, transparent) calc(100% - 1px))",
+    backgroundSize: `calc(100% / ${dayCount}) 100%`,
+    backgroundRepeat: "repeat-x",
+  };
+}
+
 export type UnitTypeGroup<TUnit> = {
   key: string;
   label: string;

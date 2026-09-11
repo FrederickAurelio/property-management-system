@@ -1,21 +1,67 @@
+import { lazy } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { PrivateRoute } from "@/components/private-route";
 import { ReportsRoute } from "@/components/reports-route";
 import { RequestLogsRoute } from "@/components/request-logs-route";
 import { AppLayout } from "@/layouts/app-layout";
-import { CalendarPage } from "@/pages/calendar/calendar-page";
 import { HomePage } from "@/pages/home-page";
 import { LoginPage } from "@/pages/login-page";
-import { PropertiesPage } from "@/pages/properties/properties-page";
-import { PropertyExplorerLayout } from "@/pages/properties/property-explorer-layout";
-import { UnitTypesPage } from "@/pages/properties/unit-types-page";
-import { UnitsPage } from "@/pages/properties/units-page";
-import { ReportsPage } from "@/pages/reports/reports-page";
-import { ExpensesPage } from "@/pages/expenses/expenses-page";
-import { RequestLogsPage } from "@/pages/request-logs/request-logs-page";
-import { ReservationDetailPage } from "@/pages/reservations/reservation-detail-page";
-import { ReservationsPage } from "@/pages/reservations/reservations-page";
-import { SettingsPage } from "@/pages/settings/settings-page";
+
+const CalendarPage = lazy(() =>
+  import("@/pages/calendar/calendar-page").then((m) => ({
+    default: m.CalendarPage,
+  })),
+);
+const ReservationsPage = lazy(() =>
+  import("@/pages/reservations/reservations-page").then((m) => ({
+    default: m.ReservationsPage,
+  })),
+);
+const ReservationDetailPage = lazy(() =>
+  import("@/pages/reservations/reservation-detail-page").then((m) => ({
+    default: m.ReservationDetailPage,
+  })),
+);
+const PropertyExplorerLayout = lazy(() =>
+  import("@/pages/properties/property-explorer-layout").then((m) => ({
+    default: m.PropertyExplorerLayout,
+  })),
+);
+const PropertiesPage = lazy(() =>
+  import("@/pages/properties/properties-page").then((m) => ({
+    default: m.PropertiesPage,
+  })),
+);
+const UnitTypesPage = lazy(() =>
+  import("@/pages/properties/unit-types-page").then((m) => ({
+    default: m.UnitTypesPage,
+  })),
+);
+const UnitsPage = lazy(() =>
+  import("@/pages/properties/units-page").then((m) => ({
+    default: m.UnitsPage,
+  })),
+);
+const ReportsPage = lazy(() =>
+  import("@/pages/reports/reports-page").then((m) => ({
+    default: m.ReportsPage,
+  })),
+);
+const ExpensesPage = lazy(() =>
+  import("@/pages/expenses/expenses-page").then((m) => ({
+    default: m.ExpensesPage,
+  })),
+);
+const RequestLogsPage = lazy(() =>
+  import("@/pages/request-logs/request-logs-page").then((m) => ({
+    default: m.RequestLogsPage,
+  })),
+);
+const SettingsPage = lazy(() =>
+  import("@/pages/settings/settings-page").then((m) => ({
+    default: m.SettingsPage,
+  })),
+);
 
 export function AppRoutes() {
   return (

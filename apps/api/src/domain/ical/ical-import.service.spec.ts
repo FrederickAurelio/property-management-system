@@ -3,6 +3,11 @@ import { IcalSyncWarning, ReservationStatus } from '@cabin/api-contract';
 import { IcalImportService } from './ical-import.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import * as overlap from '../reservations/overlap.js';
+import * as icalImportUrl from './ical-import-url.js';
+import {
+  UnsafeIcalImportUrlError,
+  type IcalDnsLookup,
+} from './ical-import-url.js';
 
 const FEED = {
   id: 'feed_1',
@@ -95,11 +100,29 @@ describe('IcalImportService', () => {
     service = moduleRef.get(IcalImportService);
     fetchSpy = jest.spyOn(globalThis, 'fetch');
     jest.spyOn(overlap, 'findOccupyingOverlap').mockResolvedValue(null);
+    const publicLookup: IcalDnsLookup = () =>
+      Promise.resolve([{ address: '93.184.216.34', family: 4 }]);
+    const realFetchIcsText = icalImportUrl.fetchIcsText;
+    jest
+      .spyOn(icalImportUrl, 'fetchIcsText')
+      .mockImplementation((url: string, signal: AbortSignal) =>
+        realFetchIcsText(url, signal, publicLookup),
+      );
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
     jest.restoreAllMocks();
+  });
+
+  it('does not fetch a private import URL', async () => {
+    await expect(
+      service.pullFeed({
+        ...FEED,
+        importUrl: 'http://127.0.0.1/secret.ics',
+      }),
+    ).rejects.toBeInstanceOf(UnsafeIcalImportUrlError);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('sets OTA_STILL_LISTED on CANCELLED when UID returns (does not revive)', async () => {

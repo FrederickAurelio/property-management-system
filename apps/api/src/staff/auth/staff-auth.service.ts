@@ -15,6 +15,14 @@ import { Prisma } from '../../generated/prisma/index.js';
 import type { Admin } from '../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service';
 
+/** Same cost as real hashes so missing/inactive users are not a timing oracle. */
+let dummyPasswordHash: string | undefined;
+
+function dummyCompareHash(): string {
+  dummyPasswordHash ??= bcrypt.hashSync('timing-oracle-dummy', BCRYPT_ROUNDS);
+  return dummyPasswordHash;
+}
+
 @Injectable()
 export class StaffAuthService {
   constructor(private readonly prisma: PrismaService) {}
@@ -31,12 +39,10 @@ export class StaffAuthService {
       where: { username },
     });
 
-    if (!admin || !admin.isActive) {
-      throw new UnauthorizedException('Invalid username or password');
-    }
-
-    const ok = await bcrypt.compare(password, admin.passwordHash);
-    if (!ok) {
+    const hash =
+      admin && admin.isActive ? admin.passwordHash : dummyCompareHash();
+    const ok = await bcrypt.compare(password, hash);
+    if (!admin || !admin.isActive || !ok) {
       throw new UnauthorizedException('Invalid username or password');
     }
 

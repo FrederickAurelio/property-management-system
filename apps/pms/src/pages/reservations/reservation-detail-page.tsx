@@ -43,8 +43,8 @@ import {
   DetailDlRow,
   ReservationDetailSection,
 } from "./reservation-detail-section";
-import { ReservationFormDialog } from "./reservation-form-dialog";
 import { ReservationMoneyBlock } from "./reservation-money-block";
+import { ReservationFormDialog } from "./reservation-form-dialog";
 import { reservationDetailBackHref } from "./reservation-nav";
 import {
   confirmReadinessFromReservation,

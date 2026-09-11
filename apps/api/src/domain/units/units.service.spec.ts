@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiFieldReason, UnitStatus } from '@cabin/api-contract';
 import { UnitsService } from './units.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -111,6 +115,27 @@ describe('UnitsService', () => {
           status: UnitStatus.ACTIVE,
         }),
       ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('rejects loopback iCal import URLs', async () => {
+      prisma.property.findUnique.mockResolvedValue({ id: 'prop_1' });
+      prisma.unitType.findUnique.mockResolvedValue({
+        id: 'type_1',
+        propertyId: 'prop_1',
+      });
+      prisma.unit.aggregate.mockResolvedValue({ _max: { sortOrder: 0 } });
+
+      await expect(
+        service.create('prop_1', {
+          unitTypeId: 'type_1',
+          code: 'X-1',
+          status: UnitStatus.ACTIVE,
+          icalFeeds: [
+            { source: 'AIRBNB', importUrl: 'http://127.0.0.1/feed.ics' },
+          ],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.unit.create).not.toHaveBeenCalled();
     });
   });
 

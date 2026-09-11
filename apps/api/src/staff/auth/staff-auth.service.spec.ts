@@ -79,6 +79,17 @@ describe('StaffAuthService', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it('rejects inactive admin without a distinct error', async () => {
+    prisma.admin.findUnique.mockResolvedValue({
+      ...adminRow,
+      isActive: false,
+    });
+
+    await expect(
+      service.validateCredentials('super', 'password123'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
   describe('changeUsername', () => {
     it('updates username when password is valid', async () => {
       prisma.admin.findUnique.mockResolvedValue(adminRow);

@@ -18,6 +18,10 @@ import {
   toStaffUnit,
 } from '../inventory/inventory-mapper.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  assertIcalImportUrlShape,
+  UnsafeIcalImportUrlError,
+} from '../ical/ical-import-url.js';
 import type { CreateUnitDto } from './dto/create-unit.dto.js';
 import type { ListUnitsQueryDto } from './dto/list-units.query.dto.js';
 import type { UpdateUnitDto } from './dto/update-unit.dto.js';
@@ -245,6 +249,14 @@ export class UnitsService {
         throw new BadRequestException(
           `Invalid iCal feed source ${feed.source}`,
         );
+      }
+      try {
+        assertIcalImportUrlShape(url);
+      } catch (error: unknown) {
+        if (error instanceof UnsafeIcalImportUrlError) {
+          throw new BadRequestException('iCal import URL is not allowed');
+        }
+        throw error;
       }
       out.push({
         source: feed.source,

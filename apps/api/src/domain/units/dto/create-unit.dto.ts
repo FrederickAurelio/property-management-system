@@ -36,6 +36,7 @@ export class UnitIcalFeedInputDto {
     require_protocol: true,
     protocols: ['http', 'https'],
     require_tld: false,
+    disallow_auth: true,
   })
   importUrl!: string;
 }

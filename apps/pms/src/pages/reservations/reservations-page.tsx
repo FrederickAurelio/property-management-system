@@ -51,7 +51,6 @@ import {
   parseReservationListSort,
 } from "./reservation-boards";
 import { ReservationFiltersBar } from "./reservation-filters-bar";
-import { ReservationFormDialog } from "./reservation-form-dialog";
 import { reservationListStateFromSearch } from "./reservation-nav";
 import { parseStayTouchRange } from "./reservation-stay-range";
 import {
@@ -67,6 +66,7 @@ import {
   statusBadgeTone,
   type ReservationLateCue,
 } from "./reservation-format";
+import { ReservationFormDialog } from "./reservation-form-dialog";
 
 const ReservationRowCells = memo(function ReservationRowCells({
   row,

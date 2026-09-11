@@ -16,6 +16,7 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { findOccupyingOverlap } from '../reservations/overlap.js';
 import { parseYmd } from '../reservations/reservations-mapper.js';
+import { fetchIcsText } from './ical-import-url.js';
 
 type ParsedFeedEvent = {
   uid: string;
@@ -579,15 +580,7 @@ export class IcalImportService {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PULL_TIMEOUT_MS);
     try {
-      const res = await fetch(importUrl, {
-        signal: controller.signal,
-        headers: { Accept: 'text/calendar, text/plain, */*' },
-        redirect: 'follow',
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status} fetching feed`);
-      }
-      const text = await res.text();
+      const text = await fetchIcsText(importUrl, controller.signal);
       return this.parseIcs(text, timezone);
     } finally {
       clearTimeout(timer);
