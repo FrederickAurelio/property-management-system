@@ -7,7 +7,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 - Vite + React + TS ready
 - Tailwind CSS v4 (`@tailwindcss/vite`) + Prettier class sort
 - shadcn/ui (radix-nova); import via `@/` → `src/`
-- Declarative React Router (`BrowserRouter`) + TanStack Query providers
+- Declarative React Router (`BrowserRouter` `useTransitions={false}`) + TanStack Query providers
 - Routes: `/login` (public staff login) · `/` private app shell (`PrivateRoute` → `AppLayout` → children) · `/request-logs` ADMIN+
 - Axios API client: `src/lib/api` (session cookies + envelope unwrap + Sonner helpers)
 - RHF + Zod + shadcn `Field` / `Controller` (login + inventory forms wired)
@@ -28,7 +28,7 @@ Staff Property Management UI (`@cabin/pms`). **Phase 1 production frontend** for
 | Concern      | Choice                                                                              |
 | ------------ | ----------------------------------------------------------------------------------- |
 | UI           | React + Vite + TypeScript · Tailwind CSS v4 · shadcn/ui (radix-nova) · Lucide       |
-| Routing      | `react-router` declarative (`BrowserRouter` + `Routes`)                             |
+| Routing      | `react-router` declarative (`BrowserRouter` `useTransitions={false}` + `Routes`); lazy screens → [`PageRouteFallback`](src/components/page-route-fallback.tsx) (do not import page modules into it) |
 | Server state | `@tanstack/react-query`                                                             |
 | HTTP         | `axios` · `baseURL: "/api"` · paths without `/staff` · proxy `/api` → Nest `/staff` |
 | Forms        | `react-hook-form` + `zod` + `@hookform/resolvers` · shadcn `Field` + `Controller`   |

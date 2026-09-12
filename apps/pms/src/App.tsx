@@ -18,7 +18,7 @@ export default function App() {
     >
       <TooltipProvider>
         <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
+          <BrowserRouter useTransitions={false}>
             <UnauthorizedRedirect />
             <AppRoutes />
             <Toaster />

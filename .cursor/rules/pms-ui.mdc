@@ -73,12 +73,14 @@ Locked patterns (key remount vs `onSuccess` clear vs URL hygiene): **[`pms-effec
 
 ## GET / list loading & errors
 
-For query-backed screens (lists, detail fetches):
+Two different waits — do not mix them:
 
-| State | UI |
-|-------|-----|
-| Loading | Prefer **Skeleton** (match layout), not an indefinite blank or spinner-only page |
-| Error (page 1 / detail) | Short message + shared [`QueryRetryButton`](../../apps/pms/src/components/query-retry-button.tsx) calling `refetch` |
+| Wait | UI |
+|------|-----|
+| Lazy route JS (page not mounted) | Shell [`PageRouteFallback`](../../apps/pms/src/components/page-route-fallback.tsx) — shape by path; **do not** import the page module |
+| Query (page mounted, GET in flight) | That screen’s own **Skeleton** (match layout), not an indefinite blank or spinner-only page |
+
+For query-backed screens (lists, detail fetches): error (page 1 / detail) → short message + shared [`QueryRetryButton`](../../apps/pms/src/components/query-retry-button.tsx) calling `refetch`.
 
 ### Infinite scroll footer
 
