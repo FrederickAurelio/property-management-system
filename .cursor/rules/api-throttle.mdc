@@ -23,4 +23,4 @@ When adding or moving an HTTP handler, pick one:
 
 Do **not**: account lockout · Redis · iCal-scale caps on `/staff` · `Retry-After` / remaining counts on credential 429. Envelope: `RATE_LIMITED` (toast, not `setError`).
 
-Numbers + nginx/`trust proxy`: [`apps/api/AGENTS.md`](../../apps/api/AGENTS.md) § Security.
+Numbers live in `throttler.limits.ts`. Cookie / `trust proxy`: [`apps/api/AGENTS.md`](../../apps/api/AGENTS.md).

@@ -1,6 +1,10 @@
 ---
 description: How to write AGENTS.md and .cursor/rules/*.mdc — general patterns, not one-off cases
-alwaysApply: true
+globs:
+  - AGENTS.md
+  - "**/AGENTS.md"
+  - ".cursor/rules/**"
+alwaysApply: false
 ---
 
 # Writing AGENTS.md and `.mdc` rules
@@ -11,7 +15,7 @@ These files guide future humans and agents. Write **reusable patterns**, not a d
 
 - **General over specific.** Encode the *rule* (“shared code for 2+ apps → `packages/`”), not the incident (“don’t copy ApiErrorCode again”).
 - **Rewrite, don’t append.** When decisions change, replace the old section. Never stack “also…” / “we also fixed…”.
-- **One job per file.** Root AGENTS = repo-wide. App/package AGENTS = that app/package only. One `.mdc` = one concern.
+- **One job per file.** Root AGENTS = repo-wide. App/package AGENTS = that folder only. One `.mdc` = one concern.
 - **Locked decisions only.** Stack, phase, hard don’ts, invariants. Skip tutorials, speculation, and chat recap.
 - **Prefer bullets and tables.** Target ~one screen when possible.
 - **Link out** for depth (`_docs/`, package README, another rule). Don’t paste the same wall in three places.

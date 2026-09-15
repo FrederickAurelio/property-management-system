@@ -1,6 +1,12 @@
 ---
 description: Monorepo type-aware ESLint — fake no-unsafe-* floods, workspace package resolution
-alwaysApply: true
+globs:
+  - cabin.code-workspace
+  - .vscode/settings.json
+  - "**/eslint.config.*"
+  - "**/tsconfig*.json"
+  - packages/**/package.json
+alwaysApply: false
 ---
 
 # Monorepo — ESLint types & `no-unsafe-*`
@@ -23,8 +29,6 @@ pnpm --filter @cabin/api typecheck
 | **Red** | Fix real types, build deps, or code bugs. |
 
 IDE Problems must match CLI. CLI wins.
-
-## What the message means
 
 `error typed` = TypeScript could not resolve an import (often `@cabin/api-contract`). ESLint flags every use. Code is usually fine; **resolution** is broken in the IDE language server.
 

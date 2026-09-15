@@ -25,4 +25,4 @@ One Nest API, two HTTP audiences: **staff** (prod PMS Phase 1) and **public** (c
 - Never ship audience-neutral app paths (`/properties`, `/admins`). `/health` is infra-only.
 - Wire types: `Staff*` in `@cabin/api-contract` = staff/PMS shapes. Website gets its own thinner types later — do not treat `Staff*` as the public catalog.
 
-Endpoint tables: [`apps/api/AGENTS.md`](../../apps/api/AGENTS.md). Reservations: [`_docs/reservations-design.md`](../../_docs/reservations-design.md).
+Routes: `src/staff/` and `src/public/` controllers. Stack/conventions: [`apps/api/AGENTS.md`](../../apps/api/AGENTS.md). Domain: [`_docs/reservations-design.md`](../../_docs/reservations-design.md).

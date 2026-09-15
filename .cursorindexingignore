@@ -13,3 +13,11 @@ coverage/
 **/*.jpeg
 **/*.webp
 **/*.mp4
+
+# Impeccable live/cache — agent can still open config.json; don't embed session dumps
+.impeccable/
+**/.impeccable/
+
+# Skill runtime (detectors, live-browser bundles). SKILL.md + reference/*.md stay indexed.
+.cursor/skills/**/scripts/**
+.cursor/skills/**/*.umd.js

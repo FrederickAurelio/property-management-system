@@ -5,13 +5,7 @@ alwaysApply: true
 
 # Monorepo
 
-- Apps: `api` (`@cabin/api` Nest), `pms` (`@cabin/pms` Vite/React/Tailwind/shadcn + `@cabin/ui-tokens`), `web` (`@cabin/web` Phase 2 customer FE — Vite/React/Tailwind/shadcn + `@cabin/ui-tokens` + i18n en/id/zh + prerender/SSG; CDN in front of public origin).
-- Shared libs: `packages/*` — code needed by **2+ apps** (types, constants, pure helpers). Apps depend via `workspace:*`. See `packages/README.md` + `.cursor/rules/monorepo-tooling.mdc`.
-- **pnpm only** from repo root. Never `npm i` inside an app or package.
-- One API only. Product: `AGENTS.md` + `_docs/cabin-pms-client-plan.md`. Reservations/money: `_docs/reservations-design.md`.
-- **Phase 1** = prod staff PMS (`api` + `pms`) for live manual + OTA — incl. reservations + money/DP (`Total` quote + `PaymentMovement` cash ledger; Paid = sum). **Phase 2** = public `web` book FE only (same reservation domain; Nest `/public`). No CM or OTA scraping in Phase 1. Next.js is **not** the default for `web`.
-- Unique-unit calendars. Overlap safety in Postgres. `CONFIRMED` ≠ paid.
-- Tooling pitfalls (pnpm builds, Prisma output, single `.env`, ESLint per app, shared packages): `.cursor/rules/monorepo-tooling.mdc`.
-- Docker: `docker-compose.yml` = VPS stack (postgres+api+pms+web+garage+Loki+Gotenberg; FE `:8080` · web `:3050` · archive S3 `:3900` · archive GET `:3910`; later HTTPS closes those — `deploy/garage/README.md`); `docker-compose.dev.yml` = local Postgres + Garage + optional logs (`pnpm db:up` / `archive:up` / `logs:up`) + optional Gotenberg (`pnpm gotenberg:up`). Deploy on push to `release` via **GHCR** (build on GitHub, pull on VPS); direct-on-VPS backup workflow available.
-- When editing `AGENTS.md` or `.cursor/rules/*.mdc`: **general patterns, not one-off cases** — see root `AGENTS.md` → “How to write…” and `.cursor/rules/agents-writing.mdc`. App rules scale via layered globs — map: `.cursor/rules/README.md`.
-- Open the repo via `cabin.code-workspace` (single folder). Do not add nested app/package folders as extra workspace roots.
+- Apps: `api` (Nest), `pms` (staff Vite), `web` (Phase 2 customer Vite + prerender). Shared: `packages/*` for **2+ apps** (`workspace:*`). **pnpm only** from repo root.
+- One API. **Phase 1** = staff PMS + money/DP (`Total` quote + `PaymentMovement`; Paid = sum). **Phase 2** = public `web` book, same reservation domain (`/public`). No CM, OTA scraping, or email ingest in Phase 1. Next.js is **not** the `web` default.
+- Unique-unit calendars. Overlap in Postgres. `CONFIRMED` ≠ paid.
+- Open [`cabin.code-workspace`](cabin.code-workspace) (single folder). Product: `AGENTS.md` + `_docs/`. Reservations: `_docs/reservations-design.md`. Tooling: [`monorepo-tooling.mdc`](monorepo-tooling.mdc). Compose / ports: `docker-compose.yml` + [`deploy/garage/README.md`](../../deploy/garage/README.md).
