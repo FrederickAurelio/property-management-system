@@ -74,7 +74,7 @@ pnpm --filter @cabin/api dev
 
 One env file: repo root `.env`. Schema: `apps/api/prisma/schema.prisma`. Client: `apps/api/src/generated/prisma` (gitignored). IDE must match `pnpm --filter @cabin/api lint` — [`cabin.code-workspace`](../../cabin.code-workspace).
 
-Seed: `SEED_ADMIN_*` + Skybreeze manifest (`src/scripts/sentraland-inventory.ts`). `SEED_DEMO_INVENTORY=1` on an **existing** DB must **never** overwrite live `electricityRateIdrPerKwh` / `waterRateIdrPerM3` / `maintenanceFeeIdrPerMonth`. Replace inventory: `pnpm --filter @cabin/api import:sentraland-inventory` (`DRY_RUN=1` to preview).
+Seed runs after VPS migrate but **does nothing** unless an env flag is on **and** the table is empty: `SEED_ADMIN` → first SUPER_ADMIN; `SEED_DEMO_INVENTORY` → Skybreeze create **or** fill-if-empty unit-type add-ons / min kWh / admin fee (never live kWh/m³/maintenance rates). Live VPS: leave both flags empty. Replace inventory: `pnpm --filter @cabin/api import:sentraland-inventory` (`DRY_RUN=1` to preview).
 
 ## Security
 

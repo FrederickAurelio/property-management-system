@@ -60,6 +60,7 @@ jobs:
             compose_bootstrap_if_missing
             docker compose up -d --remove-orphans
             bash ./deploy/vps-migrate-deploy.sh
+            # Seed is a no-op unless SEED_ADMIN / SEED_DEMO_INVENTORY is on (and tables empty)
             docker compose exec -T api node dist/scripts/seed.js
 
             for img in cabin-api cabin-pms cabin-web; do

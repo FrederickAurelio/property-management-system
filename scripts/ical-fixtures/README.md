@@ -25,7 +25,7 @@ pnpm ical:fixtures                    # http://localhost:8765/
 
 **PMS setup (one time per demo property)**
 
-1. Login → **Skybreeze Sentraland** (seed inventory: `SEED_DEMO_INVENTORY=true pnpm prisma:seed`).
+1. Login → **Skybreeze Sentraland** (seed: `SEED_ADMIN=true SEED_DEMO_INVENTORY=true pnpm prisma:seed`).
 2. **Properties → Units → B-0801 → Edit → Calendars**
    - Airbnb import URL: `http://localhost:8765/airbnb/unit-a.ics`
    - Booking.com import URL: `http://localhost:8765/booking-com/unit-a.ics` *(OTA mesh demo)*

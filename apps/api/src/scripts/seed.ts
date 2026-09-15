@@ -5,6 +5,7 @@ import {
   createSentralandInventory,
   ensureSkybreezeUtilityDefaults,
 } from './apply-sentraland-inventory';
+import { isEnvFlagOn } from './seed-flags';
 import {
   SENTRALAND_UNIT_COUNT,
   SENTRALAND_UNIT_TYPE_COUNT,
@@ -30,24 +31,27 @@ async function seedSkybreeze(): Promise<void> {
 async function main() {
   const username = process.env.SEED_ADMIN_USERNAME ?? 'superadmin';
   const password = process.env.SEED_ADMIN_PASSWORD ?? 'changeme123';
-  const seedDemoInventory = ['1', 'true', 'yes'].includes(
-    (process.env.SEED_DEMO_INVENTORY ?? '').trim().toLowerCase(),
-  );
+  const seedAdmin = isEnvFlagOn(process.env.SEED_ADMIN);
+  const seedDemoInventory = isEnvFlagOn(process.env.SEED_DEMO_INVENTORY);
 
-  const adminCount = await prisma.admin.count();
-  if (adminCount === 0) {
-    const passwordHash = await bcrypt.hash(password, 12);
-    const admin = await prisma.admin.create({
-      data: {
-        username,
-        passwordHash,
-        role: AdminRole.SUPER_ADMIN,
-        isActive: true,
-      },
-    });
-    console.log(`Seeded SUPER_ADMIN: ${admin.username} (${admin.id})`);
+  if (!seedAdmin) {
+    console.log('SEED_ADMIN off; skip admin seed');
   } else {
-    console.log(`Admin table not empty (${adminCount}); skip admin seed`);
+    const adminCount = await prisma.admin.count();
+    if (adminCount === 0) {
+      const passwordHash = await bcrypt.hash(password, 12);
+      const admin = await prisma.admin.create({
+        data: {
+          username,
+          passwordHash,
+          role: AdminRole.SUPER_ADMIN,
+          isActive: true,
+        },
+      });
+      console.log(`Seeded SUPER_ADMIN: ${admin.username} (${admin.id})`);
+    } else {
+      console.log(`Admin table not empty (${adminCount}); skip admin seed`);
+    }
   }
 
   if (!seedDemoInventory) {

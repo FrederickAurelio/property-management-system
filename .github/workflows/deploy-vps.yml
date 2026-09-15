@@ -183,7 +183,7 @@ jobs:
 
             docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --remove-orphans
             COMPOSE_FILE_ARGS="-f docker-compose.yml -f docker-compose.ci.yml" bash ./deploy/vps-migrate-deploy.sh
-            # Idempotent bootstrap (SUPER_ADMIN + demo inventory if missing)
+            # Seed is a no-op unless SEED_ADMIN / SEED_DEMO_INVENTORY is on (and tables empty)
             docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T api node dist/scripts/seed.js
 
             # Avoid `case … ;;` — appleboy/ssh-action can mangle `;;` into a bash syntax error.

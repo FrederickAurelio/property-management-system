@@ -211,6 +211,7 @@ jobs:
 
             docker compose -f docker-compose.yml -f docker-compose.ci.yml -f docker-compose.domain.yml up -d --remove-orphans
             COMPOSE_FILE_ARGS="-f docker-compose.yml -f docker-compose.ci.yml -f docker-compose.domain.yml" bash ./deploy/vps-migrate-deploy.sh
+            # Seed is a no-op unless SEED_ADMIN / SEED_DEMO_INVENTORY is on (and tables empty)
             docker compose -f docker-compose.yml -f docker-compose.ci.yml -f docker-compose.domain.yml exec -T api node dist/scripts/seed.js
 
             docker images --format '{{.Repository}}:{{.Tag}}' \
